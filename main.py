@@ -32,9 +32,7 @@ from src.output_config import OutputConfig
 from src.timing import ProcessTimer
 from src.types import StfItem
 
-# from src.validation import check_is_valid_page
-
-
+# configuracoes da cli
 def main(
     classe: str = typer.Option(
         "RE", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
@@ -71,6 +69,7 @@ def main(
     output_config = OutputConfig.from_format_string(output_format)
     logging.info(f"Output formats enabled: {output_config}")
 
+    # logging do tempo de processamento
     timer = ProcessTimer()
     all_exported_files = []
 
@@ -82,7 +81,8 @@ def main(
         logging.info(f"Processing {processo_name}")
 
         with get_driver(USER_AGENT) as driver:
-            # Use tenacity for retry logic
+            
+            # reset driver com exponential backoff
             retry_driver_operation(driver, URL, f"loading {processo_name}")
 
             document = find_element_by_xpath(driver, '//*[@id="conteudo"]')
