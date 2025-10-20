@@ -1,20 +1,6 @@
 import logging
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 logger = logging.getLogger(__name__)
-
-
-def check_is_valid_page(driver: WebDriver) -> None:
-    if "CAPTCHA" in driver.page_source:
-        logger.error(f"CAPTCHA detected in {driver.current_url}")
-        raise Exception("CAPTCHA detected")
-    if "403 Forbidden" in driver.page_source:
-        logger.error(f"403 Forbidden detected in {driver.current_url}")
-        raise Exception("403 Forbidden detected")
-    if "502 Bad Gateway" in driver.page_source:
-        logger.error(f"502 Bad Gateway detected in {driver.current_url}")
-        raise Exception("502 Bad Gateway detected")
 
 
 def validate_stf_case_type(case_type: str) -> None:

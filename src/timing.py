@@ -54,9 +54,6 @@ class ProcessTimer:
             avg_duration = min_duration = max_duration = 0
 
         # Log summary
-        logging.info("=" * 80)
-        logging.info("📊 EXTRACTION SUMMARY")
-        logging.info("=" * 80)
         logging.info(f"Total processes: {len(self.process_times)}")
         logging.info(f"Successful: {len(successful_processes)}")
         logging.info(f"Failed: {len(failed_processes)}")
@@ -67,14 +64,6 @@ class ProcessTimer:
             logging.info(f"Fastest process: {min_duration:.2f}s")
             logging.info(f"Slowest process: {max_duration:.2f}s")
 
-        logging.info("=" * 80)
-
-        # Log individual process times
-        logging.info("📋 PROCESS TIMING BREAKDOWN:")
+        logging.info("Process times:")
         for process in self.process_times:
-            status = "✅" if process["success"] else "❌"
-            logging.info(
-                f"  {status} {process['processo']}: {process['duration']:.2f}s"
-            )
-
-        logging.info("=" * 80)
+            logging.info(f"{process['processo']}: {process['duration']:.2f}s")

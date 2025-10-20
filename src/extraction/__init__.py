@@ -215,9 +215,9 @@ def extract_publicidade(soup) -> str | None:
 
 
 @track_extraction_timing
-@handle_extraction_errors(default_value=None, log_errors=True)
-def extract_badges(spider, driver: WebDriver, soup) -> list | None:
-    # Only keep known, stable badges required by tests
+@handle_extraction_errors(default_value=[], log_errors=True)
+def extract_badges(spider, driver: WebDriver, soup) -> list:
+    """Extract badges with original case preserved"""
     try:
         labels: list[str] = []
         for badge in soup.select(".badge"):
@@ -230,7 +230,7 @@ def extract_badges(spider, driver: WebDriver, soup) -> list | None:
                 or "DOENÇA GRAVE" in upper
                 or "DOENCA GRAVE" in upper
             ):
-                labels.append(text)
+                labels.append(text)  # Keep original case
         return labels
     except Exception:
         return []
@@ -374,8 +374,13 @@ def extract_numero_origem(driver: WebDriver, soup) -> list | None:
         if not m:
             return None
         raw = m.group(1).strip()
-        if raw.isdigit():
-            return [int(raw)]
+        # Convert to integer by removing all non-digit characters
+        try:
+            clean_number = re.sub(r"[^\d]", "", raw)
+            if clean_number:
+                return [int(clean_number)]
+        except ValueError:
+            pass
         return [raw]
     except Exception:
         return None
@@ -385,32 +390,42 @@ def extract_numero_origem(driver: WebDriver, soup) -> list | None:
 @handle_extraction_errors(default_value=None, log_errors=True)
 def extract_volumes_folhas_apensos(driver: WebDriver, soup) -> dict | None:
     """Extract volumes, folhas, apensos counters from info boxes."""
-    element = driver.find_element(By.XPATH, '//*[@id="informacoes"]')
-    html_content = element.get_attribute("innerHTML")
-    if html_content:
+    try:
+        element = driver.find_element(By.XPATH, '//*[@id="informacoes"]')
+        html_content = element.get_attribute("innerHTML")
+        if not html_content:
+            return None
+
         s = BeautifulSoup(html_content, "html.parser")
-    else:
+        boxes = s.select(".processo-quadro")
+        result: dict[str, int | None] = {}
+
+        for box in boxes:
+            num_el = box.select_one(".numero")
+            rot_el = box.select_one(".rotulo")
+            if not num_el or not rot_el:
+                continue
+
+            label = rot_el.get_text(strip=True).upper()
+            value = num_el.get_text(strip=True)
+
+            if value.isdigit():
+                value = int(value)
+            elif not value or value.strip() == "":
+                value = None
+            else:
+                continue  # Skip non-numeric values
+
+            if "VOLUME" in label:
+                result["volumes"] = value
+            elif "FOLHA" in label:
+                result["folhas"] = value
+            elif "APENSO" in label:
+                result["apensos"] = value
+
+        return result if result else None
+    except Exception:
         return None
-    boxes = s.select(".processo-quadro")
-    result: dict[str, int | str | None] = {}
-    for box in boxes:
-        num_el = box.select_one(".numero")
-        rot_el = box.select_one(".rotulo")
-        if not num_el or not rot_el:
-            continue
-        label = rot_el.get_text(strip=True).upper()
-        value = num_el.get_text(strip=True)
-        if value.isdigit():
-            value = int(value)
-        elif not value or value.strip() == "":
-            value = None
-        if "VOLUME" in label:
-            result["volumes"] = value
-        elif "FOLHA" in label:
-            result["folhas"] = value
-        elif "APENSO" in label:
-            result["apensos"] = value
-    return result if result else None
 
 
 @track_extraction_timing

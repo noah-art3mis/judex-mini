@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -165,7 +165,7 @@ def print_comparison_results(results: Dict[str, Any]):
 
     # Summary
     summary = results["summary"]
-    print(f"\nSUMMARY:")
+    print("\nSUMMARY:")
     print(f"  Ground Truth Rows: {summary['ground_truth_rows']}")
     print(f"  Scraped Rows: {summary['scraped_rows']}")
     print(f"  Rows Match: {'✓' if summary['rows_match'] else '✗'}")
@@ -178,7 +178,7 @@ def print_comparison_results(results: Dict[str, Any]):
         print(f"MISSING IN GROUND TRUTH: {results['missing_in_ground_truth']}")
 
     # Field comparisons
-    print(f"\nFIELD COMPARISONS:")
+    print("\nFIELD COMPARISONS:")
     print("-" * 80)
 
     matches = 0

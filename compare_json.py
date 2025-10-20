@@ -3,7 +3,7 @@
 Compare generated JSON output with ground truth
 """
 import json
-from typing import Any, Dict, List, Set
+from typing import Any, Dict
 
 
 def load_json(filepath: str) -> Any:
@@ -23,7 +23,7 @@ def compare_structures(ground_truth: Dict[str, Any], generated: Dict[str, Any]) 
     gt_keys = set(ground_truth.keys())
     gen_keys = set(generated.keys())
 
-    print(f"\n📊 STRUCTURE COMPARISON:")
+    print("\n📊 STRUCTURE COMPARISON:")
     print(f"Ground Truth keys: {len(gt_keys)}")
     print(f"Generated keys: {len(gen_keys)}")
 
@@ -32,7 +32,7 @@ def compare_structures(ground_truth: Dict[str, Any], generated: Dict[str, Any]) 
     only_in_gen = gen_keys - gt_keys
     common_keys = gt_keys & gen_keys
 
-    print(f"\n🔍 KEY ANALYSIS:")
+    print("\n🔍 KEY ANALYSIS:")
     print(f"Common keys: {len(common_keys)}")
     print(f"Only in Ground Truth: {len(only_in_gt)}")
     print(f"Only in Generated: {len(only_in_gen)}")
@@ -46,7 +46,7 @@ def compare_structures(ground_truth: Dict[str, Any], generated: Dict[str, Any]) 
     print(f"\n✅ Common fields: {sorted(common_keys)}")
 
     # Compare common fields
-    print(f"\n📋 FIELD COMPARISON:")
+    print("\n📋 FIELD COMPARISON:")
     for key in sorted(common_keys):
         gt_val = ground_truth[key]
         gen_val = generated[key]
@@ -61,11 +61,11 @@ def compare_structures(ground_truth: Dict[str, Any], generated: Dict[str, Any]) 
 
         # Check if values are similar
         if gt_val == gen_val:
-            print(f"   ✅ MATCH")
+            print("   ✅ MATCH")
         elif str(gt_val).strip() == str(gen_val).strip():
-            print(f"   ⚠️  SIMILAR (whitespace difference)")
+            print("   ⚠️  SIMILAR (whitespace difference)")
         else:
-            print(f"   ❌ DIFFERENT")
+            print("   ❌ DIFFERENT")
 
 
 def main():
@@ -83,7 +83,7 @@ def main():
         # Compare structures
         compare_structures(ground_truth, generated)
 
-        print(f"\n" + "=" * 80)
+        print("\n" + "=" * 80)
         print("COMPARISON COMPLETE")
         print("=" * 80)
 

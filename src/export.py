@@ -1,20 +1,23 @@
 import json
-import logging
 import os
 from typing import Union
 
 import pandas as pd
 
 from .output_config import OutputConfig
+from .types import StfItem
 
 
-def export_data(
-    item: dict,
+def export_item(
+    item: StfItem,
     out_file: str,
+    output_dir: str,
     config: Union[OutputConfig, tuple[bool, bool, bool]],
 ) -> list[str]:
     exported_files = []
-    
+
+    os.makedirs(output_dir, exist_ok=True)
+
     # Handle both new OutputConfig and legacy tuple format
     if isinstance(config, OutputConfig):
         save_to_csv = config.csv
