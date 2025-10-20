@@ -1,4 +1,6 @@
-# Judex-mini
+# judex-mini
+
+Extração automatizada de dados de processos do STF.
 
 # Instalação
 
