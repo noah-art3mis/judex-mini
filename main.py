@@ -36,12 +36,24 @@ from src.types import StfItem
 
 
 def main(
-    classe: str = "RE",
-    processo_inicial: int = 1234567,
-    processo_final: int = 1234567,
-    output_format: str = "csv",
-    output_dir: str = "output",
-    log_level: str = "INFO",
+    classe: str = typer.Option(
+        "RE", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
+    ),
+    processo_inicial: int = typer.Option(
+        1234567, "-i", "--processo-inicial", help="Initial process number"
+    ),
+    processo_final: int = typer.Option(
+        1234567, "-f", "--processo-final", help="Final process number"
+    ),
+    output_format: str = typer.Option(
+        "csv", "-o", "--output-format", help="Output format (csv, json)"
+    ),
+    output_dir: str = typer.Option(
+        "output", "-d", "--output-dir", help="Output directory"
+    ),
+    log_level: str = typer.Option(
+        "INFO", "-l", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"
+    ),
 ) -> None:
 
     logging.basicConfig(
@@ -63,15 +75,15 @@ def main(
     all_exported_files = []
 
     for processo in range(processo_inicial, processo_final + 1):
+        URL = f"https://portal.stf.jus.br/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
+
         processo_name = f"{classe} {processo}"
         process_start_time = timer.start_process(processo_name)
         logging.info(f"Processing {processo_name}")
 
-        URL = f"https://portal.stf.jus.br/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
-
         with get_driver(USER_AGENT) as driver:
             # Use tenacity for retry logic
-            retry_driver_operation(driver, URL, f"loading {classe} {processo}")
+            retry_driver_operation(driver, URL, f"loading {processo_name}")
 
             document = find_element_by_xpath(driver, '//*[@id="conteudo"]')
 
@@ -81,7 +93,7 @@ def main(
                 != ""
             ):
                 logging.info(
-                    f"Process found for {classe} {processo} - starting data extraction"
+                    f"Process found for {processo_name} - starting data extraction"
                 )
 
                 # Wait for page to fully load
@@ -130,8 +142,41 @@ def main(
                     html=normalize_spaces(document),
                 )
 
+                # Convert StfItem to dictionary for JSON serialization
+                item_dict = {
+                    "incidente": item.incidente,
+                    "classe": item.classe,
+                    "processo_id": item.processo_id,
+                    "numero_unico": item.numero_unico,
+                    "meio": item.meio,
+                    "publicidade": item.publicidade,
+                    "badges": item.badges,
+                    "assuntos": item.assuntos,
+                    "data_protocolo": item.data_protocolo,
+                    "orgao_origem": item.orgao_origem,
+                    "origem": item.origem,
+                    "numero_origem": item.numero_origem,
+                    "volumes": item.volumes,
+                    "folhas": item.folhas,
+                    "apensos": item.apensos,
+                    "relator": item.relator,
+                    "primeiro_autor": item.primeiro_autor,
+                    "partes": item.partes,
+                    "andamentos": item.andamentos,
+                    "sessao_virtual": item.sessao_virtual,
+                    "deslocamentos": item.deslocamentos,
+                    "peticoes": item.peticoes,
+                    "recursos": item.recursos,
+                    "pautas": item.pautas,
+                    "status": item.status,
+                    "extraido": item.extraido,
+                    "html": item.html,
+                }
+
                 # Export the extracted data
-                exported_files = export_item(item, out_file, output_dir, output_config)
+                exported_files = export_item(
+                    item_dict, out_file, output_dir, output_config
+                )
                 all_exported_files.extend(exported_files)
 
         timer.end_process(processo_name, process_start_time, success=True)
