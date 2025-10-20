@@ -1,26 +1,28 @@
 import logging
 import os
 
-import pandas as pd
 import typer
-from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
 
-import utils.dsl as dsl
-from utils.documents import retry_document_download
-from utils.driver import get_driver, retry_driver_operation
-from utils.get_element import (
-    find_element_by_id,
-    find_element_by_xpath,
-    find_elements_by_class,
+from src.driver import get_driver, retry_driver_operation
+from src.export import export_data
+from src.extraction import (
+    extract_andamentos_legacy,
+    extract_assuntos,
+    extract_data_protocolo,
+    extract_deslocamentos_legacy,
+    extract_incidente,
+    extract_liminar,
+    extract_orgao_origem,
+    extract_origem,
+    extract_partes_total,
+    extract_primeiro_autor_from_partes,
+    extract_relator,
+    extract_tipo_processo,
+    normalize_spaces,
 )
-from utils.validation import check_is_valid_page
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
+from src.get_element import find_element_by_id, find_element_by_xpath
+from src.validation import check_is_valid_page
 
 # Define column names for CSV output
 colunas = [
@@ -52,24 +54,44 @@ def arquivo_existe(arquivo):
 
 
 def main(
-    classe: str = "RE", processo_inicial: int = 1234567, processo_final: int = 1234567
+    classe: str = "RE",
+    processo_inicial: int = 1234567,
+    processo_final: int = 1234567,
+    output_dir: str = "output",
+    log_level: str = "INFO",
+    output_format: str = "csv",
 ) -> None:
 
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    os.makedirs(output_dir, exist_ok=True)
+
     USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-    out_file = f"output/judex-mini_{classe}_{processo_inicial}-{processo_final}"
-    os.makedirs("output", exist_ok=True)
-    save_to_csv = True
-    save_to_jsonl = False
-    
-    processonaoencontrado = 0
+    out_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
+
+    # Parse output format
+    if output_format.lower() == "csv":
+        save_to_csv = True
+        save_to_jsonl = False
+    elif output_format.lower() == "jsonl":
+        save_to_csv = False
+        save_to_jsonl = True
+    elif output_format.lower() == "both":
+        save_to_csv = True
+        save_to_jsonl = True
+    else:
+        raise ValueError(
+            f"Invalid output format: {output_format}. Must be 'csv', 'jsonl', or 'both'"
+        )
+
     request_count = 0
 
     for i in range(processo_inicial, processo_final + 1):
-        if processonaoencontrado > 20:
-            logging.warning("Stopping: 20 consecutive processes not found")
-            break
-
-        processo_num = processo_inicial + i
+        processo_num = i
         logging.info(f"Processing {classe} {processo_num}")
 
         URL = f"https://portal.stf.jus.br/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo_num}"
@@ -79,7 +101,7 @@ def main(
         try:
             with get_driver(USER_AGENT) as driver:
                 # Use tenacity for retry logic
-                retry_driver_operation(driver, URL, f"loading {classe}{processo_num}")
+                retry_driver_operation(driver, URL, f"loading {classe} {processo_num}")
 
                 # Check if page is valid
                 check_is_valid_page(driver)
@@ -94,247 +116,49 @@ def main(
                     != ""
                 ):
                     logging.info(
-                        f"Process found for {classe}{processo_num} - starting data extraction"
+                        f"Process found for {classe} {processo_num} - starting data extraction"
                     )
-                    processonaoencontrado = 0
 
-                    incidente = find_element_by_id(driver, "incidente")
+                    # Parse document with BeautifulSoup for extraction functions
+                    soup = BeautifulSoup(document, "html.parser")
 
+                    # Get basic process information
                     nome_processo = find_element_by_id(driver, "classe-numero-processo")
-
-                    classe_extenso = find_element_by_xpath(
-                        driver,
-                        '//*[@id="texto-pagina-interna"]/div/div/div/div[2]/div[1]/div/div[1]',
-                    )
-
                     titulo_processo = find_element_by_xpath(
                         driver, '//*[@id="texto-pagina-interna"]/div/div/div/div[1]'
                     )
 
-                    if "Processo Físico" in document:
-                        tipo_processo = "Físico"
-                    elif "Processo Eletrônico" in document:
-                        tipo_processo = "Eletrônico"
-                    else:
-                        tipo_processo = "NA"
-
-                    liminar = []
-                    if "bg-danger" in titulo_processo:
-                        liminar0 = find_elements_by_class(driver, "bg-danger")
-                        for item in liminar0:
-                            liminar.append(item.text)
-                    else:
-                        liminar = []
-
-                    try:
-                        origem = find_element_by_xpath(
-                            driver, '//*[@id="descricao-procedencia"]'
-                        )
-                        origem = dsl.clext(origem, ">", "<") if origem else "NA"
-                    except Exception:
-                        origem = "NA"
-
-                    try:
-                        relator = dsl.clext(document, "Relator(a): ", "<")
-                    except Exception:
-                        relator = "NA"
-
-                    partes_tipo = find_elements_by_class(driver, "detalhe-parte")
-                    partes_nome = find_elements_by_class(driver, "nome-parte")
-
-                    partes_total = []
-                    index = 0
-                    primeiro_autor = "NA"
-                    for n in range(len(partes_tipo)):
-                        index = index + 1
-                        tipo = partes_tipo[n].get_attribute("innerHTML")
-                        nome_parte = partes_nome[n].get_attribute("innerHTML")
-                        if index == 1:
-                            primeiro_autor = nome_parte
-
-                        parte_info = {"_index": index, "tipo": tipo, "nome": nome_parte}
-
-                        partes_total.append(parte_info)
-
-                    data_protocolo = dsl.clean(
-                        find_element_by_xpath(
-                            driver,
-                            '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]/div[2]',
-                        )
-                    )
-
-                    origem_orgao = dsl.clean(
-                        find_element_by_xpath(
-                            driver,
-                            '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]/div[4]',
-                        )
-                    )
-
-                    assuntos = find_element_by_xpath(
-                        driver, '//*[@id="informacoes-completas"]/div[1]/div[2]'
-                    ).split("<li>")[1:]
-                    lista_assuntos = []
-
-                    for assunto in assuntos:
-                        lista_assuntos.append(dsl.clext(assunto, "", "</"))
-
-                    # resumo = find_element_by_xpath(
-                    #     driver,
-                    #     "/html/body/div[1]/div[2]/section/div/div/div/div/div/div/div[2]/div[1]",
-                    # )
-
-                    andamentos = find_elements_by_class(driver, "andamento-item")
-                    andamentos_lista = []
-                    andamentos_decisórios = []
-                    html_andamentos = []
-                    for n in range(len(andamentos)):
-                        index = len(andamentos) - n
-                        andamento = andamentos[n]
-                        html = andamento.get_attribute("innerHTML")
-
-                        html_andamentos.append(html)
-
-                        # if "andamento-invalido" in html:
-                        #     and_tipo = "invalid"
-                        # else:
-                        #     and_tipo = "valid"
-
-                        and_data = andamento.find_element(
-                            By.CLASS_NAME, "andamento-data"
-                        ).text
-                        and_nome = andamento.find_element(
-                            By.CLASS_NAME, "andamento-nome"
-                        ).text
-                        and_complemento = andamento.find_element(
-                            By.CLASS_NAME, "col-md-9"
-                        ).text
-
-                        if html and "andamento-julgador badge bg-info" in html:
-                            and_julgador = andamento.find_element(
-                                By.CLASS_NAME, "andamento-julgador"
-                            ).text
-                        else:
-                            and_julgador = "NA"
-
-                        if html and "href" in html:
-                            and_link = dsl.ext(html, 'href="', '"')
-                            and_link = (
-                                "https://portal.stf.jus.br/processos/"
-                                + and_link.replace("amp;", "")
+                    # Extract data using extraction functions
+                    item = {
+                        "incidente": extract_incidente(soup),
+                        "nome_processo": normalize_spaces(nome_processo),
+                        "classe_extenso": normalize_spaces(
+                            find_element_by_xpath(
+                                driver,
+                                '//*[@id="texto-pagina-interna"]/div/div/div/div[2]/div[1]/div/div[1]',
                             )
-                        else:
-                            and_link = "NA"
+                        ),
+                        "titulo_processo": normalize_spaces(titulo_processo),
+                        "tipo_processo": extract_tipo_processo(soup),
+                        "liminar": extract_liminar(driver, titulo_processo),
+                        "origem": extract_origem(driver, soup),
+                        "relator": extract_relator(soup),
+                        "partes_total": extract_partes_total(driver),
+                        "primeiro_autor": extract_primeiro_autor_from_partes(
+                            extract_partes_total(driver)
+                        ),
+                        "data_protocolo": extract_data_protocolo(driver, soup),
+                        "origem_orgao": extract_orgao_origem(driver, soup),
+                        "lista_assuntos": extract_assuntos(driver, soup),
+                        "andamentos": extract_andamentos_legacy(driver),
+                        "deslocamentos": extract_deslocamentos_legacy(driver),
+                    }
 
-                        if html and "fa-file-alt" in html:
-                            and_link_tipo = andamento.find_element(
-                                By.CLASS_NAME, "fa-file-alt"
-                            ).text
-                        else:
-                            and_link_tipo = "NA"
-
-                        if html and "fa-download" in html:
-                            and_link_tipo = andamento.find_element(
-                                By.CLASS_NAME, "fa-download"
-                            ).text
-                        else:
-                            and_link_tipo = "NA"
-
-                        # Use tenacity retry for document downloads
-                        try:
-                            and_link_conteudo = retry_document_download(
-                                and_link, and_link_tipo
-                            )
-                        except Exception as e:
-                            logging.warning(
-                                f"Failed to download document after retries: {e}"
-                            )
-                            and_link_conteudo = "Exception"
-
-                        andamento_dados = {
-                            "index": index,
-                            "data": and_data,
-                            "nome": and_nome,
-                            "complemento": and_complemento,
-                            "julgador": and_julgador,
-                            "link": and_link,
-                            "link_tipo": and_link_tipo,
-                            "link_conteúdo": and_link_conteudo,
-                        }
-
-                        andamentos_lista.append(andamento_dados)
-                        if and_julgador != "NA":
-                            andamentos_decisórios.append(andamento_dados)
-
-                    deslocamentos_info = driver.find_element(
-                        By.XPATH, '//*[@id="deslocamentos"]'
-                    )
-                    deslocamentos = deslocamentos_info.find_elements(
-                        By.CLASS_NAME, "lista-dados"
-                    )
-                    deslocamentos_lista = []
-                    htmld = "NA"
-                    for n in range(len(deslocamentos)):
-                        index = len(deslocamentos) - n
-                        deslocamento = deslocamentos[n]
-                        htmld = deslocamento.get_attribute("innerHTML")
-
-                        enviado = dsl.clext(htmld, '"processo-detalhes-bold">', "<")
-                        recebido = dsl.clext(htmld, '"processo-detalhes">', "<")
-
-                        if htmld and 'processo-detalhes bg-font-success">' in htmld:
-                            data_recebido = dsl.ext(
-                                htmld, 'processo-detalhes bg-font-success">', "<"
-                            )
-                        else:
-                            data_recebido = "NA"
-
-                        guia = dsl.clext(
-                            htmld,
-                            'text-right">\n                <span class="processo-detalhes">',
-                            "<",
-                        )
-
-                        deslocamento_dados = {
-                            "index": index,
-                            "data_recebido": data_recebido,
-                            "enviado por": enviado,
-                            "recebido por": recebido,
-                            "gruia": guia,
-                        }
-
-                        deslocamentos_lista.append(deslocamento_dados)
-
-                    # Define os dados a gravar, criando uma lista com as variáveis
-                    dados_a_gravar = [
-                        incidente,
-                        classe,
-                        nome_processo,
-                        classe_extenso,
-                        tipo_processo,
-                        liminar,
-                        origem,
-                        relator,
-                        primeiro_autor,
-                        len(partes_total),
-                        dsl.js(partes_total),
-                        data_protocolo,
-                        origem_orgao,
-                        lista_assuntos,
-                        # resumo,
-                        len(andamentos_lista),
-                        dsl.js(andamentos_lista),
-                        len(andamentos_decisórios),
-                        dsl.js(andamentos_decisórios),
-                        len(deslocamentos_lista),
-                        dsl.js(deslocamentos_lista),
-                    ]
-
-                export_data(dados_a_gravar, out_file, save_to_csv, save_to_jsonl)
-
+                    # Export the extracted data
+                    export_data(item, out_file, save_to_csv, save_to_jsonl)
 
         except Exception as e:
             logging.error(f"Error processing {classe} {processo_num}: {e}")
-            processonaoencontrado += 1
 
 
 if __name__ == "__main__":
