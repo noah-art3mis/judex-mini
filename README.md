@@ -13,10 +13,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 sudo apt install chromium-chromedriver
 
 # clonar repositório
-git clone https://github.com/noah-art3mis/judex
+git clone https://github.com/noah-art3mis/judex-mini
 
 # baixar dependências
-cd judex && uv sync
+cd judex-mini && uv sync
 ```
 
 ## Uso
