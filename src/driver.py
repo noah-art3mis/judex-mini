@@ -45,7 +45,7 @@ def get_driver(user_agent: str):
 )
 def retry_driver_operation(driver, URL, operation_name="operation"):
     """Retry driver operations with exponential backoff."""
-    logging.info(f"Attempting {operation_name} for URL: {URL}")
+    logging.info(f"Attempting {operation_name}")
 
     driver.get(URL)
     time.sleep(3)

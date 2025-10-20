@@ -22,6 +22,8 @@ from src.extraction import (
     normalize_spaces,
 )
 from src.get_element import find_element_by_id, find_element_by_xpath
+from src.output_config import OutputConfig
+from src.timing import ProcessTimer
 from src.validation import check_is_valid_page
 
 # Define column names for CSV output
@@ -57,9 +59,9 @@ def main(
     classe: str = "RE",
     processo_inicial: int = 1234567,
     processo_final: int = 1234567,
+    output_format: str = "csv",
     output_dir: str = "output",
     log_level: str = "INFO",
-    output_format: str = "csv",
 ) -> None:
 
     logging.basicConfig(
@@ -74,25 +76,18 @@ def main(
     out_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
 
     # Parse output format
-    if output_format.lower() == "csv":
-        save_to_csv = True
-        save_to_jsonl = False
-    elif output_format.lower() == "jsonl":
-        save_to_csv = False
-        save_to_jsonl = True
-    elif output_format.lower() == "both":
-        save_to_csv = True
-        save_to_jsonl = True
-    else:
-        raise ValueError(
-            f"Invalid output format: {output_format}. Must be 'csv', 'jsonl', or 'both'"
-        )
+    output_config = OutputConfig.from_format_string(output_format)
+    logging.info(f"📋 Output formats enabled: {output_config}")
 
     request_count = 0
+    timer = ProcessTimer()
+    all_exported_files = []
 
     for i in range(processo_inicial, processo_final + 1):
         processo_num = i
-        logging.info(f"Processing {classe} {processo_num}")
+        processo_name = f"{classe} {processo_num}"
+        process_start_time = timer.start_process(processo_name)
+        logging.info(f"Processing {processo_name}")
 
         URL = f"https://portal.stf.jus.br/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo_num}"
         request_count += 1
@@ -153,10 +148,30 @@ def main(
                     }
 
                     # Export the extracted data
-                    export_data(item, out_file, save_to_csv, save_to_jsonl)
+                    exported_files = export_data(item, out_file, output_config)
+                    all_exported_files.extend(exported_files)
 
         except Exception as e:
-            logging.error(f"Error processing {classe} {processo_num}: {e}")
+            logging.error(f"Error processing {processo_name}: {e}")
+            timer.end_process(processo_name, process_start_time, success=False)
+            continue
+
+        # Mark as successful
+        timer.end_process(processo_name, process_start_time, success=True)
+
+    # Log completion of all processes
+    logging.info("🎉 Finished processing all processes!")
+
+    # Log comprehensive timing summary
+    timer.log_summary()
+
+    # Log exported files summary
+    if all_exported_files:
+        logging.info("📁 EXPORTED FILES:")
+        for file_info in all_exported_files:
+            logging.info(f"  {file_info}")
+    else:
+        logging.info("📁 No files were exported (no successful processes)")
 
 
 if __name__ == "__main__":

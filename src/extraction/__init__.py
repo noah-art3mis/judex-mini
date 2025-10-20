@@ -1,3 +1,5 @@
+# Import from the new modular structure
+# Legacy imports for backward compatibility
 import functools
 import logging
 import re
@@ -8,16 +10,23 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-
-def normalize_spaces(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def clean_text(text: str) -> str:
-    """Clean text by normalizing whitespace"""
-    if not text:
-        return ""
-    return " ".join(text.split())
+from .functions import (
+    extract_andamentos,
+    extract_assuntos,
+    extract_data_protocolo,
+    extract_deslocamentos,
+    extract_incidente,
+    extract_liminar,
+    extract_orgao_origem,
+    extract_origem,
+    extract_partes,
+    extract_primeiro_autor,
+    extract_relator,
+    extract_tipo_processo,
+    handle_extraction_errors,
+    normalize_spaces,
+    track_extraction_timing,
+)
 
 
 def track_extraction_timing(func: Callable) -> Callable:
@@ -255,7 +264,7 @@ def extract_origem(driver: WebDriver, soup) -> str | None:
     """Extract origem from descricao-procedencia span"""
     try:
         element = driver.find_element(By.ID, "descricao-procedencia")
-        return clean_text(element.text)
+        return normalize_spaces(element.text)
     except Exception as e:
         logging.warning(f"Could not extract origem: {e}")
         return None
@@ -273,7 +282,7 @@ def extract_primeiro_autor(driver: WebDriver, soup) -> str | None:
         partes_nome = driver.find_elements(By.CLASS_NAME, "nome-parte")
         if partes_nome:
             primeiro_autor = partes_nome[0].get_attribute("innerHTML")
-            return clean_text(primeiro_autor)
+            return normalize_spaces(primeiro_autor)
         return None
     except Exception as e:
         logging.warning(f"Could not extract primeiro_autor: {e}")
@@ -296,8 +305,8 @@ def extract_partes(driver: WebDriver, soup) -> list:
         partes_list: list[dict] = []
         i = 0
         while i + 1 < len(elementos):
-            tipo_text = clean_text(elementos[i].text)
-            nome_text = clean_text(elementos[i + 1].text)
+            tipo_text = normalize_spaces(elementos[i].text)
+            nome_text = normalize_spaces(elementos[i + 1].text)
 
             # Advance by 2 for next pair
             i += 2
@@ -326,7 +335,7 @@ def extract_data_protocolo(driver: WebDriver, soup) -> str | None:
         element = driver.find_element(
             By.XPATH, '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]/div[2]'
         )
-        data_text = clean_text(element.text)
+        data_text = normalize_spaces(element.text)
 
         if not data_text:
             return None
@@ -345,7 +354,7 @@ def extract_orgao_origem(driver: WebDriver, soup) -> str | None:
         element = driver.find_element(
             By.XPATH, '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]/div[4]'
         )
-        return clean_text(element.text)
+        return normalize_spaces(element.text)
     except Exception:
         return None
 
@@ -358,7 +367,7 @@ def extract_numero_origem(driver: WebDriver, soup) -> list | None:
         element = driver.find_element(
             By.XPATH, '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]'
         )
-        text = clean_text(element.text)
+        text = normalize_spaces(element.text)
         import re
 
         m = re.search(r"Número de Origem:\s*([0-9\./-]+)", text, re.IGNORECASE)
@@ -441,7 +450,7 @@ def extract_andamentos(driver: WebDriver, soup) -> list:
                 data = andamento.find_element(By.CLASS_NAME, "andamento-data").text
                 nome_raw = andamento.find_element(By.CLASS_NAME, "andamento-nome").text
                 # Normalize nome and remove trailing ", GUIA N..." artifacts when present
-                nome = clean_text(nome_raw)
+                nome = normalize_spaces(nome_raw)
                 try:
                     import re
 
@@ -452,7 +461,7 @@ def extract_andamentos(driver: WebDriver, soup) -> list:
                 except Exception:
                     pass
                 complemento_raw = andamento.find_element(By.CLASS_NAME, "col-md-9").text
-                complemento = clean_text(complemento_raw)
+                complemento = normalize_spaces(complemento_raw)
                 if not complemento:
                     complemento = None
 
@@ -482,7 +491,7 @@ def extract_andamentos(driver: WebDriver, soup) -> list:
                                 )
                         text = a.text
                         if text:
-                            link_descricao = clean_text(text)
+                            link_descricao = normalize_spaces(text)
                             if link_descricao:
                                 link_descricao = link_descricao.upper()
                 except Exception:
@@ -576,7 +585,7 @@ def extract_deslocamentos(driver: WebDriver, soup) -> list:
 
                 # Clean data_recebido - remove extra text, keep only date
                 if data_recebido is not None:
-                    data_recebido = clean_text(data_recebido)
+                    data_recebido = normalize_spaces(data_recebido)
                     # Remove common prefixes/suffixes
                     data_recebido = (
                         data_recebido.replace("Recebido em ", "")
@@ -586,7 +595,7 @@ def extract_deslocamentos(driver: WebDriver, soup) -> list:
 
                 # Clean data_enviado - remove extra text, keep only date
                 if data_enviado is not None:
-                    data_enviado = clean_text(data_enviado)
+                    data_enviado = normalize_spaces(data_enviado)
                     # Remove common prefixes/suffixes
                     data_enviado = (
                         data_enviado.replace("Enviado em ", "")
@@ -597,7 +606,7 @@ def extract_deslocamentos(driver: WebDriver, soup) -> list:
                 # Extract date from enviado_por text and clean it
                 enviado_por_clean = enviado_raw
                 if enviado_raw is not None:
-                    enviado_por_clean = clean_text(enviado_raw)
+                    enviado_por_clean = normalize_spaces(enviado_raw)
                     # Extract date from "Enviado por X em DD/MM/YYYY" format
                     date_match = re.search(r"em (\d{2}/\d{2}/\d{4})", enviado_por_clean)
                     if date_match and data_enviado is None:
@@ -611,7 +620,7 @@ def extract_deslocamentos(driver: WebDriver, soup) -> list:
                 # Extract date from recebido_por text and clean it
                 recebido_por_clean = recebido_raw
                 if recebido_raw is not None:
-                    recebido_por_clean = clean_text(recebido_raw)
+                    recebido_por_clean = normalize_spaces(recebido_raw)
                     # Extract date from "Recebido por X em DD/MM/YYYY" format
                     date_match = re.search(
                         r"em (\d{2}/\d{2}/\d{4})", recebido_por_clean
@@ -628,7 +637,7 @@ def extract_deslocamentos(driver: WebDriver, soup) -> list:
 
                 # Clean guia - remove extra text, keep only number
                 if guia is not None:
-                    guia = clean_text(guia)
+                    guia = normalize_spaces(guia)
                     # Remove common prefixes/suffixes (with and without colon)
                     guia = (
                         guia.replace("Guia: ", "")
@@ -700,13 +709,13 @@ def extract_peticoes(driver: WebDriver, soup) -> list:
 
                 # Clean the extracted data
                 if data is not None:
-                    data = clean_text(data)
+                    data = normalize_spaces(data)
                 if tipo is not None:
-                    tipo = clean_text(tipo)
+                    tipo = normalize_spaces(tipo)
                 if autor is not None:
-                    autor = clean_text(autor)
+                    autor = normalize_spaces(autor)
                 if recebido is not None:
-                    recebido = clean_text(recebido)
+                    recebido = normalize_spaces(recebido)
 
                 # Parse recebido into recebido_data and recebido_por
                 recebido_data = None
@@ -796,15 +805,15 @@ def extract_pautas(driver: WebDriver, soup) -> list:
                                 re.IGNORECASE,
                             )
                             if relator_match:
-                                relator = clean_text(relator_match.group(1))
+                                relator = normalize_spaces(relator_match.group(1))
                     except Exception:
                         pass
 
                     pauta_data = {
                         "index": i + 1,
-                        "data": clean_text(data_element.text),
-                        "nome": clean_text(nome_element.text),
-                        "complemento": clean_text(complemento_element.text),
+                        "data": normalize_spaces(data_element.text),
+                        "nome": normalize_spaces(nome_element.text),
+                        "complemento": normalize_spaces(complemento_element.text),
                         "relator": relator,
                     }
                     pautas_list.append(pauta_data)
@@ -838,7 +847,7 @@ def extract_sessao_virtual(driver: WebDriver, soup) -> list:
         # Try to extract basic session info
         try:
             data_element = sessao_info.find_element(By.CLASS_NAME, "processo-detalhes")
-            item["data"] = clean_text(data_element.text)
+            item["data"] = normalize_spaces(data_element.text)
         except Exception:
             pass
 
@@ -846,7 +855,7 @@ def extract_sessao_virtual(driver: WebDriver, soup) -> list:
             tipo_element = sessao_info.find_element(
                 By.CLASS_NAME, "processo-detalhes-bold"
             )
-            item["tipo"] = clean_text(tipo_element.text)
+            item["tipo"] = normalize_spaces(tipo_element.text)
         except Exception:
             pass
 
