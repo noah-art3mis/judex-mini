@@ -7,16 +7,16 @@ from bs4 import BeautifulSoup
 from src.driver import get_driver, retry_driver_operation
 from src.export import export_data
 from src.extraction import (
-    extract_andamentos_legacy,
+    extract_andamentos,
     extract_assuntos,
     extract_data_protocolo,
-    extract_deslocamentos_legacy,
+    extract_deslocamentos,
     extract_incidente,
     extract_liminar,
     extract_orgao_origem,
     extract_origem,
-    extract_partes_total,
-    extract_primeiro_autor_from_partes,
+    extract_partes,
+    extract_primeiro_autor,
     extract_relator,
     extract_tipo_processo,
     normalize_spaces,
@@ -143,15 +143,13 @@ def main(
                         "liminar": extract_liminar(driver, titulo_processo),
                         "origem": extract_origem(driver, soup),
                         "relator": extract_relator(soup),
-                        "partes_total": extract_partes_total(driver),
-                        "primeiro_autor": extract_primeiro_autor_from_partes(
-                            extract_partes_total(driver)
-                        ),
+                        "partes_total": extract_partes(driver, soup),
+                        "primeiro_autor": extract_primeiro_autor(driver, soup),
                         "data_protocolo": extract_data_protocolo(driver, soup),
                         "origem_orgao": extract_orgao_origem(driver, soup),
                         "lista_assuntos": extract_assuntos(driver, soup),
-                        "andamentos": extract_andamentos_legacy(driver),
-                        "deslocamentos": extract_deslocamentos_legacy(driver),
+                        "andamentos": extract_andamentos(driver, soup),
+                        "deslocamentos": extract_deslocamentos(driver, soup),
                     }
 
                     # Export the extracted data
