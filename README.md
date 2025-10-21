@@ -44,8 +44,9 @@ Para testar:
 uv run main.py --overwrite
 
 # teste automatico com processo customizado
-# requer que haja um arquivo equivalente em tests/ground_truth/RE_1234567.json
-uv run main.py -c RE -i 1234567 -f 1234567 --test
+# requer output em json
+# requer que haja um arquivo equivalente (e.g. tests/ground_truth/RE_1234567.json)
+uv run main.py -c RE -i 1234567 -f 1234567 --test -o
 ```
 
 ## Repository Documentation

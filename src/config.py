@@ -20,8 +20,7 @@ class ScraperConfig:
     # Timeouts & Delays
     webdriver_timeout: int = 10
     initial_delay: float = 1
-    driver_sleep_time: float = 1
-    always_wait_time: float = 2
+    driver_sleep_time: float = 3
     driver_max_retries_for_missing: int = 5
 
     # Retry Configuration - Driver

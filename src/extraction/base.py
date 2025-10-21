@@ -8,7 +8,6 @@ import time
 from typing import Callable
 
 # Import normalize_spaces from text_utils instead of defining it here
-from ..utils.text_utils import normalize_spaces
 
 
 def track_extraction_timing(func: Callable) -> Callable:

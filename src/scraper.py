@@ -3,7 +3,6 @@ Main scraping logic for JUDEX MINI
 """
 
 import logging
-import time
 from datetime import datetime
 from typing import List, Optional
 
@@ -35,10 +34,8 @@ from src.extraction import (
     extract_volumes,
 )
 from src.utils.driver import get_driver, load_page_with_retry
-from src.utils.get_element import find_element_by_xpath
 from src.utils.text_utils import normalize_spaces
 from src.utils.timing import ProcessTimer
-from src.utils.validation import is_valid_process
 
 
 def run_scraper(
@@ -96,6 +93,7 @@ def run_scraper(
             f"{classe} {processo_inicial}-{processo_final}: NO FILES EXPORTED"
         )
 
+
 def process_batch(
     processos: list,
     classe: str,
@@ -129,6 +127,7 @@ def process_batch(
 
     return all_exported_files
 
+
 def process_single_process(
     processo: int, classe: str, config: ScraperConfig
 ) -> Optional[StfItem]:
@@ -139,25 +138,12 @@ def process_single_process(
     # context manager -- handles closing the driver
     with get_driver(config.user_agent) as driver:
         try:
-            load_page_with_retry(driver, URL, f"{processo_name}: loading", config)
+            document = load_page_with_retry(driver, URL, processo_name, config)
         except Exception as e:
             logging.error(f"Error loading {processo_name}: {e}")
             return None
 
-        time.sleep(config.always_wait_time)
-        document = find_element_by_xpath(
-            driver,
-            '//*[@id="conteudo"]',
-            initial_delay=config.initial_delay,
-            timeout=config.webdriver_timeout,
-        )
-
-        if not is_valid_process(driver, document, processo_name, config):
-            return None
-
-        logging.info(f"{processo_name}: start extraction")
         soup = BeautifulSoup(document, "html.parser")
-
         data = extract_processo(driver, soup, classe, processo, config)
         return data
 
