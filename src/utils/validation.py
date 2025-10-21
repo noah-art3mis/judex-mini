@@ -1,4 +1,10 @@
 import logging
+import os
+
+import pandas as pd
+
+from src.config import ScraperConfig
+from src.utils.get_element import find_element_by_xpath
 
 logger = logging.getLogger(__name__)
 
@@ -6,6 +12,30 @@ logger = logging.getLogger(__name__)
 def validate_stf_case_type(case_type: str) -> None:
     if case_type not in STF_CASE_TYPES:
         raise ValueError(f"Invalid STF case type: {case_type}")
+
+def is_valid_process(
+    driver, document: str, processo_name: str, config: ScraperConfig
+) -> bool:
+    """Check if process is valid and should be processed."""
+    if "Processo não encontrado" in document:
+        logging.warning(f"{processo_name}: Processo não encontrado -- skipping")
+        return False
+
+    if (
+        find_element_by_xpath(
+            driver,
+            '//*[@id="descricao-procedencia"]',
+            initial_delay=config.initial_delay,
+            timeout=config.webdriver_timeout,
+        )
+        == ""
+    ):
+        logging.warning(
+            f"{processo_name}: descricao-procedencia não encontrado -- skipping"
+        )
+        return False
+
+    return True
 
 
 STF_CASE_TYPES = frozenset(

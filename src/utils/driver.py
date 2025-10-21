@@ -53,7 +53,7 @@ def create_retry_decorator(config: ScraperConfig):
     )
 
 
-def retry_driver_operation(
+def load_page_with_retry(
     driver, URL, operation_name="operation", config: Optional[ScraperConfig] = None
 ):
     """Retry driver operations with exponential backoff."""
@@ -65,7 +65,7 @@ def retry_driver_operation(
 
     @retry_decorator
     def _retry_operation():
-        logging.info(f"Attempting {operation_name}")
+        logging.debug(f"Attempting {operation_name}")
 
         driver.get(URL)
         time.sleep(config.driver_sleep_time)
@@ -78,7 +78,7 @@ def retry_driver_operation(
         if "502 Bad Gateway" in driver.page_source:
             raise Exception("502 Bad Gateway")
 
-        logging.info(f"Successfully completed {operation_name}")
+        logging.info(f"{operation_name}")
         return True
 
     return _retry_operation()

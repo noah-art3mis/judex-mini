@@ -93,6 +93,7 @@ Usa: selenium (scraping), beautifulsoup4 (html parsing), tenacity (retry), typer
 
 ## Issues
 
--   Lacks fault tolerance
-    -   solution: middle step using sqlite
-
+-   Lacks fault tolerance -- can corrupt data opening the same file at the same time
+-   recreates driver every time
+-   crashes if there is not enough disk space
+-   no progressive backoff for 403s
