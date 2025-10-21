@@ -4,14 +4,11 @@ Base utilities for extraction functions
 
 import functools
 import logging
-import re
 import time
 from typing import Callable
 
-
-def normalize_spaces(text: str) -> str:
-    """Normalize whitespace in text"""
-    return re.sub(r"\s+", " ", text).strip()
+# Import normalize_spaces from text_utils instead of defining it here
+from ..text_utils import normalize_spaces
 
 
 def track_extraction_timing(func: Callable) -> Callable:
@@ -31,5 +28,3 @@ def track_extraction_timing(func: Callable) -> Callable:
             raise
 
     return wrapper
-
-

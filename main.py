@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 from src.driver import get_driver, retry_driver_operation
 from src.export import export_item
-from src.extraction.functions import (
+from src.extraction import (
     extract_andamentos,
     extract_assuntos,
     extract_badges,
@@ -26,9 +26,9 @@ from src.extraction.functions import (
     extract_relator,
     extract_volumes_folhas_apensos,
 )
-from src.extraction.functions.base import normalize_spaces
 from src.get_element import find_element_by_xpath
 from src.output_config import OutputConfig
+from src.text_utils import normalize_spaces
 from src.timing import ProcessTimer
 from src.types import StfItem
 
