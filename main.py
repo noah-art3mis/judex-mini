@@ -40,6 +40,10 @@ def main(
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Reduce Selenium logging noise
+    logging.getLogger("selenium").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     logging.info("=== JUDEX MINI START ===")
 
     # Run the scraper with all parameters
