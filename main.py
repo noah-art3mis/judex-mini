@@ -2,6 +2,7 @@ import logging
 
 import typer
 
+from src.config import ScraperConfig
 from src.scraper import run_scraper
 from src.testing.ground_truth_test import test_ground_truth
 
@@ -58,6 +59,9 @@ def main(
 
     logging.info("=== JUDEX MINI START ===")
 
+    # Create default configuration (can be customized here)
+    config = ScraperConfig()
+
     # Run the scraper with all parameters
     all_exported_files = run_scraper(
         classe=classe,
@@ -66,13 +70,14 @@ def main(
         output_format=output_format,
         output_dir=output_dir,
         overwrite=overwrite,
+        config=config,
     )
 
     logging.info("🎉 Finished processing all processes!")
 
     if all_exported_files:
         logging.info("📁 EXPORTED FILES:")
-        for file_info in all_exported_files:
+        for file_info in set(all_exported_files):
             logging.info(f"  {file_info}")
     else:
         logging.info("📁 No files were exported (no successful processes)")

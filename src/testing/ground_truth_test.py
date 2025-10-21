@@ -37,89 +37,102 @@ def test_ground_truth(
     passed_tests = 0
     failed_tests = 0
     tested_files = []
+    missing_ground_truth = []
+    missing_output_files = []
 
-    for processo in range(processo_inicial, processo_final + 1):
-        # Look for ground truth file for this specific process
-        gt_file = ground_truth_path / f"{classe}_{processo}.json"
+    try:
+        for processo in range(processo_inicial, processo_final + 1):
+            # Look for ground truth file for this specific process
+            gt_file = ground_truth_path / f"{classe}_{processo}.json"
 
-        if not gt_file.exists():
-            logging.warning(f"Ground truth file not found: {gt_file}")
-            continue
+            if not gt_file.exists():
+                missing_ground_truth.append(f"{classe}_{processo}.json")
+                logging.warning(f"Ground truth file not found: {gt_file}")
+                continue
 
-        tested_files.append(str(gt_file))
-        logging.info(f"\n--- Testing {gt_file.name} ---")
+            tested_files.append(str(gt_file))
+            logging.info(f"\n--- Testing {gt_file.name} ---")
 
-        # Load ground truth data
-        try:
-            with open(gt_file, "r", encoding="utf-8") as f:
-                gt_data = json.load(f)
-        except Exception as e:
-            logging.error(f"Failed to load ground truth file {gt_file}: {e}")
-            continue
+            # Load ground truth data
+            try:
+                with open(gt_file, "r", encoding="utf-8") as f:
+                    gt_data = json.load(f)
+            except Exception as e:
+                logging.error(f"Failed to load ground truth file {gt_file}: {e}")
+                continue
 
-        if not isinstance(gt_data, list) or len(gt_data) == 0:
-            logging.warning(f"Ground truth file {gt_file} is empty or invalid format")
-            continue
+            if not isinstance(gt_data, list) or len(gt_data) == 0:
+                logging.warning(
+                    f"Ground truth file {gt_file} is empty or invalid format"
+                )
+                continue
 
-        # Extract process info from ground truth
-        gt_item = gt_data[0]  # Assume first item
-        gt_classe = gt_item.get("classe")
-        gt_processo_id = gt_item.get("processo_id")
+            # Extract process info from ground truth
+            gt_item = gt_data[0]  # Assume first item
+            gt_classe = gt_item.get("classe")
+            gt_processo_id = gt_item.get("processo_id")
 
-        if not gt_classe or not gt_processo_id:
-            logging.warning(f"Invalid ground truth data in {gt_file}")
-            continue
+            if not gt_classe or not gt_processo_id:
+                logging.warning(f"Invalid ground truth data in {gt_file}")
+                continue
 
-        # Find corresponding output file
-        output_file = (
-            output_path
-            / f"judex-mini_{gt_classe}_{gt_processo_id}-{gt_processo_id}.json"
-        )
+            # Find corresponding output file
+            output_file = (
+                output_path
+                / f"judex-mini_{gt_classe}_{gt_processo_id}-{gt_processo_id}.json"
+            )
 
-        if not output_file.exists():
-            logging.warning(f"Output file not found: {output_file}")
-            failed_tests += 1
-            continue
-
-        tested_files.append(str(output_file))
-
-        # Load output data
-        try:
-            with open(output_file, "r", encoding="utf-8") as f:
-                output_data = json.load(f)
-        except Exception as e:
-            logging.error(f"Failed to load output file {output_file}: {e}")
-            failed_tests += 1
-            continue
-
-        if not isinstance(output_data, list) or len(output_data) == 0:
-            logging.warning(f"Output file {output_file} is empty or invalid format")
-            failed_tests += 1
-            continue
-
-        output_item = output_data[0]  # Assume first item
-
-        # Compare the data
-        test_results = compare_data(
-            gt_item, output_item, f"{gt_classe} {gt_processo_id}"
-        )
-
-        total_tests += len(test_results)
-        for field, result in test_results.items():
-            if result["passed"]:
-                passed_tests += 1
-                # Truncate long messages
-                message = result["message"]
-                if len(message) > MAX_MESSAGE_LENGTH:
-                    message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
-                logging.info(f"✓ {field}: {message}")
-            else:
+            if not output_file.exists():
+                missing_output_files.append(
+                    f"judex-mini_{gt_classe}_{gt_processo_id}-{gt_processo_id}.json"
+                )
+                logging.warning(f"Output file not found: {output_file}")
                 failed_tests += 1
-                # Truncate long messages
-                message = result["message"]
-                if len(message) > MAX_MESSAGE_LENGTH:
-                    message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
-                logging.error(f"✗ {field}: {message}")
+                continue
+
+            tested_files.append(str(output_file))
+
+            # Load output data
+            try:
+                with open(output_file, "r", encoding="utf-8") as f:
+                    output_data = json.load(f)
+            except Exception as e:
+                logging.error(f"Failed to load output file {output_file}: {e}")
+                failed_tests += 1
+                continue
+
+            if not isinstance(output_data, list) or len(output_data) == 0:
+                logging.warning(f"Output file {output_file} is empty or invalid format")
+                failed_tests += 1
+                continue
+
+            output_item = output_data[0]  # Assume first item
+
+            # Compare the data
+            test_results = compare_data(
+                gt_item, output_item, f"{gt_classe} {gt_processo_id}"
+            )
+
+            total_tests += len(test_results)
+            for field, result in test_results.items():
+                if result["passed"]:
+                    passed_tests += 1
+                    # Truncate long messages
+                    message = result["message"]
+                    if len(message) > MAX_MESSAGE_LENGTH:
+                        message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
+                    logging.info(f"✓ {field}: {message}")
+                else:
+                    failed_tests += 1
+                    # Truncate long messages
+                    message = result["message"]
+                    if len(message) > MAX_MESSAGE_LENGTH:
+                        message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
+                    logging.error(f"✗ {field}: {message}")
+
+    except Exception as e:
+        logging.error(f"Unexpected error during ground truth testing: {e}")
+        return
 
     # Log which files were used for comparison
     if tested_files:
@@ -135,6 +148,21 @@ def test_ground_truth(
             "No files were tested - no matching ground truth or output files found"
         )
 
+    # Report missing files
+    if missing_ground_truth:
+        logging.warning(f"\n=== MISSING GROUND TRUTH FILES ===")
+        for missing_file in missing_ground_truth:
+            logging.warning(f"Missing: {missing_file}")
+        logging.warning(
+            f"Total missing ground truth files: {len(missing_ground_truth)}"
+        )
+
+    if missing_output_files:
+        logging.warning(f"\n=== MISSING OUTPUT FILES ===")
+        for missing_file in missing_output_files:
+            logging.warning(f"Missing: {missing_file}")
+        logging.warning(f"Total missing output files: {len(missing_output_files)}")
+
     # Summary
     logging.info(f"\n=== TEST SUMMARY ===")
     logging.info(f"Total tests: {total_tests}")
@@ -145,6 +173,10 @@ def test_ground_truth(
         if total_tests > 0
         else "No tests run"
     )
+
+    if missing_ground_truth or missing_output_files:
+        logging.info(f"Missing ground truth files: {len(missing_ground_truth)}")
+        logging.info(f"Missing output files: {len(missing_output_files)}")
 
 
 def compare_data(

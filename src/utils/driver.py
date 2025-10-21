@@ -1,6 +1,7 @@
 import logging
 import time
 from contextlib import contextmanager
+from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -11,6 +12,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+from src.config import ScraperConfig
 
 
 def setup_driver(user_agent: str) -> WebDriver:
@@ -33,30 +36,49 @@ def get_driver(user_agent: str):
     finally:
         if driver:
             driver.quit()
-            logging.info("Driver cleanup completed")
+            logging.debug("Driver cleanup completed")
 
 
-# Retry decorator for driver operations
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=4, max=10),
-    retry=retry_if_exception_type((Exception,)),
-    reraise=True,
-)
-def retry_driver_operation(driver, URL, operation_name="operation"):
+def create_retry_decorator(config: ScraperConfig):
+    """Create retry decorator with configurable parameters."""
+    return retry(
+        stop=stop_after_attempt(config.driver_max_retries),
+        wait=wait_exponential(
+            multiplier=config.driver_backoff_multiplier,
+            min=config.driver_backoff_min,
+            max=config.driver_backoff_max,
+        ),
+        retry=retry_if_exception_type((Exception,)),
+        reraise=True,
+    )
+
+
+def retry_driver_operation(
+    driver, URL, operation_name="operation", config: Optional[ScraperConfig] = None
+):
     """Retry driver operations with exponential backoff."""
-    logging.info(f"Attempting {operation_name}")
+    if config is None:
+        config = ScraperConfig()
 
-    driver.get(URL)
-    time.sleep(3)
+    # Create retry decorator with config
+    retry_decorator = create_retry_decorator(config)
 
-    # Check for common error conditions
-    if "403 Forbidden" in driver.page_source:
-        raise Exception("403 Forbidden - Access denied")
-    if "CAPTCHA" in driver.page_source:
-        raise Exception("CAPTCHA detected")
-    if "502 Bad Gateway" in driver.page_source:
-        raise Exception("502 Bad Gateway")
+    @retry_decorator
+    def _retry_operation():
+        logging.info(f"Attempting {operation_name}")
 
-    logging.info(f"Successfully completed {operation_name}")
-    return True
+        driver.get(URL)
+        time.sleep(config.driver_sleep_time)
+
+        # Check for common error conditions
+        if "403 Forbidden" in driver.page_source:
+            raise Exception("403 Forbidden - Access denied")
+        if "CAPTCHA" in driver.page_source:
+            raise Exception("CAPTCHA detected")
+        if "502 Bad Gateway" in driver.page_source:
+            raise Exception("502 Bad Gateway")
+
+        logging.info(f"Successfully completed {operation_name}")
+        return True
+
+    return _retry_operation()

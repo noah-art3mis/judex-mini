@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
+from src.config import ScraperConfig
+
 from .base import normalize_spaces, track_extraction_timing
 
 
@@ -22,7 +24,9 @@ def _clean_nome(nome: str) -> str:
     return nome
 
 
-def _extract_link_info(andamento) -> tuple[str | None, str | None]:
+def _extract_link_info(
+    andamento, config: ScraperConfig
+) -> tuple[str | None, str | None]:
     """Extract link and link description from andamento element."""
     try:
         anchors = andamento.find_elements(By.TAG_NAME, "a")
@@ -39,7 +43,8 @@ def _extract_link_info(andamento) -> tuple[str | None, str | None]:
             if href.startswith("http"):
                 link = href
             else:
-                link = f"https://portal.stf.jus.br/processos/{href.replace('amp;', '')}"
+                base_url = config.base_url if config else "https://portal.stf.jus.br"
+                link = f"{base_url}/processos/{href.replace('amp;', '')}"
 
         # Process link description
         link_descricao = None
@@ -53,7 +58,9 @@ def _extract_link_info(andamento) -> tuple[str | None, str | None]:
         return None, None
 
 
-def _extract_single_andamento(andamento, index: int) -> dict | None:
+def _extract_single_andamento(
+    andamento, index: int, config: ScraperConfig
+) -> dict | None:
     """Extract data from a single andamento element."""
     data = andamento.find_element(By.CLASS_NAME, "andamento-data").text
     nome_raw = andamento.find_element(By.CLASS_NAME, "andamento-nome").text
@@ -70,7 +77,7 @@ def _extract_single_andamento(andamento, index: int) -> dict | None:
         julgador = None
 
     # Extract link info
-    link, link_descricao = _extract_link_info(andamento)
+    link, link_descricao = _extract_link_info(andamento, config)
 
     return {
         "index_num": index,
@@ -84,7 +91,7 @@ def _extract_single_andamento(andamento, index: int) -> dict | None:
 
 
 @track_extraction_timing
-def extract_andamentos(driver: WebDriver, soup: BeautifulSoup) -> list:
+def extract_andamentos(driver: WebDriver, soup: BeautifulSoup, config) -> list:
     """Extract andamentos from the process page."""
     try:
         # Find the andamentos container
@@ -97,7 +104,7 @@ def extract_andamentos(driver: WebDriver, soup: BeautifulSoup) -> list:
         # Process each andamento (in reverse order for correct indexing)
         for i, andamento in enumerate(andamentos):
             index = total_andamentos - i
-            andamento_data = _extract_single_andamento(andamento, index)
+            andamento_data = _extract_single_andamento(andamento, index, config)
 
             if andamento_data:
                 andamentos_list.append(andamento_data)

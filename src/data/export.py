@@ -4,7 +4,7 @@ from typing import Union
 
 import pandas as pd
 
-from .output_config import OutputConfig
+from .output import OutputConfig
 from .types import StfItem
 
 

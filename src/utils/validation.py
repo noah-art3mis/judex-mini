@@ -97,18 +97,20 @@ def validate_data_with_ground_truth(df, classe, processo_inicial):
                     f"Field comparison: {matches}/{total_fields} fields match ({match_percentage:.1f}%)"
                 )
 
-                if match_percentage >= 90:
+                if match_percentage == 100:
                     logging.info(
-                        "✅ Validation PASSED: High similarity with ground truth"
-                    )
-                elif match_percentage >= 70:
-                    logging.warning(
-                        "⚠️  Validation PARTIAL: Moderate similarity with ground truth"
+                        "✅ Validation PASSED: Perfect match with ground truth"
                     )
                 else:
                     logging.error(
-                        "❌ Validation FAILED: Low similarity with ground truth"
+                        f"❌ Validation FAILED: {match_percentage:.1f}% match - Ground truth requires 100% accuracy"
                     )
+                    # Log specific field differences for debugging
+                    for col in common_columns:
+                        if df[col].iloc[0] != ground_truth_df[col].iloc[0]:
+                            logging.error(
+                                f"Field '{col}' differs: Scraped='{df[col].iloc[0]}' vs Ground Truth='{ground_truth_df[col].iloc[0]}'"
+                            )
             else:
                 logging.warning(
                     "Cannot compare: Missing data in either scraped or ground truth"
