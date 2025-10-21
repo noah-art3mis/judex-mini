@@ -67,18 +67,6 @@ class StfItem(TypedDict):
 
 
 # @dataclass
-# class SessaoVirtual:
-#     """Represents a virtual session"""
-
-#     data: Optional[str]
-#     tipo: Optional[str]
-#     numero: Optional[str]
-#     relator: Optional[str]
-#     status: Optional[str]
-#     participantes: list[str]
-
-
-# @dataclass
 # class Deslocamento:
 #     """Represents a document transfer in the legal process"""
 

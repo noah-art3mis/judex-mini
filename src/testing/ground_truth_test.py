@@ -136,7 +136,7 @@ def test_ground_truth(
 
     # Log which files were used for comparison
     if tested_files:
-        logging.info(f"\n=== FILES USED FOR COMPARISON ===")
+        logging.info("\n=== FILES USED FOR COMPARISON ===")
         for i, file_path in enumerate(tested_files, 1):
             # Truncate long file paths
             display_path = file_path
@@ -150,7 +150,7 @@ def test_ground_truth(
 
     # Report missing files
     if missing_ground_truth:
-        logging.warning(f"\n=== MISSING GROUND TRUTH FILES ===")
+        logging.warning("\n=== MISSING GROUND TRUTH FILES ===")
         for missing_file in missing_ground_truth:
             logging.warning(f"Missing: {missing_file}")
         logging.warning(
@@ -158,13 +158,13 @@ def test_ground_truth(
         )
 
     if missing_output_files:
-        logging.warning(f"\n=== MISSING OUTPUT FILES ===")
+        logging.warning("\n=== MISSING OUTPUT FILES ===")
         for missing_file in missing_output_files:
             logging.warning(f"Missing: {missing_file}")
         logging.warning(f"Total missing output files: {len(missing_output_files)}")
 
     # Summary
-    logging.info(f"\n=== TEST SUMMARY ===")
+    logging.info("\n=== TEST SUMMARY ===")
     logging.info(f"Total tests: {total_tests}")
     logging.info(f"Passed: {passed_tests}")
     logging.info(f"Failed: {failed_tests}")

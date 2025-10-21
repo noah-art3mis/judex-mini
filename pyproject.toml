@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.14.2",
     "pandas>=2.3.3",
-    "pdfplumber>=0.11.7",
+    "pypdf>=6.1.2",
     "requests>=2.32.5",
     "selenium>=4.37.0",
     "striprtf>=0.0.29",

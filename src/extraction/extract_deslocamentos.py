@@ -9,7 +9,9 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from .base import normalize_spaces, track_extraction_timing
+from src.utils.text_utils import normalize_spaces
+
+from .base import track_extraction_timing
 
 
 def _extract_data_from_html(html: str) -> dict:

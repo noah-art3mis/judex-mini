@@ -8,8 +8,9 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.get_element import find_element_by_xpath
+from src.utils.text_utils import normalize_spaces
 
-from .base import normalize_spaces, track_extraction_timing
+from .base import track_extraction_timing
 
 
 def _extract_assuntos_from_soup(soup: BeautifulSoup) -> list[str]:
