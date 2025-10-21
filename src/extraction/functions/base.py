@@ -6,7 +6,7 @@ import functools
 import logging
 import re
 import time
-from typing import Any, Callable
+from typing import Callable
 
 
 def normalize_spaces(text: str) -> str:
@@ -33,19 +33,3 @@ def track_extraction_timing(func: Callable) -> Callable:
     return wrapper
 
 
-def handle_extraction_errors(default_value: Any = None, log_errors: bool = True):
-    """Decorator to handle extraction errors with default values"""
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                if log_errors:
-                    logging.warning(f"Error in {func.__name__}: {e}")
-                return default_value
-
-        return wrapper
-
-    return decorator

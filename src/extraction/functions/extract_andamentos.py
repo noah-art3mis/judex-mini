@@ -5,11 +5,10 @@ Extract andamentos from process data
 from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from .base import handle_extraction_errors, normalize_spaces, track_extraction_timing
+from .base import normalize_spaces, track_extraction_timing
 
 
 @track_extraction_timing
-@handle_extraction_errors(default_value=[], log_errors=True)
 def extract_andamentos(driver: WebDriver, soup: BeautifulSoup) -> list:
     """Extract andamentos from the process page"""
     andamentos_list = []

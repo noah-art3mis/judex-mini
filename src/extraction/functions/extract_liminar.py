@@ -4,11 +4,10 @@ Extract liminar from process data
 
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from .base import handle_extraction_errors, track_extraction_timing
+from .base import track_extraction_timing
 
 
 @track_extraction_timing
-@handle_extraction_errors(default_value=[], log_errors=True)
 def extract_liminar(driver: WebDriver, titulo_processo: str) -> list:
     """Extract liminar information from process title"""
     liminar_list = []

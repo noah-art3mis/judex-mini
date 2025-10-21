@@ -5,11 +5,10 @@ Extract deslocamentos from process data
 from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from .base import handle_extraction_errors, normalize_spaces, track_extraction_timing
+from .base import normalize_spaces, track_extraction_timing
 
 
 @track_extraction_timing
-@handle_extraction_errors(default_value=[], log_errors=True)
 def extract_deslocamentos(driver: WebDriver, soup: BeautifulSoup) -> list:
     """Extract deslocamentos from the process page"""
     deslocamentos_list = []

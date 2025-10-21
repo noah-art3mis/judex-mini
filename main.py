@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 from src.driver import get_driver, retry_driver_operation
 from src.export import export_item
-from src.extraction import (
+from src.extraction.functions import (
     extract_andamentos,
     extract_assuntos,
     extract_badges,
@@ -31,6 +31,7 @@ from src.get_element import find_element_by_xpath
 from src.output_config import OutputConfig
 from src.timing import ProcessTimer
 from src.types import StfItem
+
 
 # configuracoes da cli
 def main(
@@ -81,7 +82,7 @@ def main(
         logging.info(f"Processing {processo_name}")
 
         with get_driver(USER_AGENT) as driver:
-            
+
             # reset driver com exponential backoff
             retry_driver_operation(driver, URL, f"loading {processo_name}")
 
