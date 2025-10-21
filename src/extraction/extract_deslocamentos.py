@@ -13,8 +13,10 @@ from .base import normalize_spaces, track_extraction_timing
 
 
 def _extract_data_from_html(html: str) -> dict:
-    """Extract data from HTML using regex patterns."""
-    # Define regex patterns for different data fields
+    """Extract data from HTML using regex patterns (like the original working code)."""
+    import re
+
+    # Define regex patterns for different data fields (from original working code)
     patterns = {
         "enviado_match": r'"processo-detalhes-bold">([^<]+)',
         "data_recebido_match": r'processo-detalhes bg-font-success">([^<]+)',
@@ -107,9 +109,67 @@ def _extract_person_data(
     }
 
 
+def _clean_extracted_data(data: dict) -> dict:
+    """Clean and normalize extracted data."""
+    cleaned = {}
+
+    # Clean guia
+    if data.get("guia"):
+        guia = normalize_spaces(data["guia"])
+        cleaned["guia"] = (
+            guia.replace("Guia: ", "").replace("Guia ", "").replace("Nº ", "").strip()
+        )
+    else:
+        cleaned["guia"] = None
+
+    # Clean data_recebido
+    if data.get("data_recebido"):
+        data_recebido = normalize_spaces(data["data_recebido"])
+        cleaned["data_recebido"] = (
+            data_recebido.replace("Recebido em ", "").replace(" em ", "").strip()
+        )
+    else:
+        cleaned["data_recebido"] = None
+
+    # Clean data_enviado
+    if data.get("data_enviado"):
+        data_enviado = normalize_spaces(data["data_enviado"])
+        cleaned["data_enviado"] = (
+            data_enviado.replace("Enviado em ", "").replace(" em ", "").strip()
+        )
+    else:
+        cleaned["data_enviado"] = None
+
+    # Clean person data and extract dates
+    cleaned["recebido_por"] = _clean_person_data(data.get("recebido_por"), "recebido")
+    cleaned["enviado_por"] = _clean_person_data(data.get("enviado_por"), "enviado")
+
+    return cleaned
+
+
+def _clean_person_data(text: str | None, person_type: str) -> str | None:
+    """Clean person data and extract dates if needed."""
+    if not text:
+        return None
+
+    cleaned = normalize_spaces(text)
+
+    # Remove boilerplate text
+    if person_type == "recebido":
+        cleaned = re.sub(r"^Recebido por ", "", cleaned)
+    else:  # enviado
+        cleaned = re.sub(r"^Enviado por ", "", cleaned)
+
+    # Remove date suffix
+    cleaned = re.sub(r" em \d{2}/\d{2}/\d{4}$", "", cleaned)
+
+    return cleaned.strip() or None
+
+
 def _extract_single_deslocamento(deslocamento, index: int) -> dict | None:
     """Extract data from a single deslocamento element."""
     try:
+        # Get HTML and use regex patterns (like original working code)
         html = deslocamento.get_attribute("innerHTML")
 
         # Extract data using regex patterns

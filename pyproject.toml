@@ -1,7 +1,7 @@
 [project]
 name = "judex-mini"
 version = "0.1.0"
-description = "Add your description here"
+description = "Extração automatizada de dados de processos do STF."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

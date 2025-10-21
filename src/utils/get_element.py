@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 def find_element_by_id(
-    driver: WebDriver, id: str, initial_delay: float = 0.3, timeout: int = 40
+    driver: WebDriver, id: str, initial_delay: float = 0.01, timeout: int = 40
 ) -> str:
     time.sleep(initial_delay)
     Wait = WebDriverWait(driver, timeout)
@@ -21,7 +21,7 @@ def find_element_by_id(
 
 
 def find_element_by_xpath(
-    driver: WebDriver, xpath: str, initial_delay: float = 0.3, timeout: int = 40
+    driver: WebDriver, xpath: str, initial_delay: float = 0.01, timeout: int = 40
 ) -> str:
     time.sleep(initial_delay)
     Wait = WebDriverWait(driver, timeout)
