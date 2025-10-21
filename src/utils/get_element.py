@@ -2,13 +2,8 @@ import time
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
-
-def find_elements_by_class(driver: WebDriver, class_name: str) -> list[WebElement]:
-    return driver.find_elements(By.CLASS_NAME, class_name)
 
 
 def find_element_by_id(

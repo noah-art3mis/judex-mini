@@ -9,86 +9,101 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.utils.get_element import find_elements_by_class
-
 from .base import normalize_spaces, track_extraction_timing
+
+
+def _clean_nome(nome: str) -> str:
+    """Clean and normalize nome field, removing GUIA artifacts."""
+    nome = normalize_spaces(nome)
+    if nome:
+        nome = re.sub(
+            r",\s*GUIA\s*N[ºOo0]?[^,]*$", "", nome, flags=re.IGNORECASE
+        ).strip()
+    return nome
+
+
+def _extract_link_info(andamento) -> tuple[str | None, str | None]:
+    """Extract link and link description from andamento element."""
+    try:
+        anchors = andamento.find_elements(By.TAG_NAME, "a")
+        if not anchors:
+            return None, None
+
+        anchor = anchors[0]
+        href = anchor.get_attribute("href")
+        text = anchor.text
+
+        # Process link
+        link = None
+        if href:
+            if href.startswith("http"):
+                link = href
+            else:
+                link = f"https://portal.stf.jus.br/processos/{href.replace('amp;', '')}"
+
+        # Process link description
+        link_descricao = None
+        if text:
+            link_descricao = normalize_spaces(text)
+            if link_descricao:
+                link_descricao = link_descricao.upper()
+
+        return link, link_descricao
+    except Exception:
+        return None, None
+
+
+def _extract_single_andamento(andamento, index: int) -> dict | None:
+    """Extract data from a single andamento element."""
+    data = andamento.find_element(By.CLASS_NAME, "andamento-data").text
+    nome_raw = andamento.find_element(By.CLASS_NAME, "andamento-nome").text
+    nome = _clean_nome(nome_raw)
+
+    # Extract complemento
+    complemento_raw = andamento.find_element(By.CLASS_NAME, "col-md-9").text
+    complemento = normalize_spaces(complemento_raw) or None
+
+    # Extract julgador (optional)
+    try:
+        julgador = andamento.find_element(By.CLASS_NAME, "andamento-julgador").text
+    except Exception:
+        julgador = None
+
+    # Extract link info
+    link, link_descricao = _extract_link_info(andamento)
+
+    return {
+        "index_num": index,
+        "data": data,
+        "nome": nome.upper(),
+        "complemento": complemento,
+        "julgador": julgador,
+        "link_descricao": link_descricao,
+        "link": link,
+    }
 
 
 @track_extraction_timing
 def extract_andamentos(driver: WebDriver, soup: BeautifulSoup) -> list:
+    """Extract andamentos from the process page."""
     try:
+        # Find the andamentos container
         andamentos_info = driver.find_element(By.CLASS_NAME, "processo-andamentos")
         andamentos = andamentos_info.find_elements(By.CLASS_NAME, "andamento-item")
 
         andamentos_list = []
+        total_andamentos = len(andamentos)
+
+        # Process each andamento (in reverse order for correct indexing)
         for i, andamento in enumerate(andamentos):
-            try:
-                index = len(andamentos) - i
+            index = total_andamentos - i
+            andamento_data = _extract_single_andamento(andamento, index)
 
-                # Extract data, nome, complemento, julgador
-                data = andamento.find_element(By.CLASS_NAME, "andamento-data").text
-                nome_raw = andamento.find_element(By.CLASS_NAME, "andamento-nome").text
-                # Normalize nome and remove trailing ", GUIA N..." artifacts when present
-                nome = normalize_spaces(nome_raw)
-                try:
-                    if nome:
-                        nome = re.sub(
-                            r",\s*GUIA\s*N[ºOo0]?[^,]*$", "", nome, flags=re.IGNORECASE
-                        ).strip()
-                except Exception:
-                    pass
-                complemento_raw = andamento.find_element(By.CLASS_NAME, "col-md-9").text
-                complemento = normalize_spaces(complemento_raw)
-                if not complemento:
-                    complemento = None
-
-                # Check for julgador
-                try:
-                    julgador = andamento.find_element(
-                        By.CLASS_NAME, "andamento-julgador"
-                    ).text
-                except Exception:
-                    julgador = None
-
-                # Extract optional link and description from the andamento DOM
-                link = None
-                link_descricao = None
-                try:
-                    anchors = andamento.find_elements(By.TAG_NAME, "a")
-                    if anchors:
-                        a = anchors[0]
-                        href = a.get_attribute("href")
-                        if href:
-                            if href.startswith("http"):
-                                link = href
-                            else:
-                                link = (
-                                    "https://portal.stf.jus.br/processos/"
-                                    + href.replace("amp;", "")
-                                )
-                        text = a.text
-                        if text:
-                            link_descricao = normalize_spaces(text)
-                            if link_descricao:
-                                link_descricao = link_descricao.upper()
-                except Exception:
-                    pass
-
-                andamento_data = {
-                    "index_num": index,
-                    "data": data,
-                    "nome": nome.upper(),
-                    "complemento": complemento,
-                    "julgador": julgador,
-                    "link_descricao": link_descricao,
-                    "link": link,
-                }
+            if andamento_data:
                 andamentos_list.append(andamento_data)
-            except Exception as e:
-                logging.warning(f"Could not extract andamento {i}: {e}")
-                continue
 
         return andamentos_list
+
     except Exception as e:
         logging.warning(f"Could not extract andamentos: {e}")
         return []
