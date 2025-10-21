@@ -5,18 +5,18 @@ Main scraping logic for JUDEX MINI
 import logging
 import time
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from bs4 import BeautifulSoup
 
+from src.config import ScraperConfig
 from src.data.export import export_item
-from src.data.output_config import OutputConfig
+from src.data.output import OutputConfig
 from src.data.types import StfItem
 from src.extraction import (
     extract_andamentos,
     extract_assuntos,
     extract_badges,
-    extract_classe,
     extract_data_protocolo,
     extract_deslocamentos,
     extract_incidente,
@@ -44,13 +44,15 @@ def run_scraper(
     output_format: str,
     output_dir: str,
     overwrite: bool,
+    config: Optional[ScraperConfig] = None,
 ) -> List[str]:
 
-    USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-    out_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
-    ALWAYS_WAIT_TIME = 2
+    if config is None:
+        config = ScraperConfig()
 
-    output_config = OutputConfig.from_format_string(output_format)
+    out_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
+
+    output = OutputConfig.from_format_string(output_format)
 
     # logging do tempo de processamento
     timer = ProcessTimer()
@@ -67,14 +69,16 @@ def run_scraper(
             classe=classe,
             out_file=out_file,
             output_dir=output_dir,
-            output_config=output_config,
+            output=output,
             overwrite=overwrite,
-            user_agent=USER_AGENT,
-            always_wait_time=ALWAYS_WAIT_TIME,
+            user_agent=config.user_agent,
+            config=config,
         )
         all_exported_files.extend(exported_files)
 
-        timer.end_process(processo_name, process_start_time, success=True)
+        # Track success based on whether files were exported
+        success = len(exported_files) > 0
+        timer.end_process(processo_name, process_start_time, success=success)
 
     timer.log_summary()
 
@@ -86,30 +90,48 @@ def process_single_process(
     classe: str,
     out_file: str,
     output_dir: str,
-    output_config: OutputConfig,
+    output: OutputConfig,
     overwrite: bool,
     user_agent: str,
-    always_wait_time: int,
+    config: ScraperConfig,
 ) -> List[str]:
     """Process a single process and return exported files."""
-    URL = f"https://portal.stf.jus.br/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
+    URL = f"{config.base_url}/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
     processo_name = f"{classe} {processo}"
 
     with get_driver(user_agent) as driver:
         # Reset driver with exponential backoff
-        retry_driver_operation(driver, URL, f"loading {processo_name}")
 
-        time.sleep(always_wait_time)
-        document = find_element_by_xpath(driver, '//*[@id="conteudo"]')
+        try:
+            retry_driver_operation(driver, URL, f"loading {processo_name}", config)
+        except Exception as e:
+            logging.error(f"Error loading {processo_name}: {e}")
+            return []
+
+        time.sleep(config.always_wait_time)
+        document = find_element_by_xpath(
+            driver,
+            '//*[@id="conteudo"]',
+            initial_delay=config.initial_delay,
+            timeout=config.webdriver_timeout,
+        )
 
         # Guard clause: skip if process not found
         if "Processo não encontrado" in document:
-            logging.warning(f"Process not found for {processo_name}")
+            logging.warning(f"Process not found for {processo_name} - skipping")
             return []
 
         # Guard clause: skip if process not found
-        if find_element_by_xpath(driver, '//*[@id="descricao-procedencia"]') == "":
-            logging.warning(f"Process not found for {processo_name}")
+        if (
+            find_element_by_xpath(
+                driver,
+                '//*[@id="descricao-procedencia"]',
+                initial_delay=config.initial_delay,
+                timeout=config.webdriver_timeout,
+            )
+            == ""
+        ):
+            logging.warning(f"Process not found for {processo_name} - skipping")
             return []
 
         logging.info(f"Process found for {processo_name} - starting data extraction")
@@ -137,7 +159,7 @@ def process_single_process(
             "relator": extract_relator(soup),
             "primeiro_autor": extract_primeiro_autor(driver, soup),
             "partes": extract_partes(driver, soup),
-            "andamentos": extract_andamentos(driver, soup),
+            "andamentos": extract_andamentos(driver, soup, config),
             "sessao_virtual": [],
             "deslocamentos": extract_deslocamentos(driver, soup),
             "peticoes": [],
@@ -149,10 +171,13 @@ def process_single_process(
         }
 
         # Export the extracted data
-        return export_item(
+        exported_files = export_item(
             item,
             out_file,
             output_dir,
-            output_config,
+            output,
             overwrite,
         )
+
+        logging.info(f"Successfully extracted and exported data for {processo_name}")
+        return exported_files

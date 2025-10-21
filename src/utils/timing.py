@@ -64,6 +64,6 @@ class ProcessTimer:
             logging.info(f"Fastest process: {min_duration:.2f}s")
             logging.info(f"Slowest process: {max_duration:.2f}s")
 
-        logging.info("Process times:")
+        logging.debug("Process times:")
         for process in self.process_times:
-            logging.info(f"{process['processo']}: {process['duration']:.2f}s")
+            logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
