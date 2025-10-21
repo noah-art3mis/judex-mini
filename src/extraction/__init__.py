@@ -24,7 +24,6 @@ from .extract_partes import extract_partes
 from .extract_primeiro_autor import extract_primeiro_autor
 from .extract_publicidade import extract_publicidade
 from .extract_relator import extract_relator
-from .extract_tipo_processo import extract_tipo_processo
 from .extract_volumes_folhas_apensos import extract_volumes_folhas_apensos
 
 # Export all functions
@@ -49,6 +48,5 @@ __all__ = [
     "extract_primeiro_autor",
     "extract_publicidade",
     "extract_relator",
-    "extract_tipo_processo",
     "extract_volumes_folhas_apensos",
 ]
