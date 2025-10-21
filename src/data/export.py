@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Union
 
@@ -33,18 +34,29 @@ def export_item(
         csv_file = out_file + ".csv"
 
         # Check if file exists to determine if we need to write header
-        file_exists = os.path.exists(csv_file) and not overwrite
+        file_exists = os.path.exists(csv_file)
+
+        # For CSV, always append unless it's the first write and overwrite is True
+        if overwrite and not file_exists:
+            # First write with overwrite=True - create new file
+            mode = "w"
+            write_header = True
+        else:
+            # Subsequent writes or append mode - append to existing file
+            mode = "a"
+            write_header = not file_exists
 
         df.to_csv(
             csv_file,
-            mode="w" if overwrite else "a",
+            mode=mode,
             index=False,
             encoding="utf-8",
             quoting=1,
             doublequote=True,
-            header=not file_exists,  # Only write header if file doesn't exist
+            header=write_header,
         )
         exported_files.append(f"CSV: {csv_file}")
+        logging.debug(f"Saved to CSV: {csv_file}")
 
     if save_to_jsonl:
         df = pd.DataFrame([item])
@@ -55,6 +67,7 @@ def export_item(
             jsonl_file, orient="records", lines=True, mode="w" if overwrite else "a"
         )
         exported_files.append(f"JSONL: {jsonl_file}")
+        logging.debug(f"Saved to JSONL: {jsonl_file}")
 
     if save_to_json:
         json_file = out_file + ".json"
@@ -84,5 +97,6 @@ def export_item(
             json.dump(data, f, ensure_ascii=False, indent=2)
 
         exported_files.append(f"JSON: {json_file}")
+        logging.debug(f"Saved to JSON: {json_file}")
 
     return exported_files

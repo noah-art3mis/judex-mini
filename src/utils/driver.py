@@ -65,7 +65,7 @@ def retry_driver_operation(
 
     @retry_decorator
     def _retry_operation():
-        logging.info(f"Attempting {operation_name}")
+        logging.debug(f"Attempting {operation_name}")
 
         driver.get(URL)
         time.sleep(config.driver_sleep_time)

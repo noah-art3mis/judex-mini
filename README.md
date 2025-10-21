@@ -95,4 +95,4 @@ Usa: selenium (scraping), beautifulsoup4 (html parsing), tenacity (retry), typer
 
 -   Lacks fault tolerance
     -   solution: middle step using sqlite
-
+-   recreates driver every time

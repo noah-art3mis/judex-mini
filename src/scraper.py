@@ -52,7 +52,7 @@ def run_scraper(
 
     out_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
 
-    output = OutputConfig.from_format_string(output_format)
+    output_config = OutputConfig.from_format_string(output_format)
 
     # logging do tempo de processamento
     timer = ProcessTimer()
@@ -63,24 +63,29 @@ def run_scraper(
         process_start_time = timer.start_process(processo_name)
         logging.info(f"Processing {processo_name}")
 
-        # Process the single process
-        exported_files = process_single_process(
-            processo=processo,
-            classe=classe,
-            out_file=out_file,
-            output_dir=output_dir,
-            output=output,
-            overwrite=overwrite,
-            user_agent=config.user_agent,
-            config=config,
-        )
-        all_exported_files.extend(exported_files)
+        item = process_single_process(processo, classe, config)
+
+        # Only export if we have valid data
+        if item:
+            exported_files = export_item(
+                item,
+                out_file,
+                output_dir,
+                output_config,
+                overwrite,
+            )
+        else:
+            exported_files = []
 
         # Track success based on whether files were exported
+        all_exported_files.extend(exported_files)
         success = len(exported_files) > 0
         timer.end_process(processo_name, process_start_time, success=success)
 
     timer.log_summary()
+
+    # Check for missing process numbers in CSV output
+    check_missing_processes(classe, processo_inicial, processo_final, output_dir, output_format)
 
     return all_exported_files
 
@@ -88,25 +93,20 @@ def run_scraper(
 def process_single_process(
     processo: int,
     classe: str,
-    out_file: str,
-    output_dir: str,
-    output: OutputConfig,
-    overwrite: bool,
-    user_agent: str,
     config: ScraperConfig,
-) -> List[str]:
+) -> Optional[StfItem]:
     """Process a single process and return exported files."""
     URL = f"{config.base_url}/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
     processo_name = f"{classe} {processo}"
 
-    with get_driver(user_agent) as driver:
+    with get_driver(config.user_agent) as driver:
         # Reset driver with exponential backoff
 
         try:
             retry_driver_operation(driver, URL, f"loading {processo_name}", config)
         except Exception as e:
             logging.error(f"Error loading {processo_name}: {e}")
-            return []
+            return None
 
         time.sleep(config.always_wait_time)
         document = find_element_by_xpath(
@@ -119,7 +119,7 @@ def process_single_process(
         # Guard clause: skip if process not found
         if "Processo não encontrado" in document:
             logging.warning(f"Process not found for {processo_name} - skipping")
-            return []
+            return None
 
         # Guard clause: skip if process not found
         if (
@@ -132,7 +132,7 @@ def process_single_process(
             == ""
         ):
             logging.warning(f"Process not found for {processo_name} - skipping")
-            return []
+            return None
 
         logging.info(f"Process found for {processo_name} - starting data extraction")
 
@@ -170,14 +170,5 @@ def process_single_process(
             "html": normalize_spaces(document),
         }
 
-        # Export the extracted data
-        exported_files = export_item(
-            item,
-            out_file,
-            output_dir,
-            output,
-            overwrite,
-        )
-
         logging.info(f"Successfully extracted and exported data for {processo_name}")
-        return exported_files
+        return item

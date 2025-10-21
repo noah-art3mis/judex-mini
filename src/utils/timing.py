@@ -32,8 +32,7 @@ class ProcessTimer:
         }
         self.process_times.append(process_info)
 
-        status = "✅" if success else "❌"
-        logging.info(f"{status} Completed {processo} in {duration:.2f}s")
+        logging.info(f"Completed {processo} in {duration:.2f}s")
 
     def log_summary(self) -> None:
         """Log comprehensive timing summary"""
