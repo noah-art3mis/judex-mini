@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from src.config import ScraperConfig
+from src.utils.pdf_utils import extract_pdf_texts_from_session
 from src.utils.text_utils import normalize_spaces
 
 from .base import track_extraction_timing
@@ -77,7 +78,7 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                     # Wait for the collapse animation to complete (no more "collapsing" class)
                     wait.until(
                         lambda driver: "collapsing"
-                        not in collapse_div.get_attribute("class")
+                        not in (collapse_div.get_attribute("class") or "")
                     )
                     logging.debug("Collapse animation completed")
 
@@ -100,7 +101,10 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                         # Wait for the nested collapse to expand
                         wait.until(
                             lambda driver: "collapse"
-                            not in nested_collapse_link.get_attribute("aria-expanded")
+                            not in (
+                                nested_collapse_link.get_attribute("aria-expanded")
+                                or ""
+                            )
                             or nested_collapse_link.get_attribute("aria-expanded")
                             == "true"
                         )
@@ -116,9 +120,9 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                         titulo = collapse_div.find_element(
                             By.CSS_SELECTOR, ".titulo-lista"
                         ).text
-                            logging.debug(
-                                f"Found titulo with .titulo-lista: {titulo[:100]}..."
-                            )
+                        logging.debug(
+                            f"Found titulo with .titulo-lista: {titulo[:100]}..."
+                        )
                     except:
                         try:
                             # Try without the m-16 class
@@ -141,15 +145,17 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                                     or "improcedente" in text.lower()
                                 ):
                                     titulo = text
-                                        logging.debug(
-                                            f"Found titulo by text search: {titulo[:100]}..."
-                                        )
+                                    logging.debug(
+                                        f"Found titulo by text search: {titulo[:100]}..."
+                                    )
                                     break
 
                     if titulo:
                         # Extract the full session data using the _extract_sessao_details function
                         sessao_data = _extract_sessao_details(collapse_div)
                         if sessao_data:
+                            # Extract PDF content from URLs
+                            sessao_data = extract_pdf_texts_from_session(sessao_data)
                             sessao_list.append(sessao_data)
                         else:
                             # Fallback: just add the titulo text
