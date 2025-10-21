@@ -8,16 +8,16 @@ from src.scraper import run_scraper
 # configuracoes da cli
 def main(
     classe: str = typer.Option(
-        "RE", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
+        "AI", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
     ),
     processo_inicial: int = typer.Option(
-        1234567, "-i", "--processo-inicial", help="Initial process number"
+        772309, "-i", "--processo-inicial", help="Initial process number"
     ),
     processo_final: int = typer.Option(
-        1234567, "-f", "--processo-final", help="Final process number"
+        772309, "-f", "--processo-final", help="Final process number"
     ),
     output_format: str = typer.Option(
-        "csv", "-o", "--output-format", help="Output format (csv, json)"
+        "json", "-o", "--output-format", help="Output format (csv, json)"
     ),
     output_dir: str = typer.Option(
         "output", "-d", "--output-dir", help="Output directory"

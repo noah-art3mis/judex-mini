@@ -12,37 +12,99 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from .base import normalize_spaces, track_extraction_timing
 
 
-def _extract_data_from_soup(soup: BeautifulSoup) -> dict:
-    """Extract data from BeautifulSoup object using CSS selectors."""
-    data = {}
+def _extract_data_from_html(html: str) -> dict:
+    """Extract data from HTML using regex patterns (like the original working code)."""
+    import re
 
-    # Extract guia (usually in a span with specific classes)
-    guia_elem = soup.select_one(".text-right span.processo-detalhes")
-    data["guia"] = guia_elem.get_text(strip=True) if guia_elem else None
+    # Define regex patterns for different data fields (from original working code)
+    patterns = {
+        "enviado_match": r'"processo-detalhes-bold">([^<]+)',
+        "data_recebido_match": r'processo-detalhes bg-font-success">([^<]+)',
+        "recebido_match": r'"processo-detalhes">([^<]+)',
+        "data_enviado_match": r'processo-detalhes bg-font-info">([^<]+)',
+        "guia_match": r'text-right">\s*<span class="processo-detalhes">([^<]+)',
+    }
+    
+    # Extract matches
+    matches = {}
+    for key, pattern in patterns.items():
+        match = re.search(pattern, html)
+        matches[key] = match.group(1) if match else None
+    
+    return matches
 
-    # Extract data_recebido (green background)
-    data_recebido_elem = soup.select_one(".processo-detalhes.bg-font-success")
-    data["data_recebido"] = (
-        data_recebido_elem.get_text(strip=True) if data_recebido_elem else None
-    )
 
-    # Extract data_enviado (blue background)
-    data_enviado_elem = soup.select_one(".processo-detalhes.bg-font-info")
-    data["data_enviado"] = (
-        data_enviado_elem.get_text(strip=True) if data_enviado_elem else None
-    )
+def _clean_data_fields(matches: dict) -> dict:
+    """Clean and normalize extracted data fields."""
+    # Extract raw data
+    data_recebido = matches["data_recebido_match"]
+    data_enviado = matches["data_enviado_match"]
+    guia = matches["guia_match"]
+    enviado_raw = matches["recebido_match"]
+    recebido_raw = matches["enviado_match"]
+    
+    # Clean data_recebido
+    if data_recebido is not None:
+        data_recebido = normalize_spaces(data_recebido)
+        data_recebido = (
+            data_recebido.replace("Recebido em ", "").replace(" em ", "").strip()
+        )
+    
+    # Clean data_enviado
+    if data_enviado is not None:
+        data_enviado = normalize_spaces(data_enviado)
+        data_enviado = (
+            data_enviado.replace("Enviado em ", "").replace(" em ", "").strip()
+        )
+    
+    # Clean guia
+    if guia is not None:
+        guia = normalize_spaces(guia)
+        guia = (
+            guia.replace("Guia: ", "").replace("Guia ", "").replace("Nº ", "").strip()
+        )
+    
+    return {
+        "data_recebido": data_recebido,
+        "data_enviado": data_enviado,
+        "guia": guia,
+        "enviado_raw": enviado_raw,
+        "recebido_raw": recebido_raw,
+    }
 
-    # Extract recebido_por (regular processo-detalhes)
-    recebido_elem = soup.select_one(
-        ".processo-detalhes:not(.bg-font-success):not(.bg-font-info)"
-    )
-    data["recebido_por"] = recebido_elem.get_text(strip=True) if recebido_elem else None
 
-    # Extract enviado_por (bold processo-detalhes)
-    enviado_elem = soup.select_one(".processo-detalhes-bold")
-    data["enviado_por"] = enviado_elem.get_text(strip=True) if enviado_elem else None
-
-    return data
+def _extract_person_data(enviado_raw: str, recebido_raw: str, data_enviado: str, data_recebido: str) -> dict:
+    """Extract and clean person data from raw text."""
+    # Process enviado_por
+    enviado_por_clean = enviado_raw
+    if enviado_raw is not None:
+        enviado_por_clean = normalize_spaces(enviado_raw)
+        # Extract date from "Enviado por X em DD/MM/YYYY" format
+        date_match = re.search(r"em (\d{2}/\d{2}/\d{4})", enviado_por_clean)
+        if date_match and data_enviado is None:
+            data_enviado = date_match.group(1)
+        # Remove boilerplate text
+        enviado_por_clean = re.sub(r"^Enviado por ", "", enviado_por_clean)
+        enviado_por_clean = re.sub(r" em \d{2}/\d{2}/\d{4}$", "", enviado_por_clean)
+    
+    # Process recebido_por
+    recebido_por_clean = recebido_raw
+    if recebido_raw is not None:
+        recebido_por_clean = normalize_spaces(recebido_raw)
+        # Extract date from "Recebido por X em DD/MM/YYYY" format
+        date_match = re.search(r"em (\d{2}/\d{2}/\d{4})", recebido_por_clean)
+        if date_match and data_recebido is None:
+            data_recebido = date_match.group(1)
+        # Remove boilerplate text
+        recebido_por_clean = re.sub(r"^Recebido por ", "", recebido_por_clean)
+        recebido_por_clean = re.sub(r" em \d{2}/\d{2}/\d{4}$", "", recebido_por_clean)
+    
+    return {
+        "enviado_por": enviado_por_clean,
+        "recebido_por": recebido_por_clean,
+        "data_enviado": data_enviado,
+        "data_recebido": data_recebido,
+    }
 
 
 def _clean_extracted_data(data: dict) -> dict:
@@ -105,23 +167,30 @@ def _clean_person_data(text: str | None, person_type: str) -> str | None:
 def _extract_single_deslocamento(deslocamento, index: int) -> dict | None:
     """Extract data from a single deslocamento element."""
     try:
-        # Get HTML and parse with BeautifulSoup
+        # Get HTML and use regex patterns (like original working code)
         html = deslocamento.get_attribute("innerHTML")
-        soup = BeautifulSoup(html, "html.parser")
-
-        # Extract data using BeautifulSoup
-        raw_data = _extract_data_from_soup(soup)
-
-        # Clean the extracted data
-        cleaned_data = _clean_extracted_data(raw_data)
+        
+        # Extract data using regex patterns
+        matches = _extract_data_from_html(html)
+        
+        # Clean basic data fields
+        cleaned_data = _clean_data_fields(matches)
+        
+        # Extract person data with date extraction
+        person_data = _extract_person_data(
+            cleaned_data["enviado_raw"],
+            cleaned_data["recebido_raw"],
+            cleaned_data["data_enviado"],
+            cleaned_data["data_recebido"]
+        )
 
         return {
             "index_num": index,
             "guia": cleaned_data["guia"],
-            "recebido_por": cleaned_data["recebido_por"],
-            "data_recebido": cleaned_data["data_recebido"],
-            "enviado_por": cleaned_data["enviado_por"],
-            "data_enviado": cleaned_data["data_enviado"],
+            "recebido_por": person_data["recebido_por"],
+            "data_recebido": person_data["data_recebido"],
+            "enviado_por": person_data["enviado_por"],
+            "data_enviado": person_data["data_enviado"],
         }
     except Exception as e:
         logging.warning(f"Could not extract deslocamento: {e}")
