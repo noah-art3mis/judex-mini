@@ -19,7 +19,7 @@ def main(
         772309, "-f", "--processo-final", help="Final process number"
     ),
     output_format: str = typer.Option(
-        "json", "-o", "--output-format", help="Output format (csv, json)"
+        "csv", "-o", "--output-format", help="Output format (csv, json, jsonl)"
     ),
     output_dir: str = typer.Option(
         "output", "-d", "--output-dir", help="Output directory"
@@ -59,30 +59,18 @@ def main(
 
     logging.info("=== JUDEX MINI START ===")
 
-    # Create default configuration (can be customized here)
-    config = ScraperConfig()
-
-    # Run the scraper with all parameters
-    all_exported_files = run_scraper(
+    run_scraper(
         classe=classe,
         processo_inicial=processo_inicial,
         processo_final=processo_final,
         output_format=output_format,
         output_dir=output_dir,
         overwrite=overwrite,
-        config=config,
+        config=ScraperConfig(),
     )
 
     logging.info("🎉 Finished processing all processes!")
 
-    if all_exported_files:
-        logging.info("📁 EXPORTED FILES:")
-        for file_info in set(all_exported_files):
-            logging.info(f"  {file_info}")
-    else:
-        logging.info("📁 No files were exported (no successful processes)")
-
-    # Run tests if requested
     if test:
         logging.info("\n=== RUNNING GROUND TRUTH TESTS ===")
         test_ground_truth(

@@ -10,30 +10,64 @@ from src.utils.get_element import find_element_by_xpath
 from .base import track_extraction_timing
 
 
-@track_extraction_timing
-def extract_volumes_folhas_apensos(
-    driver: WebDriver, soup: BeautifulSoup
-) -> dict | None:
-    """Extract volumes, folhas, apensos counters from info boxes."""
+def _get_info_boxes(driver: WebDriver) -> list:
+    """Helper function to get info boxes from the page."""
     info_html = find_element_by_xpath(driver, '//*[@id="informacoes"]')
     s = BeautifulSoup(info_html, "html.parser")
-    boxes = s.select(".processo-quadro")
-    result: dict[str, int | str] = {}
+    return s.select(".processo-quadro")
+
+
+def _extract_value_from_box(box) -> int | str | None:
+    """Helper function to extract and parse value from a box."""
+    num_el = box.select_one(".numero")
+    if not num_el:
+        return None
+
+    value = num_el.get_text(strip=True)
+    if value.isdigit():
+        return int(value)
+    elif not value or value.strip() == "":
+        return None
+    return value
+
+
+@track_extraction_timing
+def extract_volumes(driver: WebDriver, soup: BeautifulSoup) -> int | str | None:
+    """Extract volumes counter from info boxes."""
+    boxes = _get_info_boxes(driver)
     for box in boxes:
-        num_el = box.select_one(".numero")
         rot_el = box.select_one(".rotulo")
-        if not num_el or not rot_el:
+        if not rot_el:
             continue
         label = rot_el.get_text(strip=True).upper()
-        value = num_el.get_text(strip=True)
-        if value.isdigit():
-            value = int(value)
-        elif not value or value.strip() == "":
-            value = None
         if "VOLUME" in label:
-            result["volumes"] = value
-        elif "FOLHA" in label:
-            result["folhas"] = value
-        elif "APENSO" in label:
-            result["apensos"] = value
-    return result if result else None
+            return _extract_value_from_box(box)
+    return None
+
+
+@track_extraction_timing
+def extract_folhas(driver: WebDriver, soup: BeautifulSoup) -> int | str | None:
+    """Extract folhas counter from info boxes."""
+    boxes = _get_info_boxes(driver)
+    for box in boxes:
+        rot_el = box.select_one(".rotulo")
+        if not rot_el:
+            continue
+        label = rot_el.get_text(strip=True).upper()
+        if "FOLHA" in label:
+            return _extract_value_from_box(box)
+    return None
+
+
+@track_extraction_timing
+def extract_apensos(driver: WebDriver, soup: BeautifulSoup) -> int | str | None:
+    """Extract apensos counter from info boxes."""
+    boxes = _get_info_boxes(driver)
+    for box in boxes:
+        rot_el = box.select_one(".rotulo")
+        if not rot_el:
+            continue
+        label = rot_el.get_text(strip=True).upper()
+        if "APENSO" in label:
+            return _extract_value_from_box(box)
+    return None
