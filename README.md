@@ -53,5 +53,5 @@ uv run main.py --overwrite
 
 # teste automatico com processo customizado
 # requer que haja um arquivo equivalente em tests/ground_truth/RE_1234567.json
-uv run main.py --test -c RE -i 1234567 -f 1234567
+uv run main.py -c RE -i 1234567 -f 1234567 --test 
 ```

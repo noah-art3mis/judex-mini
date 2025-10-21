@@ -18,6 +18,9 @@ def test_ground_truth(
 ) -> None:
     """Test extracted data against ground truth files."""
 
+    # Truncation constant for log messages
+    MAX_MESSAGE_LENGTH = 50
+
     ground_truth_path = Path(ground_truth_dir)
     output_path = Path(output_dir)
 
@@ -105,16 +108,28 @@ def test_ground_truth(
         for field, result in test_results.items():
             if result["passed"]:
                 passed_tests += 1
-                logging.info(f"✓ {field}: {result['message']}")
+                # Truncate long messages
+                message = result["message"]
+                if len(message) > MAX_MESSAGE_LENGTH:
+                    message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
+                logging.info(f"✓ {field}: {message}")
             else:
                 failed_tests += 1
-                logging.error(f"✗ {field}: {result['message']}")
+                # Truncate long messages
+                message = result["message"]
+                if len(message) > MAX_MESSAGE_LENGTH:
+                    message = message[: MAX_MESSAGE_LENGTH - 3] + "..."
+                logging.error(f"✗ {field}: {message}")
 
     # Log which files were used for comparison
     if tested_files:
         logging.info(f"\n=== FILES USED FOR COMPARISON ===")
         for i, file_path in enumerate(tested_files, 1):
-            logging.info(f"{i}. {file_path}")
+            # Truncate long file paths
+            display_path = file_path
+            if len(file_path) > 80:
+                display_path = "..." + file_path[-77:]
+            logging.info(f"{i}. {display_path}")
     else:
         logging.warning(
             "No files were tested - no matching ground truth or output files found"
@@ -130,7 +145,6 @@ def test_ground_truth(
         if total_tests > 0
         else "No tests run"
     )
-
 
 
 def compare_data(
