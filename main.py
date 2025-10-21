@@ -3,6 +3,7 @@ import logging
 import typer
 
 from src.scraper import run_scraper
+from src.testing.ground_truth_test import test_ground_truth
 
 
 # configuracoes da cli
@@ -29,6 +30,17 @@ def main(
         False,
         "--overwrite",
         help="Overwrite existing output files instead of appending",
+    ),
+    test: bool = typer.Option(
+        False,
+        "--test",
+        help="Run ground truth tests after scraping",
+    ),
+    ground_truth_dir: str = typer.Option(
+        "tests/ground_truth",
+        "-g",
+        "--ground-truth-dir",
+        help="Directory containing ground truth files",
     ),
 ) -> None:
     """CLI entry point for JUDEX MINI scraper."""
@@ -64,6 +76,18 @@ def main(
             logging.info(f"  {file_info}")
     else:
         logging.info("📁 No files were exported (no successful processes)")
+
+    # Run tests if requested
+    if test:
+        logging.info("\n=== RUNNING GROUND TRUTH TESTS ===")
+        test_ground_truth(
+            ground_truth_dir,
+            output_dir,
+            log_level,
+            classe,
+            processo_inicial,
+            processo_final,
+        )
 
 
 if __name__ == "__main__":

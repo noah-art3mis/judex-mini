@@ -24,13 +24,13 @@ def _extract_data_from_html(html: str) -> dict:
         "data_enviado_match": r'processo-detalhes bg-font-info">([^<]+)',
         "guia_match": r'text-right">\s*<span class="processo-detalhes">([^<]+)',
     }
-    
+
     # Extract matches
     matches = {}
     for key, pattern in patterns.items():
         match = re.search(pattern, html)
         matches[key] = match.group(1) if match else None
-    
+
     return matches
 
 
@@ -42,28 +42,28 @@ def _clean_data_fields(matches: dict) -> dict:
     guia = matches["guia_match"]
     enviado_raw = matches["recebido_match"]
     recebido_raw = matches["enviado_match"]
-    
+
     # Clean data_recebido
     if data_recebido is not None:
         data_recebido = normalize_spaces(data_recebido)
         data_recebido = (
             data_recebido.replace("Recebido em ", "").replace(" em ", "").strip()
         )
-    
+
     # Clean data_enviado
     if data_enviado is not None:
         data_enviado = normalize_spaces(data_enviado)
         data_enviado = (
             data_enviado.replace("Enviado em ", "").replace(" em ", "").strip()
         )
-    
+
     # Clean guia
     if guia is not None:
         guia = normalize_spaces(guia)
         guia = (
             guia.replace("Guia: ", "").replace("Guia ", "").replace("Nº ", "").strip()
         )
-    
+
     return {
         "data_recebido": data_recebido,
         "data_enviado": data_enviado,
@@ -73,7 +73,9 @@ def _clean_data_fields(matches: dict) -> dict:
     }
 
 
-def _extract_person_data(enviado_raw: str, recebido_raw: str, data_enviado: str, data_recebido: str) -> dict:
+def _extract_person_data(
+    enviado_raw: str, recebido_raw: str, data_enviado: str, data_recebido: str
+) -> dict:
     """Extract and clean person data from raw text."""
     # Process enviado_por
     enviado_por_clean = enviado_raw
@@ -86,7 +88,7 @@ def _extract_person_data(enviado_raw: str, recebido_raw: str, data_enviado: str,
         # Remove boilerplate text
         enviado_por_clean = re.sub(r"^Enviado por ", "", enviado_por_clean)
         enviado_por_clean = re.sub(r" em \d{2}/\d{2}/\d{4}$", "", enviado_por_clean)
-    
+
     # Process recebido_por
     recebido_por_clean = recebido_raw
     if recebido_raw is not None:
@@ -98,7 +100,7 @@ def _extract_person_data(enviado_raw: str, recebido_raw: str, data_enviado: str,
         # Remove boilerplate text
         recebido_por_clean = re.sub(r"^Recebido por ", "", recebido_por_clean)
         recebido_por_clean = re.sub(r" em \d{2}/\d{2}/\d{4}$", "", recebido_por_clean)
-    
+
     return {
         "enviado_por": enviado_por_clean,
         "recebido_por": recebido_por_clean,
@@ -169,19 +171,19 @@ def _extract_single_deslocamento(deslocamento, index: int) -> dict | None:
     try:
         # Get HTML and use regex patterns (like original working code)
         html = deslocamento.get_attribute("innerHTML")
-        
+
         # Extract data using regex patterns
         matches = _extract_data_from_html(html)
-        
+
         # Clean basic data fields
         cleaned_data = _clean_data_fields(matches)
-        
+
         # Extract person data with date extraction
         person_data = _extract_person_data(
             cleaned_data["enviado_raw"],
             cleaned_data["recebido_raw"],
             cleaned_data["data_enviado"],
-            cleaned_data["data_recebido"]
+            cleaned_data["data_recebido"],
         )
 
         return {

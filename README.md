@@ -48,5 +48,10 @@ Para testar:
 
 ```bash
 # usa o processo padrão (AI 772309), output em json, salva em cima do arquivo
+# checar manualmente se corresponde ao arquivo extraído manualmente (tests/ground_truth/AI_772309.json)
 uv run main.py --overwrite
+
+# teste automatico com processo customizado
+# requer que haja um arquivo equivalente em tests/ground_truth/RE_1234567.json
+uv run main.py --test -c RE -i 1234567 -f 1234567
 ```
