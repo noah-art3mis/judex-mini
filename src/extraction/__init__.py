@@ -21,8 +21,10 @@ from .extract_numero_unico import extract_numero_unico
 from .extract_orgao_origem import extract_orgao_origem
 from .extract_origem import extract_origem
 from .extract_partes import extract_partes
+from .extract_peticoes import extract_peticoes
 from .extract_primeiro_autor import extract_primeiro_autor
 from .extract_publicidade import extract_publicidade
+from .extract_recursos import extract_recursos
 from .extract_relator import extract_relator
 from .extract_volumes_folhas_apensos import (
     extract_apensos,
@@ -49,8 +51,10 @@ __all__ = [
     "extract_orgao_origem",
     "extract_origem",
     "extract_partes",
+    "extract_peticoes",
     "extract_primeiro_autor",
     "extract_publicidade",
+    "extract_recursos",
     "extract_relator",
     "extract_volumes",
     "extract_folhas",

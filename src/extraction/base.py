@@ -7,8 +7,6 @@ import logging
 import time
 from typing import Callable
 
-# Import normalize_spaces from text_utils instead of defining it here
-
 
 def track_extraction_timing(func: Callable) -> Callable:
     """Decorator to track extraction function timing"""
