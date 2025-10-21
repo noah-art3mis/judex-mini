@@ -16,7 +16,7 @@ class ScraperConfig:
     webdriver_timeout: int = 10
     initial_delay: float = 1  # 0.01 toma backoff
     driver_sleep_time: float = 1  # 0.01 toma backoff
-    always_wait_time: float = 1  # 0.01 toma backoff
+    always_wait_time: float = 2  # 0.01 toma backoff
     driver_max_retries_for_missing: int = 5
 
     # Retry Configuration - Driver

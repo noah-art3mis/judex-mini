@@ -56,7 +56,9 @@ class ProcessTimer:
         logging.info(f"Total processes: {len(self.process_times)}")
         logging.info(f"Successful: {len(successful_processes)}")
         logging.info(f"Failed: {len(failed_processes)}")
-        logging.info(f"Total time: {total_duration:.2f}s")
+        logging.info(
+            f"Total time: {(total_duration / 3600):.1f}h {((total_duration % 3600) / 60):.1f}m ({total_duration:.0f}s)"
+        )
 
         if successful_processes:
             logging.info(f"Average time per process: {avg_duration:.2f}s")

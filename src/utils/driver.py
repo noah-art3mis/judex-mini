@@ -53,7 +53,7 @@ def create_retry_decorator(config: ScraperConfig):
     )
 
 
-def retry_driver_operation(
+def load_page_with_retry(
     driver, URL, operation_name="operation", config: Optional[ScraperConfig] = None
 ):
     """Retry driver operations with exponential backoff."""
