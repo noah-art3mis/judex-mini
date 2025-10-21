@@ -33,6 +33,7 @@ from src.extraction import (
     extract_publicidade,
     extract_recursos,
     extract_relator,
+    extract_sessao_virtual,
     extract_volumes,
 )
 from src.utils.driver import get_driver, load_page_with_retry
@@ -178,7 +179,7 @@ def extract_processo(
         "primeiro_autor": extract_primeiro_autor(driver, soup),
         "partes": extract_partes(driver, soup),
         "andamentos": extract_andamentos(driver, soup, config),
-        "sessao_virtual": [],
+        "sessao_virtual": extract_sessao_virtual(driver, soup),
         "deslocamentos": extract_deslocamentos(driver, soup),
         "peticoes": extract_peticoes(driver, soup),
         "recursos": extract_recursos(driver, soup),

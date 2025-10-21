@@ -26,6 +26,7 @@ from .extract_primeiro_autor import extract_primeiro_autor
 from .extract_publicidade import extract_publicidade
 from .extract_recursos import extract_recursos
 from .extract_relator import extract_relator
+from .extract_sessao_virtual import extract_sessao_virtual
 from .extract_volumes_folhas_apensos import (
     extract_apensos,
     extract_folhas,
@@ -56,6 +57,7 @@ __all__ = [
     "extract_publicidade",
     "extract_recursos",
     "extract_relator",
+    "extract_sessao_virtual",
     "extract_volumes",
     "extract_folhas",
     "extract_apensos",

@@ -1144,7 +1144,9 @@
                     "MIN. LUÍS ROBERTO BARROSO"
                 ],
                 "url_relatorio": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552046",
-                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552056"
+                "conteudo_relatorio": null,
+                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552056",
+                "conteudo_voto": null
             },
             {
                 "lista": "174-2023",
