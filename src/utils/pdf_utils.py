@@ -3,12 +3,15 @@ from io import BytesIO
 from typing import Optional
 
 import requests
-import striprtf
+import striprtf  # type: ignore
 
 try:
     from pypdf import PdfReader
+
+    PDF_AVAILABLE = True
 except ImportError:
-    PdfReader = None
+    PdfReader = None  # type: ignore
+    PDF_AVAILABLE = False
 
 
 def detect_file_type(response) -> str:
@@ -26,11 +29,11 @@ def detect_file_type(response) -> str:
 
 def extract_pdf_text_from_content(content: bytes) -> Optional[str]:
     """Extract text from PDF content using PyPDF"""
-    if not PdfReader:
+    if not PDF_AVAILABLE:
         return None
 
     try:
-        reader = PdfReader(BytesIO(content))
+        reader = PdfReader(BytesIO(content))  # type: ignore
         text = ""
 
         for page in reader.pages:
@@ -56,7 +59,7 @@ def extract_rtf_text(content: bytes) -> Optional[str]:
         # Decode RTF content
         rtf_text = content.decode("utf-8", errors="ignore")
         # Strip RTF formatting
-        plain_text = striprtf.rtf_to_text(rtf_text)
+        plain_text = striprtf.rtf_to_text(rtf_text)  # type: ignore
         return plain_text.strip()
     except Exception as e:
         logging.warning(f"Failed to extract RTF text: {e}")
