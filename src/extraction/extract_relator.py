@@ -4,7 +4,9 @@ Extract relator from process data
 
 from bs4 import BeautifulSoup
 
-from .base import normalize_spaces, track_extraction_timing
+from src.utils.text_utils import normalize_spaces
+
+from .base import track_extraction_timing
 
 
 @track_extraction_timing

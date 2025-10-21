@@ -1,7 +1,6 @@
 import logging
 import time
 from contextlib import contextmanager
-from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -14,6 +13,7 @@ from tenacity import (
 )
 
 from src.config import ScraperConfig
+from src.utils.get_element import find_element_by_xpath
 
 
 def setup_driver(user_agent: str) -> WebDriver:
@@ -39,9 +39,25 @@ def get_driver(user_agent: str):
             logging.debug("Driver cleanup completed")
 
 
-def create_retry_decorator(config: ScraperConfig):
-    """Create retry decorator with configurable parameters."""
-    return retry(
+def _check_for_errors(driver, document: str):
+    """Check for common error conditions in page source."""
+    page_source = driver.page_source
+    if "403 Forbidden" in page_source:
+        raise Exception("403 Forbidden - Access denied")
+    if "CAPTCHA" in page_source:
+        raise Exception("CAPTCHA detected")
+    if "502 Bad Gateway" in page_source:
+        raise Exception("502 Bad Gateway")
+    if "Processo não encontrado" in document:
+        raise Exception("Processo não encontrado")
+    _xpath_descricao = '//*[@id="descricao-procedencia"]'
+    if find_element_by_xpath(driver, _xpath_descricao) == "":
+        raise Exception("descricao-procedencia não encontrado")
+
+
+def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) -> str:
+
+    @retry(
         stop=stop_after_attempt(config.driver_max_retries),
         wait=wait_exponential(
             multiplier=config.driver_backoff_multiplier,
@@ -51,34 +67,22 @@ def create_retry_decorator(config: ScraperConfig):
         retry=retry_if_exception_type((Exception,)),
         reraise=True,
     )
-
-
-def load_page_with_retry(
-    driver, URL, operation_name="operation", config: Optional[ScraperConfig] = None
-):
-    """Retry driver operations with exponential backoff."""
-    if config is None:
-        config = ScraperConfig()
-
-    # Create retry decorator with config
-    retry_decorator = create_retry_decorator(config)
-
-    @retry_decorator
-    def _retry_operation():
-        logging.debug(f"Attempting {operation_name}")
+    def _retry_operation() -> str:
+        logging.debug(f"Attempting {process_name}")
 
         driver.get(URL)
         time.sleep(config.driver_sleep_time)
 
-        # Check for common error conditions
-        if "403 Forbidden" in driver.page_source:
-            raise Exception("403 Forbidden - Access denied")
-        if "CAPTCHA" in driver.page_source:
-            raise Exception("CAPTCHA detected")
-        if "502 Bad Gateway" in driver.page_source:
-            raise Exception("502 Bad Gateway")
+        document = find_element_by_xpath(
+            driver,
+            '//*[@id="conteudo"]',
+            initial_delay=config.initial_delay,
+            timeout=config.webdriver_timeout,
+        )
 
-        logging.info(f"{operation_name}")
-        return True
+        _check_for_errors(driver, document)
+
+        logging.info(f"{process_name}: loaded")
+        return document
 
     return _retry_operation()
