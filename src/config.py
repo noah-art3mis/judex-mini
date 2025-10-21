@@ -12,11 +12,16 @@ class ScraperConfig:
     )
     base_url: str = "https://portal.stf.jus.br"
 
+    # Configuracao padrao:
+    # - nao toma backoff
+    # - itens demoram 20s cada
+    # - 100 itens demora 40min
+
     # Timeouts & Delays
     webdriver_timeout: int = 10
-    initial_delay: float = 1  # 0.01 toma backoff
-    driver_sleep_time: float = 1  # 0.01 toma backoff
-    always_wait_time: float = 2  # 0.01 toma backoff
+    initial_delay: float = 1
+    driver_sleep_time: float = 1
+    always_wait_time: float = 2
     driver_max_retries_for_missing: int = 5
 
     # Retry Configuration - Driver
