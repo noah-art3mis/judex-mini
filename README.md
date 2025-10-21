@@ -42,13 +42,11 @@ uv run main.py -c AI -i 1234567 -f 1234570 --output-format json --output-dir res
 
 # salvar arquivos no desktop do windows
 uv run main.py --output-dir /mnt/c/Users/YourUsername/Desktop/judex-mini
+```
 
-# complete example
-uv run main.py \
-  --classe RE \
-  --processo-inicial 1234567 \
-  --processo-final 1234570 \
-  --output-format json \
-  --output-dir extracted_data \
-  --log-level INFO
+Para testar:
+
+```bash
+# usa o processo padrão (AI 772309), output em json, salva em cima do arquivo
+uv run main.py --overwrite
 ```
