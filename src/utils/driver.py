@@ -78,7 +78,7 @@ def retry_driver_operation(
         if "502 Bad Gateway" in driver.page_source:
             raise Exception("502 Bad Gateway")
 
-        logging.info(f"Successfully completed {operation_name}")
+        logging.info(f"{operation_name}")
         return True
 
     return _retry_operation()

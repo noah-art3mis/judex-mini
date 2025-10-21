@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from typing import Union
 
 import pandas as pd
 
@@ -13,90 +12,92 @@ def export_item(
     item: StfItem,
     out_file: str,
     output_dir: str,
-    config: Union[OutputConfig, tuple[bool, bool, bool]],
+    config: OutputConfig,
     overwrite: bool = False,
 ) -> list[str]:
     exported_files = []
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Handle both new OutputConfig and legacy tuple format
-    if isinstance(config, OutputConfig):
-        save_to_csv = config.csv
-        save_to_jsonl = config.jsonl
-        save_to_json = config.json
-    else:
-        # Legacy tuple format: (csv, jsonl, json)
-        save_to_csv, save_to_jsonl, save_to_json = config
-
-    if save_to_csv:
-        df = pd.DataFrame([item])
-        csv_file = out_file + ".csv"
-
-        # Check if file exists to determine if we need to write header
-        file_exists = os.path.exists(csv_file)
-
-        # For CSV, always append unless it's the first write and overwrite is True
-        if overwrite and not file_exists:
-            # First write with overwrite=True - create new file
-            mode = "w"
-            write_header = True
-        else:
-            # Subsequent writes or append mode - append to existing file
-            mode = "a"
-            write_header = not file_exists
-
-        df.to_csv(
-            csv_file,
-            mode=mode,
-            index=False,
-            encoding="utf-8",
-            quoting=1,
-            doublequote=True,
-            header=write_header,
-        )
+    if config.csv:
+        csv_file = _save_to_csv(item, out_file, overwrite)
         exported_files.append(f"CSV: {csv_file}")
-        logging.debug(f"Saved to CSV: {csv_file}")
 
-    if save_to_jsonl:
-        df = pd.DataFrame([item])
-        jsonl_file = out_file + ".jsonl"
-
-        # Write to JSONL file (one JSON object per line)
-        df.to_json(
-            jsonl_file, orient="records", lines=True, mode="w" if overwrite else "a"
-        )
+    if config.jsonl:
+        jsonl_file = _save_to_jsonl(item, out_file, overwrite)
         exported_files.append(f"JSONL: {jsonl_file}")
-        logging.debug(f"Saved to JSONL: {jsonl_file}")
 
-    if save_to_json:
-        json_file = out_file + ".json"
-
-        if overwrite:
-            # Overwrite mode: create new file with just this item
-            data = [item]
-        else:
-            # Append mode: read existing data and add new item
-            if os.path.exists(json_file):
-                # Read existing data
-                with open(json_file, "r", encoding="utf-8") as f:
-                    try:
-                        data = json.load(f)
-                        if not isinstance(data, list):
-                            data = [data]  # Convert single object to list
-                    except json.JSONDecodeError:
-                        data = []
-            else:
-                data = []
-
-            # Append new item
-            data.append(item)
-
-        # Write back to file
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
+    if config.json:
+        json_file = _save_to_json(item, out_file, overwrite)
         exported_files.append(f"JSON: {json_file}")
-        logging.debug(f"Saved to JSON: {json_file}")
 
     return exported_files
+
+
+def _save_to_csv(item: StfItem, out_file: str, overwrite: bool) -> str:
+    """Save item to CSV file and return the file path."""
+    df = pd.DataFrame([item])
+    csv_file = out_file + ".csv"
+
+    # Handle overwrite flag: delete file if it exists and overwrite=True
+    if overwrite and os.path.exists(csv_file):
+        os.remove(csv_file)
+        logging.debug(f"Deleted existing file for overwrite: {csv_file}")
+
+    # Always append to file (or create new if doesn't exist)
+    file_exists = os.path.exists(csv_file)
+    df.to_csv(
+        csv_file,
+        mode="a",
+        index=False,
+        encoding="utf-8",
+        quoting=1,
+        doublequote=True,
+        header=not file_exists,  # Write header only if file doesn't exist
+    )
+    logging.debug(f"Saved to CSV: {csv_file}")
+    return csv_file
+
+
+def _save_to_jsonl(item: StfItem, out_file: str, overwrite: bool) -> str:
+    """Save item to JSONL file and return the file path."""
+    df = pd.DataFrame([item])
+    jsonl_file = out_file + ".jsonl"
+
+    # Handle overwrite flag: delete file if it exists and overwrite=True
+    if overwrite and os.path.exists(jsonl_file):
+        os.remove(jsonl_file)
+        logging.debug(f"Deleted existing file for overwrite: {jsonl_file}")
+
+    # Always append to file (or create new if doesn't exist)
+    df.to_json(jsonl_file, orient="records", lines=True, mode="a")
+    logging.debug(f"Saved to JSONL: {jsonl_file}")
+    return jsonl_file
+
+
+def _save_to_json(item: StfItem, out_file: str, overwrite: bool) -> str:
+    """Save item to JSON file and return the file path."""
+    json_file = out_file + ".json"
+
+    # Handle overwrite flag: delete file if it exists and overwrite=True
+    if overwrite and os.path.exists(json_file):
+        os.remove(json_file)
+        logging.debug(f"Deleted existing file for overwrite: {json_file}")
+
+    # Always append to file (or create new if doesn't exist)
+    if os.path.exists(json_file):
+        # Remove the last ']' and add a comma
+        with open(json_file, "r+", encoding="utf-8") as f:
+            f.seek(-1, 2)  # Go to the last character
+            f.write(",")  # Replace ']' with ','
+
+        # Append new item
+        with open(json_file, "a", encoding="utf-8") as f:
+            f.write(f"\n{json.dumps(item, ensure_ascii=False, indent=2)},\n]")
+    else:
+        # Create new file with array format
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump([item], f, ensure_ascii=False, indent=2)
+
+    logging.debug(f"Saved to JSON: {json_file}")
+    return json_file

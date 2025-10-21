@@ -45,7 +45,7 @@ def run_scraper(
     output_dir: str,
     overwrite: bool,
     config: Optional[ScraperConfig] = None,
-) -> List[str]:
+) -> None:
 
     if config is None:
         config = ScraperConfig()
@@ -58,36 +58,62 @@ def run_scraper(
     timer = ProcessTimer()
     all_exported_files = []
 
-    for processo in range(processo_inicial, processo_final + 1):
-        processo_name = f"{classe} {processo}"
-        process_start_time = timer.start_process(processo_name)
-        logging.info(f"Processing {processo_name}")
+    def handle_processos(processos: list):
+        for processo in processos:
+            processo_name = f"{classe} {processo}"
+            process_start_time = timer.start_process(processo_name)
+            logging.info(f"{processo_name}: START")
 
-        item = process_single_process(processo, classe, config)
+            item = process_single_process(processo, classe, config)
 
-        # Only export if we have valid data
-        if item:
-            exported_files = export_item(
-                item,
-                out_file,
-                output_dir,
-                output_config,
-                overwrite,
+            # Only export if we have valid data
+            if item:
+                exported_files = export_item(
+                    item,
+                    out_file,
+                    output_dir,
+                    output_config,
+                    overwrite,
+                )
+            else:
+                exported_files = []
+
+            # Track success based on whether files were exported
+            all_exported_files.extend(exported_files)
+            success = len(exported_files) > 0
+            timer.end_process(processo_name, process_start_time, success=success)
+
+
+    def handle_missing_processes(
+        classe: str,
+        processo_inicial: int,
+        processo_final: int,
+        output_dir: str,
+        config: ScraperConfig,
+    ) -> list[str]:
+        for _ in range(config.driver_max_retries_for_missing):
+            missing_processes = check_missing_processes(
+                classe, processo_inicial, processo_final, output_dir
             )
-        else:
-            exported_files = []
+            if not missing_processes:
+                break
+            handle_processos(missing_processes)
 
-        # Track success based on whether files were exported
-        all_exported_files.extend(exported_files)
-        success = len(exported_files) > 0
-        timer.end_process(processo_name, process_start_time, success=success)
+    processos = list(range(processo_inicial, processo_final + 1))
 
+    handle_processos(processos)
+    handle_missing_processes(
+        classe, processo_inicial, processo_final, output_dir, config
+    )
+    
     timer.log_summary()
 
-    # Check for missing process numbers in CSV output
-    check_missing_processes(classe, processo_inicial, processo_final, output_dir, output_format)
-
-    return all_exported_files
+    if all_exported_files:
+        logging.info(f"{processo_inicial}-{processo_final}: EXPORTED FILES:")
+        for file_info in set(all_exported_files):
+            logging.info(f"  {file_info}")
+    else:
+        logging.info(f"{classe} {processo_inicial}-{processo_final}: No files were exported (no successful processes)")
 
 
 def process_single_process(
@@ -100,10 +126,8 @@ def process_single_process(
     processo_name = f"{classe} {processo}"
 
     with get_driver(config.user_agent) as driver:
-        # Reset driver with exponential backoff
-
         try:
-            retry_driver_operation(driver, URL, f"loading {processo_name}", config)
+            retry_driver_operation(driver, URL, f"{processo_name}: loading", config)
         except Exception as e:
             logging.error(f"Error loading {processo_name}: {e}")
             return None
@@ -118,7 +142,7 @@ def process_single_process(
 
         # Guard clause: skip if process not found
         if "Processo não encontrado" in document:
-            logging.warning(f"Process not found for {processo_name} - skipping")
+            logging.warning(f"{processo_name}: Processo não encontrado -- skipping")
             return None
 
         # Guard clause: skip if process not found
@@ -131,10 +155,10 @@ def process_single_process(
             )
             == ""
         ):
-            logging.warning(f"Process not found for {processo_name} - skipping")
+            logging.warning(f"{processo_name}: descricao-procedencia não encontrado -- skipping")
             return None
 
-        logging.info(f"Process found for {processo_name} - starting data extraction")
+        logging.info(f"{processo_name}: start extraction")
 
         soup = BeautifulSoup(document, "html.parser")
 
@@ -170,5 +194,49 @@ def process_single_process(
             "html": normalize_spaces(document),
         }
 
-        logging.info(f"Successfully extracted and exported data for {processo_name}")
+        logging.info(f"{processo_name}: exported")
         return item
+
+
+def check_missing_processes(
+    classe: str,
+    processo_inicial: int,
+    processo_final: int,
+    output_dir: str,
+) -> list[int]:
+    """Check for missing process numbers in the CSV output and log them."""
+    import os
+
+    import pandas as pd
+
+    # Construct the expected CSV file path
+    csv_file = (
+        f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}.csv"
+    )
+
+    if not os.path.exists(csv_file):
+        logging.warning(f"CSV file not found: {csv_file}")
+        return []
+
+    try:
+        # Read the CSV file
+        df = pd.read_csv(csv_file)
+
+        # Extract process numbers from the 'numero' column
+        if "processo_id" not in df.columns:
+            logging.warning("No 'processo_id' column found in CSV file")
+            return
+
+        # Get the process numbers that were successfully processed
+        processed_numbers = set(df["processo_id"].astype(str))
+
+        # Generate the expected range of process numbers
+        expected_numbers = set(
+            str(i) for i in range(processo_inicial, processo_final + 1)
+        )
+
+        return list(expected_numbers - processed_numbers)
+
+    except Exception as e:
+        logging.error(f"Error checking missing processes: {e}")
+        return []

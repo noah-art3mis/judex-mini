@@ -63,7 +63,7 @@ def main(
     config = ScraperConfig()
 
     # Run the scraper with all parameters
-    all_exported_files = run_scraper(
+    run_scraper(
         classe=classe,
         processo_inicial=processo_inicial,
         processo_final=processo_final,
@@ -75,12 +75,7 @@ def main(
 
     logging.info("🎉 Finished processing all processes!")
 
-    if all_exported_files:
-        logging.info("📁 EXPORTED FILES:")
-        for file_info in set(all_exported_files):
-            logging.info(f"  {file_info}")
-    else:
-        logging.info("📁 No files were exported (no successful processes)")
+
 
     # Run tests if requested
     if test:

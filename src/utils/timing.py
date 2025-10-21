@@ -32,7 +32,7 @@ class ProcessTimer:
         }
         self.process_times.append(process_info)
 
-        logging.info(f"Completed {processo} in {duration:.2f}s")
+        logging.info(f"{processo}: completed in {duration:.1f}s")
 
     def log_summary(self) -> None:
         """Log comprehensive timing summary"""
