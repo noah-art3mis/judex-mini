@@ -66,13 +66,11 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                 # Wait for content and extract
                 wait = WebDriverWait(driver, 10)
                 try:
-                    # Wait for the collapse div to appear
-                    collapse_div = wait.until(
-                        EC.presence_of_element_located(
-                            (By.CSS_SELECTOR, "[id^='listasJulgamento']")
-                        )
+                    # Find the collapse div within this specific julgamento item
+                    collapse_div = julgamento_item.find_element(
+                        By.CSS_SELECTOR, "[id^='listasJulgamento']"
                     )
-                    logging.info(
+                    logging.debug(
                         f"Found collapse div: {collapse_div.get_attribute('id')}"
                     )
 
@@ -81,10 +79,10 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                         lambda driver: "collapsing"
                         not in collapse_div.get_attribute("class")
                     )
-                    logging.info("Collapse animation completed")
+                    logging.debug("Collapse animation completed")
 
                     # Debug: Check what's actually in the collapse div
-                    logging.info(
+                    logging.debug(
                         f"Collapse div HTML: {collapse_div.get_attribute('outerHTML')[:500]}..."
                     )
 
@@ -94,7 +92,7 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                         nested_collapse_link = collapse_div.find_element(
                             By.CSS_SELECTOR, "div:nth-child(1) > a:nth-child(1)"
                         )
-                        logging.info("Found nested collapse link, clicking it...")
+                        logging.debug("Found nested collapse link, clicking it...")
                         driver.execute_script(
                             "arguments[0].click();", nested_collapse_link
                         )
@@ -106,9 +104,9 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                             or nested_collapse_link.get_attribute("aria-expanded")
                             == "true"
                         )
-                        logging.info("Nested collapse expanded")
+                        logging.debug("Nested collapse expanded")
                     except Exception as e:
-                        logging.info(
+                        logging.debug(
                             f"No nested collapse found or already expanded: {e}"
                         )
 
@@ -118,16 +116,16 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                         titulo = collapse_div.find_element(
                             By.CSS_SELECTOR, ".titulo-lista"
                         ).text
-                        logging.info(
-                            f"Found titulo with .titulo-lista: {titulo[:100]}..."
-                        )
+                            logging.debug(
+                                f"Found titulo with .titulo-lista: {titulo[:100]}..."
+                            )
                     except:
                         try:
                             # Try without the m-16 class
                             titulo = collapse_div.find_element(
                                 By.CSS_SELECTOR, ".titulo-lista"
                             ).text
-                            logging.info(
+                            logging.debug(
                                 f"Found titulo without m-16: {titulo[:100]}..."
                             )
                         except:
@@ -143,9 +141,9 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                                     or "improcedente" in text.lower()
                                 ):
                                     titulo = text
-                                    logging.info(
-                                        f"Found titulo by text search: {titulo[:100]}..."
-                                    )
+                                        logging.debug(
+                                            f"Found titulo by text search: {titulo[:100]}..."
+                                        )
                                     break
 
                     if titulo:
