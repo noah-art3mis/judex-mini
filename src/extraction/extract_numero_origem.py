@@ -1,0 +1,26 @@
+from bs4 import BeautifulSoup
+from selenium.webdriver.remote.webdriver import WebDriver
+
+from src.utils.get_element import find_element_by_xpath
+from src.utils.text_utils import normalize_spaces
+
+from .base import track_extraction_timing
+
+
+@track_extraction_timing
+def extract_numero_origem(driver: WebDriver, soup: BeautifulSoup) -> list | None:
+    """Extract numero_origem as a list to match ground-truth schema."""
+    element = find_element_by_xpath(
+        driver, '//*[@id="informacoes-completas"]/div[2]/div[1]/div[2]/div[8]'
+    )
+    if not element:
+        return None
+
+    text = normalize_spaces(element)
+    if not text:
+        return None
+
+    try:
+        return [int(text)]
+    except ValueError:
+        return None

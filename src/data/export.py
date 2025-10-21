@@ -13,6 +13,7 @@ def export_item(
     out_file: str,
     output_dir: str,
     config: Union[OutputConfig, tuple[bool, bool, bool]],
+    overwrite: bool = False,
 ) -> list[str]:
     exported_files = []
 
@@ -32,11 +33,11 @@ def export_item(
         csv_file = out_file + ".csv"
 
         # Check if file exists to determine if we need to write header
-        file_exists = os.path.exists(csv_file)
+        file_exists = os.path.exists(csv_file) and not overwrite
 
         df.to_csv(
             csv_file,
-            mode="a",
+            mode="w" if overwrite else "a",
             index=False,
             encoding="utf-8",
             quoting=1,
@@ -48,28 +49,35 @@ def export_item(
     if save_to_jsonl:
         df = pd.DataFrame([item])
         jsonl_file = out_file + ".jsonl"
-        df.to_json(jsonl_file, orient="records", lines=True)
+
+        # Write to JSONL file (one JSON object per line)
+        df.to_json(
+            jsonl_file, orient="records", lines=True, mode="w" if overwrite else "a"
+        )
         exported_files.append(f"JSONL: {jsonl_file}")
 
     if save_to_json:
         json_file = out_file + ".json"
 
-        # For JSON format, we need to handle appending differently
-        # We'll create a list of items and append to it
-        if os.path.exists(json_file):
-            # Read existing data
-            with open(json_file, "r", encoding="utf-8") as f:
-                try:
-                    data = json.load(f)
-                    if not isinstance(data, list):
-                        data = [data]  # Convert single object to list
-                except json.JSONDecodeError:
-                    data = []
+        if overwrite:
+            # Overwrite mode: create new file with just this item
+            data = [item]
         else:
-            data = []
+            # Append mode: read existing data and add new item
+            if os.path.exists(json_file):
+                # Read existing data
+                with open(json_file, "r", encoding="utf-8") as f:
+                    try:
+                        data = json.load(f)
+                        if not isinstance(data, list):
+                            data = [data]  # Convert single object to list
+                    except json.JSONDecodeError:
+                        data = []
+            else:
+                data = []
 
-        # Append new item
-        data.append(item)
+            # Append new item
+            data.append(item)
 
         # Write back to file
         with open(json_file, "w", encoding="utf-8") as f:

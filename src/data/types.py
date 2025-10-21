@@ -1,9 +1,7 @@
-from dataclasses import dataclass
-from typing import Optional
+from typing import List, Literal, Optional, TypedDict
 
 
-@dataclass
-class StfItem:
+class StfItem(TypedDict):
     # Basic process identification
     incidente: int
     classe: str
@@ -11,16 +9,16 @@ class StfItem:
     numero_unico: Optional[str]
 
     # Process classification
-    meio: str  # "FISICO" or "ELETRONICO"
-    publicidade: str  # "PUBLICO" or "SIGILOSO"
-    badges: list[str]
+    meio: Literal["FISICO", "ELETRONICO"]
+    publicidade: Literal["PUBLICO", "SIGILOSO"]
+    badges: List[str]
 
     # Process content
-    assuntos: list[str]
+    assuntos: List[str]
     data_protocolo: str
     orgao_origem: str
     origem: str
-    numero_origem: list[int]
+    numero_origem: List[int]
 
     # Document counts
     volumes: int
@@ -30,15 +28,15 @@ class StfItem:
     # People and parties
     relator: Optional[str]
     primeiro_autor: Optional[str]
-    partes: list
+    partes: List
 
     # Process steps and activities
-    andamentos: list
-    sessao_virtual: list
-    deslocamentos: list
-    peticoes: list
-    recursos: list
-    pautas: list
+    andamentos: List
+    sessao_virtual: List
+    deslocamentos: List
+    peticoes: List
+    recursos: List
+    pautas: List
 
     # Metadata
     status: int
