@@ -5,8 +5,9 @@ from datetime import datetime
 import typer
 from bs4 import BeautifulSoup
 
-from src.driver import get_driver, retry_driver_operation
-from src.export import export_item
+from src.data.export import export_item
+from src.data.output_config import OutputConfig
+from src.data.types import StfItem
 from src.extraction import (
     extract_andamentos,
     extract_assuntos,
@@ -26,11 +27,10 @@ from src.extraction import (
     extract_relator,
     extract_volumes_folhas_apensos,
 )
-from src.get_element import find_element_by_xpath
-from src.output_config import OutputConfig
-from src.text_utils import normalize_spaces
-from src.timing import ProcessTimer
-from src.types import StfItem
+from src.utils.driver import get_driver, retry_driver_operation
+from src.utils.get_element import find_element_by_xpath
+from src.utils.text_utils import normalize_spaces
+from src.utils.timing import ProcessTimer
 
 
 # configuracoes da cli
@@ -52,6 +52,11 @@ def main(
     ),
     log_level: str = typer.Option(
         "INFO", "-l", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"
+    ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Overwrite existing output files instead of appending",
     ),
 ) -> None:
 
@@ -97,86 +102,44 @@ def main(
                     f"Process found for {processo_name} - starting data extraction"
                 )
 
-                # Wait for page to fully load
                 time.sleep(ALWAYS_WAIT_TIME)
-
-                # Parse document with BeautifulSoup for extraction functions
                 soup = BeautifulSoup(document, "html.parser")
 
                 # Extract data using extraction functions
                 volumes_folhas_apensos = extract_volumes_folhas_apensos(driver, soup)
-
-                item = StfItem(
-                    # Basic process identification
-                    incidente=extract_incidente(driver, soup),
-                    classe=extract_classe(soup),
-                    processo_id=processo,
-                    numero_unico=extract_numero_unico(soup),
-                    # Process classification
-                    meio=extract_meio(soup),
-                    publicidade=extract_publicidade(soup),
-                    badges=extract_badges(None, driver, soup),
-                    # Process content
-                    assuntos=extract_assuntos(driver, soup),
-                    data_protocolo=extract_data_protocolo(driver, soup),
-                    orgao_origem=extract_orgao_origem(driver, soup),
-                    origem=extract_origem(driver, soup),
-                    numero_origem=extract_numero_origem(driver, soup),
-                    # Document counts
-                    volumes=volumes_folhas_apensos.get("volumes", None),
-                    folhas=volumes_folhas_apensos.get("folhas", None),
-                    apensos=volumes_folhas_apensos.get("apensos", None),
-                    # People and parties
-                    relator=extract_relator(soup),
-                    primeiro_autor=extract_primeiro_autor(driver, soup),
-                    partes=extract_partes(driver, soup),
-                    # Process steps and activities
-                    andamentos=extract_andamentos(driver, soup),
-                    sessao_virtual=[],
-                    deslocamentos=extract_deslocamentos(driver, soup),
-                    peticoes=[],
-                    recursos=[],
-                    pautas=[],
-                    # Metadata
-                    status=200,
-                    extraido=datetime.now().isoformat(),
-                    html=normalize_spaces(document),
-                )
-
-                # Convert StfItem to dictionary for JSON serialization
-                item_dict = {
-                    "incidente": item.incidente,
-                    "classe": item.classe,
-                    "processo_id": item.processo_id,
-                    "numero_unico": item.numero_unico,
-                    "meio": item.meio,
-                    "publicidade": item.publicidade,
-                    "badges": item.badges,
-                    "assuntos": item.assuntos,
-                    "data_protocolo": item.data_protocolo,
-                    "orgao_origem": item.orgao_origem,
-                    "origem": item.origem,
-                    "numero_origem": item.numero_origem,
-                    "volumes": item.volumes,
-                    "folhas": item.folhas,
-                    "apensos": item.apensos,
-                    "relator": item.relator,
-                    "primeiro_autor": item.primeiro_autor,
-                    "partes": item.partes,
-                    "andamentos": item.andamentos,
-                    "sessao_virtual": item.sessao_virtual,
-                    "deslocamentos": item.deslocamentos,
-                    "peticoes": item.peticoes,
-                    "recursos": item.recursos,
-                    "pautas": item.pautas,
-                    "status": item.status,
-                    "extraido": item.extraido,
-                    "html": item.html,
+                item_dict: StfItem = {
+                    "incidente": extract_incidente(driver, soup),
+                    "classe": extract_classe(soup),
+                    "processo_id": processo,
+                    "numero_unico": extract_numero_unico(soup),
+                    "meio": extract_meio(soup),
+                    "publicidade": extract_publicidade(soup),
+                    "badges": extract_badges(None, driver, soup),
+                    "assuntos": extract_assuntos(driver, soup),
+                    "data_protocolo": extract_data_protocolo(driver, soup),
+                    "orgao_origem": extract_orgao_origem(driver, soup),
+                    "origem": extract_origem(driver, soup),
+                    "numero_origem": extract_numero_origem(driver, soup),
+                    "volumes": volumes_folhas_apensos.get("volumes", None),
+                    "folhas": volumes_folhas_apensos.get("folhas", None),
+                    "apensos": volumes_folhas_apensos.get("apensos", None),
+                    "relator": extract_relator(soup),
+                    "primeiro_autor": extract_primeiro_autor(driver, soup),
+                    "partes": extract_partes(driver, soup),
+                    "andamentos": extract_andamentos(driver, soup),
+                    "sessao_virtual": [],
+                    "deslocamentos": extract_deslocamentos(driver, soup),
+                    "peticoes": [],
+                    "recursos": [],
+                    "pautas": [],
+                    "status": 200,
+                    "extraido": datetime.now().isoformat(),
+                    "html": normalize_spaces(document),
                 }
 
                 # Export the extracted data
                 exported_files = export_item(
-                    item_dict, out_file, output_dir, output_config
+                    item_dict, out_file, output_dir, output_config, overwrite
                 )
                 all_exported_files.extend(exported_files)
 
