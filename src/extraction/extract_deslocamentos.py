@@ -122,7 +122,7 @@ def _clean_extracted_data(data: dict) -> dict:
             guia.replace("Guia: ", "").replace("Guia ", "").replace("Nº ", "").strip()
         )
     else:
-        cleaned["guia"] = None
+        cleaned["guia"] = ""
 
     # Clean data_recebido
     if data.get("data_recebido"):
@@ -131,7 +131,7 @@ def _clean_extracted_data(data: dict) -> dict:
             data_recebido.replace("Recebido em ", "").replace(" em ", "").strip()
         )
     else:
-        cleaned["data_recebido"] = None
+        cleaned["data_recebido"] = ""
 
     # Clean data_enviado
     if data.get("data_enviado"):
@@ -140,11 +140,15 @@ def _clean_extracted_data(data: dict) -> dict:
             data_enviado.replace("Enviado em ", "").replace(" em ", "").strip()
         )
     else:
-        cleaned["data_enviado"] = None
+        cleaned["data_enviado"] = ""
 
     # Clean person data and extract dates
-    cleaned["recebido_por"] = _clean_person_data(data.get("recebido_por"), "recebido")
-    cleaned["enviado_por"] = _clean_person_data(data.get("enviado_por"), "enviado")
+    cleaned["recebido_por"] = (
+        _clean_person_data(data.get("recebido_por"), "recebido") or ""
+    )
+    cleaned["enviado_por"] = (
+        _clean_person_data(data.get("enviado_por"), "enviado") or ""
+    )
 
     return cleaned
 

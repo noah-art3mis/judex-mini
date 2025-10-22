@@ -15,7 +15,7 @@ from .base import track_extraction_timing
 
 def _extract_partes_from_soup(soup: BeautifulSoup) -> list[dict]:
     """Extract partes using BeautifulSoup CSS selectors."""
-    partes = []
+    partes: list[dict] = []
 
     # Find all divs with processo-partes class
     elementos = soup.select("div[class*='processo-partes']")
@@ -87,7 +87,7 @@ def extract_partes(driver: WebDriver, soup: BeautifulSoup) -> list:
         partes_section = driver.find_element(By.ID, "resumo-partes")
 
         # Get HTML and parse with BeautifulSoup
-        html = partes_section.get_attribute("innerHTML")
+        html = partes_section.get_attribute("innerHTML") or ""
         soup = BeautifulSoup(html, "html.parser")
 
         # Extract partes using BeautifulSoup

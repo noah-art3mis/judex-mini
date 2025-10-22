@@ -22,7 +22,7 @@ def extract_peticoes(driver: WebDriver, soup: BeautifulSoup) -> list:
     peticoes_list = []
     for i, peticao in enumerate(peticoes):
         index = len(peticoes) - i
-        html = peticao.get_attribute("innerHTML")
+        html = peticao.get_attribute("innerHTML") or ""
 
         # Extract data from HTML using text parsing
         # Look for different patterns to extract all fields

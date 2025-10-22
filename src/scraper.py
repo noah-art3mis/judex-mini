@@ -296,7 +296,7 @@ def check_missing_processes(
             str(i) for i in range(processo_inicial, processo_final + 1)
         )
 
-        return list(expected_numbers - processed_numbers)
+        return [int(num) for num in expected_numbers - processed_numbers]
 
     except Exception as e:
         logging.error(f"Error checking missing processes: {e}")

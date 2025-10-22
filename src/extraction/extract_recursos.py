@@ -24,7 +24,7 @@ def extract_recursos(driver: WebDriver, soup: BeautifulSoup) -> list:
         recursos_list = []
         for i, recurso in enumerate(recursos):
             index = len(recursos) - i
-            html = recurso.get_attribute("innerHTML")
+            html = recurso.get_attribute("innerHTML") or ""
 
             # Extract data from HTML using text parsing
             # Look for different patterns to extract all fields
