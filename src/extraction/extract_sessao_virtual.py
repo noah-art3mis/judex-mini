@@ -28,7 +28,7 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                 By.CSS_SELECTOR, "a[href='#sessao-virtual']"
             )
             driver.execute_script("arguments[0].click();", sessao_tab)
-            logging.info("Clicked Sessão virtual tab")
+            logging.debug("Clicked Sessão virtual tab")
         except Exception as e:
             logging.warning(f"Could not click Sessão virtual tab: {e}")
             return []
@@ -39,7 +39,7 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
             wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "#sessao-virtual"))
             )
-            logging.info("Sessão virtual tab content loaded")
+            logging.debug("Sessão virtual tab content loaded")
         except Exception as e:
             logging.warning(f"Sessão virtual tab content did not load: {e}")
             return []
@@ -49,10 +49,24 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
             By.CSS_SELECTOR, "#sessao-virtual .julgamento-item"
         )
 
-        logging.info(f"Found {len(julgamento_items)} julgamento items")
+        logging.debug(f"Found {len(julgamento_items)} julgamento items")
 
         sessao_list = []
-        for julgamento_item in julgamento_items:
+        for i, julgamento_item in enumerate(julgamento_items):
+            # Add delay between items to avoid race conditions
+            if i > 0:
+                import time
+
+                time.sleep(2)  # Wait between items
+
+            # Refresh julgamento items to avoid staleness
+            julgamento_items = driver.find_elements(
+                By.CSS_SELECTOR, "#sessao-virtual .julgamento-item"
+            )
+            if i >= len(julgamento_items):
+                logging.warning(f"Item {i} no longer available, skipping")
+                continue
+            julgamento_item = julgamento_items[i]
             try:
                 button = julgamento_item.find_element(By.TAG_NAME, "button")
 
@@ -114,6 +128,17 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
 
                     # Try to find titulo-lista with different selectors
                     titulo = None
+
+                    # Wait for titulo to be available
+                    try:
+                        wait.until(
+                            EC.presence_of_element_located(
+                                (By.CSS_SELECTOR, ".titulo-lista")
+                            )
+                        )
+                    except Exception:
+                        pass  # Continue with fallback methods
+
                     try:
                         titulo = collapse_div.find_element(
                             By.CSS_SELECTOR, ".titulo-lista"
@@ -131,22 +156,32 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                                 f"Found titulo without m-16: {titulo[:100]}..."
                             )
                         except Exception:
-                            # Try finding any div with the vote text
+                            # Try finding any div with the vote text - more permissive
                             vote_divs = collapse_div.find_elements(
                                 By.CSS_SELECTOR, "div"
                             )
                             for div in vote_divs:
                                 text = div.text.strip()
-                                if len(text) > 50 and (
-                                    "julgo" in text.lower()
-                                    or "procedente" in text.lower()
-                                    or "improcedente" in text.lower()
-                                ):
-                                    titulo = text
-                                    logging.debug(
-                                        f"Found titulo by text search: {titulo[:100]}..."
-                                    )
-                                    break
+                                if len(text) > 20:  # Lower threshold
+                                    # Look for any meaningful text, not just specific keywords
+                                    if any(
+                                        keyword in text.lower()
+                                        for keyword in [
+                                            "julgo",
+                                            "procedente",
+                                            "improcedente",
+                                            "voto",
+                                            "relator",
+                                            "ministro",
+                                            "ante",
+                                            "exposto",
+                                        ]
+                                    ):
+                                        titulo = text
+                                        logging.debug(
+                                            f"Found titulo by broader text search: {titulo[:100]}..."
+                                        )
+                                        break
 
                     if titulo:
                         # Extract the full session data using the _extract_sessao_details function
@@ -159,7 +194,30 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
                             # Fallback: just add the titulo text
                             sessao_list.append({"voto_texto": titulo})
                     else:
-                        logging.warning("Could not find titulo text in any form")
+                        # Final fallback: try to extract any meaningful text
+                        logging.warning(
+                            "Could not find titulo text in any form, trying final fallback"
+                        )
+                        try:
+                            # Get any substantial text from the collapse div
+                            all_text = collapse_div.text.strip()
+                            if len(all_text) > 50:
+                                # Extract first substantial paragraph
+                                lines = [
+                                    line.strip()
+                                    for line in all_text.split("\n")
+                                    if line.strip()
+                                ]
+                                for line in lines:
+                                    if len(line) > 30:
+                                        titulo = line
+                                        logging.debug(
+                                            f"Using fallback titulo: {titulo[:100]}..."
+                                        )
+                                        sessao_list.append({"voto_texto": titulo})
+                                        break
+                        except Exception as e:
+                            logging.warning(f"Final fallback also failed: {e}")
 
                 except Exception as e:
                     logging.warning(f"Could not extract content: {e}")

@@ -2,6 +2,11 @@ import logging
 from io import BytesIO
 from typing import Optional
 
+import urllib3
+
+# Suppress urllib3 warnings for STF URLs
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 import requests
 import striprtf  # type: ignore
 

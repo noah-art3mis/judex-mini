@@ -18,17 +18,17 @@ class ScraperConfig:
     # - 100 itens demora 40min
 
     # Timeouts & Delays
-    webdriver_timeout: int = 10
+    webdriver_timeout: int = 240
     initial_delay: float = 1
     driver_sleep_time: float = 3
     driver_max_retries_for_missing: int = 5
     button_wait: float = 10
 
     # Retry Configuration - Driver
-    driver_max_retries: int = 5
+    driver_max_retries: int = 10
     driver_backoff_multiplier: int = 1
     driver_backoff_min: int = 0
-    driver_backoff_max: int = 10
+    driver_backoff_max: int = 30
 
     # Retry Configuration - Documents
     document_max_retries: int = 3
