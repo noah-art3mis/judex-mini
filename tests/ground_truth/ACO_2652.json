@@ -1167,7 +1167,9 @@
                     "MIN. ROSA WEBER"
                 ],
                 "url_relatorio": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794248",
-                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794217"
+                "conteudo_relatorio": null,
+                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794217",
+                "conteudo_voto": null
             }
         ],
         "deslocamentos": [
