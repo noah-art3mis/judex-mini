@@ -43,16 +43,16 @@ def _check_for_errors(driver, document: str):
     """Check for common error conditions in page source."""
     page_source = driver.page_source
     if "403 Forbidden" in page_source:
-        raise Exception("403 Forbidden - Access denied")
+        raise ConnectionError("403 Forbidden - Access denied")
     if "CAPTCHA" in page_source:
-        raise Exception("CAPTCHA detected")
+        raise ConnectionError("CAPTCHA detected")
     if "502 Bad Gateway" in page_source:
-        raise Exception("502 Bad Gateway")
+        raise ConnectionError("502 Bad Gateway")
     if "Processo não encontrado" in document:
-        raise Exception("Processo não encontrado")
+        raise ValueError("Processo não encontrado")
     _xpath_descricao = '//*[@id="descricao-procedencia"]'
     if find_element_by_xpath(driver, _xpath_descricao) == "":
-        raise Exception("descricao-procedencia não encontrado")
+        raise ValueError("descricao-procedencia não encontrado")
 
 
 def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) -> str:

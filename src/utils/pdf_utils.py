@@ -2,13 +2,13 @@ import logging
 from io import BytesIO
 from typing import Optional
 
+import requests
+import striprtf  # type: ignore
 import urllib3
 
 # Suppress urllib3 warnings for STF URLs
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-import requests
-import striprtf  # type: ignore
 
 try:
     from pypdf import PdfReader
@@ -35,7 +35,7 @@ def detect_file_type(response) -> str:
 def extract_pdf_text_from_content(content: bytes) -> Optional[str]:
     """Extract text from PDF content using PyPDF"""
     if not PDF_AVAILABLE:
-        return None
+        raise ImportError("PyPDF is not available")
 
     try:
         reader = PdfReader(BytesIO(content))  # type: ignore
@@ -96,9 +96,19 @@ def extract_document_text(url: str, timeout: int = 30) -> Optional[str]:
         logging.debug(f"Detected file type: {file_type} for {url}")
 
         if file_type == "pdf":
-            return extract_pdf_text_from_content(response.content)
+            try:
+                text = extract_pdf_text_from_content(response.content)
+            except Exception as e:
+                logging.warning(f"Failed to extract PDF text: {e}")
+                return None
+            return text
         elif file_type == "rtf":
-            return extract_rtf_text(response.content)
+            try:
+                text = extract_rtf_text(response.content)
+            except Exception as e:
+                logging.warning(f"Failed to extract RTF text: {e}")
+                return None
+            return text
         else:
             logging.warning(f"Unknown file type for {url}: {file_type}")
             return None
