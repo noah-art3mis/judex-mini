@@ -57,44 +57,49 @@ def run_scraper(
     timer = ProcessTimer()
     all_exported_files = []
 
-    # Process initial batch
-    processos = list(range(processo_inicial, processo_final + 1))
-    exported_files = process_batch(
-        processos,
-        classe,
-        config,
-        out_file,
-        output_dir,
-        output_config,
-        overwrite,
-        timer,
-    )
-    all_exported_files.extend(exported_files)
-
-    # Retry missing processes
-    missing_files = retry_missing_processes(
-        classe,
-        processo_inicial,
-        processo_final,
-        output_dir,
-        config,
-        out_file,
-        output_config,
-        overwrite,
-        timer,
-    )
-    all_exported_files.extend(missing_files)
-
-    timer.log_summary()
-
-    if all_exported_files:
-        logging.info(f"{classe} {processo_inicial}-{processo_final}: EXPORTED FILES:")
-        for file_info in all_exported_files:
-            logging.info(f"  {file_info}")
-    else:
-        logging.warning(
-            f"{classe} {processo_inicial}-{processo_final}: NO FILES EXPORTED"
+    try:
+        # Process initial batch
+        processos = list(range(processo_inicial, processo_final + 1))
+        exported_files = process_batch(
+            processos,
+            classe,
+            config,
+            out_file,
+            output_dir,
+            output_config,
+            overwrite,
+            timer,
         )
+        all_exported_files.extend(exported_files)
+
+        # Retry missing processes
+        missing_files = retry_missing_processes(
+            classe,
+            processo_inicial,
+            processo_final,
+            output_dir,
+            config,
+            out_file,
+            output_config,
+            overwrite,
+            timer,
+        )
+        all_exported_files.extend(missing_files)
+
+        if all_exported_files:
+            logging.info(
+                f"{classe} {processo_inicial}-{processo_final}: EXPORTED FILES:"
+            )
+            for file_info in all_exported_files:
+                logging.info(f"  {file_info}")
+        else:
+            logging.warning(
+                f"{classe} {processo_inicial}-{processo_final}: NO FILES EXPORTED"
+            )
+    finally:
+        if timer.process_times:
+            print("PROCESS ENDED - SHOWING REPORT")
+            timer.log_summary()
 
 
 def process_batch(
@@ -143,7 +148,8 @@ def process_single_process(
         try:
             document = load_page_with_retry(driver, URL, processo_name, config)
         except Exception as e:
-            logging.error(f"Error loading {processo_name}: {e}")
+            error_msg = str(e) if str(e) else type(e).__name__
+            logging.error(f"Error loading {processo_name}: {error_msg}")
             return None
 
         soup = BeautifulSoup(document, "html.parser")
