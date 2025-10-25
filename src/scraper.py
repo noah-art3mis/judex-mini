@@ -113,7 +113,6 @@ def process_batch(
     """Process a batch of processes and return exported files."""
     all_exported_files = []
 
-    # Use a single driver for the entire batch
     with get_driver(config.user_agent) as driver:
         for processo in processos:
             processo_name = f"{classe} {processo}"

@@ -71,6 +71,12 @@ class ProcessTimer:
         else:
             avg_duration = min_duration = max_duration = 0
 
+        # Calculate items per minute
+        total_successful = len(successful_processes)
+        items_per_minute = (
+            (total_successful / total_duration) * 60 if total_duration > 0 else 0
+        )
+
         logging.debug("Tempos dos processos:")
         for process in self.process_times:
             logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
@@ -85,3 +91,4 @@ class ProcessTimer:
         )
 
         logging.info(f"Total de processos: {len(self.process_times)}")
+        logging.info(f"Taxa de processamento: {items_per_minute:.2f} itens/min")

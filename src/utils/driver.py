@@ -13,8 +13,8 @@ from tenacity import (
 )
 
 from src.config import ScraperConfig
-from src.utils.timing import track_extraction_timing
 from src.utils.get_element import find_element_by_xpath
+from src.utils.timing import track_extraction_timing
 
 
 def setup_driver(user_agent: str) -> WebDriver:
@@ -23,6 +23,12 @@ def setup_driver(user_agent: str) -> WebDriver:
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--window-size=920,600")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    # chrome_options.add_argument("--disable-images")  # Skip loading images
+    # chrome_options.add_argument("--disable-javascript")  # If not needed
+    # chrome_options.add_argument("--disable-plugins")
+    # chrome_options.add_argument("--disable-extensions")
+    # chrome_options.add_argument("--no-sandbox")
+    # chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument(f"--user-agent={user_agent}")
     return webdriver.Chrome(options=chrome_options)
 
@@ -55,6 +61,7 @@ def _check_for_errors(driver, document: str):
     if find_element_by_xpath(driver, _xpath_descricao) == "":
         raise ValueError("descricao-procedencia não encontrado")
 
+
 @track_extraction_timing
 def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) -> str:
 
@@ -66,6 +73,10 @@ def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) 
             max=config.driver_backoff_max,
         ),
         retry=retry_if_exception_type((Exception,)),
+        before_sleep=lambda retry_state: logging.debug(
+            f"Retry {retry_state.attempt_number}/{config.driver_max_retries} for {process_name}: "
+            f"{retry_state.outcome.exception()}"
+        ),
     )
     def _retry_operation() -> str:
         logging.debug(f"Attempting {process_name}")

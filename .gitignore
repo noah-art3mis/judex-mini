@@ -10,3 +10,4 @@ wheels/
 .env
 notes/
 output/
+logs/

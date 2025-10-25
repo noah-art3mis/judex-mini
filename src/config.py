@@ -18,9 +18,9 @@ class ScraperConfig:
     # - 100 itens demora 40min
 
     # Timeouts & Delays
-    webdriver_timeout: int = 240
-    initial_delay: float = 1
-    driver_sleep_time: float = 3
+    webdriver_timeout: int = 480
+    initial_delay: float = 0.2
+    driver_sleep_time: float = 0.1
     driver_max_retries_for_missing: int = 5
     button_wait: float = 10
 

@@ -1,4 +1,6 @@
 import logging
+import os
+from datetime import datetime
 
 import typer
 
@@ -51,10 +53,19 @@ def main(
 ) -> None:
     """CLI entry point for JUDEX MINI scraper."""
 
+    os.makedirs("logs", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = f"logs/scraper_{timestamp}.log"
+
+    # Configure logging to both console and file
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            logging.StreamHandler(),  # Console
+            logging.FileHandler(log_file, mode="w", encoding="utf-8"),  # File
+        ],
     )
 
     logging.getLogger("selenium").setLevel(logging.WARNING)
@@ -67,6 +78,7 @@ def main(
     validate_test_format(test, output_format)
 
     logging.info("=== JUDEX MINI START ===")
+    logging.info(f"Logging to: {log_file}")
 
     run_scraper(
         classe=classe,
@@ -79,6 +91,16 @@ def main(
     )
 
     logging.info("🎉 Finished processing all processes!")
+
+    if test:
+        logging.info("\n=== RUNNING GROUND TRUTH TESTS ===")
+        test_ground_truth(
+            ground_truth_dir,
+            output_dir,
+            classe,
+            processo_inicial,
+            processo_final,
+        )
 
     if test:
         logging.info("\n=== RUNNING GROUND TRUTH TESTS ===")
