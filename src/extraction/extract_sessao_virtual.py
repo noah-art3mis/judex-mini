@@ -157,22 +157,16 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> List[Dict]
         driver.execute_script("arguments[0].click();", sessao_tab)
         logging.debug("Clicked Sessão virtual tab")
 
-        wait = WebDriverWait(driver, 10)
-        try:
-            # Wait for the first julgamento-item to be loaded by AJAX
-            wait.until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "#sessao-virtual .julgamento-item")
-                )
-            )
-        except Exception:
-            logging.debug("No .julgamento-item found on Sessão virtual tab.")
-            return []
-
         julgamento_items = driver.find_elements(
             By.CSS_SELECTOR, "#sessao-virtual .julgamento-item"
         )
         logging.debug(f"Found {len(julgamento_items)} top-level julgamento items")
+
+        if not julgamento_items:
+            logging.debug("No julgamento items found in Sessão virtual - exiting early")
+            return []
+
+        wait = WebDriverWait(driver, 10)
 
         sessao_list = []
 
@@ -280,7 +274,7 @@ def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> List[Dict]
                 logging.warning(f"Error processing julgamento item {i+1}: {e}")
                 continue
 
-        logging.info(
+        logging.debug(
             f"Successfully extracted {len(sessao_list)} data blocks from Sessão virtual"
         )
         return sessao_list

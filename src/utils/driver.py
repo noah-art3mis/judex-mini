@@ -13,6 +13,7 @@ from tenacity import (
 )
 
 from src.config import ScraperConfig
+from src.utils.timing import track_extraction_timing
 from src.utils.get_element import find_element_by_xpath
 
 
@@ -54,7 +55,7 @@ def _check_for_errors(driver, document: str):
     if find_element_by_xpath(driver, _xpath_descricao) == "":
         raise ValueError("descricao-procedencia não encontrado")
 
-
+@track_extraction_timing
 def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) -> str:
 
     @retry(
@@ -81,7 +82,7 @@ def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) 
 
         _check_for_errors(driver, document)
 
-        logging.info(f"{process_name}: loaded")
+        logging.info(f"{process_name}: carregado")
         return document
 
     return _retry_operation()

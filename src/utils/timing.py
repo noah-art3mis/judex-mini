@@ -17,7 +17,7 @@ def track_extraction_timing(func: Callable) -> Callable:
         try:
             result = func(*args, **kwargs)
             duration = time.time() - start_time
-            logging.debug(f"{func.__name__} extraction: {duration:.3f}s")
+            logging.debug(f"{duration:.3f}s - {func.__name__}")
             return result
         except Exception as e:
             duration = time.time() - start_time
@@ -71,14 +71,14 @@ class ProcessTimer:
         else:
             avg_duration = min_duration = max_duration = 0
 
+        logging.debug("Tempos dos processos:")
+        for process in self.process_times:
+            logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
+
         if successful_processes:
             logging.info(f"Tempo médio por processo: {avg_duration:.2f}s")
             logging.info(f"Processo mais rápido: {min_duration:.2f}s")
             logging.info(f"Processo mais lento: {max_duration:.2f}s")
-
-        logging.debug("Tempos dos processos:")
-        for process in self.process_times:
-            logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
 
         logging.info(
             f"Tempo total: {int(total_duration // 3600)}h {int((total_duration % 3600) // 60)}m {int(total_duration % 60)}s"

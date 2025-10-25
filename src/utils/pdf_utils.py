@@ -91,7 +91,7 @@ def extract_document_text(url: str, timeout: int = 30) -> Optional[str]:
 
         # Detect file type
         file_type = detect_file_type(response)
-        logging.debug(f"Detected file type: {file_type} for {url}")
+        logging.debug(f"Detected file type: {file_type}")
 
         if file_type == "pdf":
             try:

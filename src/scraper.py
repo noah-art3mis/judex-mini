@@ -39,7 +39,7 @@ from src.extraction import (
 )
 from src.utils.driver import get_driver, load_page_with_retry
 from src.utils.text_utils import normalize_spaces
-from src.utils.timing import ProcessTimer
+from src.utils.timing import ProcessTimer, track_extraction_timing
 
 
 def run_scraper(
@@ -88,11 +88,8 @@ def run_scraper(
         all_exported_files.extend(missing_files)
 
         if all_exported_files:
-            logging.info(
-                f"{classe} {processo_inicial}-{processo_final}: EXPORTED FILES:"
-            )
             for file_info in all_exported_files:
-                logging.info(f"  {file_info}")
+                logging.info(f"Exported file: {file_info}")
         else:
             logging.warning(
                 f"{classe} {processo_inicial}-{processo_final}: NO FILES EXPORTED"
@@ -121,7 +118,9 @@ def process_batch(
         for processo in processos:
             processo_name = f"{classe} {processo}"
             process_start_time = timer.start_process(processo_name)
-            logging.info(f"{processo_name}: START")
+
+
+            logging.info(f"{processo_name}: iniciado")
 
             item = process_single_process_with_driver(processo, classe, config, driver)
 
@@ -158,7 +157,6 @@ def process_batch(
 #         soup = BeautifulSoup(document, "lxml")
 #         data = extract_processo(driver, soup, classe, processo, config)
 #         return data
-
 
 def process_single_process_with_driver(
     processo: int, classe: str, config: ScraperConfig, driver: WebDriver
