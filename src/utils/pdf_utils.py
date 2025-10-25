@@ -42,12 +42,10 @@ def extract_pdf_text_from_content(content: bytes) -> Optional[str]:
         text = ""
 
         for page in reader.pages:
-            # Try layout mode first for better formatting
-            try:
-                page_text = page.extract_text(extraction_mode="layout")
-            except Exception:
-                # Fallback to default extraction
-                page_text = page.extract_text()
+            page_text = page.extract_text(
+                extraction_mode="layout",
+                layout_mode_strip_rotated=True,
+            )
 
             if page_text:
                 text += page_text + "\n"

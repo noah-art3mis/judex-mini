@@ -6,14 +6,13 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.get_element import find_element_by_xpath
-
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 
 def _get_info_boxes(driver: WebDriver) -> list:
     """Helper function to get info boxes from the page."""
     info_html = find_element_by_xpath(driver, '//*[@id="informacoes"]')
-    s = BeautifulSoup(info_html, "html.parser")
+    s = BeautifulSoup(info_html, "lxml")
     return s.select(".processo-quadro")
 
 

@@ -5,9 +5,14 @@ import typer
 from src.config import ScraperConfig
 from src.scraper import run_scraper
 from src.testing.ground_truth_test import test_ground_truth
+from src.utils.validation import (
+    validate_output_format,
+    validate_process_range,
+    validate_stf_case_type,
+    validate_test_format,
+)
 
 
-# configuracoes da cli
 def main(
     classe: str = typer.Option(
         "AI", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
@@ -46,16 +51,20 @@ def main(
 ) -> None:
     """CLI entry point for JUDEX MINI scraper."""
 
-    # Setup logging
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Reduce Selenium logging noise
     logging.getLogger("selenium").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
+
+    validate_stf_case_type(classe)
+    validate_process_range(processo_inicial, processo_final)
+    validate_output_format(output_format)
+    validate_test_format(test, output_format)
 
     logging.info("=== JUDEX MINI START ===")
 
@@ -76,7 +85,6 @@ def main(
         test_ground_truth(
             ground_truth_dir,
             output_dir,
-            log_level,
             classe,
             processo_inicial,
             processo_final,

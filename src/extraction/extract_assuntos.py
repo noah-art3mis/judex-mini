@@ -9,8 +9,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.get_element import find_element_by_xpath
 from src.utils.text_utils import normalize_spaces
-
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 
 def _extract_assuntos_from_soup(soup: BeautifulSoup) -> list[str]:
@@ -37,7 +36,7 @@ def extract_assuntos(driver: WebDriver, soup: BeautifulSoup) -> list[str]:
         assuntos_html = find_element_by_xpath(
             driver, '//*[@id="informacoes-completas"]/div[1]/div[2]'
         )
-        soup_assuntos = BeautifulSoup(assuntos_html, "html.parser")
+        soup_assuntos = BeautifulSoup(assuntos_html, "lxml")
         return _extract_assuntos_from_soup(soup_assuntos)
     except Exception as e:
         logging.warning(f"Could not extract assuntos: {e}")

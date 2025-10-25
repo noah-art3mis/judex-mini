@@ -11,8 +11,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.config import ScraperConfig
 from src.utils.text_utils import normalize_spaces
-
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 
 def _clean_nome(nome: str) -> str:

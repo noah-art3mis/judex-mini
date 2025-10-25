@@ -4,7 +4,7 @@ Each extraction function is in its own file for better modularity
 """
 
 # Base utilities
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 # Core extraction functions
 from .extract_andamentos import extract_andamentos

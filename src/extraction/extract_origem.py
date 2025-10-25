@@ -9,8 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.text_utils import normalize_spaces
-
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 
 @track_extraction_timing

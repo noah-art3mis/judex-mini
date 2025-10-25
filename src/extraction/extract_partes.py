@@ -9,8 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.text_utils import normalize_spaces
-
-from .base import track_extraction_timing
+from src.utils.timing import track_extraction_timing
 
 
 def _extract_partes_from_soup(soup: BeautifulSoup) -> list[dict]:
@@ -50,7 +49,7 @@ def _extract_single_parte_element(element, index: int) -> dict | None:
     try:
         # Get HTML and parse with BeautifulSoup
         html = element.get_attribute("outerHTML")
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(html, "lxml")
 
         # Extract tipo and nome
         tipo_elem = soup.select_one("div[class*='processo-partes']")
@@ -88,7 +87,7 @@ def extract_partes(driver: WebDriver, soup: BeautifulSoup) -> list:
 
         # Get HTML and parse with BeautifulSoup
         html = partes_section.get_attribute("innerHTML") or ""
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(html, "lxml")
 
         # Extract partes using BeautifulSoup
         partes_list = _extract_partes_from_soup(soup)

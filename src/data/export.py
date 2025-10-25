@@ -14,8 +14,8 @@ def export_item(
     output_dir: str,
     config: OutputConfig,
     overwrite: bool = False,
-) -> list[str]:
-    exported_files = []
+) -> set[str]:
+    exported_files = set[str]()
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -23,15 +23,15 @@ def export_item(
 
     if config.csv:
         csv_file = _save_to_csv(item, out_file)
-        exported_files.append(f"CSV: {csv_file}")
+        exported_files.add(f"CSV: {csv_file}")
 
     if config.jsonl:
         jsonl_file = _save_to_jsonl(item, out_file)
-        exported_files.append(f"JSONL: {jsonl_file}")
+        exported_files.add(f"JSONL: {jsonl_file}")
 
     if config.json:
         json_file = _save_to_json(item, out_file)
-        exported_files.append(f"JSON: {json_file}")
+        exported_files.add(f"JSON: {json_file}")
 
     return exported_files
 

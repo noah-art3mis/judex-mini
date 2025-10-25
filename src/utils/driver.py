@@ -65,7 +65,6 @@ def load_page_with_retry(driver, URL, process_name: str, config: ScraperConfig) 
             max=config.driver_backoff_max,
         ),
         retry=retry_if_exception_type((Exception,)),
-        reraise=True,
     )
     def _retry_operation() -> str:
         logging.debug(f"Attempting {process_name}")

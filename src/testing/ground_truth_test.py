@@ -11,7 +11,6 @@ from typing import Any, Dict
 def test_ground_truth(
     ground_truth_dir: str,
     output_dir: str,
-    log_level: str,
     classe: str,
     processo_inicial: int,
     processo_final: int,

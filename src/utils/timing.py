@@ -2,16 +2,36 @@
 Timing utilities for process extraction
 """
 
+import functools
 import logging
 import time
-from typing import Dict, List
+from typing import Callable
+
+
+def track_extraction_timing(func: Callable) -> Callable:
+    """Decorator to track extraction function timing"""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.time() - start_time
+            logging.debug(f"{func.__name__} extraction: {duration:.3f}s")
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            logging.warning(f"{func.__name__} failed after {duration:.3f}s: {e}")
+            raise
+
+    return wrapper
 
 
 class ProcessTimer:
     """Track timing for multiple processes"""
 
     def __init__(self):
-        self.process_times: List[Dict[str, any]] = []
+        self.process_times: list[dict] = []
         self.total_start_time = time.time()
 
     def start_process(self, processo: str) -> float:
@@ -51,12 +71,6 @@ class ProcessTimer:
         else:
             avg_duration = min_duration = max_duration = 0
 
-        # Log summary
-        logging.info(f"Total de processos: {len(self.process_times)}")
-        logging.info(
-            f"Tempo total: {int(total_duration // 3600)}h {int((total_duration % 3600) // 60)}m {int(total_duration % 60)}s"
-        )
-
         if successful_processes:
             logging.info(f"Tempo médio por processo: {avg_duration:.2f}s")
             logging.info(f"Processo mais rápido: {min_duration:.2f}s")
@@ -65,3 +79,9 @@ class ProcessTimer:
         logging.debug("Tempos dos processos:")
         for process in self.process_times:
             logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
+
+        logging.info(
+            f"Tempo total: {int(total_duration // 3600)}h {int((total_duration % 3600) // 60)}m {int(total_duration % 60)}s"
+        )
+
+        logging.info(f"Total de processos: {len(self.process_times)}")

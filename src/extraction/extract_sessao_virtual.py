@@ -1,9 +1,6 @@
-"""
-Extract sessao_virtual from process data
-"""
-
 import logging
-from typing import Any
+import time
+from typing import Dict, List
 
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
@@ -12,333 +9,282 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from src.utils.pdf_utils import extract_pdf_texts_from_session
+from src.utils.pdf_utils import extract_pdf_text
 from src.utils.text_utils import normalize_spaces
+from src.utils.timing import track_extraction_timing
 
-from .base import track_extraction_timing
+
+def _parse_sessao_virtual_item(sessao_element: WebElement) -> Dict:
+    """
+    Parses a single virtual session date block (the content inside a nested collapse).
+    """
+    sessao_soup = BeautifulSoup(sessao_element.get_attribute("innerHTML") or "", "lxml")
+    data = {}
+    try:
+        # Extract metadata from 'lista_cabecalho'
+        metadata = {}
+        table = sessao_soup.find("table", id="lista_cabecalho")
+        if table:
+            for row in table.find_all("tr"):
+                cols = row.find_all("td")
+                if len(cols) == 2:
+                    # Clean key: "Relator(a):" -> "relator"
+                    key = normalize_spaces(cols[0].text.replace(":", "")).lower()
+                    key = key.replace("(", "").replace(")", "").replace(" ", "_")
+                    value = normalize_spaces(cols[1].text)
+                    metadata[key] = value
+        data["metadata"] = metadata
+
+        # Extract 'Voto do Relator'
+        voto_relator = sessao_soup.find("div", class_="titulo-lista")
+        data["voto_relator"] = (
+            normalize_spaces(voto_relator.text) if voto_relator else None
+        )
+
+        # Extract votes
+        votes = {
+            "relator": [],
+            "acompanha_relator": [],
+            "diverge_relator": [],
+            "acompanha_divergencia": [],
+            "pedido_vista": [],
+        }
+
+        relator_div = sessao_soup.find("div", id="relator")
+        if relator_div:
+            votes["relator"] = [
+                normalize_spaces(m.text)
+                for m in relator_div.find_all("div", class_="manifestacao-julgador")
+            ]
+
+        acompanha_div = sessao_soup.find("div", id="acompanha")
+        if acompanha_div:
+            votes["acompanha_relator"] = [
+                normalize_spaces(m.text)
+                for m in acompanha_div.find_all("div", class_="manifestacao-julgador")
+            ]
+
+        diverge_div = sessao_soup.find("div", id="diverge")
+        if diverge_div:
+            votes["diverge_relator"] = [
+                normalize_spaces(m.text)
+                for m in diverge_div.find_all("div", class_="manifestacao-julgador")
+            ]
+
+        acompanha_div_div = sessao_soup.find("div", id="acompanha-divergencia")
+        if acompanha_div_div:
+            votes["acompanha_divergencia"] = [
+                normalize_spaces(m.text)
+                for m in acompanha_div_div.find_all(
+                    class_=["manifestacao-julgador-linha1", "manifestacao-julgador"]
+                )
+            ]
+
+        vista_div = sessao_soup.find("div", id="vista")
+        if vista_div:
+            votes["pedido_vista"] = [
+                normalize_spaces(m.text)
+                for m in vista_div.find_all("div", class_="manifestacao-julgador")
+            ]
+
+        data["votes"] = votes
+
+        # Extract PDF links and text
+        pdf_texts = {}
+        # Find all <a> tags within the current element that contain 'votacao?texto='
+        pdf_links = sessao_element.find_elements(
+            By.CSS_SELECTOR, "a[href*='votacao?texto=']"
+        )
+        for link in pdf_links:
+            try:
+                url = link.get_attribute("href")
+                text_type = normalize_spaces(link.text)  # e.g., "Relatório", "Voto"
+                # Use the imported function to get PDF text
+                pdf_texts[text_type] = extract_pdf_text(url)
+            except Exception as e:
+                logging.warning(f"Could not extract PDF from {url}: {e}")
+        data["documentos"] = pdf_texts
+
+    except Exception as e:
+        logging.warning(f"Error parsing session item: {e}")
+    return data
+
+
+def _parse_tema_item(tema_element: WebElement) -> Dict:
+    """Parses the 'Tema' block."""
+    tema_soup = BeautifulSoup(tema_element.get_attribute("innerHTML") or "", "lxml")
+    data = {"tipo": "tema"}
+    try:
+        # Extract info
+        info_div = tema_soup.find(
+            "div", style=lambda s: "background-color: #f2f2f2" in s if s else False
+        )
+        if info_div:
+            # Get clean text from all lines, skipping empty ones
+            info_lines = [normalize_spaces(line) for line in info_div.stripped_strings]
+            data["info"] = "\n".join(info_lines)
+
+        # Extract table data
+        table = tema_soup.find("table")
+        votes = []
+        if table:
+            headers = [
+                normalize_spaces(th.text) for th in table.find("thead").find_all("th")
+            ]
+            for row in table.find("tbody").find_all("tr"):
+                vote = {}
+                cells = row.find_all("td")
+                if len(cells) == len(headers):
+                    for i, header in enumerate(headers):
+                        vote[header] = normalize_spaces(cells[i].text)
+                    # Check for link in the last cell
+                    link = cells[-1].find("a")
+                    if link:
+                        vote["Link"] = link.get_attribute("href")
+                if vote:
+                    votes.append(vote)
+        data["votes"] = votes
+    except Exception as e:
+        logging.warning(f"Error parsing tema item: {e}")
+    return data
 
 
 @track_extraction_timing
-def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> list:
+def extract_sessao_virtual(driver: WebDriver, soup: BeautifulSoup) -> List[Dict]:
     """Extract sessao_virtual from AJAX-loaded content"""
     try:
-        # First, click the "Sessão virtual" tab to make content visible
-        try:
-            sessao_tab = driver.find_element(
-                By.CSS_SELECTOR, "a[href='#sessao-virtual']"
-            )
-            driver.execute_script("arguments[0].click();", sessao_tab)
-            logging.debug("Clicked Sessão virtual tab")
-        except Exception as e:
-            logging.warning(f"Could not click Sessão virtual tab: {e}")
-            return []
+        sessao_tab = driver.find_element(By.CSS_SELECTOR, "a[href='#sessao-virtual']")
+        driver.execute_script("arguments[0].click();", sessao_tab)
+        logging.debug("Clicked Sessão virtual tab")
 
-        # Wait for the tab content to load
         wait = WebDriverWait(driver, 10)
         try:
+            # Wait for the first julgamento-item to be loaded by AJAX
             wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "#sessao-virtual"))
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "#sessao-virtual .julgamento-item")
+                )
             )
-            logging.debug("Sessão virtual tab content loaded")
-        except Exception as e:
-            logging.warning(f"Sessão virtual tab content did not load: {e}")
+        except Exception:
+            logging.debug("No .julgamento-item found on Sessão virtual tab.")
             return []
 
-        # Now find the julgamento items in the sessao-virtual container
         julgamento_items = driver.find_elements(
             By.CSS_SELECTOR, "#sessao-virtual .julgamento-item"
         )
-
-        logging.debug(f"Found {len(julgamento_items)} julgamento items")
+        logging.debug(f"Found {len(julgamento_items)} top-level julgamento items")
 
         sessao_list = []
+
         for i, julgamento_item in enumerate(julgamento_items):
-            # Add delay between items to avoid race conditions
-            if i > 0:
-                import time
+            logging.debug(f"Processing julgamento item {i+1}/{len(julgamento_items)}")
 
-                time.sleep(2)  # Wait between items
-
-            # Refresh julgamento items to avoid staleness
-            julgamento_items = driver.find_elements(
-                By.CSS_SELECTOR, "#sessao-virtual .julgamento-item"
-            )
-            if i >= len(julgamento_items):
-                logging.warning(f"Item {i} no longer available, skipping")
-                continue
-            julgamento_item = julgamento_items[i]
             try:
-                button = julgamento_item.find_element(By.TAG_NAME, "button")
+                # 1. Find and click the main button for this item
+                main_button = julgamento_item.find_element(
+                    By.CSS_SELECTOR, "button[data-bs-toggle='collapse']"
+                )
+                main_target_id = main_button.get_attribute("data-bs-target").lstrip("#")
 
-                # Now the button should be clickable
-                try:
-                    driver.execute_script("arguments[0].click();", button)
-                except Exception as e:
-                    logging.warning(f"Could not click button: {e}")
-                    continue
+                if main_button.get_attribute("aria-expanded") == "false":
+                    driver.execute_script("arguments[0].click();", main_button)
+                    logging.debug(f"Clicked main button for {main_target_id}")
 
-                # Wait for content and extract
-                wait = WebDriverWait(driver, 10)
-                try:
-                    # Find the collapse div within this specific julgamento item
-                    collapse_div = julgamento_item.find_element(
-                        By.CSS_SELECTOR, "[id^='listasJulgamento']"
-                    )
+                # Wait for the main collapse div to be visible
+                main_collapse_div = wait.until(
+                    EC.visibility_of_element_located((By.ID, main_target_id))
+                )
+                time.sleep(0.5)  # Allow animations/JS to settle
+
+                # 2. Check what's inside this main_collapse_div
+
+                # CASE A: "Sessão" item with nested date links (e.g., #listasJulgamento2083816)
+                date_links = main_collapse_div.find_elements(
+                    By.CSS_SELECTOR, "a[data-bs-toggle='collapse'][href*='#listas']"
+                )
+
+                if date_links:
                     logging.debug(
-                        f"Found collapse div: {collapse_div.get_attribute('id')}"
+                        f"Found {len(date_links)} nested date links in {main_target_id}"
                     )
-
-                    # Wait for the collapse animation to complete (no more "collapsing" class)
-                    wait.until(
-                        lambda driver: "collapsing"
-                        not in (collapse_div.get_attribute("class") or "")
-                    )
-                    logging.debug("Collapse animation completed")
-
-                    # Debug: Check what's actually in the collapse div
-                    html_content = collapse_div.get_attribute("outerHTML") or ""
-                    logging.debug(f"Collapse div HTML: {html_content[:500]}...")
-
-                    # Check if there's a nested collapse that needs to be clicked
-                    try:
-                        # Use the specific selector you identified
-                        nested_collapse_link = collapse_div.find_element(
-                            By.CSS_SELECTOR, "div:nth-child(1) > a:nth-child(1)"
-                        )
-                        logging.debug("Found nested collapse link, clicking it...")
-                        driver.execute_script(
-                            "arguments[0].click();", nested_collapse_link
-                        )
-
-                        # Wait for the nested collapse to expand
-                        wait.until(
-                            lambda driver: "collapse"
-                            not in (
-                                nested_collapse_link.get_attribute("aria-expanded")
-                                or ""
-                            )
-                            or nested_collapse_link.get_attribute("aria-expanded")
-                            == "true"
-                        )
-                        logging.debug("Nested collapse expanded")
-                    except Exception as e:
-                        logging.debug(
-                            f"No nested collapse found or already expanded: {e}"
-                        )
-
-                    # Try to find titulo-lista with different selectors
-                    titulo = None
-
-                    # Wait for titulo to be available
-                    try:
-                        wait.until(
-                            EC.presence_of_element_located(
-                                (By.CSS_SELECTOR, ".titulo-lista")
-                            )
-                        )
-                    except Exception:
-                        pass  # Continue with fallback methods
-
-                    try:
-                        titulo = collapse_div.find_element(
-                            By.CSS_SELECTOR, ".titulo-lista"
-                        ).text
-                        logging.debug(
-                            f"Found titulo with .titulo-lista: {titulo[:100]}..."
-                        )
-                    except Exception:
+                    for j, date_link in enumerate(date_links):
                         try:
-                            # Try without the m-16 class
-                            titulo = collapse_div.find_element(
-                                By.CSS_SELECTOR, ".titulo-lista"
-                            ).text
+                            nested_target_id = date_link.get_attribute("href").split(
+                                "#"
+                            )[-1]
                             logging.debug(
-                                f"Found titulo without m-16: {titulo[:100]}..."
+                                f"Processing nested link {j+1}/{len(date_links)} for {nested_target_id}"
                             )
-                        except Exception:
-                            # Try finding any div with the vote text - more permissive
-                            vote_divs = collapse_div.find_elements(
-                                By.CSS_SELECTOR, "div"
-                            )
-                            for div in vote_divs:
-                                text = div.text.strip()
-                                if len(text) > 20:  # Lower threshold
-                                    # Look for any meaningful text, not just specific keywords
-                                    if any(
-                                        keyword in text.lower()
-                                        for keyword in [
-                                            "julgo",
-                                            "procedente",
-                                            "improcedente",
-                                            "voto",
-                                            "relator",
-                                            "ministro",
-                                            "ante",
-                                            "exposto",
-                                        ]
-                                    ):
-                                        titulo = text
-                                        logging.debug(
-                                            f"Found titulo by broader text search: {titulo[:100]}..."
-                                        )
-                                        break
 
-                    if titulo:
-                        # Extract the full session data using the _extract_sessao_details function
-                        sessao_data = _extract_sessao_details(collapse_div)
-                        if sessao_data:
-                            # Extract PDF content from URLs
-                            sessao_data = extract_pdf_texts_from_session(sessao_data)
+                            if date_link.get_attribute("aria-expanded") == "false":
+                                driver.execute_script(
+                                    "arguments[0].click();", date_link
+                                )
+
+                            nested_collapse_div = wait.until(
+                                EC.visibility_of_element_located(
+                                    (By.ID, nested_target_id)
+                                )
+                            )
+                            time.sleep(0.5)  # Settle
+
+                            # --- SCRAPE NESTED DATA ---
+                            sessao_data = _parse_sessao_virtual_item(
+                                nested_collapse_div
+                            )
+                            sessao_data["julgamento_item_titulo"] = normalize_spaces(
+                                main_button.text
+                            )
                             sessao_list.append(sessao_data)
-                        else:
-                            # Fallback: just add the titulo text
-                            sessao_list.append({"voto_texto": titulo})
-                    else:
-                        # Final fallback: try to extract any meaningful text
-                        logging.warning(
-                            "Could not find titulo text in any form, trying final fallback"
-                        )
-                        try:
-                            # Get any substantial text from the collapse div
-                            all_text = collapse_div.text.strip()
-                            if len(all_text) > 50:
-                                # Extract first substantial paragraph
-                                lines = [
-                                    line.strip()
-                                    for line in all_text.split("\n")
-                                    if line.strip()
-                                ]
-                                for line in lines:
-                                    if len(line) > 30:
-                                        titulo = line
-                                        logging.debug(
-                                            f"Using fallback titulo: {titulo[:100]}..."
-                                        )
-                                        sessao_list.append({"voto_texto": titulo})
-                                        break
-                        except Exception as e:
-                            logging.warning(f"Final fallback also failed: {e}")
+                            logging.debug(
+                                f"Successfully scraped data from {nested_target_id}"
+                            )
 
-                except Exception as e:
-                    logging.warning(f"Could not extract content: {e}")
-                    continue
+                            # Collapse the nested div
+                            driver.execute_script("arguments[0].click();", date_link)
+                            wait.until(
+                                EC.invisibility_of_element_located(
+                                    (By.ID, nested_target_id)
+                                )
+                            )
+
+                        except Exception as e:
+                            logging.warning(
+                                f"Error processing nested link {j+1} ({nested_target_id}): {e}"
+                            )
+                            continue
+
+                # CASE B: "Tema" item with a direct table (e.g., #listasJulgamentoTema)
+                else:
+                    tema_table = main_collapse_div.find_elements(By.TAG_NAME, "table")
+                    if tema_table:
+                        logging.debug(
+                            f"Found 'Tema' table in {main_target_id}. Parsing..."
+                        )
+
+                        # --- SCRAPE TEMA DATA ---
+                        tema_data = _parse_tema_item(main_collapse_div)
+                        tema_data["julgamento_item_titulo"] = normalize_spaces(
+                            main_button.text
+                        )
+                        sessao_list.append(tema_data)
+                        logging.debug(
+                            f"Successfully scraped data from 'Tema' {main_target_id}"
+                        )
+
+                # Collapse the main item
+                driver.execute_script("arguments[0].click();", main_button)
+                wait.until(EC.invisibility_of_element_located((By.ID, main_target_id)))
 
             except Exception as e:
-                logging.warning(f"Could not process julgamento item: {e}")
+                logging.warning(f"Error processing julgamento item {i+1}: {e}")
                 continue
 
+        logging.info(
+            f"Successfully extracted {len(sessao_list)} data blocks from Sessão virtual"
+        )
         return sessao_list
 
     except Exception as e:
-        logging.warning(f"Could not extract sessao_virtual: {e}")
+        logging.error(f"Failed to extract sessao_virtual: {e}", exc_info=True)
         return []
-
-
-def _extract_sessao_details(content_div: WebElement) -> dict[str, Any] | None:
-    """Extract detailed session information from collapse div"""
-    try:
-        # Initialize with default values
-        sessao_data: dict[str, Any] = {
-            "lista": "",
-            "relator": "",
-            "orgao_julgador": "",
-            "voto_texto": "",
-            "data_inicio": "",
-            "data_fim_prevista": "",
-            "acompanham_relator": [],
-            "url_relatorio": "",
-            "conteudo_relatorio": "",
-            "url_voto": "",
-            "conteudo_voto": "",
-        }
-
-        # Try to extract data from the table if it exists
-        try:
-            # Look for table with more flexible selector
-            table = content_div.find_element(By.CSS_SELECTOR, "table")
-            rows = table.find_elements(By.TAG_NAME, "tr")
-
-            for row in rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) == 2:
-                    try:
-                        label_elem = cells[0].find_element(
-                            By.CSS_SELECTOR, ".processo-detalhes-bold"
-                        )
-                        label = label_elem.text
-                    except Exception:
-                        label = cells[0].text
-
-                    try:
-                        value_elem = cells[1].find_element(
-                            By.CSS_SELECTOR, ".desc-lista"
-                        )
-                        value = value_elem.text
-                    except Exception:
-                        value = cells[1].text
-
-                    # Map labels to our data structure
-                    if "Lista:" in label:
-                        sessao_data["lista"] = value
-                    elif "Relator(a):" in label:
-                        sessao_data["relator"] = value
-                    elif "Órgão Julgador:" in label:
-                        sessao_data["orgao_julgador"] = value
-                    elif "Data início:" in label:
-                        sessao_data["data_inicio"] = value
-                    elif "Data prevista fim:" in label:
-                        sessao_data["data_fim_prevista"] = value
-        except Exception:
-            pass
-
-        voto_texto = content_div.find_element(By.CSS_SELECTOR, ".titulo-lista").text
-        sessao_data["voto_texto"] = normalize_spaces(voto_texto)
-        sessao_data["relator"] = content_div.find_element(
-            By.CSS_SELECTOR, ".manifestacao-julgador"
-        ).text
-        # Extract URLs for relatorio and voto
-        try:
-            relatorio_link = content_div.find_element(
-                By.CSS_SELECTOR, "a[href*='texto=']"
-            )
-            sessao_data["url_relatorio"] = relatorio_link.get_attribute("href")
-            sessao_data["conteudo_relatorio"] = None
-        except Exception:
-            sessao_data["url_relatorio"] = None
-            sessao_data["conteudo_relatorio"] = None
-
-        try:
-            voto_links = content_div.find_elements(By.CSS_SELECTOR, "a[href*='texto=']")
-            if len(voto_links) > 1:
-                sessao_data["url_voto"] = voto_links[1].get_attribute("href")
-            else:
-                sessao_data["url_voto"] = None
-            sessao_data["conteudo_voto"] = None
-        except Exception:
-            sessao_data["url_voto"] = None
-            sessao_data["conteudo_voto"] = None
-
-        # Extract acompanham_relator list
-        try:
-            acompanham_list = []
-            try:
-                # Try the specific selector first
-                acompanham_section = content_div.find_element(
-                    By.CSS_SELECTOR, "#acompanha"
-                )
-                acompanham_items = acompanham_section.find_elements(
-                    By.CSS_SELECTOR, ".manifestacao-julgador"
-                )
-                acompanham_list = [
-                    item.text.strip() for item in acompanham_items if item.text.strip()
-                ]
-            except Exception:
-                acompanham_list = []
-            sessao_data["acompanham_relator"] = acompanham_list
-        except Exception:
-            sessao_data["acompanham_relator"] = []
-
-        return sessao_data
-    except Exception as e:
-        logging.warning(f"Could not extract sessao details: {e}")
-        return None

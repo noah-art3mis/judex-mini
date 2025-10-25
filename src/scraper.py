@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
+import tenacity
 from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -98,7 +99,7 @@ def run_scraper(
             )
     finally:
         if timer.process_times:
-            print("PROCESS ENDED - SHOWING REPORT")
+            logging.info("=== SCRAPER ENDED - SHOWING REPORT ===")
             timer.log_summary()
 
 
@@ -115,46 +116,70 @@ def process_batch(
     """Process a batch of processes and return exported files."""
     all_exported_files = []
 
-    for processo in processos:
-        processo_name = f"{classe} {processo}"
-        process_start_time = timer.start_process(processo_name)
-        logging.info(f"{processo_name}: START")
+    # Use a single driver for the entire batch
+    with get_driver(config.user_agent) as driver:
+        for processo in processos:
+            processo_name = f"{classe} {processo}"
+            process_start_time = timer.start_process(processo_name)
+            logging.info(f"{processo_name}: START")
 
-        item = process_single_process(processo, classe, config)
+            item = process_single_process_with_driver(processo, classe, config, driver)
 
-        if item:
-            exported_files = export_item(
-                item, out_file, output_dir, output_config, overwrite
-            )
-        else:
-            exported_files = []
+            if item:
+                exported_files = export_item(
+                    item, out_file, output_dir, output_config, overwrite
+                )
+            else:
+                exported_files = []
 
-        all_exported_files.extend(exported_files)
-        success = len(exported_files) > 0
-        timer.end_process(processo_name, process_start_time, success=success)
+            all_exported_files.extend(exported_files)
+            success = len(exported_files) > 0
+            timer.end_process(processo_name, process_start_time, success=success)
 
     return all_exported_files
 
 
-def process_single_process(
-    processo: int, classe: str, config: ScraperConfig
+# def process_single_process(
+#     processo: int, classe: str, config: ScraperConfig
+# ) -> Optional[StfItem]:
+#     """Process a single process and return the extracted item."""
+#     URL = f"{config.base_url}/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
+#     processo_name = f"{classe} {processo}"
+
+#     # context manager -- handles closing the driver
+#     with get_driver(config.user_agent) as driver:
+#         try:
+#             document = load_page_with_retry(driver, URL, processo_name, config)
+#         except Exception as e:
+#             error_msg = str(e) if str(e) else type(e).__name__
+#             logging.error(f"Error loading {processo_name}: {error_msg}")
+#             return None
+
+#         soup = BeautifulSoup(document, "lxml")
+#         data = extract_processo(driver, soup, classe, processo, config)
+#         return data
+
+
+def process_single_process_with_driver(
+    processo: int, classe: str, config: ScraperConfig, driver: WebDriver
 ) -> Optional[StfItem]:
-    """Process a single process and return the extracted item."""
+    """Process a single process with an existing driver and return the extracted item."""
     URL = f"{config.base_url}/processos/listarProcessos.asp?classe={classe}&numeroProcesso={processo}"
     processo_name = f"{classe} {processo}"
 
-    # context manager -- handles closing the driver
-    with get_driver(config.user_agent) as driver:
-        try:
-            document = load_page_with_retry(driver, URL, processo_name, config)
-        except Exception as e:
-            error_msg = str(e) if str(e) else type(e).__name__
-            logging.error(f"Error loading {processo_name}: {error_msg}")
-            return None
+    try:
+        document = load_page_with_retry(driver, URL, processo_name, config)
+    except tenacity.RetryError as retry_error:
+        logging.error(f"Exhausted retry attempts for {processo_name}: {retry_error}")
+        return None
+    except Exception as e:
+        error_msg = str(e) if str(e) else type(e).__name__
+        logging.error(f"Error loading {processo_name}: {error_msg}")
+        return None
 
-        soup = BeautifulSoup(document, "html.parser")
-        data = extract_processo(driver, soup, classe, processo, config)
-        return data
+    soup = BeautifulSoup(document, "lxml")
+    data = extract_processo(driver, soup, classe, processo, config)
+    return data
 
 
 def extract_processo(
