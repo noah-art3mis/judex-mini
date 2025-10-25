@@ -32,7 +32,7 @@ class ProcessTimer:
         }
         self.process_times.append(process_info)
 
-        logging.info(f"{processo}: completed in {duration:.1f}s")
+        logging.info(f"{processo}: concluído em {duration:.1f}s")
 
     def log_summary(self) -> None:
         """Log comprehensive timing summary"""
@@ -41,7 +41,6 @@ class ProcessTimer:
 
         # Calculate statistics
         successful_processes = [p for p in self.process_times if p["success"]]
-        failed_processes = [p for p in self.process_times if not p["success"]]
 
         if successful_processes:
             avg_duration = sum(p["duration"] for p in successful_processes) / len(
@@ -53,18 +52,16 @@ class ProcessTimer:
             avg_duration = min_duration = max_duration = 0
 
         # Log summary
-        logging.info(f"Total processes: {len(self.process_times)}")
-        logging.info(f"Successful: {len(successful_processes)}")
-        logging.info(f"Failed: {len(failed_processes)}")
+        logging.info(f"Total de processos: {len(self.process_times)}")
         logging.info(
-            f"Total time: {int(total_duration // 3600)}h {int((total_duration % 3600) // 60)}m {int(total_duration % 60)}s"
+            f"Tempo total: {int(total_duration // 3600)}h {int((total_duration % 3600) // 60)}m {int(total_duration % 60)}s"
         )
 
         if successful_processes:
-            logging.info(f"Average time per process: {avg_duration:.2f}s")
-            logging.info(f"Fastest process: {min_duration:.2f}s")
-            logging.info(f"Slowest process: {max_duration:.2f}s")
+            logging.info(f"Tempo médio por processo: {avg_duration:.2f}s")
+            logging.info(f"Processo mais rápido: {min_duration:.2f}s")
+            logging.info(f"Processo mais lento: {max_duration:.2f}s")
 
-        logging.debug("Process times:")
+        logging.debug("Tempos dos processos:")
         for process in self.process_times:
             logging.debug(f"{process['processo']}: {process['duration']:.2f}s")
