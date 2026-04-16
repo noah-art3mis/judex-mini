@@ -2,43 +2,36 @@ from typing import List, Literal, Optional, TypedDict
 
 
 class StfItem(TypedDict):
-    # Basic process identification
-    incidente: int
+    incidente: Optional[int]
     classe: str
     processo_id: int
     numero_unico: Optional[str]
 
-    # Process classification
-    meio: Literal["FISICO", "ELETRONICO"]
-    publicidade: Literal["PUBLICO", "SIGILOSO"]
+    meio: Optional[Literal["FISICO", "ELETRONICO"]]
+    publicidade: Optional[Literal["PUBLICO", "SIGILOSO"]]
     badges: List[str]
 
-    # Process content
     assuntos: List[str]
-    data_protocolo: str
-    orgao_origem: str
-    origem: str
-    numero_origem: List[int]
+    data_protocolo: Optional[str]
+    orgao_origem: Optional[str]
+    origem: Optional[str]
+    numero_origem: Optional[List[int]]
 
-    # Document counts
-    volumes: int
-    folhas: int
-    apensos: int
+    volumes: Optional[int]
+    folhas: Optional[int]
+    apensos: Optional[int]
 
-    # People and parties
     relator: Optional[str]
     primeiro_autor: Optional[str]
     partes: List
 
-    # Process steps and activities
     andamentos: List
     sessao_virtual: List
     deslocamentos: List
     peticoes: List
     recursos: List
-    pautas: List
+    pautas: Optional[List]
 
-    # Metadata
     status: int
     extraido: str
     html: str
