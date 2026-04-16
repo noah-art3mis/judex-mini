@@ -6,6 +6,7 @@ import typer
 
 from src.config import ScraperConfig
 from src.scraper import run_scraper
+from src.scraper_http import run_scraper_http
 from src.testing.ground_truth_test import test_ground_truth
 from src.utils.validation import (
     validate_output_format,
@@ -14,7 +15,19 @@ from src.utils.validation import (
     validate_test_format,
 )
 
+BACKENDS = ("selenium", "http")
 
+app = typer.Typer(add_completion=False)
+
+
+def _validate_backend(backend: str) -> None:
+    if backend not in BACKENDS:
+        raise typer.BadParameter(
+            f"Invalid backend: {backend!r}. Must be one of {BACKENDS}."
+        )
+
+
+@app.command()
 def main(
     classe: str = typer.Option(
         "AI", "-c", "--classe", help="Process class (RE, AI, ADI, etc.)"
@@ -50,6 +63,16 @@ def main(
         "--ground-truth-dir",
         help="Directory containing ground truth files",
     ),
+    backend: str = typer.Option(
+        "selenium",
+        "--backend",
+        help="Scraper backend: 'selenium' (default) or 'http' (faster, no browser).",
+    ),
+    fetch_pdfs: bool = typer.Option(
+        True,
+        "--fetch-pdfs/--no-fetch-pdfs",
+        help="(HTTP backend only) Download and extract text from sessao_virtual PDFs.",
+    ),
 ) -> None:
     """CLI entry point for JUDEX MINI scraper."""
 
@@ -76,19 +99,33 @@ def main(
     validate_process_range(processo_inicial, processo_final)
     validate_output_format(output_format)
     validate_test_format(test, output_format)
+    _validate_backend(backend)
 
     logging.info("=== JUDEX MINI START ===")
     logging.info(f"Logging to: {log_file}")
+    logging.info(f"Backend: {backend}")
 
-    run_scraper(
-        classe=classe,
-        processo_inicial=processo_inicial,
-        processo_final=processo_final,
-        output_format=output_format,
-        output_dir=output_dir,
-        overwrite=overwrite,
-        config=ScraperConfig(),
-    )
+    if backend == "http":
+        run_scraper_http(
+            classe=classe,
+            processo_inicial=processo_inicial,
+            processo_final=processo_final,
+            output_format=output_format,
+            output_dir=output_dir,
+            overwrite=overwrite,
+            config=ScraperConfig(),
+            fetch_pdfs=fetch_pdfs,
+        )
+    else:
+        run_scraper(
+            classe=classe,
+            processo_inicial=processo_inicial,
+            processo_final=processo_final,
+            output_format=output_format,
+            output_dir=output_dir,
+            overwrite=overwrite,
+            config=ScraperConfig(),
+        )
 
     logging.info("🎉 Finished processing all processes!")
 
@@ -102,16 +139,6 @@ def main(
             processo_final,
         )
 
-    if test:
-        logging.info("\n=== RUNNING GROUND TRUTH TESTS ===")
-        test_ground_truth(
-            ground_truth_dir,
-            output_dir,
-            classe,
-            processo_inicial,
-            processo_final,
-        )
-
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()

@@ -1,0 +1,193 @@
+[ {
+  "objetoIncidente" : {
+    "id" : 6702594,
+    "identificacao" : "ADI 2820 ED",
+    "identificacaoCompleta" : "EMB.DECL. NA AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+    "principal" : 2083816,
+    "pai" : 2083816,
+    "tipoObjetoIncidente" : {
+      "codigo" : "RC",
+      "descricao" : "Recurso"
+    },
+    "cadeia" : ""
+  },
+  "listasJulgamento" : [ {
+    "id" : 130428,
+    "nomeLista" : "386-2023",
+    "julgado" : true,
+    "admiteSustentacaoOral" : true,
+    "ministroRelator" : {
+      "codigo" : "51",
+      "descricao" : "MIN. NUNES MARQUES"
+    },
+    "votoRelator" : {
+      "codigo" : "5876846",
+      "descricao" : "Voto",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5876846"
+    },
+    "relatorioRelator" : {
+      "codigo" : "5876845",
+      "descricao" : "Relatório",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5876845"
+    },
+    "complementoVotoRelator" : "",
+    "ministroDestaque" : "",
+    "ministroVista" : "",
+    "ministroVistor" : "",
+    "sessao" : {
+      "numero" : 35,
+      "ano" : 2023,
+      "colegiado" : {
+        "codigo" : "TP",
+        "descricao" : "Plenário"
+      },
+      "dataPrevistaInicio" : "20/10/2023",
+      "dataPrevistaFim" : "27/10/2023",
+      "dataInicio" : "20/10/2023",
+      "dataFim" : "27/10/2023",
+      "tipoJulgamentoVirtual" : "",
+      "tipoSessao" : {
+        "codigo" : "O",
+        "descricao" : "Sessão Ordinária"
+      }
+    },
+    "textoDecisao" : "",
+    "cabecalho" : "Voto do Relator:Conhe&ccedil;o dos embargos de declara&ccedil;&atilde;o e dou-lhes parcial provimento para, retificando o item 2 da ementa, declarar a constitucionalidade do &sect; 5&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, introduzido pela Emenda de n. 35, de 14 de dezembro de 2001, e conferir-lhe interpreta&ccedil;&atilde;o conforme &agrave; Constitui&ccedil;&atilde;o Federal, de maneira a assentar que competem &agrave; Procuradoria-Geral da Assembleia Legislativa as atividades de consultoria e assessoramento jur&iacute;dicos, bem como a representa&ccedil;&atilde;o judicial e extrajudicial nos feitos em que o Legislativo, em nome pr&oacute;prio, esgrima na defesa de sua autonomia, independ&ecirc;ncia, prerrogativas e compet&ecirc;ncias frente aos Poderes Executivo e Judici&aacute;rio e aos &oacute;rg&atilde;os de envergadura constitucional independentes, como Minist&eacute;rio P&uacute;blico, Defensoria P&uacute;blica e Tribunal de Contas.",
+    "tipoListaJulgamento" : {
+      "codigo" : "2",
+      "descricao" : "Listas dos Relatores (Incidentes e Recursos - Todas as Classes)"
+    },
+    "tipoResultadoJulgamento" : {
+      "codigo" : "1",
+      "descricao" : "Decisão unânime"
+    },
+    "votos" : [ {
+      "numeroOrdemVotoSessao" : 2,
+      "ministro" : {
+        "codigo" : "50",
+        "descricao" : "MIN. ALEXANDRE DE MORAES"
+      },
+      "dataVoto" : "23/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 4,
+      "ministro" : {
+        "codigo" : "49",
+        "descricao" : "MIN. EDSON FACHIN"
+      },
+      "dataVoto" : "26/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 6,
+      "ministro" : {
+        "codigo" : "53",
+        "descricao" : "MIN. CRISTIANO ZANIN"
+      },
+      "dataVoto" : "26/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 7,
+      "ministro" : {
+        "codigo" : "44",
+        "descricao" : "MIN. DIAS TOFFOLI"
+      },
+      "dataVoto" : "26/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 8,
+      "ministro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "dataVoto" : "27/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 10,
+      "ministro" : {
+        "codigo" : "45",
+        "descricao" : "MIN. LUIZ FUX"
+      },
+      "dataVoto" : "27/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 11,
+      "ministro" : {
+        "codigo" : "36",
+        "descricao" : "MIN. GILMAR MENDES"
+      },
+      "dataVoto" : "27/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 13,
+      "ministro" : {
+        "codigo" : "48",
+        "descricao" : "MIN. LUÍS ROBERTO BARROSO"
+      },
+      "dataVoto" : "27/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 15,
+      "ministro" : {
+        "codigo" : "52",
+        "descricao" : "MIN. ANDRÉ MENDONÇA"
+      },
+      "dataVoto" : "27/10/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    } ]
+  } ],
+  "sustentacoesOrais" : [ ]
+} ]

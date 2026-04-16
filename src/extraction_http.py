@@ -15,11 +15,10 @@ Routing summary (which fragment each reads):
     abaDeslocamentos  → deslocamentos
     abaPeticoes       → peticoes
     abaRecursos       → recursos
-    abaSessao         → sessao_virtual (LIMITATION: the 'Tema' branch
-                        is rendered client-side from a separate JSON
-                        API at sistemas.stf.jus.br/repgeral/votacao;
-                        'Sessão' branch needs click-simulation to
-                        expand nested collapses; returns [] for now.)
+
+(sessao_virtual is handled in src/extraction_http_sessao.py — its tab
+fragment is a JS template, so the orchestrator fetches the JSON
+endpoints the template would have called.)
 """
 
 from __future__ import annotations
@@ -347,11 +346,9 @@ def extract_recursos(recursos_html: str) -> list[dict]:
     return out
 
 
-# ---------- abaSessao ----------
-
-
-def extract_sessao_virtual(sessao_html: str) -> list[dict]:
-    return []
+# abaSessao is handled separately in src.extraction_http_sessao —
+# its JS template fires two JSON endpoints on sistemas.stf.jus.br, so
+# orchestration (not just fragment parsing) is needed.
 
 
 # Re-exports so orchestrators import from one place.
@@ -377,5 +374,4 @@ __all__ = [
     "extract_deslocamentos",
     "extract_peticoes",
     "extract_recursos",
-    "extract_sessao_virtual",
 ]

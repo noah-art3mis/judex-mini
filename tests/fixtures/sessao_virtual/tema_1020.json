@@ -1,0 +1,115 @@
+{"package": {
+    "situacao": "normal",
+    "repercussaoGeral": {"processoLeadingCase": {
+        "numeroTema": 1020,
+        "dataFimPrevistaJulgamento": "29/11/2018",
+        "siglaClasse": "RE",
+        "seqObjetoIncidente": 5563078,
+        "tituloTema": "Controvérsia alusiva à constitucionalidade de lei municipal a determinar retenção do Imposto sobre Serviços de Qualquer Natureza \u0013 ISS \u0013 pelo tomador de serviço, em razão da ausência de cadastro, na Secretaria de Finanças de São Paulo, do prestador não estabelecido no território do referido Município.",
+        "seqArquivoEletronico": 7916171,
+        "dataInicioJulgamento": "09/11/2018",
+        "numeroProcesso": 1167509,
+        "relator": "MIN. MARCO AURÉLIO",
+        "placar": {"ministro": [
+            {
+                "seq_arquivo_manifestacao": 7916171,
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. MARCO AURÉLIO",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. DIAS TOFFOLI",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. CELSO DE MELLO",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. GILMAR MENDES",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Não há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. EDSON FACHIN",
+                "votoSN": "",
+                "votoRG": "Não há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. ALEXANDRE DE MORAES",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. LUÍS ROBERTO BARROSO",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Não há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. LUIZ FUX",
+                "votoSN": "",
+                "votoRG": "Não há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. RICARDO LEWANDOWSKI",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. CÁRMEN LÚCIA",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            },
+            {
+                "seq_arquivo_manifestacao": "",
+                "votoQC": "Há",
+                "seq_arquivo_complemento": "",
+                "nomeMinistro": "MIN. ROSA WEBER",
+                "votoSN": "",
+                "votoRG": "Há",
+                "votoRJ": ""
+            }
+        ]}
+    }}
+}}

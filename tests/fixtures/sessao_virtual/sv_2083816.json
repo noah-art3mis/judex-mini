@@ -1,0 +1,294 @@
+[ {
+  "objetoIncidente" : {
+    "id" : 2083816,
+    "identificacao" : "ADI 2820",
+    "identificacaoCompleta" : "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+    "principal" : 2083816,
+    "pai" : "",
+    "tipoObjetoIncidente" : {
+      "codigo" : "PR",
+      "descricao" : "Processo"
+    },
+    "cadeia" : [ {
+      "id" : 6702594,
+      "identificacao" : "ADI 2820 ED",
+      "identificacaoCompleta" : "EMB.DECL. NA AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "principal" : 2083816,
+      "pai" : 2083816,
+      "tipoObjetoIncidente" : {
+        "codigo" : "RC",
+        "descricao" : "Recurso"
+      },
+      "cadeia" : ""
+    } ]
+  },
+  "listasJulgamento" : [ {
+    "id" : 122964,
+    "nomeLista" : "25-2023",
+    "julgado" : true,
+    "admiteSustentacaoOral" : true,
+    "ministroRelator" : {
+      "codigo" : "51",
+      "descricao" : "MIN. NUNES MARQUES"
+    },
+    "votoRelator" : {
+      "codigo" : "5421024",
+      "descricao" : "Voto",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5421024"
+    },
+    "relatorioRelator" : {
+      "codigo" : "5421020",
+      "descricao" : "Relatório",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5421020"
+    },
+    "complementoVotoRelator" : "",
+    "ministroDestaque" : "",
+    "ministroVista" : {
+      "codigo" : "42",
+      "descricao" : "MIN. CÁRMEN LÚCIA"
+    },
+    "ministroVistor" : "",
+    "sessao" : {
+      "numero" : 5,
+      "ano" : 2023,
+      "colegiado" : {
+        "codigo" : "TP",
+        "descricao" : "Plenário"
+      },
+      "dataPrevistaInicio" : "24/02/2023",
+      "dataPrevistaFim" : "03/03/2023",
+      "dataInicio" : "24/02/2023",
+      "dataFim" : "03/03/2023",
+      "tipoJulgamentoVirtual" : "",
+      "tipoSessao" : {
+        "codigo" : "O",
+        "descricao" : "Sessão Ordinária"
+      }
+    },
+    "textoDecisao" : "ADI 2820: Decisão: Após os votos dos Ministros Nunes Marques (Relator) e Alexandre de Moraes, que conheciam desta ação e julgavam procedente, em parte, o pedido nela formulado, para: (i) declarar a inconstitucionalidade dos §§ 4º, 6º e 7º do art. 122 da Constituição do Estado do Espírito Santo, acrescidos pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, na redação dada pela Emenda de n. 108, de 22 de maio de 2017; (ii) declarar a constitucionalidade do § 5º do art. 122 da Constituição do Estado do Espírito Santo, introduzido pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, conferindo-lhe interpretação conforme à Constituição Federal de maneira a assentar que a representação judicial e extrajudicial da Assembleia Legislativa, a cargo de sua Procuradoria-Geral, encontra limite naqueles feitos em que o Legislativo, em nome próprio, esgrima na defesa de sua autonomia e independência frente aos demais Poderes; (iii) modular os efeitos da decisão a fim de: (iii.1) afastar a necessidade de devolução de valores recebidos a título de remuneração por integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa com base no art. 122, § 6º – dispositivo declarado inconstitucional; (iii.2) assentar que a remuneração dos procuradores estaduais e dos procuradores legislativos é aquela fixada em lei no mesmo patamar; ou, se a lei fixar a remuneração para apenas uma das carreiras, que a remuneração da outra é igual até lei posterior regular o quadro de modo diverso, vedado qualquer tipo de reajuste automático da remuneração de uma delas quando for modificada a da outra; e (iii.3) conferir eficácia ex nunc à declaração de inconstitucionalidade do § 7º do art. 122 da Constituição do Estado do Espírito Santo, de modo a preservar a validade de processos judiciais, bem como das decisões neles lançadas, que tenham tramitado à luz do foro privilegiado previsto no § 7º do art. 122, ora declarado inconstitucional, pediu vista dos autos a Ministra Cármen Lúcia. Plenário, Sessão Virtual de 24.2.2023 a 3.3.2023.\n<br> ",
+    "cabecalho" : "Voto do Relator: Conhe&ccedil;o desta a&ccedil;&atilde;o e julgo procedente, em parte, o pedido nela formulado, para:\r\n(i) declarar a inconstitucionalidade dos &sect;&sect; 4&ordm;, 6&ordm; e 7&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, acrescidos pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, na reda&ccedil;&atilde;o dada pela Emenda de n. 108, de 22 de maio de 2017;\r\n(ii) declarar a constitucionalidade do &sect; 5&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, introduzido pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, conferindo-lhe interpreta&ccedil;&atilde;o conforme &agrave; Constitui&ccedil;&atilde;o Federal de maneira a assentar que a representa&ccedil;&atilde;o judicial e extrajudicial da Assembleia Legislativa, a cargo de sua Procuradoria-Geral, encontra limite naqueles feitos em que o Legislativo, em nome pr&oacute;prio, esgrima na defesa de sua autonomia e independ&ecirc;ncia frente aos demais Poderes.\r\n(iii) modular os efeitos da decis&atilde;o a fim de:\r\n(iii.1) afastar a necessidade de devolu&ccedil;&atilde;o de valores recebidos a t&iacute;tulo de remunera&ccedil;&atilde;o por integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa com base no art. 122, &sect; 6&ordm; &ndash; dispositivo declarado inconstitucional;\r\n(iii.2) assentar que a remunera&ccedil;&atilde;o dos procuradores estaduais e dos procuradores legislativos &eacute; aquela fixada em lei no mesmo patamar; ou, se a lei fixar a remunera&ccedil;&atilde;o para apenas uma das carreiras, que a remunera&ccedil;&atilde;o da outra &eacute; igual at&eacute; lei posterior regular o quadro de modo diverso, vedado qualquer tipo de reajuste autom&aacute;tico da remunera&ccedil;&atilde;o de uma delas quando for modificada a da outra; e\r\n(iii.3) conferir efic&aacute;cia ex nunc &agrave; declara&ccedil;&atilde;o de inconstitucionalidade do &sect; 7&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, de modo a preservar a validade de processos judiciais, bem como das decis&otilde;es neles lan&ccedil;adas, que tenham tramitado &agrave; luz do foro privilegiado previsto no &sect; 7&ordm; do art. 122, ora declarado inconstitucional.",
+    "tipoListaJulgamento" : {
+      "codigo" : "3",
+      "descricao" : "Listas dos Relatores em Ações de Controle Concentrado (Mérito)"
+    },
+    "tipoResultadoJulgamento" : "",
+    "votos" : [ {
+      "numeroOrdemVotoSessao" : 2,
+      "ministro" : {
+        "codigo" : "50",
+        "descricao" : "MIN. ALEXANDRE DE MORAES"
+      },
+      "dataVoto" : "26/05/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    } ]
+  }, {
+    "id" : 125812,
+    "nomeLista" : "25-2023",
+    "julgado" : true,
+    "admiteSustentacaoOral" : false,
+    "ministroRelator" : {
+      "codigo" : "51",
+      "descricao" : "MIN. NUNES MARQUES"
+    },
+    "votoRelator" : {
+      "codigo" : "5421024",
+      "descricao" : "Voto",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5421024"
+    },
+    "relatorioRelator" : {
+      "codigo" : "5421020",
+      "descricao" : "Relatório",
+      "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5421020"
+    },
+    "complementoVotoRelator" : "",
+    "ministroDestaque" : "",
+    "ministroVista" : "",
+    "ministroVistor" : {
+      "codigo" : "42",
+      "descricao" : "MIN. CÁRMEN LÚCIA"
+    },
+    "sessao" : {
+      "numero" : 18,
+      "ano" : 2023,
+      "colegiado" : {
+        "codigo" : "TP",
+        "descricao" : "Plenário"
+      },
+      "dataPrevistaInicio" : "26/05/2023",
+      "dataPrevistaFim" : "02/06/2023",
+      "dataInicio" : "26/05/2023",
+      "dataFim" : "02/06/2023",
+      "tipoJulgamentoVirtual" : "",
+      "tipoSessao" : {
+        "codigo" : "O",
+        "descricao" : "Sessão Ordinária"
+      }
+    },
+    "textoDecisao" : "",
+    "cabecalho" : "Voto do Relator: Conhe&ccedil;o desta a&ccedil;&atilde;o e julgo procedente, em parte, o pedido nela formulado, para:\r\n(i) declarar a inconstitucionalidade dos &sect;&sect; 4&ordm;, 6&ordm; e 7&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, acrescidos pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, na reda&ccedil;&atilde;o dada pela Emenda de n. 108, de 22 de maio de 2017;\r\n(ii) declarar a constitucionalidade do &sect; 5&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, introduzido pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, conferindo-lhe interpreta&ccedil;&atilde;o conforme &agrave; Constitui&ccedil;&atilde;o Federal de maneira a assentar que a representa&ccedil;&atilde;o judicial e extrajudicial da Assembleia Legislativa, a cargo de sua Procuradoria-Geral, encontra limite naqueles feitos em que o Legislativo, em nome pr&oacute;prio, esgrima na defesa de sua autonomia e independ&ecirc;ncia frente aos demais Poderes.\r\n(iii) modular os efeitos da decis&atilde;o a fim de:\r\n(iii.1) afastar a necessidade de devolu&ccedil;&atilde;o de valores recebidos a t&iacute;tulo de remunera&ccedil;&atilde;o por integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa com base no art. 122, &sect; 6&ordm; &ndash; dispositivo declarado inconstitucional;\r\n(iii.2) assentar que a remunera&ccedil;&atilde;o dos procuradores estaduais e dos procuradores legislativos &eacute; aquela fixada em lei no mesmo patamar; ou, se a lei fixar a remunera&ccedil;&atilde;o para apenas uma das carreiras, que a remunera&ccedil;&atilde;o da outra &eacute; igual at&eacute; lei posterior regular o quadro de modo diverso, vedado qualquer tipo de reajuste autom&aacute;tico da remunera&ccedil;&atilde;o de uma delas quando for modificada a da outra; e\r\n(iii.3) conferir efic&aacute;cia ex nunc &agrave; declara&ccedil;&atilde;o de inconstitucionalidade do &sect; 7&ordm; do art. 122 da Constitui&ccedil;&atilde;o do Estado do Esp&iacute;rito Santo, de modo a preservar a validade de processos judiciais, bem como das decis&otilde;es neles lan&ccedil;adas, que tenham tramitado &agrave; luz do foro privilegiado previsto no &sect; 7&ordm; do art. 122, ora declarado inconstitucional.",
+    "tipoListaJulgamento" : {
+      "codigo" : "5",
+      "descricao" : "Listas de Devoluções de Vistas"
+    },
+    "tipoResultadoJulgamento" : {
+      "codigo" : "3",
+      "descricao" : "Vencido o relator"
+    },
+    "votos" : [ {
+      "numeroOrdemVotoSessao" : 2,
+      "ministro" : {
+        "codigo" : "50",
+        "descricao" : "MIN. ALEXANDRE DE MORAES"
+      },
+      "dataVoto" : "26/05/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 2,
+      "ministro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "dataVoto" : "26/05/2023",
+      "tipoVoto" : {
+        "codigo" : "7",
+        "descricao" : "Divirjo do relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ {
+        "codigo" : "5757649",
+        "descricao" : "Voto Vista",
+        "link" : "https://sistemas.stf.jus.br/repgeral/votacao?texto=5757649"
+      } ]
+    }, {
+      "numeroOrdemVotoSessao" : 3,
+      "ministro" : {
+        "codigo" : "48",
+        "descricao" : "MIN. LUÍS ROBERTO BARROSO"
+      },
+      "dataVoto" : "29/05/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 4,
+      "ministro" : {
+        "codigo" : "52",
+        "descricao" : "MIN. ANDRÉ MENDONÇA"
+      },
+      "dataVoto" : "29/05/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 5,
+      "ministro" : {
+        "codigo" : "49",
+        "descricao" : "MIN. EDSON FACHIN"
+      },
+      "dataVoto" : "31/05/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 6,
+      "ministro" : {
+        "codigo" : "46",
+        "descricao" : "MIN. ROSA WEBER"
+      },
+      "dataVoto" : "31/05/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 8,
+      "ministro" : {
+        "codigo" : "44",
+        "descricao" : "MIN. DIAS TOFFOLI"
+      },
+      "dataVoto" : "02/06/2023",
+      "tipoVoto" : {
+        "codigo" : "9",
+        "descricao" : "Acompanho o relator"
+      },
+      "acompanhandoMinistro" : "",
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 10,
+      "ministro" : {
+        "codigo" : "45",
+        "descricao" : "MIN. LUIZ FUX"
+      },
+      "dataVoto" : "02/06/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    }, {
+      "numeroOrdemVotoSessao" : 11,
+      "ministro" : {
+        "codigo" : "36",
+        "descricao" : "MIN. GILMAR MENDES"
+      },
+      "dataVoto" : "02/06/2023",
+      "tipoVoto" : {
+        "codigo" : "8",
+        "descricao" : "Acompanho a divergência"
+      },
+      "acompanhandoMinistro" : {
+        "codigo" : "42",
+        "descricao" : "MIN. CÁRMEN LÚCIA"
+      },
+      "votoAntecipado" : "Não",
+      "textos" : [ ]
+    } ]
+  } ],
+  "sustentacoesOrais" : [ ]
+} ]
