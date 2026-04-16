@@ -121,3 +121,46 @@ Cache artifacts under `.cache/` stay local (already `.gitignore`d).
 ## Rollback
 
 Everything lives under new paths (`tests/sweep/`, `docs/sweep-results/`, `scripts/run_sweep.py`). Deleting those three and the design doc rolls the work back with zero impact on existing code.
+
+## Addendum (2026-04-16) — Sweep C: full 1000-ADI sweep
+
+After A and B passed with zero throttling and a genuine field-level parity story in place, the user asked for a full 1000-case sweep to benchmark against the recorded Selenium baseline. Documenting it here so the change shows up next to the A/B design.
+
+### Selenium baseline (measured)
+
+Read `extraido` timestamps from `output/judex-mini_ADI_1-1000.csv`:
+
+- 609 rows with `status=200` (the other 391 IDs in 1..1000 either 404 on STF or errored out on the Selenium side).
+- First: `2025-10-26T21:23:02`, last: `2025-10-26T22:40:36`.
+- **Wall span: 77.6 min / ≈ 4655 s**, giving **~7.6 s / successful process** on Selenium.
+- User's recollection was "~2h"; actual is ~1h18m — still the number we're trying to beat.
+
+### Projection from sweep B
+
+50 ADIs took 81 s cold at 4-tab concurrency, 0 retries. Straight scaling: 1000 × 1.62 s ≈ **27 min**, i.e. **~2.9× faster** than Selenium.
+
+Open questions the sweep answers:
+- Does STF throttle at ~1000 sequential requests when it didn't at 50? Retry counters + wall tail will reveal this.
+- Do the remaining 391 "missing" Selenium IDs 404 on HTTP too, or does HTTP pick up processes Selenium dropped?
+- Does the `recursos` key mismatch from sweep B recur on every non-empty recursos row? Expected yes — structural.
+
+### Scope
+
+- **Input**: `tests/sweep/full_range_adi.csv`, classe=ADI, processo=1..1000 (generated once, committed).
+- **Parity source**: `output/judex-mini_ADI_1-1000.csv` (Selenium baseline).
+- **Cache posture**: `--wipe-cache` so every process is cold. Sweep B's ~52 pre-warmed rows would otherwise distort the wall-time comparison.
+- **Passes**: cold only. Warm pass adds no new signal over sweep B's cache numbers.
+- **Output**: `docs/sweep-results/2026-04-16-C-full-1000.md`.
+
+### Success criteria
+
+- ≥ 95 % completion on the IDs Selenium got (580+ of 609). If HTTP picks up 404s Selenium had, that's a bonus.
+- HTTP total wall ≤ 40 min (gives headroom over the 27 min projection for throttling).
+- 429 rate ≤ 2 % of requests across the sweep. Higher motivates handoff step #3.
+- Parity diffs other than the `recursos` key mismatch: ideally zero, recurring-divergence table documents anything else.
+
+### Risks and posture
+
+- **This is the first sustained-volume run against STF from this tool.** `robots.txt` still disallows `/processos`. User-explicit instruction to proceed is logged above. Mitigation: single concurrent scraper (no parallel runs), tenacity keeps retries polite, abort if the 429 rate trips 20 % on a rolling window.
+- Wall-clock run will take ~30 min and hold a single session open. No side effects beyond the portal hits and the `.cache/` fill.
+
