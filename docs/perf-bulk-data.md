@@ -127,6 +127,27 @@ with ThreadPoolExecutor(max_workers=8) as ex:
 
 Selenium only stays as a fallback for any specific field we later find genuinely needs JS execution (so far: none).
 
+## Measured HTTP prototype vs Selenium (AI 772309)
+
+End-to-end comparison on the same process, `scripts/bench_http_vs_selenium.py`:
+
+| Path                          | Wall clock | Notes                                     |
+|-------------------------------|-----------:|-------------------------------------------|
+| Selenium (from main.py)       | 18.00 s    | includes ~13 s one-time driver startup    |
+| Selenium steady-state         |  4.98 s    | `ProcessTimer` — excludes driver startup  |
+| HTTP fresh (no cache)         |  0.87 s    | resolve incidente + detalhe + 9 tabs (||8) |
+| HTTP cache hit                |  0.27 s    | still does the 302 incidente lookup       |
+| Andamentos parse only         |  3.5 ms    | from cached fragment                      |
+
+**Andamentos output diff: MATCH** — `extract_andamentos_http` produced field-identical output (2/2 items, 7/7 fields each) to `extract_andamentos` on the same case. One encoding bug surfaced during diffing: STF serves UTF-8 without declaring a charset, so `requests` defaulted to Latin-1. Fixed by setting `response.encoding = "utf-8"` explicitly.
+
+The HTTP path is **~5.7× faster than Selenium steady-state**, **~20× faster if you count driver startup**. For a small process. Heavier processes (more andamentos, present peticoes/recursos) will widen the gap further because the Selenium path pays `button_wait=10` per click-gated tab, while HTTP pays O(bytes transferred) only.
+
+Prototype files:
+- `src/scraper_http.py` — session, incidente resolution, tab fetching, `extract_andamentos_http`
+- `src/utils/html_cache.py` — on-disk cache under `.cache/html/{classe}_{processo}/{tab}.html`
+- `scripts/bench_http_vs_selenium.py` — runnable diff harness
+
 ## Measured baseline (current Selenium scraper)
 
 Ran `main.py -c AI -i 772309 -f 772309` on this branch, fresh venv:
