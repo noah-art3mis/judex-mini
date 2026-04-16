@@ -5,7 +5,14 @@ Date: 2026-04-16
 
 ## TL;DR
 
-The scraper's slowness is **not** fundamental — it's Selenium overhead plus redundant browser startup. The STF portal is fully reachable via plain HTTP once you replay the session the browser would have established. A pure-`requests` replacement is expected to drop per-process time from ~20 s to ~2–3 s (sequential), and further with parallel workers. DataJud, contrary to initial hope, does **not** cover STF, so we cannot skip scraping entirely — but we can make it dramatically cheaper.
+The scraper's slowness has **two** layers, and they have very different fixes:
+
+1. **Per-request Selenium overhead.** Browser startup + JS + click-wait dominates when you're not being throttled. Replaceable by a plain-`requests` path: ~5 s/item → ~1 s/item on a cold request. Confirmed with a working andamentos prototype.
+2. **Server-side rate limiting.** The STF portal progressively throttles over a sustained sweep; the ~20 s/item figure in `ScraperConfig` is an *average* that includes this throttling, not steady-state. A faster client does not beat this — it just burns through the quota faster. This is a ceiling, not a floor.
+
+The practical implication: dropping Selenium is still worth doing (faster iteration, lower memory, simpler code), but the **primary production win is caching**, not raw per-request speed. Once a case's HTML is on disk, re-extraction is free, and that's where development time actually lives.
+
+DataJud, contrary to initial hope, does **not** cover STF, so we cannot skip scraping entirely.
 
 ## What was investigated
 
@@ -141,12 +148,41 @@ End-to-end comparison on the same process, `scripts/bench_http_vs_selenium.py`:
 
 **Andamentos output diff: MATCH** — `extract_andamentos_http` produced field-identical output (2/2 items, 7/7 fields each) to `extract_andamentos` on the same case. One encoding bug surfaced during diffing: STF serves UTF-8 without declaring a charset, so `requests` defaulted to Latin-1. Fixed by setting `response.encoding = "utf-8"` explicitly.
 
-The HTTP path is **~5.7× faster than Selenium steady-state**, **~20× faster if you count driver startup**. For a small process. Heavier processes (more andamentos, present peticoes/recursos) will widen the gap further because the Selenium path pays `button_wait=10` per click-gated tab, while HTTP pays O(bytes transferred) only.
+The HTTP path is **~5.7× faster than Selenium steady-state** on a *cold, unratelimited* request. This number does NOT extrapolate to a full sweep — STF rate-limits progressively over many requests, and the `ScraperConfig` "20s/item" figure is an average that includes throttled responses. Under sustained load, both Selenium and HTTP converge to whatever the server lets us do. The HTTP win is real on individual requests and small batches; on large sweeps the ceiling is the server, not the client. This moves the cache from "nice-to-have" to "the main production lever."
 
 Prototype files:
-- `src/scraper_http.py` — session, incidente resolution, tab fetching, `extract_andamentos_http`
+- `src/scraper_http.py` — session, incidente resolution, tab fetching, `scrape_processo_http` orchestrator
+- `src/extraction_http.py` — fragment-based ports of every extractor
 - `src/utils/html_cache.py` — on-disk cache under `.cache/html/{classe}_{processo}/{tab}.html`
-- `scripts/bench_http_vs_selenium.py` — runnable diff harness
+- `scripts/bench_http_vs_selenium.py` — single-process diff harness
+- `scripts/validate_ground_truth.py` — runs HTTP path against every fixture in tests/ground_truth/
+
+## Ground-truth validation (5 fixtures)
+
+Ran `scripts/validate_ground_truth.py` end-to-end:
+
+| Fixture              | Wall  | Result |
+|----------------------|------:|--------|
+| ACO_2652             | 0.81s | 2 diffs (both non-bugs, see below) |
+| ADI_2820_reread      | 0.76s | MATCH |
+| AI_772309            | 0.48s | MATCH |
+| MI_12                | 0.49s | MATCH |
+| RE_1234567           | 0.51s | MATCH |
+
+The two ACO 2652 diffs are **not scraper bugs**:
+
+1. **`assuntos` text drift**: live site has `'... CADIN/SPC/SERASA/SIAFI/CAUC'`, fixture captured `'... CADIN'`. STF updated the assunto taxonomy/text since the fixture was recorded.
+2. **`pautas: [] vs null`**: fixture inconsistency — ACO has `null`, the other four have `[]`. Current Selenium produces `[]`, so we match Selenium behavior (and 4/5 fixtures).
+
+Bugs surfaced and fixed during ground-truth validation:
+- `extract_partes` initially used `#todas-partes` (9 entries for ADI 2820 incl. amici and advogados). Selenium reads from `#resumo-partes`, which jQuery populates from `#partes-resumidas` (4 entries — the "main" parties). Switched to `#partes-resumidas` for parity.
+- `extract_recursos` returned field `index`; ground-truth schema uses `id`. Aligned.
+- Orchestrator was coercing missing integer fields (volumes/folhas/apensos/numero_origem) to `0` / `[]`; ground truth expects `None`. Dropped the coercion.
+
+## Known limitations
+
+- **`sessao_virtual` is not yet parsed in the HTTP path.** Returns `[]`. The `abaSessao.asp` fragment is largely a JavaScript template that calls `sistemas.stf.jus.br/repgeral/votacao?tema=…` (a separate JSON endpoint) for the "Tema" branch, and the "Sessão" branch relies on collapse-expand interactions to reveal nested content. Porting it means either hitting that JSON API directly or finding a server-rendered variant of the fragment.
+- **`abaDecisoes` and `abaPautas`** fetch but aren't parsed (Selenium also doesn't produce these fields).
 
 ## Measured baseline (current Selenium scraper)
 

@@ -1,15 +1,15 @@
 """
 HTTP-only scraper for STF process pages.
 
-Proof-of-concept replacement for the Selenium path. Replays what the
-browser would do: resolve (classe, numero) -> incidente via the 302 from
-listarProcessos.asp, GET detalhe.asp to establish session cookies, then
-fetch each tab fragment directly (abaAndamentos.asp, abaPartes.asp, ...)
-with the XHR headers that jQuery's .load() would set.
+Replays what the browser would do: resolve (classe, numero) -> incidente
+via the 302 from listarProcessos.asp, GET detalhe.asp to establish
+session cookies, then fetch each tab fragment directly
+(abaAndamentos.asp, abaPartes.asp, ...) with the XHR headers that
+jQuery's .load() would set.
 
-Currently implements andamentos only — other tabs are structurally
-identical but require adapting the corresponding extract_* function to
-take an HTML fragment instead of a driver handle.
+Fragment parsing lives in src/extraction_http.py — this module only
+handles fetching, caching, and the end-to-end orchestration that
+mirrors extract_processo() from the Selenium path.
 """
 
 from __future__ import annotations
@@ -18,11 +18,13 @@ import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 import requests
-from bs4 import BeautifulSoup
 
+from src import extraction_http as ex
+from src.data.types import StfItem
 from src.utils import html_cache
 
 BASE = "https://portal.stf.jus.br/processos"
@@ -60,6 +62,12 @@ def _new_session() -> requests.Session:
     return s
 
 
+def _decode(r: requests.Response) -> str:
+    """STF serves UTF-8 without a charset; requests defaults to Latin-1 → mojibake."""
+    r.encoding = "utf-8"
+    return r.text
+
+
 def resolve_incidente(session: requests.Session, classe: str, processo: int) -> Optional[int]:
     """Follow the listarProcessos 302 to extract the incidente id."""
     r = session.get(
@@ -74,12 +82,6 @@ def resolve_incidente(session: requests.Session, classe: str, processo: int) -> 
         logging.warning(f"{classe} {processo}: no incidente in redirect ({r.status_code} {loc!r})")
         return None
     return int(m.group(1))
-
-
-def _decode(r: requests.Response) -> str:
-    """STF serves UTF-8 without a charset; requests defaults to Latin-1 → mojibake."""
-    r.encoding = "utf-8"
-    return r.text
 
 
 def fetch_detalhe(session: requests.Session, incidente: int) -> str:
@@ -129,9 +131,9 @@ def fetch_process(
 
     detalhe_html = cached_fetch("detalhe", lambda: fetch_detalhe(session, incidente))
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+    with ThreadPoolExecutor(max_workers=max_workers) as ex_pool:
         futures = {
-            tab: ex.submit(cached_fetch, tab, lambda t=tab: fetch_tab(session, incidente, t))
+            tab: ex_pool.submit(cached_fetch, tab, lambda t=tab: fetch_tab(session, incidente, t))
             for tab in TABS
         }
         tabs = {tab: f.result() for tab, f in futures.items()}
@@ -145,63 +147,56 @@ def fetch_process(
     )
 
 
-# ---------- extractor: andamentos from the abaAndamentos fragment ----------
+def scrape_processo_http(
+    classe: str,
+    processo: int,
+    *,
+    use_cache: bool = True,
+) -> Optional[StfItem]:
+    """Full-process scrape via HTTP. Returns the same StfItem shape as the Selenium path."""
+    fetched = fetch_process(classe, processo, use_cache=use_cache)
+    if fetched is None:
+        return None
 
-from src.utils.text_utils import normalize_spaces
+    detalhe = fetched.detalhe_html
+    info_html = fetched.tabs.get("abaInformacoes", "")
+
+    partes = ex.extract_partes(fetched.tabs.get("abaPartes", ""))
+
+    item: StfItem = {
+        "incidente": fetched.incidente,
+        "classe": classe,
+        "processo_id": processo,
+        "numero_unico": ex.extract_numero_unico(detalhe),
+        "meio": ex.extract_meio(detalhe),  # type: ignore[typeddict-item]
+        "publicidade": ex.extract_publicidade(detalhe),  # type: ignore[typeddict-item]
+        "badges": ex.extract_badges(detalhe),
+        "assuntos": ex.extract_assuntos(info_html),
+        "data_protocolo": ex.extract_data_protocolo(info_html),  # type: ignore[typeddict-item]
+        "orgao_origem": ex.extract_orgao_origem(info_html),  # type: ignore[typeddict-item]
+        "origem": ex.extract_origem(info_html),  # type: ignore[typeddict-item]
+        "numero_origem": ex.extract_numero_origem(info_html),  # type: ignore[typeddict-item]
+        "volumes": ex.extract_volumes(info_html),  # type: ignore[typeddict-item]
+        "folhas": ex.extract_folhas(info_html),  # type: ignore[typeddict-item]
+        "apensos": ex.extract_apensos(info_html),  # type: ignore[typeddict-item]
+        "relator": ex.extract_relator(detalhe),
+        "primeiro_autor": ex.extract_primeiro_autor(partes),
+        "partes": partes,
+        "andamentos": ex.extract_andamentos(fetched.tabs.get("abaAndamentos", "")),
+        "sessao_virtual": ex.extract_sessao_virtual(fetched.tabs.get("abaSessao", "")),
+        "deslocamentos": ex.extract_deslocamentos(fetched.tabs.get("abaDeslocamentos", "")),
+        "peticoes": ex.extract_peticoes(fetched.tabs.get("abaPeticoes", "")),
+        "recursos": ex.extract_recursos(fetched.tabs.get("abaRecursos", "")),
+        # pautas isn't parsed server-side in any current fragment; mirror
+        # Selenium's placeholder. Note: ground-truth fixtures are
+        # inconsistent here — ACO_2652 has null, the others have [].
+        "pautas": [],
+        "status": 200,
+        "extraido": datetime.now().isoformat(),
+        "html": detalhe,
+    }
+    return item
 
 
-def _clean_nome(nome: str) -> str:
-    nome = normalize_spaces(nome)
-    if nome:
-        nome = re.sub(r",\s*GUIA\s*N[ºOo0]?[^,]*$", "", nome, flags=re.IGNORECASE).strip()
-    return nome
-
-
-def extract_andamentos_http(fragment_html: str, base_url: str = "https://portal.stf.jus.br") -> list[dict]:
-    """Parse the abaAndamentos.asp fragment into the same shape as extract_andamentos."""
-    soup = BeautifulSoup(fragment_html, "lxml")
-    items = soup.find_all(class_="andamento-item")
-    total = len(items)
-    out: list[dict] = []
-    for i, item in enumerate(items):
-        index = total - i
-
-        data_tag = item.find(class_="andamento-data")
-        data = data_tag.get_text(strip=True) if data_tag else None
-
-        nome_tag = item.find(class_="andamento-nome")
-        nome = _clean_nome(nome_tag.get_text(strip=True) if nome_tag else "")
-
-        complemento_tag = item.find(class_="col-md-9")
-        complemento = normalize_spaces(complemento_tag.get_text()) if complemento_tag else None
-        complemento = complemento or None
-
-        julgador_tag = item.find(class_="andamento-julgador")
-        julgador = julgador_tag.get_text(strip=True) if julgador_tag else None
-
-        anchor = item.find("a")
-        link = None
-        link_descricao = None
-        if anchor:
-            href = anchor.get("href")
-            if href:
-                if href.startswith("http"):
-                    link = href
-                else:
-                    link = f"{base_url}/processos/{href.replace('amp;', '')}"
-            text = anchor.get_text()
-            if text:
-                link_descricao = normalize_spaces(text).upper() or None
-
-        out.append(
-            {
-                "index_num": index,
-                "data": data,
-                "nome": nome.upper(),
-                "complemento": complemento,
-                "julgador": julgador,
-                "link_descricao": link_descricao,
-                "link": link,
-            }
-        )
-    return out
+# Legacy name kept as alias so the existing bench script keeps working.
+extract_andamentos_http = ex.extract_andamentos
