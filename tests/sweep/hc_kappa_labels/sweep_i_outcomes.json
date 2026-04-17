@@ -1,0 +1,20 @@
+{
+  "n": 883,
+  "failed": 0,
+  "raw": {
+    "nao_conhecido": 619,
+    "concedido": 30,
+    "nao_provido": 94,
+    "denegado": 83,
+    "prejudicado": 21,
+    "null": 33,
+    "concedido_parcial": 3
+  },
+  "bucket": {
+    "procedural": 734,
+    "win": 33,
+    "loss": 83,
+    "pending": 33
+  },
+  "grant_rate_auto": 0.03882352941176471
+}

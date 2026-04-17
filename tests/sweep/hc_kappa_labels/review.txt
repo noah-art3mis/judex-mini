@@ -1,0 +1,413 @@
+==== HC 230006  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+    08/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 21952/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 08/08/2023  TRANSITADO(A) EM JULGADO | 08/08/2023
+    01/08/2023  PUBLICAÇÃO, DJE | Divulgado em 31/07/2023
+  * 31/07/2023  NEGADO SEGUIMENTO | "(...)Diante dos óbices processuais verificados, nos termos do art. 21, § 1º, do Regimento Interno do Supremo Tribunal Federal, nego seguimento ao presente habeas corpus, ficando, por consequência, prejudicado o pedido de liminar. ido de liminar. Publique-se. Brasília, 5 de julho de 2023."
+    04/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    04/07/2023  PUBLICAÇÃO, DJE | Divulgado em 03/07/2023
+
+==== HC 230026  relator=ALEXANDRE DE MORAES  AUTO=denegado ====
+    08/08/2023  BAIXA AO ARQUIVO DO STF | 
+  * 08/08/2023  TRANSITADO(A) EM JULGADO | 08/08/2023
+    11/07/2023  PUBLICAÇÃO, DJE | Divulgado em 10/07/2023
+  * 10/07/2023  DENEGADA A ORDEM | "(...) com fundamento no art. 21, §1º, do Regimento Interno do STF, INDEFIRO a ordem de HABEAS CORPUS. Publique-se. Brasília, 7 de julho de 2023."
+    03/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    03/07/2023  DISTRIBUÍDO POR PREVENÇÃO | MIN. ALEXANDRE DE MORAES. Prevenção do Relator/Sucessor: MIN. ALEXANDRE DE MORAES. Processo que justifica: HC 228832. PRESIDENTE DO STF: Excluído(a) da distribuição MIN. ROBERTO BARROSO de 01/07/2023 a 16/07/2023, motivo: Art. 67 - §§ 2º e 12º RISTF. Justificativa legal: RISTF, art. 77-D, caput
+
+==== HC 230028  relator=CÁRMEN LÚCIA  AUTO=nao_conhecido ====
+    08/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 21949/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 08/08/2023  TRANSITADO(A) EM JULGADO | 08/08/2023
+    10/07/2023  PUBLICAÇÃO, DJE | Divulgado em 07/07/2023
+  * 07/07/2023  NEGADO SEGUIMENTO | " (...) Pelo exposto, sob pena de supressão de instância e afronta às normas constitucionais e legais de competência, nego seguimento ao habeas corpus (§ 1º do art. 21 do Regimento Interno do Supremo Tribunal Federal), prejudicada a medida liminar requerida. Publique-se. Brasília, 6 de julho de 2023."
+    04/07/2023  PUBLICAÇÃO, DJE | Divulgado em 03/07/2023
+    03/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230031  relator=LUIZ FUX  AUTO=nao_conhecido ====
+    09/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22488/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 09/08/2023  TRANSITADO(A) EM JULGADO | 09/08/2023
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+  * 01/08/2023  NEGADO SEGUIMENTO | "(...) Ex positis, NEGO SEGUIMENTO ao habeas corpus, com esteio no artigo 21, § 1º, do RISTF. Prejudicado o exame da medida liminar. Publique-se. Brasília, 1º de agosto de 2023."
+    10/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    05/07/2023  PUBLICAÇÃO, DJE | Divulgado em 04/07/2023
+
+==== HC 230033  relator=NUNES MARQUES  AUTO=nao_conhecido ====
+    30/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 25315/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 30/08/2023  TRANSITADO(A) EM JULGADO | 30/08/2023
+    24/08/2023  PUBLICAÇÃO, DJE | Divulgado em 23/08/2023
+  * 23/08/2023  NEGADO SEGUIMENTO | " (..) Em face do exposto, nego seguimento ao presente habeas corpus (art. 21, §1º, do RISTF). 4. Intime-se. Publique-se. Brasília, 17 de agosto de 2023."
+    04/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    04/07/2023  PUBLICAÇÃO, DJE | Divulgado em 03/07/2023
+
+==== HC 230098  relator=ANDRÉ MENDONÇA  AUTO=nao_provido ====
+  voto_relator[:500]: Ante o exposto,nego provimento ao agravo regimental.
+    20/09/2023  BAIXA AO ARQUIVO DO STF | 
+  * 20/09/2023  TRANSITADO(A) EM JULGADO | 20/09/2023
+    14/09/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 14/09/2023. Divulgado em 13/09/2023
+  * 06/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 05/09/2023
+  * 04/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 04/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 25.8.2023 a 1.9.2023.
+
+==== HC 230103  relator=LUIZ FUX  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23100/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "(..)Ex positis, NEGO SEGUIMENTO ao habeas corpus, com esteio no artigo 21, § 1º, do RISTF. Prejudicado o exame da medida liminar. Publique-se. Brasília, 7 de agosto de 2023."
+    04/08/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    06/07/2023  PUBLICAÇÃO, DJE | Divulgado em 05/07/2023
+
+==== HC 230104  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+    10/10/2023  BAIXA AO ARQUIVO DO STF | Guia: 30563/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 10/10/2023  TRANSITADO(A) EM JULGADO | 10/10/2023
+    04/10/2023  PUBLICAÇÃO, DJE | Divulgado em 03/10/2023
+    03/10/2023  HOMOLOGADA A DESISTÊNCIA | "(...) Por meio da Petição/STF nº 102349/2023 (doc. 46), a defesa da agravante requer a desistência da impetração. Ante o exposto, homologo o pedido de desistência formulado (RISTF, art. 21, inciso VIII). Publique-se. Brasília, 22 de setembro de 2023."
+  * 14/09/2023  RETIRADO DE PAUTA | Julgamento Virtual - 2ª Turma em 14/09/2023 15:59:12 - HC-AgR
+    14/09/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230108  relator=CÁRMEN LÚCIA  AUTO=nao_provido ====
+  voto_relator[:500]: NEGO PROVIMENTO AOS AGRAVOS REGIMENTAIS.
+    30/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 25375/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 30/08/2023  TRANSITADO(A) EM JULGADO | 30/08/2023
+  * 24/08/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 23/08/2023
+    24/08/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 24/08/2023. Divulgado em 23/08/2023
+  * 22/08/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 22/08/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto da Relatora. Primeira Turma, Sessão Virtual de 11.8.2023 a 21.8.2023.
+
+==== HC 230113  relator=NUNES MARQUES  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23090/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "[...] 3. Em face do exposto, nego seguimento ao presente habeas corpus (art. 21, §1º, do RISTF). 4. Intime-se. Publique-se. Brasília, 1º de agosto de 2023"
+    06/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    06/07/2023  PUBLICAÇÃO, DJE | Divulgado em 05/07/2023
+
+==== HC 230123  relator=EDSON FACHIN  AUTO=None ====
+    09/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22534/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 09/08/2023  TRANSITADO(A) EM JULGADO | 09/08/2023
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+  * 01/08/2023  NÃO CONHECIDO(S) | 
+    06/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    06/07/2023  PUBLICAÇÃO, DJE | Divulgado em 05/07/2023
+
+==== HC 230152  relator=CÁRMEN LÚCIA  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23256/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    24/07/2023  INTIMADO ELETRONICAMENTE | DEFENSOR PÚBLICO-GERAL DO ESTADO DE ALAGOAS
+    17/07/2023  INTIMADO ELETRONICAMENTE | DEFENSOR PÚBLICO-GERAL DO ESTADO DE ALAGOAS
+    12/07/2023  INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA | Intimação de Despacho, Decisão ou Acórdão - DEFENSOR PÚBLICO-GERAL DO ESTADO DE ALAGOAS
+    12/07/2023  PUBLICAÇÃO, DJE | Divulgado em 11/07/2023
+
+==== HC 230170  relator=ANDRÉ MENDONÇA  AUTO=nao_provido ====
+  voto_relator[:500]: Diante do exposto,nego provimento ao agravo regimental.
+    13/11/2023  BAIXA AO ARQUIVO DO STF | 
+  * 13/11/2023  TRANSITADO(A) EM JULGADO | 11/11/2023
+    03/11/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 03/11/2023. Divulgado em 31/10/2023
+  * 11/10/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 10/10/2023
+  * 09/10/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 09/10/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 29.9.2023 a 6.10.2023.
+
+==== HC 230174  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+    23/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24233/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 23/08/2023  TRANSITADO(A) EM JULGADO | 23/08/2023
+    17/08/2023  PUBLICAÇÃO, DJE | Divulgado em 16/08/2023
+  * 16/08/2023  NEGADO SEGUIMENTO | "(...) Diante dos óbices processuais verificados, nos termos do art. 21, § 1º, do Regimento Interno do Supremo Tribunal Federal, nego seguimento ao presente habeas corpus, ficando, por consequência, prejudicado o pedido de liminar. Publique-se. Brasília, 10 de agosto de 2023."
+    06/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    06/07/2023  DISTRIBUÍDO | MIN. DIAS TOFFOLI. PRESIDENTE DO STF: Excluído(a) da distribuição MIN. ROBERTO BARROSO de 01/07/2023 a 16/07/2023, motivo: Art. 67 - §§ 2º e 12º RISTF
+
+==== HC 230214  relator=GILMAR MENDES  AUTO=nao_conhecido ====
+    11/09/2023  BAIXA AO ARQUIVO DO STF | 
+  * 11/09/2023  TRANSITADO(A) EM JULGADO | 11/09/2023
+    28/08/2023  INTIMADO ELETRONICAMENTE | DEFENSOR PÚBLICO-GERAL FEDERAL
+    16/08/2023  INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA | Intimação de Despacho, Decisão ou Acórdão - DEFENSOR PÚBLICO-GERAL FEDERAL
+    16/08/2023  PUBLICAÇÃO, DJE | Divulgado em 15/08/2023
+  * 15/08/2023  NEGADO SEGUIMENTO | "(...) nego seguimento ao habeas corpus. (art. 21, § 1º, RISTF) Publique-se. Brasília, 15 de agosto de 2023."
+
+==== HC 230231  relator=CÁRMEN LÚCIA  AUTO=nao_provido ====
+  voto_relator[:500]: NEGO PROVIMENTO AOS AGRAVOS REGIMENTAIS.
+    30/08/2023  BAIXA AO ARQUIVO DO STF | 
+  * 30/08/2023  TRANSITADO(A) EM JULGADO | 30/08/2023
+    24/08/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 24/08/2023. Divulgado em 23/08/2023
+  * 24/08/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 23/08/2023
+  * 22/08/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 22/08/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto da Relatora. Primeira Turma, Sessão Virtual de 11.8.2023 a 21.8.2023.
+
+==== HC 230234  relator=NUNES MARQUES  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23161/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "[...] 3. Em face do exposto, nego seguimento ao habeas corpus (art. 21, §1º, do Regimento Interno). 4. Intime-se. Publique-se. Brasília, 1º de agosto de 2023"
+    14/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    13/07/2023  MANIFESTAÇÃO DA PGR | PROCURADOR-GERAL DA REPÚBLICA - Petição: 74421 - Data: 13/07/2023, às 18:17:56, via Web Service MNI 2.2.2.
+
+==== HC 230236  relator=GILMAR MENDES  AUTO=nao_conhecido ====
+    29/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24954/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 29/08/2023  TRANSITADO(A) EM JULGADO | 29/08/2023
+    22/08/2023  PUBLICAÇÃO, DJE | Divulgado em 21/08/2023
+  * 21/08/2023  NEGADO SEGUIMENTO | "[...] Ante o exposto, nego seguimento ao habeas corpus (art. 21, § 1º, RISTF). Publique-se. Brasília, 20 de agosto de 2023"
+    10/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    10/07/2023  DISTRIBUÍDO | MIN. GILMAR MENDES. PRESIDENTE DO STF: Excluído(a) da distribuição MIN. ROBERTO BARROSO de 01/07/2023 a 16/07/2023, motivo: Art. 67 - §§ 2º e 12º RISTF
+
+==== HC 230239  relator=LUIZ FUX  AUTO=nao_conhecido ====
+    09/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22567/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 09/08/2023  TRANSITADO(A) EM JULGADO | 09/08/2023
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+  * 01/08/2023  NEGADO SEGUIMENTO | "(...) Ex positis, NEGO SEGUIMENTO ao habeas corpus, com fundamento no artigo 21, § 1º, do RISTF. Prejudicado o exame do pedido liminar. Publique-se. Brasília, 1º de agosto de 2023."
+    11/07/2023  PUBLICAÇÃO, DJE | Divulgado em 10/07/2023
+    10/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230249  relator=LUIZ FUX  AUTO=nao_provido ====
+  voto_relator[:500]: AGR nosHABEAS CORPUS/RHC VOTO: NEGO PROVIMENTO AO AGRAVO.
+    16/02/2024  BAIXA AO ARQUIVO DO STF | Guia: 4202/2024 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 16/02/2024  TRANSITADO(A) EM JULGADO | 16/02/2024
+    02/01/2024  INTIMADO ELETRONICAMENTE | DEFENSOR PÚBLICO-GERAL FEDERAL
+    18/12/2023  INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA | Intimação de Despacho, Decisão ou Acórdão - DEFENSOR PÚBLICO-GERAL FEDERAL
+    18/12/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 18/12/2023. Divulgado em 15/12/2023
+  * 15/12/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 14/12/2023
+
+==== HC 230261  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    08/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 21990/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 08/08/2023  TRANSITADO(A) EM JULGADO | 08/08/2023
+    17/07/2023  PUBLICAÇÃO, DJE | Divulgado em 14/07/2023
+  * 14/07/2023  NEGADO SEGUIMENTO | (...) 12. Diante do exposto, com base no art. 21, § 1º, do RI/STF, nego seguimento ao habeas corpus.
+    11/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    11/07/2023  DISTRIBUÍDO POR PREVENÇÃO | MIN. ROBERTO BARROSO. Prevenção do Relator/Sucessor: MIN. ROBERTO BARROSO. Processo que justifica: HC 229521. Processos relacionados: HC 229252. PRESIDENTE DO STF: Excluído(a) da distribuição MIN. ROBERTO BARROSO de 01/07/2023 a 16/07/2023, motivo: Art. 67 - §§ 2º e 12º RISTF. Justificativa legal: RISTF, art. 77-D, caput
+
+==== HC 230293  relator=CÁRMEN LÚCIA  AUTO=nao_provido ====
+  voto_relator[:500]: NEGO PROVIMENTO AOS AGRAVOS REGIMENTAIS.
+    30/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 25376/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 30/08/2023  TRANSITADO(A) EM JULGADO | 30/08/2023
+    24/08/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 24/08/2023. Divulgado em 23/08/2023
+  * 24/08/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 23/08/2023
+  * 22/08/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 22/08/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto da Relatora. Primeira Turma, Sessão Virtual de 11.8.2023 a 21.8.2023.
+
+==== HC 230296  relator=EDSON FACHIN  AUTO=nao_conhecido ====
+    09/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22493/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 09/08/2023  TRANSITADO(A) EM JULGADO | 09/08/2023
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+  * 01/08/2023  NEGADO SEGUIMENTO | "(...)com fulcro no art. 21, §1º, do RISTF, nego seguimento ao habeas corpus. Publique-se e intimem-se. Brasília, 1º de agosto de 2023. "
+    13/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    13/07/2023  PUBLICAÇÃO, DJE | Divulgado em 12/07/2023
+
+==== HC 230356  relator=EDSON FACHIN  AUTO=nao_conhecido ====
+    26/09/2023  BAIXA AO ARQUIVO DO STF | Guia: 28941/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 26/09/2023  TRANSITADO(A) EM JULGADO | 16/09/2023
+    18/09/2023  JUNTADA DE AR | REF: A carta de Intimação 2162/2023 - YJ575351976BR
+    01/09/2023  EXPEDIDO(A) | Carta de Intimação 2162/2023 - YJ575351976BR - Data da Remessa: 01/09/2023
+    31/08/2023  COMUNICAÇÃO ASSINADA | INTIMAÇÃO POSTAL DESPACHO/DECISÃO - SEJ
+    31/08/2023  CERTIDÃO | Certifico a elaboração de 1 intimação postal. Decisão de 30/08/2023.
+
+==== HC 230360  relator=CÁRMEN LÚCIA  AUTO=nao_provido ====
+  voto_relator[:500]: NEGO PROVIMENTO AOS AGRAVOS REGIMENTAIS.
+    13/09/2023  BAIXA AO ARQUIVO DO STF | 
+  * 13/09/2023  TRANSITADO(A) EM JULGADO | 13/9/2023
+    06/09/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 06/09/2023. Divulgado em 05/09/2023
+  * 06/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 05/09/2023
+  * 04/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 04/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto da Relatora. Primeira Turma, Sessão Virtual de 25.8.2023 a 1.9.2023.
+
+==== HC 230379  relator=NUNES MARQUES  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23032/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "[...] 3. Em face do exposto, nego seguimento ao presente habeas corpus (art. 21, §1º, do RISTF)."
+    14/07/2023  PUBLICAÇÃO, DJE | Divulgado em 13/07/2023
+    13/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230403  relator=GILMAR MENDES  AUTO=denegado ====
+    17/06/2025  BAIXA AO ARQUIVO DO STF | Guia: 23201/2025 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 17/06/2025  TRANSITADO(A) EM JULGADO | 17/06/2025
+    11/06/2025  PUBLICAÇÃO, DJE | Divulgado em 10/06/2025
+    11/06/2025  PUBLICAÇÃO, DJE | Divulgado em 10/06/2025
+  * 10/06/2025  DENEGADA A ORDEM | 
+  * 10/06/2025  DESPACHO | Diante da não intimação do impetrante, por endereço desconhecido (AR não cumprido - eDOC 14), intime-se, via DJE.
+
+==== HC 230443  relator=NUNES MARQUES  AUTO=nao_conhecido ====
+    31/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 25490/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 31/08/2023  TRANSITADO(A) EM JULGADO | 31/08/2023
+    18/08/2023  INTIMADO ELETRONICAMENTE | DEFENSOR PÚBLICO-GERAL DO ESTADO DO ESPÍRITO SANTO
+    08/08/2023  INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA | Intimação de Despacho, Decisão ou Acórdão - DEFENSOR PÚBLICO-GERAL DO ESTADO DO ESPÍRITO SANTO
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "[...] 3. Em face do exposto, nego seguimento ao habeas corpus (art. 21, §1º, do Regimento Interno). 4. Intime-se. Publique-se."
+
+==== HC 230446  relator=LUIZ FUX  AUTO=concedido_parcial ====
+    08/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22371/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 08/08/2023  TRANSITADO(A) EM JULGADO | 08/08/2023
+    02/08/2023  PETIÇÃO | PROCURADOR-GERAL DA REPÚBLICA - Petição: 80543 - Data: 02/08/2023, às 15:26:34, via Web Service MNI 2.2.2.
+    02/08/2023  INTIMADO ELETRONICAMENTE | PROCURADOR-GERAL DA REPÚBLICA
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+    01/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - SEJ (ENVIO ELETRÔNICO)
+
+==== HC 230473  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    22/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24045/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 22/08/2023  TRANSITADO(A) EM JULGADO | 22/08/2023
+    16/08/2023  PETIÇÃO | PROCURADOR-GERAL DA REPÚBLICA - Petição: 89023 - Data: 16/08/2023, às 08:36:10, via Web Service MNI 2.2.2.
+    15/08/2023  INTIMADO ELETRONICAMENTE | PROCURADOR-GERAL DA REPÚBLICA
+    15/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - SEJ (ENVIO ELETRÔNICO)
+    15/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - SEJ (ENVIO ELETRÔNICO)
+
+==== HC 230560  relator=ANDRÉ MENDONÇA  AUTO=nao_conhecido ====
+    04/09/2023  PETIÇÃO | 98086/2023 - 04/09/2023 - (Via Malote Digital) TJPB, 4/9/2023 - Encaminha documentos.
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23257/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PETIÇÃO | PROCURADOR-GERAL DA REPÚBLICA - Petição: 85613 - Data: 08/08/2023, às 13:29:34, via Web Service MNI 2.2.2.
+    07/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - SEJ (ENVIO ELETRÔNICO)
+    07/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - SEJ (ENVIO ELETRÔNICO)
+
+==== HC 230625  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22936/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    09/08/2023  PUBLICAÇÃO, DJE | Divulgado em 08/08/2023
+  * 08/08/2023  NEGADO SEGUIMENTO | "[...] 9. Diante do exposto, com fundamento no art. 21, § 1º, do RI/STF, nego seguimento ao habeas corpus. Publique-se. Brasília, 8 de agosto de 2023. "
+    28/07/2023  EXPEDIDO(A) | Carta de Intimação 1764/2023 - YJ556953426BR - Data da Remessa: 28/07/2023
+    28/07/2023  COMUNICAÇÃO ASSINADA | INTIMAÇÃO DESPACHO/DECISÃO - PRESIDENTE
+
+==== HC 230642  relator=LUÍS ROBERTO BARROSO  AUTO=prejudicado ====
+    12/03/2024  BAIXA AO ARQUIVO DO STF | Guia: 7522/2024 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 12/03/2024  TRANSITADO(A) EM JULGADO | 12/03/2024
+    04/03/2024  PUBLICAÇÃO, DJE | Divulgado em 01/03/2024
+  * 01/03/2024  PREJUDICADO | "[...] Ante o exposto, julgo prejudicado o presente agravo regimental (RISTF, art. 21, IX). Publique-se. Brasília, 28 de fevereiro de 2024."
+    22/02/2024  CONCLUSOS AO(À) RELATOR(A) | 
+    22/02/2024  SUBSTITUIÇÃO DO RELATOR, ART. 38 DO RISTF | MIN. FLÁVIO DINO
+
+==== HC 230671  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22988/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  NEGADO SEGUIMENTO | "(...) Diante dos óbices processuais verificados, nos termos do art. 21, § 1º, do Regimento Interno do Supremo Tribunal Federal, nego seguimento ao presente habeas corpus, ficando, por consequência, prejudicado o pedido de liminar. Publique-se. Brasília, 4 de agosto de 2023."
+    27/07/2023  PUBLICAÇÃO, DJE | Divulgado em 26/07/2023
+    26/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230672  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23171/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    09/08/2023  PUBLICAÇÃO, DJE | Divulgado em 08/08/2023
+  * 08/08/2023  NEGADO SEGUIMENTO | "(...) com base no art. 21, § 1º, do RI/STF, nego seguimento ao habeas corpus. Publique-se. Brasília, 07 de agosto de 2023."
+    27/07/2023  PUBLICAÇÃO, DJE | Divulgado em 26/07/2023
+    26/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230684  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23180/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    07/08/2023  PUBLICAÇÃO, DJE | Divulgado em 04/08/2023
+  * 04/08/2023  NEGADO SEGUIMENTO | "(...) Diante do exposto, com base no art. 21, § 1º, do RI/STF, nego seguimento ao habeas corpus. Publique-se. Brasília, 04 de agosto de 2023."
+    28/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    28/07/2023  PUBLICAÇÃO, DJE | Divulgado em 27/07/2023
+
+==== HC 230723  relator=GILMAR MENDES  AUTO=nao_conhecido ====
+    29/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24978/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 29/08/2023  TRANSITADO(A) EM JULGADO | 29/08/2023
+    22/08/2023  PUBLICAÇÃO, DJE | Divulgado em 21/08/2023
+  * 21/08/2023  NEGADO SEGUIMENTO | "(...) Ante o exposto, nego seguimento ao habeas corpus (RISTF, art. 21, § 1º). Publique-se. Brasília, 21 de agosto de 2023."
+    27/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    27/07/2023  DISTRIBUÍDO | MIN. GILMAR MENDES
+
+==== HC 230734  relator=LUÍS ROBERTO BARROSO  AUTO=nao_conhecido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23143/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    09/08/2023  PUBLICAÇÃO, DJE | Divulgado em 08/08/2023
+  * 08/08/2023  NEGADO SEGUIMENTO | "(..)Diante do exposto, com base no art. 21, § 1º, do RI/STF, nego seguimento ao habeas corpus. Publique-se. Brasília, 08 de agosto de 2023"
+    31/07/2023  PUBLICAÇÃO, DJE | Divulgado em 28/07/2023
+    28/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+
+==== HC 230762  relator=CÁRMEN LÚCIA  AUTO=nao_provido ====
+  voto_relator[:500]: NEGO PROVIMENTO AOS AGRAVOS REGIMENTAIS.
+    13/09/2023  BAIXA AO ARQUIVO DO STF | 
+  * 13/09/2023  TRANSITADO(A) EM JULGADO | 13/9/2023
+    06/09/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 06/09/2023. Divulgado em 05/09/2023
+  * 06/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 05/09/2023
+  * 04/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 04/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto da Relatora. Primeira Turma, Sessão Virtual de 25.8.2023 a 1.9.2023.
+
+==== HC 230784  relator=CÁRMEN LÚCIA  AUTO=None ====
+    29/08/2023  PUBLICAÇÃO, DJE | Divulgado em 28/08/2023
+    28/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24805/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 28/08/2023  TRANSITADO(A) EM JULGADO | 28/08/2023
+  * 28/08/2023  HOMOLOGADA A DESISTÊNCIA | "(...) homologo o pedido de desistência formulado (inc. VIII do art. 21 do Regimento Interno do Supremo Tribunal Federal). Publique-se. Certifique-se imediatamente o trânsito em julgado e arquive-se. Brasília, 23 de agosto de 2023."
+    21/08/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    21/08/2023  PETIÇÃO | Juntada de documentos - Petição: 90858 Data: 21/08/2023, às 10:39:42
+
+==== HC 230788  relator=ALEXANDRE DE MORAES  AUTO=denegado ====
+    09/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 22578/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 09/08/2023  TRANSITADO(A) EM JULGADO | 09/08/2023
+    02/08/2023  PUBLICAÇÃO, DJE | Divulgado em 01/08/2023
+  * 01/08/2023  DENEGADA A ORDEM | "(...) com base no art. 21, § 1º, do Regimento Interno do STF, INDEFIRO a ordem de HABEAS CORPUS. Publique-se. Brasília, 1º de agosto de 2023."
+    31/07/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    31/07/2023  DISTRIBUÍDO | MIN. ALEXANDRE DE MORAES
+
+==== HC 230807  relator=ANDRÉ MENDONÇA  AUTO=nao_provido ====
+  voto_relator[:500]: Ante o exposto, nego provimento ao agravo regimental.
+    26/09/2023  BAIXA AO ARQUIVO DO STF | Guia: 28952/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 26/09/2023  TRANSITADO(A) EM JULGADO | 26/09/2023
+    20/09/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 20/09/2023. Divulgado em 19/09/2023
+  * 14/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 13/09/2023
+  * 12/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 12/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 1.9.2023 a 11.9.2023.
+
+==== HC 230829  relator=ALEXANDRE DE MORAES  AUTO=nao_provido ====
+  voto_relator[:500]: Voto: NEGO PROVIMENTO ao Agravo Regimental.
+    13/09/2023  BAIXA AO ARQUIVO DO STF | Guia: 27308/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 13/09/2023  TRANSITADO(A) EM JULGADO | 13/09/2023
+  * 06/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 05/09/2023
+    06/09/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 06/09/2023. Divulgado em 05/09/2023
+  * 04/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 04/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Primeira Turma, Sessão Virtual de 25.8.2023 a 1.9.2023.
+
+==== HC 230833  relator=ANDRÉ MENDONÇA  AUTO=nao_provido ====
+  voto_relator[:500]: Diante do exposto, nego provimento ao agravo regimental.
+    28/11/2023  BAIXA AO ARQUIVO DO STF | 
+  * 28/11/2023  TRANSITADO(A) EM JULGADO | 28/11/2023
+    21/11/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 21/11/2023. Divulgado em 20/11/2023
+  * 10/11/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 09/11/2023
+  * 08/11/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 08/11/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 27.10.2023 a 7.11.2023.
+
+==== HC 230834  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+  voto_relator[:500]: AGRAVO REGIMENTAL Voto:Agravo regimental não provido.
+    17/10/2023  BAIXA AO ARQUIVO DO STF | Guia: 31437/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 17/10/2023  TRANSITADO(A) EM JULGADO | 17/10/2023
+    09/10/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 09/10/2023. Divulgado em 06/10/2023
+  * 27/09/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 26/09/2023
+  * 25/09/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 25/09/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 15.9.2023 a 22.9.2023.
+
+==== HC 230852  relator=EDSON FACHIN  AUTO=prejudicado ====
+    28/02/2024  BAIXA AO ARQUIVO DO STF | Guia: 5848/2024 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 28/02/2024  TRANSITADO(A) EM JULGADO | 28/02/2024
+    22/02/2024  PUBLICAÇÃO, DJE | Divulgado em 21/02/2024
+  * 21/02/2024  PREJUDICADO | Considerando que, consoante se depreende de informação constante no sítio eletrônico do TJPE, em 20.02.2024, foi proferida decisão na ação penal originária (autos 0002233-41.2021.8.17.2990) revogando a prisão preventiva do ora recorrente, por excesso de prazo na formação da culpa, acolhendo integralmente a pretensão formulada no presente incidente, julgo prejudicado este agravo regim
+    08/01/2024  CONCLUSOS AO(À) RELATOR(A) | 
+    22/12/2023  CERTIDÃO | referente à Petição nº 142924/2023.
+
+==== HC 230856  relator=ANDRÉ MENDONÇA  AUTO=nao_provido ====
+  voto_relator[:500]: Ante o exposto, nego provimento ao agravo regimental.
+    17/10/2023  BAIXA AO ARQUIVO DO STF | 
+  * 17/10/2023  TRANSITADO(A) EM JULGADO | 17/10/2023
+    09/10/2023  PUBLICADO ACÓRDÃO, DJE | DJE publicado em 09/10/2023. Divulgado em 06/10/2023
+  * 04/10/2023  ATA DE JULGAMENTO PUBLICADA, DJE | Divulgado em 03/10/2023
+  * 02/10/2023  JUNTADA | Certidão de Julgamento da Sessão Virtual
+  * 02/10/2023  AGRAVO REGIMENTAL NÃO PROVIDO | Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator. Segunda Turma, Sessão Virtual de 22.9.2023 a 29.9.2023.
+
+==== HC 230910  relator=ALEXANDRE DE MORAES  AUTO=denegado ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 23120/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+  * 07/08/2023  DENEGADA A ORDEM | "(...) com base no art. 21, § 1º, do Regimento Interno do SUPREMO TRIBUNAL FEDERAL, INDEFIRO a ordem de HABEAS CORPUS. Publique-se. Brasília, 5 de agosto de 2023."
+    04/08/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    04/08/2023  DISTRIBUÍDO POR PREVENÇÃO | MIN. ALEXANDRE DE MORAES. Prevenção do Relator/Sucessor: MIN. ALEXANDRE DE MORAES. Processo que justifica: HC 218224. Justificativa legal: RISTF, art. 77-D, caput
+
+==== HC 230913  relator=ALEXANDRE DE MORAES  AUTO=concedido ====
+    15/08/2023  BAIXA AO ARQUIVO DO STF | 
+  * 15/08/2023  TRANSITADO(A) EM JULGADO | 15/08/2023
+    08/08/2023  PETIÇÃO | PROCURADOR-GERAL DA REPÚBLICA - Petição: 85713 - Data: 08/08/2023, às 14:53:32, via Web Service MNI 2.2.2.
+    08/08/2023  PUBLICAÇÃO, DJE | Divulgado em 07/08/2023
+    07/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - RELATOR (ENVIO ELETRÔNICO)
+    07/08/2023  EXPEDIDO(A) | COMUNICA DESPACHO/DECISÃO - RELATOR (ENVIO ELETRÔNICO)
+
+==== HC 230984  relator=DIAS TOFFOLI  AUTO=nao_conhecido ====
+    29/08/2023  BAIXA AO ARQUIVO DO STF | Guia: 24950/2023 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU
+  * 29/08/2023  TRANSITADO(A) EM JULGADO | 29/08/2023
+    23/08/2023  PUBLICAÇÃO, DJE | Divulgado em 22/08/2023
+  * 22/08/2023  NEGADO SEGUIMENTO | "(...) Diante dos óbices processuais verificados, nos termos do art. 21, § 1º, do Regimento Interno do Supremo Tribunal Federal, nego seguimento ao presente habeas corpus, prejudicado o pedido de liminar."
+    07/08/2023  CONCLUSOS AO(À) RELATOR(A) | 
+    07/08/2023  DISTRIBUÍDO | MIN. DIAS TOFFOLI
+
