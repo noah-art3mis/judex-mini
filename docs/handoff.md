@@ -46,15 +46,29 @@ Things to think through before launching:
 - **Deep dive needs**: not scoped here. Likely wants party-type breakdown, outcome distribution (see "Outcome derivation" below), relator patterns, timeline analysis. Ask before building.
 - **Robots.txt**: still unresolved. HC is a much bigger footprint than ADI — posture question becomes more pressing.
 
-**Size of the HC space (binary-searched 2026-04-16)**:
+**Size of the HC space (binary-searched + density-probed 2026-04-16)**:
 
-| class | highest extant processo_id | approx count (assuming ~60 % existence) |
+| class | highest extant processo_id | measured / estimated count |
 |-------|----:|----:|
-| HC    | **270,071** | ~160,000 |
-| ADI   | 7,956       | ~4,800   |
-| RE    | 640,321     | ~380,000 |
+| HC    | **270,994** | **~216,000** (measured, sweep G — 69 % density bimodal) |
+| ADI   | 7,956       | ~4,800 (estimated from sweep C — 60.9 %) |
+| RE    | 640,321     | ~380,000 (estimated — not yet density-probed) |
 
-The "~60 %" comes from sweep C (609/1000 valid ADIs in 1..1000). Real rate for HC will come out of the first probe sweep.
+HC figure refined from the first pass estimate (~160k) via the
+stratified density probe at `docs/sweep-results/2026-04-16-G-hc-density-probe.md`.
+Density is **bimodal**: ≤47 % below 50k (older paper-era) and 87–93 %
+above 50k. Full HC backfill = ~216k × 3.6 s = **~215 h (~9 days)** at
+measured throughput — not viable from one IP without a posture change.
+
+The 2026-04-16 morning ceiling of 270,071 moved to 270,994 by that
+evening — ~923 new HCs filed in <12h, matching STF's ~1–2k/day HC
+intake. Linear scan-down from 271,000 is a ~10-probe refresh.
+
+Density probe for ADI or RE is a 3-minute run:
+```bash
+PYTHONPATH=. uv run python analysis/class_density_probe.py --classe ADI
+PYTHONPATH=. uv run python analysis/class_density_probe.py --classe RE
+```
 
 Practical starting point: **probe sweep on HCs 1..1000** (first thousand, low-numbered historical cases) plus one near the top (269000..270000) to validate the parser holds across eras. ~50 min each with the validated defaults:
 ```bash
@@ -98,25 +112,32 @@ Headline findings:
 
 Expected wall for 1000 ADIs: ~52 min (vs Selenium's 77.6 min) with near-perfect completion. Validated by sweep E (below).
 
-## Sweep E — 1k validation in flight
+## Sweep E — partial 1k validation (stopped early, defaults validated)
 
-Launched with the new defaults as a scale validation:
-- input: `tests/sweep/full_range_adi.csv` (ADI 1..1000, same as sweep C)
-- output dir: `docs/sweep-results/2026-04-16-E-full-1k-defaults/`
-- command: `--csv ... --wipe-cache --parity-csv output/judex-mini_ADI_1-1000.csv`
-- cold start; new defaults (retry-403 + 2 s pacing + 20/60 retry budget)
-- background task id `buntqtywq` (output logged to `/tmp/claude-1000/.../buntqtywq.output` — may be gone next session)
+**Status**: stopped at **429/1000** via SIGTERM to free the WAF counter
+for the G density probe. Clean shutdown; resumable via `--resume`. Full
+write-up at `docs/sweep-results/2026-04-16-E-full-1k-defaults/SUMMARY.md`.
 
-**State as of this handoff**: 220/1000 complete, **0 errors**, 0 stalls. Pace matches the ~52-min projection. If the block triggers at some process N, `--retry-403` should ride it out.
+Headline: **429/429 ok, 0 errors**. Four WAF block cycles (ADI 104,
+205, 301, 397 — ~90 s each) absorbed transparently by retry-403. Zero
+leakage. Measured pace **3.60 s/process**, projecting ~60 min for full
+1000 (vs handoff estimate of 52 min and Selenium baseline of 77.6 min
+— HTTP ~22% faster end-to-end).
 
-**First thing next session should do**:
+The partial is sufficient evidence that the shipped defaults (retry-403
++ 2 s pacing + 20/60 retry budget, commit `2a2833d`) are production-
+viable. A 1000-process ceiling datapoint would be nice-to-have but not
+necessary — the mechanism is clearly working.
+
+**To finish the full 1000** (adds ~34 min wall from a cold WAF):
 ```bash
-# check completion
-wc -l docs/sweep-results/2026-04-16-E-full-1k-defaults/sweep.log.jsonl
-# if 1000, summarize and compare against Selenium's 77.6 min / 609 ok
-uv run python -c "import json; [print(json.loads(l)) for l in open('docs/sweep-results/2026-04-16-E-full-1k-defaults/sweep.log.jsonl')][:5]"
+PYTHONPATH=. uv run python scripts/run_sweep.py \
+    --csv tests/sweep/full_range_adi.csv \
+    --label full_1k_defaults \
+    --parity-csv output/judex-mini_ADI_1-1000.csv \
+    --out docs/sweep-results/2026-04-16-E-full-1k-defaults \
+    --resume
 ```
-If the sweep is still running, let it finish (won't hurt) or `pkill -f 'full_1k_defaults'` to stop it early. Resumable via `--resume`.
 
 ## The one thing still to decide
 
