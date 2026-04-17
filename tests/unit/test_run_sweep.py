@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import requests
 
 from scripts.run_sweep import (
+    CircuitBreaker,
     classify_exception,
     parse_selenium_row,
     parse_sweep_csv,
@@ -157,6 +158,53 @@ def test_classify_exception_unknown_error():
     assert etype == "ValueError"
     assert status is None
     assert url is None
+
+
+def test_circuit_breaker_does_not_trip_before_window_is_full():
+    cb = CircuitBreaker(window=5, threshold=0.5)
+    for _ in range(4):
+        cb.record("error")
+    assert not cb.tripped()
+
+
+def test_circuit_breaker_does_not_trip_below_threshold():
+    cb = CircuitBreaker(window=4, threshold=0.5)
+    cb.record("ok")
+    cb.record("ok")
+    cb.record("error")
+    cb.record("error")
+    # 2/4 = 50%, not > 50%
+    assert not cb.tripped()
+
+
+def test_circuit_breaker_trips_above_threshold():
+    cb = CircuitBreaker(window=4, threshold=0.5)
+    cb.record("ok")
+    cb.record("error")
+    cb.record("error")
+    cb.record("error")
+    # 3/4 = 75% > 50%
+    assert cb.tripped()
+
+
+def test_circuit_breaker_rolling_window_recovers_after_ok_streak():
+    cb = CircuitBreaker(window=4, threshold=0.5)
+    for _ in range(4):
+        cb.record("error")
+    assert cb.tripped()
+    # Now four successes roll the errors out of the window.
+    for _ in range(4):
+        cb.record("ok")
+    assert not cb.tripped()
+
+
+def test_circuit_breaker_treats_fail_as_non_ok():
+    cb = CircuitBreaker(window=4, threshold=0.5)
+    cb.record("ok")
+    cb.record("fail")
+    cb.record("fail")
+    cb.record("fail")
+    assert cb.tripped()
 
 
 def test_parse_selenium_row_numero_origem_list():

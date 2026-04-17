@@ -36,7 +36,7 @@ import subprocess
 import sys
 import time
 import urllib3
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -151,6 +151,31 @@ def install_retry_counter() -> RetryCounter:
 
     sh.RetryableHTTPError.__init__ = tracking_init  # type: ignore[method-assign]
     return counter
+
+
+# ----- Circuit breaker ----------------------------------------------------
+
+
+class CircuitBreaker:
+    """Abort a sweep early if recent failures exceed a threshold.
+
+    Tracks the last `window` process statuses; trips when the non-ok
+    fraction of a full window strictly exceeds `threshold`.
+    """
+
+    def __init__(self, window: int, threshold: float) -> None:
+        self.window = window
+        self.threshold = threshold
+        self._recent: deque[str] = deque(maxlen=window)
+
+    def record(self, status: str) -> None:
+        self._recent.append(status)
+
+    def tripped(self) -> bool:
+        if len(self._recent) < self.window:
+            return False
+        errors = sum(1 for s in self._recent if s != "ok")
+        return errors / self.window > self.threshold
 
 
 # ----- Shape probe --------------------------------------------------------
@@ -589,6 +614,18 @@ def main(argv: list[str]) -> int:
         help="Disable the default retry-on-403 behavior. STF's WAF uses 403 "
              "(not 429) as its throttle signal; retry-403 rides out block cycles.",
     )
+    ap.add_argument(
+        "--circuit-window", type=int, default=50,
+        help="Rolling window of recent processes the circuit breaker watches "
+             "(default: 50). Pass 0 to disable the breaker.",
+    )
+    ap.add_argument(
+        "--circuit-threshold", type=float, default=0.8,
+        help="Non-ok fraction of the window that trips the breaker (default: "
+             "0.8 — permissive, since retry-403 normally absorbs WAF blocks; "
+             "only a pathological cascade should trip this). Sweep aborts "
+             "with exit code 2 once exceeded.",
+    )
     args = ap.parse_args(argv)
 
     if args.retry_from is None and args.csv is None:
@@ -632,6 +669,11 @@ def main(argv: list[str]) -> int:
 
     cold_results: list[ProcessResult] = []
     totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
+    breaker: Optional[CircuitBreaker] = (
+        CircuitBreaker(window=args.circuit_window, threshold=args.circuit_threshold)
+        if args.circuit_window > 0 else None
+    )
+    tripped = False
 
     def print_row(i: int, n: int, res: ProcessResult, note: str = "") -> None:
         retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
@@ -666,6 +708,19 @@ def main(argv: list[str]) -> int:
             totals["5xx"] += res.retries.get("5xx", 0)
 
             print_row(i, len(rows), res)
+
+            if breaker is not None:
+                breaker.record(res.status)
+                if breaker.tripped():
+                    tripped = True
+                    print(
+                        f"\n!! circuit breaker tripped: >{args.circuit_threshold:.0%} "
+                        f"non-ok in the last {args.circuit_window} processes. "
+                        f"Stopping at {i}/{len(rows)}. Resume with --resume once "
+                        f"conditions recover.",
+                        flush=True,
+                    )
+                    break
 
             if args.progress_every and i % args.progress_every == 0:
                 elapsed = (datetime.now(timezone.utc) - started).total_seconds()
@@ -729,6 +784,8 @@ def main(argv: list[str]) -> int:
     print(f"  errors: {errors_path}")
     print(f"  report: {report_path}")
 
+    if tripped:
+        return 2
     n_error = totals["error"] + totals["fail"]
     return 0 if n_error == 0 else 1
 
