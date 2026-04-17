@@ -38,14 +38,14 @@ Takeaway: **reactive retry works, but a single process can lose its retry budget
 
 - **30/200 ok, 170 error.** First 403 at ADI 231 (process #31 of R2). R2 started immediately after R1 — the WAF window was still hot.
 - All 170 errors were HTTP 403 on `listarProcessos.asp`, fast-failing in ~0.03 s each.
-- Total elapsed: ~128 s (mostly the 0.5 s sleep × 199 processes since errors were cheap).
+- Total elapsed: 130.3 s (mostly the 0.5 s sleep × 199 processes since errors were cheap; avg err wall 0.027 s).
 
 Takeaway: **0.5 s pacing is not enough**, especially when starting with a warm WAF counter. The measurement is also polluted by R1's tail activity — pacing-only cold-start would need a cooldown between runs to measure cleanly.
 
 ### R3 — 2.0 s pacing, no retry (after 8-min cooldown)
 
 - **175/200 ok, 25 error. One contiguous error cluster** at processes 106–130 (ADI 506–530); everything before and after succeeded. First error: ADI 506 on `listarProcessos.asp`.
-- Block lasted ~25 processes × 2.03 s = **~51 s**, much shorter than R1's 4.5-min stall at 0 pacing.
+- Block lasted 25 processes × (0.033 s avg fast-fail + 2.0 s sleep) = **50.8 s** (~0.85 min), much shorter than R1's 4.5-min stall at 0 pacing.
 - Ok-process wall: p50 0.74 s, p90 1.99 s, max 10.84 s, sum 189 s.
 - **Total elapsed: 590 s (9.8 min)** for all 200 processes.
 
@@ -93,10 +93,10 @@ driver_backoff_max: int = 60       # was 30
 
 Total max wait per stuck request: ~20 × 60 s ≈ 20 min. Covers the worst observed block (4.5 min) with a 4× safety factor.
 
-Expected shape for a clean 1000-ADI sweep with this config:
-- **Wall time**: 2 s × 1000 + work (~1 s × 1000) + 2–3 block cycles × ~1 min = **~52 min**.
+Expected shape for a clean 1000-ADI sweep with this config (computed via `uv run python -c`):
+- **Wall time**: `1000 × (1.0 s work + 2.0 s sleep) / 60 = 50.0 min` best case; add ~2–3 block cycles × 0.85 min ≈ **52.5 min** realistic.
 - **Completion**: ≥ 99 % (R1 showed 199/200, R3 showed 175/200; combining both mechanisms should lift to near-perfect).
-- **Vs Selenium baseline (77.6 min / 609 ok)**: ~33 % faster wall AND higher completion rate.
+- **Vs Selenium baseline (77.6 min / 609 ok)**: `77.6 / 52.5 ≈ 1.48× faster wall` AND higher completion rate.
 
 If throughput matters more than politeness (e.g. one-off backfill, user has legal posture covered):
 - Drop `--throttle-sleep` to 0, keep `--retry-403`, accept the stall cycles. R1-style.

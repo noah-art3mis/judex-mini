@@ -580,14 +580,14 @@ def main(argv: list[str]) -> int:
         help="Print running totals every N processes (default: 25).",
     )
     ap.add_argument(
-        "--throttle-sleep", type=float, default=0.0,
-        help="Seconds to sleep between processes (default: 0). Used to stay "
-             "under STF's WAF rate threshold on long sweeps.",
+        "--throttle-sleep", type=float, default=2.0,
+        help="Seconds to sleep between processes (default: 2.0). Used to stay "
+             "under STF's WAF rate threshold on long sweeps. Pass 0 to disable.",
     )
     ap.add_argument(
-        "--retry-403", action="store_true",
-        help="Treat HTTP 403 as a retriable throttle signal (default: off). "
-             "Uses the same exponential backoff as 429/5xx.",
+        "--no-retry-403", dest="retry_403", action="store_false", default=True,
+        help="Disable the default retry-on-403 behavior. STF's WAF uses 403 "
+             "(not 429) as its throttle signal; retry-403 rides out block cycles.",
     )
     args = ap.parse_args(argv)
 

@@ -64,6 +64,10 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 - `src/data/export.py` — write paths for CSV/JSON/JSONL output.
 - `scripts/sweep_state.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
 
+## Calculations
+
+**Always use code** (`uv run python -c "..."` or equivalent) for non-trivial arithmetic. Never mental math, especially in docs and reports where incorrect numbers get quoted downstream. Inherited from user-level `~/.claude/CLAUDE.md § Arithmetic`, repeated here because the rate-budget doc (`docs/sweep-results/2026-04-16-D-rate-budget.md`) was the case where forgetting it bit us.
+
 ## Conventions (project-specific)
 
 - **No backwards-compat shims.** Change the call sites + tests. See user-level `CLAUDE.md`.
