@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Back up output/ and analysis/ to a Backblaze B2 bucket as a timestamped
+# Back up data/ and analysis/ to a Backblaze B2 bucket as a timestamped
 # tar.zst archive. One full dump per run — no incremental — because solid
-# zstd compression takes ~800 MB of JSON down to ~15 MB, so full dumps are
-# cheap and versioning comes for free (each archive is its own point-in-time).
+# zstd compression keeps the archive a small fraction of the raw ~1.2 GB
+# data tree, so full dumps are cheap and versioning comes for free (each
+# archive is its own point-in-time).
 #
 # Setup (once):
 #   rclone config                       # create a 'b2' remote of type 'b2'
@@ -16,7 +17,7 @@ set -euo pipefail
 
 REMOTE="${JUDEX_B2_REMOTE:-b2}"
 BUCKET="${JUDEX_B2_BUCKET:-judex-curia}"
-SOURCES=(output analysis)
+SOURCES=(data analysis)
 DRY_RUN=0
 
 usage() {
