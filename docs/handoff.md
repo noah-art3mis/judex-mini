@@ -121,7 +121,7 @@ stats helpers for the notebooks).
 - **B — throttle probe (50 ADIs, cold + warm).** 50/50 cold in 81 s, 0 retries. Warm pass p50 0.14 s — the ~60× cache speed-up `docs/perf-bulk-data.md` predicted.
 - **C — full ADI 1–1000 sweep.** **STF blocked us at process #108** with HTTP 403 (not 429) from `listarProcessos.asp`. 107 ok; 893 fast-fail 403s. In the pre-ban window: **~0.79 s/process = 9.7× faster than Selenium's 7.65 s/process**. Selenium baseline for the same range: 77.6 min / 609 ok (measured from `extraido` timestamps in `output/judex-mini_ADI_1-1000.csv`). Selenium completed the range because it's 10× slower per process and stayed under the rate gate; HTTP at current posture tripped it.
 
-**Robust sweep state/log machinery landed** (`scripts/sweep_state.py`, commit `018f26d`):
+**Robust sweep state/log machinery landed** (`src/process_store.py`, first landed as `scripts/sweep_state.py` in commit `018f26d` then promoted to `src/` in the Phase A/B refactor):
 
 - Every sweep run writes an append-only `sweep.log.jsonl` (fsynced per record) + atomic `sweep.state.json` + derived `sweep.errors.jsonl`. Report at `report.md`.
 - `--resume` skips already-ok processes. `--retry-from <errors.jsonl>` re-runs only failures from a prior sweep.
@@ -262,7 +262,7 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
 - `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper_http` loads 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
 - `tests/unit/` — **48 unit tests** covering retry semantics (incl. 403 opt-in), CLI dispatch, PDF cache, sessao_virtual parsers, sweep state recovery + atomic writes, CSV parsing, exception classification. `uv run pytest tests/unit/`.
 - `scripts/validate_ground_truth.py` — still the source of truth for HTTP parity. 4/5 MATCH; ACO_2652 shows two pre-existing diffs (assuntos drift on the live site, `pautas: null` vs `[]`). `sessao_virtual` is a SKIP field so it doesn't participate — parsers are validated by the unit tests instead.
-- `scripts/run_sweep.py` + `scripts/sweep_state.py` — CSV-driven sweep driver with append-only log, atomic state, resume, retry-from, structured errors, 403 retry, throttle sleep. See the "Running sweeps" section below.
+- `scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py` — CSV-driven sweep driver with append-only log, atomic state, resume, retry-from, structured errors, 403 retry, throttle sleep. Circuit breaker, signal handlers, and exception classifier come from `src/_shared.py` (shared with `src/pdf_driver.py`). See the "Running sweeps" section below.
 
 ## Next steps, ordered
 
@@ -436,7 +436,10 @@ regenerates both at its end.
 - `src/utils/html_cache.py` — gzip + incidente cache (also used for sessão JSON)
 - `scripts/_diff.py` — shared field-by-field diff
 - `scripts/run_sweep.py` — CSV-driven sweep driver (state/log/errors + resume/retry-from/signal handling)
-- `scripts/sweep_state.py` — append-only log + atomic compacted state (independent of run_sweep, reusable)
+- `src/process_store.py` — append-only log + atomic compacted state (independent of run_sweep, reusable; promoted from `scripts/sweep_state.py` in the Phase A refactor)
+- `src/_shared.py` — `CircuitBreaker`, `install_signal_handlers`, `classify_exception`, `percentiles`; shared by `scripts/run_sweep.py` and `src/pdf_driver.py`
+- `src/pdf_driver.py` + `src/pdf_store.py` + `src/pdf_targets.py` — sibling of `scripts/run_sweep.py` for PDF sweeps (per-URL state, circuit breaker, signal handlers, same resume/retry-from contract)
+- `src/utils/adaptive_throttle.py` + `src/utils/request_log.py` — per-host latency-aware throttle + SQLite request archive, wired in via `ScraperConfig.throttle` / `ScraperConfig.request_log`
 - `main.py` — CLI
 
 ## Files that already work; don't break them

@@ -1,6 +1,6 @@
 """Atomic per-URL state + append-only log for PDF fetch runs.
 
-Mirrors the contracts from tests/unit/test_sweep_state.py, but keyed
+Mirrors the contracts from tests/unit/test_process_store.py, but keyed
 by URL (one row per PDF URL) instead of (classe, processo).
 """
 

@@ -12,7 +12,7 @@ in-flight target.
 
 Usage:
 
-    # Famous-lawyer preset (replaces fetch_famous_lawyer_pdfs.py)
+    # Famous-lawyer preset
     PYTHONPATH=. uv run python scripts/fetch_pdfs.py \\
         --out docs/pdf-sweeps/2026-04-17-famous-lawyers \\
         --classe HC \\

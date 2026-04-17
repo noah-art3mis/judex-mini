@@ -2,8 +2,8 @@
 
 Walks `judex-mini_*.json` files under one or more roots, applies
 per-item filters, and emits one PdfTarget per substantive-doc URL
-in the andamento list. Replaces the hardcoded famous-lawyer collector
-that used to live in scripts/fetch_famous_lawyer_pdfs.py.
+in the andamento list. The filter parameters (classe, impte_contains,
+doc_types, relator_contains) are driven by `scripts/fetch_pdfs.py`.
 """
 
 from __future__ import annotations

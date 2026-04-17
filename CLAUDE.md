@@ -33,7 +33,7 @@ PYTHONPATH=. uv run python scripts/run_sweep.py ...
 - **Selenium backend** (`src/scraper.py`): the legacy path. Slower; still the default for `main.py`. To be retired (handoff step 4).
 - **Shared extractors** (`src/extraction/*.py`): some are pure-soup (class/meio/numero_unico/publicidade/relator) and imported by both; the rest are Selenium-bound and being replaced.
 - **HTTP extractors** (`src/extraction_http.py`, `src/extraction_http_sessao.py`): fragment parsers for the HTTP path.
-- **Sweep driver** (`scripts/run_sweep.py` + `scripts/sweep_state.py`): CSV-driven, appends to `sweep.log.jsonl`, atomic `sweep.state.json`, derived `sweep.errors.jsonl`. Supports `--resume`, `--retry-from`, `--retry-403`, `--throttle-sleep`, graceful SIGINT/SIGTERM.
+- **Sweep driver** (`scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py`): CSV-driven, appends to `sweep.log.jsonl`, atomic `sweep.state.json`, derived `sweep.errors.jsonl`. Supports `--resume`, `--retry-from`, `--retry-403`, `--throttle-sleep`, graceful SIGINT/SIGTERM. Circuit breaker, signal handlers and exception classifier live in `src/_shared.py` and are reused by `src/pdf_driver.py`.
 
 ## Caches
 
@@ -62,7 +62,7 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 - `tests/unit/*.py` — 48 tests; run them before every change. `uv run pytest tests/unit/`.
 - `src/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
 - `src/data/export.py` — write paths for CSV/JSON/JSONL output.
-- `scripts/sweep_state.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
+- `src/process_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates. `src/pdf_store.py` mirrors the same contracts for URL-keyed PDF sweeps.
 
 ## Calculations
 
