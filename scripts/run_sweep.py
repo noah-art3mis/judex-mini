@@ -4,6 +4,17 @@ Reads a list of (classe, processo) pairs from CSV, scrapes each via
 `scrape_processo_http`, optionally compares against ground-truth fixtures
 or a Selenium baseline CSV, and writes a Markdown report.
 
+Every sweep run materialises three files under `--out`:
+
+    <out>/sweep.log.jsonl      append-only attempt log, one JSON line per attempt
+    <out>/sweep.state.json     compacted state, one entry per (classe, processo)
+    <out>/sweep.errors.jsonl   current non-ok entries (derived from state)
+    <out>/report.md            human-readable summary
+
+`--resume` skips processes already recorded as ok. `--retry-from <errors>`
+re-runs only the processes listed in a prior `sweep.errors.jsonl`.
+SIGINT/SIGTERM stops cleanly after the in-flight process finishes.
+
 See `docs/superpowers/specs/2026-04-16-validation-sweep-design.md`.
 
 Run:
@@ -11,7 +22,7 @@ Run:
         --csv tests/sweep/shape_coverage.csv \\
         --label shape_coverage \\
         --parity-dir tests/ground_truth \\
-        --out docs/sweep-results/2026-04-16-A-shape-coverage.md
+        --out docs/sweep-results/2026-04-16-A-shape-coverage
 """
 
 from __future__ import annotations
@@ -20,6 +31,7 @@ import argparse
 import csv
 import json
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -31,8 +43,12 @@ from pathlib import Path
 from statistics import median, quantiles
 from typing import Any, Optional, TextIO
 
+import requests
+
 from scripts._diff import diff_item
+from scripts.sweep_state import AttemptRecord, SweepStore, load_retry_list
 from src import scraper_http as sh
+from src.config import ScraperConfig
 from src.scraper_http import new_session, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -220,10 +236,37 @@ class ProcessResult:
     retries: dict[str, int]
     diffs: list[str]
     anomalies: list[str]
+    error_type: Optional[str] = None
+    http_status: Optional[int] = None
+    error_url: Optional[str] = None
 
     @property
     def diff_count(self) -> int:
         return len(self.diffs)
+
+
+def classify_exception(e: BaseException) -> tuple[str, Optional[int], Optional[str]]:
+    """Return (error_type, http_status, url) extracted from a scrape exception.
+
+    Handles:
+    - requests.HTTPError: pulls the status from the underlying Response
+    - sh.RetryableHTTPError: has .status_code + .url directly
+    - anything else: just the class name
+    """
+    etype = type(e).__name__
+    http_status: Optional[int] = None
+    url: Optional[str] = None
+
+    if isinstance(e, sh.RetryableHTTPError):
+        http_status = e.status_code
+        url = e.url or None
+    elif isinstance(e, requests.HTTPError):
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            http_status = getattr(resp, "status_code", None)
+            url = getattr(resp, "url", None)
+
+    return etype, http_status, url
 
 
 def run_one(
@@ -234,19 +277,27 @@ def run_one(
     counter: RetryCounter,
     gt_dir: Optional[Path],
     parity_csv: Optional[dict[tuple[str, int], dict[str, Any]]],
+    *,
+    config: Optional[Any] = None,
 ) -> ProcessResult:
     counter.reset()
     t0 = time.perf_counter()
     try:
-        item = scrape_processo_http(classe, processo, use_cache=True, session=session)
+        item = scrape_processo_http(
+            classe, processo, use_cache=True, session=session, config=config
+        )
     except Exception as e:
+        etype, http_status, url = classify_exception(e)
         return ProcessResult(
             classe, processo, source,
             wall_s=time.perf_counter() - t0,
             status="error",
-            error=f"{type(e).__name__}: {e}",
+            error=f"{etype}: {e}",
             retries=counter.snapshot(),
             diffs=[], anomalies=[],
+            error_type=etype,
+            http_status=http_status,
+            error_url=url,
         )
     wall = time.perf_counter() - t0
 
@@ -258,6 +309,7 @@ def run_one(
             error="scrape returned None (incidente not resolved)",
             retries=counter.snapshot(),
             diffs=[], anomalies=[],
+            error_type="NoIncidente",
         )
 
     item_dict = dict(item)
@@ -401,6 +453,38 @@ def render_report(
         lines.append("")
         return lines
 
+    def errors_breakdown(results: list[ProcessResult]) -> list[str]:
+        buckets: Counter = Counter()
+        endpoints: Counter = Counter()
+        for r in results:
+            if r.status == "ok":
+                continue
+            etype = r.error_type or "unknown"
+            status = r.http_status if r.http_status is not None else "-"
+            buckets[(etype, status)] += 1
+            if r.error_url:
+                # strip query string + base URL so we bucket by endpoint path only
+                ep = r.error_url.split("?", 1)[0].rsplit("/", 1)[-1]
+                endpoints[ep] += 1
+
+        lines = ["## Errors breakdown", ""]
+        if not buckets:
+            lines.append("_No errors or failures._")
+            lines.append("")
+            return lines
+        lines.append("| error_type | http_status | count |")
+        lines.append("|------------|------------:|------:|")
+        for (etype, status), n in sorted(buckets.items(), key=lambda x: (-x[1], x[0])):
+            lines.append(f"| {etype} | {status} | {n} |")
+        lines.append("")
+        if endpoints:
+            lines.append("| endpoint | count |")
+            lines.append("|----------|------:|")
+            for ep, n in sorted(endpoints.items(), key=lambda x: (-x[1], x[0])):
+                lines.append(f"| `{ep}` | {n} |")
+            lines.append("")
+        return lines
+
     out_lines: list[str] = []
     out_lines.append(f"# Validation sweep — {label}")
     out_lines.append("")
@@ -416,6 +500,7 @@ def render_report(
     if warm_results is not None:
         out_lines += section("Warm pass", warm_results)
 
+    out_lines += errors_breakdown(cold_results)
     out_lines += per_process_diffs(cold_results)
     out_lines += recurring(cold_results)
 
@@ -423,14 +508,54 @@ def render_report(
     out_path.write_text("\n".join(out_lines))
 
 
+# ----- Signal handling ----------------------------------------------------
+
+
+_SHUTDOWN = False
+
+
+def _install_signal_handlers() -> None:
+    def handler(signum: int, _frame: Any) -> None:
+        global _SHUTDOWN
+        _SHUTDOWN = True
+        print(f"\n!! received signal {signum}; finishing current process and stopping", flush=True)
+
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
+
+def _to_attempt_record(
+    res: ProcessResult, attempt: int, ts: Optional[str] = None
+) -> AttemptRecord:
+    return AttemptRecord(
+        ts=ts or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        classe=res.classe,
+        processo=res.processo,
+        attempt=attempt,
+        wall_s=round(res.wall_s, 3),
+        status=res.status,
+        error=res.error,
+        error_type=res.error_type,
+        http_status=res.http_status,
+        error_url=res.error_url,
+        retries=dict(res.retries),
+        diff_count=res.diff_count,
+        anomaly_count=len(res.anomalies),
+    )
+
+
 # ----- Main ---------------------------------------------------------------
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--csv", required=True, type=Path)
+    ap.add_argument("--csv", type=Path, help="Input CSV of (classe, processo) pairs")
     ap.add_argument("--label", required=True)
-    ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument(
+        "--out", required=True, type=Path,
+        help="Output DIRECTORY. Holds sweep.log.jsonl, sweep.state.json, "
+             "sweep.errors.jsonl, report.md.",
+    )
     ap.add_argument("--parity-dir", type=Path, help="Dir of GT fixtures")
     ap.add_argument("--parity-csv", type=Path, help="Selenium baseline CSV")
     ap.add_argument(
@@ -441,10 +566,42 @@ def main(argv: list[str]) -> int:
         "--wipe-cache", action="store_true",
         help="Remove .cache entries for the processes in the sweep before starting.",
     )
+    ap.add_argument(
+        "--resume", action="store_true",
+        help="Skip processes that already have a status=ok record in sweep.state.json.",
+    )
+    ap.add_argument(
+        "--retry-from", type=Path,
+        help="Path to an existing sweep.errors.jsonl; re-run only those processes. "
+             "Takes precedence over --csv.",
+    )
+    ap.add_argument(
+        "--progress-every", type=int, default=25,
+        help="Print running totals every N processes (default: 25).",
+    )
+    ap.add_argument(
+        "--throttle-sleep", type=float, default=0.0,
+        help="Seconds to sleep between processes (default: 0). Used to stay "
+             "under STF's WAF rate threshold on long sweeps.",
+    )
+    ap.add_argument(
+        "--retry-403", action="store_true",
+        help="Treat HTTP 403 as a retriable throttle signal (default: off). "
+             "Uses the same exponential backoff as 429/5xx.",
+    )
     args = ap.parse_args(argv)
 
-    with args.csv.open(newline="") as f:
-        rows = parse_sweep_csv(f)
+    if args.retry_from is None and args.csv is None:
+        ap.error("either --csv or --retry-from is required")
+
+    if args.retry_from:
+        retry_rows = load_retry_list(args.retry_from)
+        rows: list[tuple[str, int, Optional[str]]] = [(c, p, "retry") for c, p in retry_rows]
+        input_source = f"retry-from `{args.retry_from}` ({len(rows)} rows)"
+    else:
+        with args.csv.open(newline="") as f:  # type: ignore[union-attr]
+            rows = parse_sweep_csv(f)
+        input_source = f"csv `{args.csv}` ({len(rows)} rows)"
 
     if args.wipe_cache:
         for classe, processo, _ in rows:
@@ -460,43 +617,100 @@ def main(argv: list[str]) -> int:
         parity_csv = load_parity_csv(args.parity_csv)
         parity_source = f"selenium-csv `{args.parity_csv}` ({len(parity_csv)} rows)"
 
+    store = SweepStore(args.out)
     counter = install_retry_counter()
-    started = datetime.now(timezone.utc)
+    _install_signal_handlers()
 
-    print(f"=== sweep: {args.label} · {len(rows)} processes · parity: {parity_source} ===")
+    config = ScraperConfig(retry_403=args.retry_403)
+
+    started = datetime.now(timezone.utc)
+    print(
+        f"=== sweep: {args.label} · {len(rows)} processes · "
+        f"input: {input_source} · parity: {parity_source} ===",
+        flush=True,
+    )
 
     cold_results: list[ProcessResult] = []
+    totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
+
+    def print_row(i: int, n: int, res: ProcessResult, note: str = "") -> None:
+        retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
+        anomalies = len(res.anomalies)
+        print(
+            f"  [{i:>4d}/{n}] {res.classe:<4s} {res.processo:<8d} "
+            f"{res.wall_s:>6.2f}s  status={res.status:<5s}  "
+            f"retries={retries}  diffs={res.diff_count}  anomalies={anomalies}"
+            + (f"  ERR: {res.error}" if res.error else "")
+            + (f"  {note}" if note else ""),
+            flush=True,
+        )
+
     with new_session() as session:
         for i, (classe, processo, source) in enumerate(rows, 1):
-            res = run_one(classe, processo, source, session, counter, args.parity_dir, parity_csv)
-            cold_results.append(res)
-            retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
-            anomalies = len(res.anomalies)
-            print(
-                f"  [{i:>3d}/{len(rows)}] {classe:<4s} {processo:<8d} "
-                f"{res.wall_s:>6.2f}s  status={res.status:<5s}  "
-                f"retries={retries}  diffs={res.diff_count}  anomalies={anomalies}"
-                + (f"  ERR: {res.error}" if res.error else "")
+            if _SHUTDOWN:
+                print(f"  stopping before process {i}/{len(rows)}", flush=True)
+                break
+            if args.resume and store.already_ok(classe, processo):
+                totals["skipped"] += 1
+                continue
+
+            res = run_one(
+                classe, processo, source, session, counter,
+                args.parity_dir, parity_csv, config=config,
             )
+            cold_results.append(res)
+            store.record(_to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1))
+
+            totals[res.status] = totals.get(res.status, 0) + 1
+            totals["429"] += res.retries.get("429", 0)
+            totals["5xx"] += res.retries.get("5xx", 0)
+
+            print_row(i, len(rows), res)
+
+            if args.progress_every and i % args.progress_every == 0:
+                elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+                rate = i / elapsed if elapsed > 0 else 0
+                eta_s = (len(rows) - i) / rate if rate > 0 else 0
+                print(
+                    f"  [progress] ok={totals['ok']} fail={totals['fail']} "
+                    f"error={totals['error']} skipped={totals['skipped']} "
+                    f"429×{totals['429']} 5xx×{totals['5xx']} · "
+                    f"{rate:.2f} proc/s · eta {eta_s/60:.1f} min",
+                    flush=True,
+                )
+
+            if args.throttle_sleep > 0 and i < len(rows):
+                time.sleep(args.throttle_sleep)
 
         warm_results: Optional[list[ProcessResult]] = None
-        if args.warm_pass:
-            print("\n=== warm pass (cache warm) ===")
+        if args.warm_pass and not _SHUTDOWN:
+            print("\n=== warm pass (cache warm) ===", flush=True)
             warm_results = []
             for i, (classe, processo, source) in enumerate(rows, 1):
-                res = run_one(classe, processo, source, session, counter, args.parity_dir, parity_csv)
+                if _SHUTDOWN:
+                    break
+                res = run_one(
+                    classe, processo, source, session, counter,
+                    args.parity_dir, parity_csv,
+                )
                 warm_results.append(res)
+                store.record(
+                    _to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1)
+                )
                 retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
                 print(
-                    f"  [{i:>3d}/{len(rows)}] {classe:<4s} {processo:<8d} "
-                    f"{res.wall_s * 1000:>7.1f}ms  status={res.status}  retries={retries}"
+                    f"  [{i:>4d}/{len(rows)}] {classe:<4s} {processo:<8d} "
+                    f"{res.wall_s * 1000:>7.1f}ms  status={res.status}  retries={retries}",
+                    flush=True,
                 )
 
     finished = datetime.now(timezone.utc)
+    errors_path = store.write_errors_file()
+    report_path = args.out / "report.md"
     render_report(
         label=args.label,
-        csv_path=args.csv,
-        out_path=args.out,
+        csv_path=args.csv if args.csv else args.retry_from,  # type: ignore[arg-type]
+        out_path=report_path,
         started=started,
         finished=finished,
         commit=_git_sha(),
@@ -505,8 +719,17 @@ def main(argv: list[str]) -> int:
         warm_results=warm_results,
     )
 
-    n_error = sum(1 for r in cold_results if r.status == "error")
-    print(f"\nreport written to {args.out}")
+    print(
+        f"\nsummary: ok={totals['ok']} fail={totals['fail']} error={totals['error']} "
+        f"skipped={totals['skipped']} 429×{totals['429']} 5xx×{totals['5xx']}",
+        flush=True,
+    )
+    print(f"  state:  {store.state_path}")
+    print(f"  log:    {store.log_path}")
+    print(f"  errors: {errors_path}")
+    print(f"  report: {report_path}")
+
+    n_error = totals["error"] + totals["fail"]
     return 0 if n_error == 0 else 1
 
 

@@ -35,3 +35,10 @@ class ScraperConfig:
     document_backoff_multiplier: int = 1
     document_backoff_min: int = 2
     document_backoff_max: int = 5
+
+    # When True, treat HTTP 403 as a retryable throttle signal. STF's portal
+    # issues 403 (not 429) once a sweep trips its WAF rate gate, and the
+    # block clears after a few minutes — retrying with exponential backoff
+    # rides out the cooldown. Disabled by default because 403 is normally
+    # a permanent access denial.
+    retry_403: bool = False

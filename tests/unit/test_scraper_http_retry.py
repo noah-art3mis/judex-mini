@@ -120,3 +120,40 @@ def test_http_get_retries_on_connection_error(fast_config: ScraperConfig) -> Non
 
     assert r.status_code == 200
     assert session.get.call_count == 2
+
+
+def test_http_get_does_not_retry_403_by_default(fast_config: ScraperConfig) -> None:
+    # STF's default posture: 403 is a permanent access denial, not a throttle.
+    session = Mock()
+    session.get = Mock(return_value=_fake_response(403))
+
+    with pytest.raises(requests.HTTPError):
+        scraper_http._http_get_with_retry(
+            session,
+            "http://x.test/page",
+            params={},
+            headers={},
+            config=fast_config,
+        )
+
+    assert session.get.call_count == 1
+
+
+def test_http_get_retries_on_403_when_retry_403_enabled(
+    fast_config: ScraperConfig,
+) -> None:
+    # Opt-in: treat STF's 403 as a retriable WAF throttle signal.
+    fast_config.retry_403 = True
+    session = Mock()
+    session.get = Mock(side_effect=[_fake_response(403), _fake_response(403), _fake_response(200)])
+
+    r = scraper_http._http_get_with_retry(
+        session,
+        "http://x.test/page",
+        params={},
+        headers={},
+        config=fast_config,
+    )
+
+    assert r.status_code == 200
+    assert session.get.call_count == 3

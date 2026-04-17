@@ -8,7 +8,16 @@ import io
 
 import pytest
 
-from scripts.run_sweep import parse_selenium_row, parse_sweep_csv
+from unittest.mock import Mock
+
+import requests
+
+from scripts.run_sweep import (
+    classify_exception,
+    parse_selenium_row,
+    parse_sweep_csv,
+)
+from src.scraper_http import RetryableHTTPError
 
 
 def test_parse_sweep_csv_minimal_columns():
@@ -110,6 +119,44 @@ def test_parse_selenium_row_handles_empty_scalars():
     assert parsed["folhas"] is None
     assert parsed["apensos"] is None
     assert parsed["relator"] is None
+
+
+def test_classify_exception_http_error_extracts_status_and_url():
+    # requests.HTTPError carries a .response with the status + url
+    resp = Mock()
+    resp.status_code = 403
+    resp.url = "https://portal.stf.jus.br/processos/listarProcessos.asp?classe=ADI"
+    err = requests.HTTPError("403 Client Error: Forbidden")
+    err.response = resp
+
+    etype, status, url = classify_exception(err)
+    assert etype == "HTTPError"
+    assert status == 403
+    assert url == "https://portal.stf.jus.br/processos/listarProcessos.asp?classe=ADI"
+
+
+def test_classify_exception_retryable_http_error():
+    err = RetryableHTTPError(429, "http://x.test/page")
+    etype, status, url = classify_exception(err)
+    assert etype == "RetryableHTTPError"
+    assert status == 429
+    assert url == "http://x.test/page"
+
+
+def test_classify_exception_connection_error():
+    err = requests.ConnectionError("boom")
+    etype, status, url = classify_exception(err)
+    assert etype == "ConnectionError"
+    assert status is None
+    assert url is None
+
+
+def test_classify_exception_unknown_error():
+    err = ValueError("weird")
+    etype, status, url = classify_exception(err)
+    assert etype == "ValueError"
+    assert status is None
+    assert url is None
 
 
 def test_parse_selenium_row_numero_origem_list():

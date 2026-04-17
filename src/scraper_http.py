@@ -147,7 +147,11 @@ def _http_get_with_retry(
             timeout=timeout,
             allow_redirects=allow_redirects,
         )
-        if r.status_code == 429 or 500 <= r.status_code < 600:
+        if (
+            r.status_code == 429
+            or 500 <= r.status_code < 600
+            or (cfg.retry_403 and r.status_code == 403)
+        ):
             raise RetryableHTTPError(r.status_code, url)
         r.raise_for_status()  # non-429 4xx: don't retry
         return r
