@@ -27,6 +27,12 @@ dependencies = [
 pythonpath = ["."]
 testpaths = ["tests"]
 
+[tool.marimo.runtime]
+# Run all cells automatically when the notebook opens. Without this,
+# marimo opens cells in a "stale" state until the user hits "Run all".
+auto_instantiate = true
+on_cell_change = "autorun"
+
 [dependency-groups]
 dev = [
     "black>=25.9.0",
