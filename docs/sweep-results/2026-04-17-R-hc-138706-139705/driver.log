@@ -1,0 +1,1518 @@
+=== sweep: hc_138706_139705 · 1000 processes · input: csv `tests/sweep/hc_138706_139705.csv` (1000 rows) · parity: none ===
+WARNING:root:HC 138706: no incidente in redirect (200 '')
+  [   1/1000] HC   138706     0.28s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138707: no incidente in redirect (200 '')
+  [   2/1000] HC   138707     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138708: no incidente in redirect (200 '')
+  [   3/1000] HC   138708     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138709: no incidente in redirect (200 '')
+  [   4/1000] HC   138709     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138710: no incidente in redirect (200 '')
+  [   5/1000] HC   138710     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138711: no incidente in redirect (200 '')
+  [   6/1000] HC   138711     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138712: no incidente in redirect (200 '')
+  [   7/1000] HC   138712     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138713: no incidente in redirect (200 '')
+  [   8/1000] HC   138713     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138714: no incidente in redirect (200 '')
+  [   9/1000] HC   138714     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138715: no incidente in redirect (200 '')
+  [  10/1000] HC   138715     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138716: no incidente in redirect (200 '')
+  [  11/1000] HC   138716     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138717: no incidente in redirect (200 '')
+  [  12/1000] HC   138717     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138718: no incidente in redirect (200 '')
+  [  13/1000] HC   138718     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138719: no incidente in redirect (200 '')
+  [  14/1000] HC   138719     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138720: no incidente in redirect (200 '')
+  [  15/1000] HC   138720     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138721: no incidente in redirect (200 '')
+  [  16/1000] HC   138721     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  17/1000] HC   138722     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [  18/1000] HC   138723     0.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [  19/1000] HC   138724     0.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [  20/1000] HC   138725     2.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [  21/1000] HC   138726     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [  22/1000] HC   138727     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [  23/1000] HC   138728     1.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [  24/1000] HC   138729     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  25/1000] HC   138730     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=9 fail=16 error=0 skipped=0 429×0 5xx×0 · 0.42 proc/s · eta 38.6 min
+  [  26/1000] HC   138731     0.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [  27/1000] HC   138732     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  28/1000] HC   138733     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  29/1000] HC   138734     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [  30/1000] HC   138735     2.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  31/1000] HC   138736     3.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [  32/1000] HC   138737     1.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [  33/1000] HC   138738     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  34/1000] HC   138739     4.19s  status=ok     retries=0  diffs=0  anomalies=0
+  [  35/1000] HC   138740     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [  36/1000] HC   138741     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [  37/1000] HC   138742     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [  38/1000] HC   138743     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [  39/1000] HC   138744     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [  40/1000] HC   138745     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [  41/1000] HC   138746     2.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [  42/1000] HC   138747     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [  43/1000] HC   138748     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  44/1000] HC   138749     1.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [  45/1000] HC   138750     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 138751: no incidente in redirect (200 '')
+  [  46/1000] HC   138751     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138752: no incidente in redirect (200 '')
+  [  47/1000] HC   138752     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138753: no incidente in redirect (200 '')
+  [  48/1000] HC   138753     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138754: no incidente in redirect (200 '')
+  [  49/1000] HC   138754     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  50/1000] HC   138755     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=30 fail=20 error=0 skipped=0 429×0 5xx×0 · 0.36 proc/s · eta 43.9 min
+  [  51/1000] HC   138756     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  52/1000] HC   138757     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [  53/1000] HC   138758     0.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [  54/1000] HC   138759     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  55/1000] HC   138760     1.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [  56/1000] HC   138761     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [  57/1000] HC   138762     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [  58/1000] HC   138763     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [  59/1000] HC   138764     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [  60/1000] HC   138765     0.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [  61/1000] HC   138766     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  62/1000] HC   138767     1.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  63/1000] HC   138768     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [  64/1000] HC   138769     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [  65/1000] HC   138770     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [  66/1000] HC   138771     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [  67/1000] HC   138772     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  68/1000] HC   138773     2.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [  69/1000] HC   138774     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  70/1000] HC   138775     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [  71/1000] HC   138776     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  72/1000] HC   138777     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [  73/1000] HC   138778     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  74/1000] HC   138779     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  75/1000] HC   138780     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=55 fail=20 error=0 skipped=0 429×0 5xx×0 · 0.35 proc/s · eta 43.6 min
+  [  76/1000] HC   138781     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  77/1000] HC   138782     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [  78/1000] HC   138783     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  79/1000] HC   138784     1.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  80/1000] HC   138785     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [  81/1000] HC   138786     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [  82/1000] HC   138787     2.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [  83/1000] HC   138788     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  84/1000] HC   138789     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [  85/1000] HC   138790     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [  86/1000] HC   138791     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  87/1000] HC   138792     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [  88/1000] HC   138793     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  89/1000] HC   138794     1.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [  90/1000] HC   138795     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [  91/1000] HC   138796     1.40s  status=ok     retries=0  diffs=0  anomalies=0
+  [  92/1000] HC   138797     2.50s  status=ok     retries=0  diffs=0  anomalies=0
+  [  93/1000] HC   138798     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [  94/1000] HC   138799     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [  95/1000] HC   138800     2.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [  96/1000] HC   138801     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  97/1000] HC   138802     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [  98/1000] HC   138803     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  99/1000] HC   138804     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 100/1000] HC   138805     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=80 fail=20 error=0 skipped=0 429×0 5xx×0 · 0.35 proc/s · eta 43.2 min
+  [ 101/1000] HC   138806     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 102/1000] HC   138807     2.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 103/1000] HC   138808     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 104/1000] HC   138809     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 105/1000] HC   138810     2.82s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 138811: no incidente in redirect (200 '')
+  [ 106/1000] HC   138811     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 107/1000] HC   138812     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 108/1000] HC   138813     1.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 109/1000] HC   138814     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 110/1000] HC   138815     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 111/1000] HC   138816     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 112/1000] HC   138817     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 113/1000] HC   138818     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 114/1000] HC   138819     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 115/1000] HC   138820     2.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 116/1000] HC   138821     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 117/1000] HC   138822     4.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 118/1000] HC   138823    31.91s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [ 119/1000] HC   138824     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 120/1000] HC   138825     1.24s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 121/1000] HC   138826     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 122/1000] HC   138827     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 123/1000] HC   138828     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 124/1000] HC   138829     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 125/1000] HC   138830     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=104 fail=21 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 46.4 min
+  [ 126/1000] HC   138831     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 127/1000] HC   138832     2.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 128/1000] HC   138833     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 129/1000] HC   138834     2.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 130/1000] HC   138835     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 131/1000] HC   138836     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 132/1000] HC   138837     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 133/1000] HC   138838     4.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 134/1000] HC   138839     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 135/1000] HC   138840     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 138841: no incidente in redirect (200 '')
+  [ 136/1000] HC   138841     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138842: no incidente in redirect (200 '')
+  [ 137/1000] HC   138842     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138843: no incidente in redirect (200 '')
+  [ 138/1000] HC   138843     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 139/1000] HC   138844     2.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 140/1000] HC   138845     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 141/1000] HC   138846     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 142/1000] HC   138847     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 143/1000] HC   138848     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 144/1000] HC   138849     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 145/1000] HC   138850     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 146/1000] HC   138851     3.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 147/1000] HC   138852     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 148/1000] HC   138853     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 149/1000] HC   138854     1.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 150/1000] HC   138855     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=126 fail=24 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 45.1 min
+  [ 151/1000] HC   138856     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 152/1000] HC   138857     1.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 153/1000] HC   138858     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 154/1000] HC   138859     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 155/1000] HC   138860     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 156/1000] HC   138861     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 157/1000] HC   138862     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 158/1000] HC   138863     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 159/1000] HC   138864     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 160/1000] HC   138865     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 161/1000] HC   138866     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 162/1000] HC   138867     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 163/1000] HC   138868     1.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 164/1000] HC   138869     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 165/1000] HC   138870     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 166/1000] HC   138871     2.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 167/1000] HC   138872     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 168/1000] HC   138873     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 169/1000] HC   138874     2.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 170/1000] HC   138875     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 171/1000] HC   138876     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 172/1000] HC   138877     2.40s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 173/1000] HC   138878     2.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 174/1000] HC   138879     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 175/1000] HC   138880     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=151 fail=24 error=0 skipped=0 429×0 5xx×0 · 0.32 proc/s · eta 43.6 min
+  [ 176/1000] HC   138881     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 177/1000] HC   138882     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 178/1000] HC   138883     1.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 179/1000] HC   138884     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 180/1000] HC   138885     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 181/1000] HC   138886     2.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 182/1000] HC   138887     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 183/1000] HC   138888     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 184/1000] HC   138889     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 185/1000] HC   138890     3.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 186/1000] HC   138891     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 187/1000] HC   138892     2.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 188/1000] HC   138893     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 189/1000] HC   138894     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 190/1000] HC   138895     1.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 191/1000] HC   138896     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 192/1000] HC   138897     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 193/1000] HC   138898     2.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 194/1000] HC   138899     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 195/1000] HC   138900     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 196/1000] HC   138901     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 197/1000] HC   138902     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 198/1000] HC   138903     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 199/1000] HC   138904     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 200/1000] HC   138905     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=176 fail=24 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 42.3 min
+  [ 201/1000] HC   138906     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 202/1000] HC   138907     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 203/1000] HC   138908     1.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 204/1000] HC   138909     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 205/1000] HC   138910     2.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 206/1000] HC   138911     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 207/1000] HC   138912     2.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 208/1000] HC   138913     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 209/1000] HC   138914     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 210/1000] HC   138915     2.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 211/1000] HC   138916     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 212/1000] HC   138917     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 213/1000] HC   138918     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 214/1000] HC   138919     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 215/1000] HC   138920     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 216/1000] HC   138921    64.19s  status=ok     retries=403×6  diffs=0  anomalies=0
+  [ 217/1000] HC   138922     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 218/1000] HC   138923     5.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 219/1000] HC   138924     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 220/1000] HC   138925     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 221/1000] HC   138926     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 222/1000] HC   138927     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 223/1000] HC   138928     2.57s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 224/1000] HC   138929     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 225/1000] HC   138930     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=201 fail=24 error=0 skipped=0 429×0 5xx×0 · 0.29 proc/s · eta 44.8 min
+  [ 226/1000] HC   138931     2.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 227/1000] HC   138932     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 228/1000] HC   138933     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 229/1000] HC   138934     6.00s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 138935: no incidente in redirect (200 '')
+  [ 230/1000] HC   138935     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138936: no incidente in redirect (200 '')
+  [ 231/1000] HC   138936     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138937: no incidente in redirect (200 '')
+  [ 232/1000] HC   138937     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138938: no incidente in redirect (200 '')
+  [ 233/1000] HC   138938     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138939: no incidente in redirect (200 '')
+  [ 234/1000] HC   138939     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138940: no incidente in redirect (200 '')
+  [ 235/1000] HC   138940     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 236/1000] HC   138941     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 237/1000] HC   138942     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 238/1000] HC   138943     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 239/1000] HC   138944     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 240/1000] HC   138945     2.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 241/1000] HC   138946     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 242/1000] HC   138947     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 243/1000] HC   138948     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 244/1000] HC   138949     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 245/1000] HC   138950     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 246/1000] HC   138951     2.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 247/1000] HC   138952     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 248/1000] HC   138953     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 249/1000] HC   138954     2.37s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 250/1000] HC   138955     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=220 fail=30 error=0 skipped=0 429×0 5xx×0 · 0.29 proc/s · eta 42.9 min
+  [ 251/1000] HC   138956     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 252/1000] HC   138957     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 253/1000] HC   138958     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 254/1000] HC   138959     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 255/1000] HC   138960     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 256/1000] HC   138961     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 257/1000] HC   138962     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 258/1000] HC   138963     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 259/1000] HC   138964     2.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 260/1000] HC   138965     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 261/1000] HC   138966     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 138967: no incidente in redirect (200 '')
+  [ 262/1000] HC   138967     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138968: no incidente in redirect (200 '')
+  [ 263/1000] HC   138968     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138969: no incidente in redirect (200 '')
+  [ 264/1000] HC   138969     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138970: no incidente in redirect (200 '')
+  [ 265/1000] HC   138970     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138971: no incidente in redirect (200 '')
+  [ 266/1000] HC   138971     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138972: no incidente in redirect (200 '')
+  [ 267/1000] HC   138972     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138973: no incidente in redirect (200 '')
+  [ 268/1000] HC   138973     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138974: no incidente in redirect (200 '')
+  [ 269/1000] HC   138974     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138975: no incidente in redirect (200 '')
+  [ 270/1000] HC   138975     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138976: no incidente in redirect (200 '')
+  [ 271/1000] HC   138976     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138977: no incidente in redirect (200 '')
+  [ 272/1000] HC   138977     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138978: no incidente in redirect (200 '')
+  [ 273/1000] HC   138978     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 138979: no incidente in redirect (200 '')
+  [ 274/1000] HC   138979     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 275/1000] HC   138980     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=232 fail=43 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 40.5 min
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 276/1000] HC   138981     3.23s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 277/1000] HC   138982     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 278/1000] HC   138983     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 279/1000] HC   138984     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 280/1000] HC   138985     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 281/1000] HC   138986     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 282/1000] HC   138987     3.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 283/1000] HC   138988     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 284/1000] HC   138989     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 285/1000] HC   138990     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 286/1000] HC   138991     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 287/1000] HC   138992     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 288/1000] HC   138993     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 289/1000] HC   138994     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 290/1000] HC   138995     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 291/1000] HC   138996     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 292/1000] HC   138997     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 293/1000] HC   138998     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 294/1000] HC   138999     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 295/1000] HC   139000     2.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 296/1000] HC   139001     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 297/1000] HC   139002     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 298/1000] HC   139003     1.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 299/1000] HC   139004     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 300/1000] HC   139005     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=257 fail=43 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 38.9 min
+  [ 301/1000] HC   139006     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 302/1000] HC   139007     1.57s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 303/1000] HC   139008     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 304/1000] HC   139009     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 305/1000] HC   139010     1.62s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139011: no incidente in redirect (200 '')
+  [ 306/1000] HC   139011     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139012: no incidente in redirect (200 '')
+  [ 307/1000] HC   139012     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139013: no incidente in redirect (200 '')
+  [ 308/1000] HC   139013     0.21s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139014: no incidente in redirect (200 '')
+  [ 309/1000] HC   139014     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139015: no incidente in redirect (200 '')
+  [ 310/1000] HC   139015     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139016: no incidente in redirect (200 '')
+  [ 311/1000] HC   139016     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139017: no incidente in redirect (200 '')
+  [ 312/1000] HC   139017     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139018: no incidente in redirect (200 '')
+  [ 313/1000] HC   139018     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139019: no incidente in redirect (200 '')
+  [ 314/1000] HC   139019     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139020: no incidente in redirect (200 '')
+  [ 315/1000] HC   139020     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 316/1000] HC   139021     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 317/1000] HC   139022     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 318/1000] HC   139023     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 319/1000] HC   139024     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 320/1000] HC   139025     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 321/1000] HC   139026     2.40s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 322/1000] HC   139027     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 323/1000] HC   139028     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 324/1000] HC   139029     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 325/1000] HC   139030     2.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=272 fail=53 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 36.9 min
+  [ 326/1000] HC   139031     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 327/1000] HC   139032     1.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 328/1000] HC   139033     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 329/1000] HC   139034     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 330/1000] HC   139035     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 331/1000] HC   139036     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 332/1000] HC   139037     0.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 333/1000] HC   139038     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 334/1000] HC   139039     2.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 335/1000] HC   139040     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 336/1000] HC   139041     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 337/1000] HC   139042     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 338/1000] HC   139043     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 339/1000] HC   139044     2.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 340/1000] HC   139045     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 341/1000] HC   139046     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 342/1000] HC   139047     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 343/1000] HC   139048     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 344/1000] HC   139049     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 345/1000] HC   139050     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 346/1000] HC   139051     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 347/1000] HC   139052     1.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 348/1000] HC   139053     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 349/1000] HC   139054     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 350/1000] HC   139055     1.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=297 fail=53 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 35.4 min
+  [ 351/1000] HC   139056     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 352/1000] HC   139057     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 353/1000] HC   139058     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139059: no incidente in redirect (200 '')
+  [ 354/1000] HC   139059     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139060: no incidente in redirect (200 '')
+  [ 355/1000] HC   139060     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139061: no incidente in redirect (200 '')
+  [ 356/1000] HC   139061     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139062: no incidente in redirect (200 '')
+  [ 357/1000] HC   139062     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139063: no incidente in redirect (200 '')
+  [ 358/1000] HC   139063     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139064: no incidente in redirect (200 '')
+  [ 359/1000] HC   139064     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139065: no incidente in redirect (200 '')
+  [ 360/1000] HC   139065     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 361/1000] HC   139066     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 362/1000] HC   139067     2.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 363/1000] HC   139068     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 364/1000] HC   139069     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 365/1000] HC   139070     3.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 366/1000] HC   139071     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 367/1000] HC   139072     1.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 368/1000] HC   139073     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 369/1000] HC   139074     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 370/1000] HC   139075     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 371/1000] HC   139076     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 372/1000] HC   139077     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 373/1000] HC   139078     3.36s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 374/1000] HC   139079     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 375/1000] HC   139080     3.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=315 fail=60 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 33.9 min
+  [ 376/1000] HC   139081     1.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 377/1000] HC   139082     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 378/1000] HC   139083     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 379/1000] HC   139084     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 380/1000] HC   139085     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 381/1000] HC   139086     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 382/1000] HC   139087     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 383/1000] HC   139088     1.33s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139089: no incidente in redirect (200 '')
+  [ 384/1000] HC   139089     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139090: no incidente in redirect (200 '')
+  [ 385/1000] HC   139090     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139091: no incidente in redirect (200 '')
+  [ 386/1000] HC   139091     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139092: no incidente in redirect (200 '')
+  [ 387/1000] HC   139092     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139093: no incidente in redirect (200 '')
+  [ 388/1000] HC   139093     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 389/1000] HC   139094     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 390/1000] HC   139095     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 391/1000] HC   139096     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 392/1000] HC   139097     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 393/1000] HC   139098     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 394/1000] HC   139099     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 395/1000] HC   139100     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 396/1000] HC   139101     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 397/1000] HC   139102     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 398/1000] HC   139103     1.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 399/1000] HC   139104     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 400/1000] HC   139105     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=335 fail=65 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 32.2 min
+  [ 401/1000] HC   139106     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 402/1000] HC   139107     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 403/1000] HC   139108     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 404/1000] HC   139109     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 405/1000] HC   139110     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 406/1000] HC   139111     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 407/1000] HC   139112     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 408/1000] HC   139113     2.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 409/1000] HC   139114     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 410/1000] HC   139115     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 411/1000] HC   139116     2.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 412/1000] HC   139117     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 413/1000] HC   139118     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 414/1000] HC   139119     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 415/1000] HC   139120     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 416/1000] HC   139121     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 417/1000] HC   139122     3.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 418/1000] HC   139123     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 419/1000] HC   139124     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 420/1000] HC   139125     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 421/1000] HC   139126     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 422/1000] HC   139127     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 423/1000] HC   139128     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 424/1000] HC   139129     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 425/1000] HC   139130     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=360 fail=65 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 30.8 min
+  [ 426/1000] HC   139131     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 427/1000] HC   139132     1.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 428/1000] HC   139133     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 429/1000] HC   139134     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 430/1000] HC   139135     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 431/1000] HC   139136     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 432/1000] HC   139137     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 433/1000] HC   139138     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 434/1000] HC   139139     4.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 435/1000] HC   139140     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 436/1000] HC   139141     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 437/1000] HC   139142     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 438/1000] HC   139143     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 439/1000] HC   139144     2.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 440/1000] HC   139145     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 441/1000] HC   139146     2.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 442/1000] HC   139147     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 443/1000] HC   139148     3.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 444/1000] HC   139149     1.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 445/1000] HC   139150     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 446/1000] HC   139151     2.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 447/1000] HC   139152     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 448/1000] HC   139153     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 449/1000] HC   139154     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 450/1000] HC   139155     1.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=385 fail=65 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 29.6 min
+  [ 451/1000] HC   139156     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 452/1000] HC   139157     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139158: no incidente in redirect (200 '')
+  [ 453/1000] HC   139158     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 454/1000] HC   139159     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139160: no incidente in redirect (200 '')
+  [ 455/1000] HC   139160     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 456/1000] HC   139161     2.26s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 457/1000] HC   139162     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 458/1000] HC   139163     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 459/1000] HC   139164     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 460/1000] HC   139165     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 461/1000] HC   139166     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 462/1000] HC   139167     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 463/1000] HC   139168     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 464/1000] HC   139169     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 465/1000] HC   139170     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 466/1000] HC   139171     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 467/1000] HC   139172     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 468/1000] HC   139173     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 469/1000] HC   139174     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 470/1000] HC   139175     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 471/1000] HC   139176     3.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 472/1000] HC   139177    31.94s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [ 473/1000] HC   139178     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 474/1000] HC   139179     2.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 475/1000] HC   139180     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=408 fail=67 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 28.7 min
+  [ 476/1000] HC   139181     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 477/1000] HC   139182     2.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 478/1000] HC   139183     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 479/1000] HC   139184     3.40s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 480/1000] HC   139185     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 481/1000] HC   139186     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 482/1000] HC   139187     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 483/1000] HC   139188     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 484/1000] HC   139189     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 485/1000] HC   139190     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 486/1000] HC   139191     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 487/1000] HC   139192     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 488/1000] HC   139193     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 489/1000] HC   139194     3.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 490/1000] HC   139195     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 491/1000] HC   139196     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 492/1000] HC   139197     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 493/1000] HC   139198     2.19s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 494/1000] HC   139199     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 495/1000] HC   139200     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 496/1000] HC   139201     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 497/1000] HC   139202     2.36s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 498/1000] HC   139203     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 499/1000] HC   139204     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 500/1000] HC   139205     2.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=433 fail=67 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 27.4 min
+  [ 501/1000] HC   139206     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 502/1000] HC   139207     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 503/1000] HC   139208     2.11s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 504/1000] HC   139209     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 505/1000] HC   139210     0.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 506/1000] HC   139211     1.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 507/1000] HC   139212     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 508/1000] HC   139213     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 509/1000] HC   139214     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 510/1000] HC   139215     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 511/1000] HC   139216     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 512/1000] HC   139217     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 513/1000] HC   139218     2.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 514/1000] HC   139219     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 515/1000] HC   139220     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 516/1000] HC   139221     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 517/1000] HC   139222     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 518/1000] HC   139223     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 519/1000] HC   139224     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 520/1000] HC   139225     3.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 521/1000] HC   139226     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 522/1000] HC   139227     2.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 523/1000] HC   139228     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 524/1000] HC   139229     2.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 525/1000] HC   139230     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=458 fail=67 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 26.0 min
+  [ 526/1000] HC   139231     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 527/1000] HC   139232     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 528/1000] HC   139233     3.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 529/1000] HC   139234     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 530/1000] HC   139235     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 531/1000] HC   139236     2.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 532/1000] HC   139237     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 533/1000] HC   139238     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 534/1000] HC   139239     2.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 535/1000] HC   139240     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 536/1000] HC   139241     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 537/1000] HC   139242     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 538/1000] HC   139243     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 539/1000] HC   139244     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 540/1000] HC   139245     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 541/1000] HC   139246     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 542/1000] HC   139247     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 543/1000] HC   139248     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 544/1000] HC   139249     1.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 545/1000] HC   139250     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 546/1000] HC   139251     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 547/1000] HC   139252     2.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 548/1000] HC   139253     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 549/1000] HC   139254     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 550/1000] HC   139255     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=483 fail=67 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 24.6 min
+  [ 551/1000] HC   139256     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 552/1000] HC   139257     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 553/1000] HC   139258     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 554/1000] HC   139259     2.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 555/1000] HC   139260     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 556/1000] HC   139261     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 557/1000] HC   139262     4.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 558/1000] HC   139263     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 559/1000] HC   139264     3.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 560/1000] HC   139265     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 561/1000] HC   139266     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 562/1000] HC   139267     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 563/1000] HC   139268     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 564/1000] HC   139269     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 565/1000] HC   139270     1.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 566/1000] HC   139271     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 567/1000] HC   139272     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 568/1000] HC   139273     5.24s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 569/1000] HC   139274     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 570/1000] HC   139275     2.59s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 571/1000] HC   139276     2.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 572/1000] HC   139277     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 573/1000] HC   139278     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 574/1000] HC   139279     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 575/1000] HC   139280     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=508 fail=67 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 23.3 min
+  [ 576/1000] HC   139281     3.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 577/1000] HC   139282     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 578/1000] HC   139283     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 579/1000] HC   139284     1.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 580/1000] HC   139285     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 581/1000] HC   139286     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 582/1000] HC   139287     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 583/1000] HC   139288    16.24s  status=ok     retries=403×4  diffs=0  anomalies=0
+  [ 584/1000] HC   139289     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 585/1000] HC   139290     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 586/1000] HC   139291     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 587/1000] HC   139292     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 588/1000] HC   139293     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 589/1000] HC   139294     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 590/1000] HC   139295     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 591/1000] HC   139296     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 592/1000] HC   139297     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 593/1000] HC   139298     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 594/1000] HC   139299     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 595/1000] HC   139300     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 596/1000] HC   139301     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 597/1000] HC   139302     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139303: no incidente in redirect (200 '')
+  [ 598/1000] HC   139303     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139304: no incidente in redirect (200 '')
+  [ 599/1000] HC   139304     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139305: no incidente in redirect (200 '')
+  [ 600/1000] HC   139305     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=530 fail=70 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 22.0 min
+WARNING:root:HC 139306: no incidente in redirect (200 '')
+  [ 601/1000] HC   139306     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139307: no incidente in redirect (200 '')
+  [ 602/1000] HC   139307     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139308: no incidente in redirect (200 '')
+  [ 603/1000] HC   139308     0.22s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139309: no incidente in redirect (200 '')
+  [ 604/1000] HC   139309     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139310: no incidente in redirect (200 '')
+  [ 605/1000] HC   139310     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139311: no incidente in redirect (200 '')
+  [ 606/1000] HC   139311     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139312: no incidente in redirect (200 '')
+  [ 607/1000] HC   139312     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139313: no incidente in redirect (200 '')
+  [ 608/1000] HC   139313     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139314: no incidente in redirect (200 '')
+  [ 609/1000] HC   139314     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139315: no incidente in redirect (200 '')
+  [ 610/1000] HC   139315     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139316: no incidente in redirect (200 '')
+  [ 611/1000] HC   139316     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139317: no incidente in redirect (200 '')
+  [ 612/1000] HC   139317     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139318: no incidente in redirect (200 '')
+  [ 613/1000] HC   139318     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 614/1000] HC   139319     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 615/1000] HC   139320     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 616/1000] HC   139321     1.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 617/1000] HC   139322     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 618/1000] HC   139323     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 619/1000] HC   139324     1.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 620/1000] HC   139325     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 621/1000] HC   139326     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 622/1000] HC   139327     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 623/1000] HC   139328     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 624/1000] HC   139329     2.73s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 625/1000] HC   139330     4.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=542 fail=83 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 20.5 min
+  [ 626/1000] HC   139331     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 627/1000] HC   139332     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 628/1000] HC   139333     1.23s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 629/1000] HC   139334     2.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 630/1000] HC   139335     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 631/1000] HC   139336     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 632/1000] HC   139337     1.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 633/1000] HC   139338     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 634/1000] HC   139339     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 635/1000] HC   139340     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 636/1000] HC   139341     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 637/1000] HC   139342     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 638/1000] HC   139343     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 639/1000] HC   139344     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 640/1000] HC   139345     4.47s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 641/1000] HC   139346     2.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 642/1000] HC   139347     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 643/1000] HC   139348     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 644/1000] HC   139349     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 645/1000] HC   139350     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 646/1000] HC   139351     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 647/1000] HC   139352     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 648/1000] HC   139353     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 649/1000] HC   139354     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 650/1000] HC   139355     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=567 fail=83 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 19.1 min
+  [ 651/1000] HC   139356     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 652/1000] HC   139357     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 653/1000] HC   139358     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 654/1000] HC   139359     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 655/1000] HC   139360     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 656/1000] HC   139361     1.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 657/1000] HC   139362     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 658/1000] HC   139363     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139364: no incidente in redirect (200 '')
+  [ 659/1000] HC   139364     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139365: no incidente in redirect (200 '')
+  [ 660/1000] HC   139365     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139366: no incidente in redirect (200 '')
+  [ 661/1000] HC   139366     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139367: no incidente in redirect (200 '')
+  [ 662/1000] HC   139367     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139368: no incidente in redirect (200 '')
+  [ 663/1000] HC   139368     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139369: no incidente in redirect (200 '')
+  [ 664/1000] HC   139369     0.21s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 665/1000] HC   139370     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 666/1000] HC   139371     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 667/1000] HC   139372     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 668/1000] HC   139373     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 669/1000] HC   139374     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 670/1000] HC   139375     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 671/1000] HC   139376     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 672/1000] HC   139377     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 673/1000] HC   139378     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 674/1000] HC   139379     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 675/1000] HC   139380     3.34s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=586 fail=89 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 17.6 min
+  [ 676/1000] HC   139381     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 677/1000] HC   139382     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 678/1000] HC   139383     1.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 679/1000] HC   139384     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 680/1000] HC   139385     2.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 681/1000] HC   139386     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 682/1000] HC   139387     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 683/1000] HC   139388     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 684/1000] HC   139389     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 685/1000] HC   139390     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 686/1000] HC   139391     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 687/1000] HC   139392     3.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 688/1000] HC   139393     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 689/1000] HC   139394     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 690/1000] HC   139395     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 691/1000] HC   139396     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 692/1000] HC   139397     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 693/1000] HC   139398     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 694/1000] HC   139399     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 695/1000] HC   139400     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 696/1000] HC   139401     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139402: no incidente in redirect (200 '')
+  [ 697/1000] HC   139402     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139403: no incidente in redirect (200 '')
+  [ 698/1000] HC   139403     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139404: no incidente in redirect (200 '')
+  [ 699/1000] HC   139404     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139405: no incidente in redirect (200 '')
+  [ 700/1000] HC   139405     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=607 fail=93 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 16.2 min
+WARNING:root:HC 139406: no incidente in redirect (200 '')
+  [ 701/1000] HC   139406     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139407: no incidente in redirect (200 '')
+  [ 702/1000] HC   139407     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139408: no incidente in redirect (200 '')
+  [ 703/1000] HC   139408     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139409: no incidente in redirect (200 '')
+  [ 704/1000] HC   139409     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139410: no incidente in redirect (200 '')
+  [ 705/1000] HC   139410     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139411: no incidente in redirect (200 '')
+  [ 706/1000] HC   139411     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139412: no incidente in redirect (200 '')
+  [ 707/1000] HC   139412     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139413: no incidente in redirect (200 '')
+  [ 708/1000] HC   139413     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139414: no incidente in redirect (200 '')
+  [ 709/1000] HC   139414     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 710/1000] HC   139415     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 711/1000] HC   139416     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 712/1000] HC   139417     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 713/1000] HC   139418     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 714/1000] HC   139419     3.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 715/1000] HC   139420     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 716/1000] HC   139421     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 717/1000] HC   139422     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 718/1000] HC   139423     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 719/1000] HC   139424     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 720/1000] HC   139425     1.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 721/1000] HC   139426     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 722/1000] HC   139427     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 723/1000] HC   139428     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 724/1000] HC   139429     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 725/1000] HC   139430     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=623 fail=102 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 14.8 min
+  [ 726/1000] HC   139431     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 727/1000] HC   139432     1.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 728/1000] HC   139433     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 729/1000] HC   139434     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 730/1000] HC   139435     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 731/1000] HC   139436     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 732/1000] HC   139437     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 733/1000] HC   139438     3.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 734/1000] HC   139439     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 735/1000] HC   139440     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 736/1000] HC   139441     4.34s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 737/1000] HC   139442     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 738/1000] HC   139443     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 739/1000] HC   139444     2.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 740/1000] HC   139445     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 741/1000] HC   139446     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 742/1000] HC   139447     3.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 743/1000] HC   139448     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 744/1000] HC   139449     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 745/1000] HC   139450     2.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 746/1000] HC   139451     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 747/1000] HC   139452     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 748/1000] HC   139453     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 749/1000] HC   139454     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 750/1000] HC   139455     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=648 fail=102 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 13.4 min
+  [ 751/1000] HC   139456     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 752/1000] HC   139457     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 753/1000] HC   139458     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 754/1000] HC   139459     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 755/1000] HC   139460     1.57s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 756/1000] HC   139461     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 757/1000] HC   139462     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 758/1000] HC   139463     2.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 759/1000] HC   139464     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 760/1000] HC   139465     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 761/1000] HC   139466     2.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 762/1000] HC   139467     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 763/1000] HC   139468     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 764/1000] HC   139469     1.39s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 765/1000] HC   139470     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 766/1000] HC   139471     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 767/1000] HC   139472     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 768/1000] HC   139473     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 769/1000] HC   139474     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 770/1000] HC   139475     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 771/1000] HC   139476     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 772/1000] HC   139477     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 773/1000] HC   139478     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 774/1000] HC   139479     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 775/1000] HC   139480     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=673 fail=102 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 12.1 min
+  [ 776/1000] HC   139481     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 777/1000] HC   139482     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 778/1000] HC   139483     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 779/1000] HC   139484     1.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 780/1000] HC   139485     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 781/1000] HC   139486     1.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 782/1000] HC   139487     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139488: no incidente in redirect (200 '')
+  [ 783/1000] HC   139488     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 784/1000] HC   139489     3.39s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 785/1000] HC   139490     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 786/1000] HC   139491     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 787/1000] HC   139492     2.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 788/1000] HC   139493     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 789/1000] HC   139494     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 790/1000] HC   139495     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 791/1000] HC   139496     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 792/1000] HC   139497     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 793/1000] HC   139498     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 794/1000] HC   139499     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 795/1000] HC   139500     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 796/1000] HC   139501     1.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 797/1000] HC   139502     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 798/1000] HC   139503     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 799/1000] HC   139504     3.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 800/1000] HC   139505     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=697 fail=103 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 10.7 min
+  [ 801/1000] HC   139506     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 802/1000] HC   139507     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 803/1000] HC   139508     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 804/1000] HC   139509     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 805/1000] HC   139510     5.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 806/1000] HC   139511    32.11s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [ 807/1000] HC   139512     1.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 808/1000] HC   139513     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 809/1000] HC   139514     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 810/1000] HC   139515     2.26s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 811/1000] HC   139516     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 812/1000] HC   139517     2.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 813/1000] HC   139518     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 814/1000] HC   139519     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 815/1000] HC   139520     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 816/1000] HC   139521     2.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 817/1000] HC   139522     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 818/1000] HC   139523     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 819/1000] HC   139524     2.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 820/1000] HC   139525     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 821/1000] HC   139526     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 822/1000] HC   139527     2.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 823/1000] HC   139528     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 824/1000] HC   139529     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 825/1000] HC   139530     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=722 fail=103 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 9.5 min
+  [ 826/1000] HC   139531     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 827/1000] HC   139532     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 828/1000] HC   139533     2.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 829/1000] HC   139534     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 830/1000] HC   139535     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 831/1000] HC   139536     2.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 832/1000] HC   139537     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 833/1000] HC   139538     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 834/1000] HC   139539     1.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 835/1000] HC   139540     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 836/1000] HC   139541     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 837/1000] HC   139542     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139543: no incidente in redirect (200 '')
+  [ 838/1000] HC   139543     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139544: no incidente in redirect (200 '')
+  [ 839/1000] HC   139544     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139545: no incidente in redirect (200 '')
+  [ 840/1000] HC   139545     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139546: no incidente in redirect (200 '')
+  [ 841/1000] HC   139546     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139547: no incidente in redirect (200 '')
+  [ 842/1000] HC   139547     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139548: no incidente in redirect (200 '')
+  [ 843/1000] HC   139548     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139549: no incidente in redirect (200 '')
+  [ 844/1000] HC   139549     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139550: no incidente in redirect (200 '')
+  [ 845/1000] HC   139550     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139551: no incidente in redirect (200 '')
+  [ 846/1000] HC   139551     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139552: no incidente in redirect (200 '')
+  [ 847/1000] HC   139552     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 848/1000] HC   139553     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 849/1000] HC   139554     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 850/1000] HC   139555     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=737 fail=113 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 8.1 min
+  [ 851/1000] HC   139556     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 852/1000] HC   139557     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 853/1000] HC   139558     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 854/1000] HC   139559     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 855/1000] HC   139560     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 856/1000] HC   139561     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 857/1000] HC   139562     2.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 858/1000] HC   139563     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 859/1000] HC   139564     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 860/1000] HC   139565     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 861/1000] HC   139566     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 862/1000] HC   139567     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 863/1000] HC   139568     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 864/1000] HC   139569     2.18s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 865/1000] HC   139570     2.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 866/1000] HC   139571     3.42s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139572: no incidente in redirect (200 '')
+  [ 867/1000] HC   139572     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 868/1000] HC   139573     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 869/1000] HC   139574     2.26s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 870/1000] HC   139575     3.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 871/1000] HC   139576     2.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 872/1000] HC   139577     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 873/1000] HC   139578     3.53s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139579: no incidente in redirect (200 '')
+  [ 874/1000] HC   139579     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 875/1000] HC   139580     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=760 fail=115 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 6.8 min
+  [ 876/1000] HC   139581     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 877/1000] HC   139582     1.40s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 878/1000] HC   139583     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 879/1000] HC   139584     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 880/1000] HC   139585     1.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 881/1000] HC   139586     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 882/1000] HC   139587     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 883/1000] HC   139588     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 884/1000] HC   139589     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 885/1000] HC   139590     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 886/1000] HC   139591     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 887/1000] HC   139592     2.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 888/1000] HC   139593     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 889/1000] HC   139594     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 890/1000] HC   139595     2.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 891/1000] HC   139596     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 892/1000] HC   139597     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 893/1000] HC   139598     1.50s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 894/1000] HC   139599     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 895/1000] HC   139600     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 896/1000] HC   139601     1.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 897/1000] HC   139602     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 898/1000] HC   139603     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139604: no incidente in redirect (200 '')
+  [ 899/1000] HC   139604     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139605: no incidente in redirect (200 '')
+  [ 900/1000] HC   139605     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=783 fail=117 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 5.4 min
+  [ 901/1000] HC   139606     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 902/1000] HC   139607     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 903/1000] HC   139608     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 904/1000] HC   139609     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 905/1000] HC   139610     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 906/1000] HC   139611     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 907/1000] HC   139612     1.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 908/1000] HC   139613     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 909/1000] HC   139614     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 910/1000] HC   139615     1.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 911/1000] HC   139616     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 912/1000] HC   139617     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 913/1000] HC   139618     3.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 914/1000] HC   139619     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 915/1000] HC   139620     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 916/1000] HC   139621     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 917/1000] HC   139622     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 918/1000] HC   139623     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 919/1000] HC   139624     1.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 920/1000] HC   139625     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 139626: no incidente in redirect (200 '')
+  [ 921/1000] HC   139626     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 139627: no incidente in redirect (200 '')
+  [ 922/1000] HC   139627     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 923/1000] HC   139628     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 924/1000] HC   139629     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 925/1000] HC   139630     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=806 fail=119 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 4.1 min
+  [ 926/1000] HC   139631     3.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 927/1000] HC   139632     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 928/1000] HC   139633     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 929/1000] HC   139634     1.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 930/1000] HC   139635     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 931/1000] HC   139636     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 932/1000] HC   139637     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 933/1000] HC   139638     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 934/1000] HC   139639     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 935/1000] HC   139640     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 936/1000] HC   139641     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 937/1000] HC   139642     0.58s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 938/1000] HC   139643     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 939/1000] HC   139644     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 940/1000] HC   139645     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 941/1000] HC   139646     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 942/1000] HC   139647     2.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 943/1000] HC   139648     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 944/1000] HC   139649     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 945/1000] HC   139650     1.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 946/1000] HC   139651     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 947/1000] HC   139652     2.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 948/1000] HC   139653     1.40s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 949/1000] HC   139654     2.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 950/1000] HC   139655     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=831 fail=119 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 2.7 min
+  [ 951/1000] HC   139656     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 952/1000] HC   139657     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 953/1000] HC   139658     2.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 954/1000] HC   139659     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 955/1000] HC   139660     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 956/1000] HC   139661     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 957/1000] HC   139662     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 958/1000] HC   139663     2.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 959/1000] HC   139664     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 960/1000] HC   139665     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 961/1000] HC   139666     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 962/1000] HC   139667     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 963/1000] HC   139668     2.23s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 964/1000] HC   139669     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 965/1000] HC   139670     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 966/1000] HC   139671     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 967/1000] HC   139672     3.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 968/1000] HC   139673     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 969/1000] HC   139674     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 970/1000] HC   139675     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 971/1000] HC   139676     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 972/1000] HC   139677     2.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 973/1000] HC   139678     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 974/1000] HC   139679     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 975/1000] HC   139680     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=856 fail=119 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 1.4 min
+  [ 976/1000] HC   139681    16.09s  status=ok     retries=403×16  diffs=0  anomalies=0
+  [ 977/1000] HC   139682     1.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 978/1000] HC   139683     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 979/1000] HC   139684     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 980/1000] HC   139685     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 981/1000] HC   139686     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 982/1000] HC   139687     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 983/1000] HC   139688     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 984/1000] HC   139689     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 985/1000] HC   139690     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 986/1000] HC   139691     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 987/1000] HC   139692     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 988/1000] HC   139693     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 989/1000] HC   139694     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 990/1000] HC   139695     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 991/1000] HC   139696     1.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 992/1000] HC   139697     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 993/1000] HC   139698     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 994/1000] HC   139699     3.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 995/1000] HC   139700     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 996/1000] HC   139701     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 997/1000] HC   139702     1.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 998/1000] HC   139703     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 999/1000] HC   139704     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [1000/1000] HC   139705     1.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=881 fail=119 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 0.0 min
+
+summary: ok=881 fail=119 error=0 skipped=0 429×0 5xx×0
+  state:  docs/sweep-results/2026-04-17-R-hc-138706-139705/sweep.state.json
+  log:    docs/sweep-results/2026-04-17-R-hc-138706-139705/sweep.log.jsonl
+  errors: docs/sweep-results/2026-04-17-R-hc-138706-139705/sweep.errors.jsonl
+  report: docs/sweep-results/2026-04-17-R-hc-138706-139705/report.md
