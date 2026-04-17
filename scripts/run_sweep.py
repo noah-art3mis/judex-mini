@@ -157,10 +157,14 @@ def install_retry_counter() -> RetryCounter:
 
 
 class CircuitBreaker:
-    """Abort a sweep early if recent failures exceed a threshold.
+    """Abort a sweep early if the recent exception rate exceeds a threshold.
 
-    Tracks the last `window` process statuses; trips when the non-ok
-    fraction of a full window strictly exceeds `threshold`.
+    Tracks the last `window` process statuses; trips when the *error*
+    fraction of a full window strictly exceeds `threshold`. Only
+    status="error" (thrown exception — HTTP 403/5xx, connection errors)
+    counts. status="fail" means STF returned 200 for a non-existent
+    process, which is expected for sparse numbering ranges and should
+    not trip the breaker.
     """
 
     def __init__(self, window: int, threshold: float) -> None:
@@ -174,7 +178,7 @@ class CircuitBreaker:
     def tripped(self) -> bool:
         if len(self._recent) < self.window:
             return False
-        errors = sum(1 for s in self._recent if s != "ok")
+        errors = sum(1 for s in self._recent if s == "error")
         return errors / self.window > self.threshold
 
 

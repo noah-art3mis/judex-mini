@@ -198,12 +198,24 @@ def test_circuit_breaker_rolling_window_recovers_after_ok_streak():
     assert not cb.tripped()
 
 
-def test_circuit_breaker_treats_fail_as_non_ok():
+def test_circuit_breaker_does_not_trip_on_fails():
+    # "fail" = STF returned 200 for a non-existent process (expected on
+    # sparse numbering ranges). Only thrown exceptions ("error") count.
     cb = CircuitBreaker(window=4, threshold=0.5)
-    cb.record("ok")
     cb.record("fail")
     cb.record("fail")
     cb.record("fail")
+    cb.record("fail")
+    assert not cb.tripped()
+
+
+def test_circuit_breaker_trips_on_errors_ignoring_fails():
+    cb = CircuitBreaker(window=4, threshold=0.5)
+    cb.record("fail")
+    cb.record("error")
+    cb.record("error")
+    cb.record("error")
+    # 3 errors / 4 = 75% > 50% → trips. `fail` is benign.
     assert cb.tripped()
 
 

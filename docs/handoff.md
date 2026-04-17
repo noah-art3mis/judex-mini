@@ -282,6 +282,27 @@ Sweep output directory layout:
     report.md            human-readable summary
 ```
 
+**Stopping a running sweep cleanly.** The driver installs SIGINT/SIGTERM
+handlers (`scripts/run_sweep.py:517-524`). On signal it finishes the
+in-flight process, breaks the loop, then writes `sweep.errors.jsonl` +
+`report.md` and exits with its normal status code.
+
+```bash
+# find the python process
+ps -ef | grep run_sweep | grep -v grep
+
+# clean stop (preferred) — finishes the in-flight process, writes all files
+kill -TERM <pid>
+
+# or Ctrl-C if the sweep is in the foreground (same SIGINT path)
+```
+
+`SIGKILL` (`kill -9`) is a last resort: per-record writes are atomic so
+`sweep.log.jsonl` + `sweep.state.json` are always consistent and the run
+is resumable via `--resume`, but `sweep.errors.jsonl` and `report.md`
+won't be written. A `--resume` run (even one that skips everything)
+regenerates both at its end.
+
 ## Files you probably need to touch first
 
 - `src/scraper_http.py` — HTTP orchestrator, `fetch_process`, `scrape_processo_http`, retry helper (incl. 403 opt-in), PDF/sessão fetcher factories
