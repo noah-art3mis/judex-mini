@@ -1,7 +1,7 @@
 # G — HC density probe (stratified sampling, 1..270072)
 
 **Date**: 2026-04-16
-**Script**: `analysis/class_density_probe.py --classe HC`
+**Script**: `scripts/class_density_probe.py --classe HC`
 **Approach**: Stratified random sampling across 8 bands of the HC
 process_id space; each probe is a single GET to
 `portal.stf.jus.br/processos/listarProcessos.asp`.
@@ -95,10 +95,10 @@ HC deep dive:
 ## Reproducing
 
 ```bash
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe HC
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe HC --samples 30 --pacing 1.0
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe ADI
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe RE
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe HC
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe HC --samples 30 --pacing 1.0
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe ADI
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe RE
 ```
 
 The script is under `analysis/` (git-ignored scratch) because it's a

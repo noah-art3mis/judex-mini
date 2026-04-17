@@ -13,6 +13,106 @@ Start by reading `docs/perf-bulk-data.md` for the original investigation (DataJu
 - **Sweeps write a directory**, not a file (`<out>/sweep.log.jsonl` + `sweep.state.json` + `sweep.errors.jsonl` + `report.md`). Old sweep A/B reports are single `.md` files from the pre-state driver; they stay as-is.
 - **Calculations in this doc were re-run with python** as of the `acac647` commit. Any new numbers you add should follow the same rule.
 
+## HC who-wins — investigation-strand layout (2026-04-17)
+
+Reorganised the `analysis/` marimo notebooks around a hub-and-strand
+pattern. `hc_explorer.py` is the hub (existing — case drilldown,
+EB-shrunk lawyer/minister grant rates, affinity heatmap, narrative
+deep dives on Gilmar's Súmula-691 exception and the Alexandre de
+Moraes / Defensoria-MG archetypes). Four narrow sibling notebooks,
+each answering one question, each pointing back at the hub:
+
+| Notebook | Question |
+| --- | --- |
+| `hc_explorer.py` | Hub. Full treatment + case drilldown. Now carries an **Investigation index** cell near the top. |
+| `hc_famous_lawyers.py` | Do marquee criminal-defense lawyers (Toron, Bottini, Kakay, …) show up in HCs, with what outcomes? |
+| `hc_top_volume.py` | Who files the most HCs? HC-mill practices + Defensoria breakdown + OAB-state geography. |
+| `hc_minister_archetypes.py` | Stacked wins / losses / procedural bar per minister — grantor vs denier vs gatekeeper at a glance. |
+| `hc_admissibility.py` | Who reaches the merits? `nao_conhecido` rate per minister. |
+
+`analysis/` is git-ignored scratch so these won't be on a fresh
+checkout — recreate from this doc if needed. The earlier
+`hc_deep_dive.py` is deleted (it duplicated the hub).
+
+**How the slicing was chosen.** The lawyer-side splits into "famous
+name matching" (curated list) and "volume-by-count" (raw impetrante
+ranking) — different populations, different dedup strategies, so
+different notebooks. The minister-side splits into "how do they
+dispose of cases" (3-way disposition shape) and "do they reach the
+merits" (admissibility gate) — orthogonal axes that jointly
+generate the archetype story.
+
+Ran against `output/sample/hc_*` — 8 954 HCs across the sampled
+ranges (2023-vintage dominated).
+
+**Findings (sample-conditional, write up with appropriate hedges):**
+
+1. **Public defenders dominate volume.** DPU 591, DPE-SP 287, DPE-MG
+   74. Any private lawyer is a rounding error against the Defensoria
+   baseline.
+2. **Top-volume *private* impetrantes are HC-mill practices, not
+   marquee names.** Victor Hugo Anuvale Rodrigues tops the list at
+   ~86 (solo + "E Outro" folded); Cicero Salum do Amaral Lincoln 70;
+   Fábio Rogério Donadon Costa 50. Fav% near the corpus baseline.
+3. **Marquee criminal-bar lawyers file in single digits** on this
+   HC sample. Toron 11; Bottini 6; Pedro M. de Almeida Castro
+   (Kakay firm) 2; everyone else ≤ 2. Famous ≠ volume at STF.
+4. **Minister identity dominates lawyer identity for HC grant rate.**
+   Once per-minister cells are restricted to ≥ 3 merits decisions,
+   the famous list empties out entirely — only the Defensorias have
+   enough volume to read a pattern per relator. What shows up there
+   (see `hc_minister_archetypes.py` + `hc_admissibility.py`):
+   - Fachin, Celso de Mello: 67–100 % for Defensorias.
+   - Toffoli, Barroso: 70–80 % for DPU.
+   - Gilmar, Lewandowski, Cármen: baseline (~25–50 %).
+   - **Alexandre de Moraes: 5 % (2/38) for DPU, 7 % (1/14) for
+     DPE-SP.** Same counsel, same pleadings, ~15× spread across
+     ministers.
+   Implication: at this sample size the relator draw is a larger
+   factor than counsel. The famous-lawyer premium (if real) is
+   invisible. Hub notebook `hc_explorer.py` already had the
+   narrative treatment of this (archetype section + Alexandre
+   opposite-of-Gilmar case study); the new sibling notebooks
+   add a stacked-bar visualisation (`hc_minister_archetypes.py`)
+   and the pure admissibility axis (`hc_admissibility.py`).
+5. **Admissibility rate spans 4 %–98 % across relators.** Marco
+   Aurélio engages on merits for ~96 % of his HCs; the Ministro
+   Presidente bucket dismisses ~98 % procedurally. Same outcome
+   label ("low grant rate") can mean completely different things
+   — see `hc_admissibility.py`.
+6. **Caveats bank**: ~68 % of STF HCs end in `nao_conhecido` (not
+   heard on merits), so `N` overstates the decidable sample.
+   Substring name-matching means "ALMEIDA CASTRO" picks up multiple
+   lawyers at a firm; we narrowed to "PEDRO MACHADO DE ALMEIDA
+   CASTRO". Selection bias uncontrolled — lawyers self-select into
+   case types. Not causal.
+
+**Doesn't block scraping**; the sample corpus is adequate for the
+current question. Expanding to RHC or AP would give more coverage of
+the marquee criminal bar (Toron, Bottini et al. more likely to appear
+in criminal appeals than in HCs).
+
+**Non-notebook utilities promoted out of `analysis/`** (2026-04-17):
+
+- `scripts/class_density_probe.py` (was `analysis/class_density_probe.py`)
+  — CLI probe; lives alongside `scripts/run_sweep.py`.
+- `src/utils/hc_calendar.py` + `src/utils/hc_id_to_date.json`
+  (were `analysis/hc_calendar.py` + `analysis/hc_id_to_date.json`)
+  — importable calendar utility; `from src.utils.hc_calendar import
+  id_to_date, year_to_id_range`.
+
+`analysis/` now contains only marimo notebooks + `_stats.py` (shared
+stats helpers for the notebooks).
+
+**Still flagged, not acted on** — confirm before deleting:
+
+- `analyse.ipynb` (334 KB), `andamentos.ipynb` (67 KB),
+  `andamentos_cluster.ipynb` (35 MB) at the project root are
+  **tracked in git** but look like pre-handoff exploration. The 35 MB
+  andamentos_cluster.ipynb in particular is a big git-LFS-shaped
+  problem. Candidates for either cleaning outputs + committing
+  skinny versions, or moving to `analysis/`.
+
 ## What happened since the last handoff
 
 **Validation sweeps A, B, C completed** (`docs/sweep-results/2026-04-16-{A,B,C}-*`):
@@ -66,8 +166,8 @@ intake. Linear scan-down from 271,000 is a ~10-probe refresh.
 
 Density probe for ADI or RE is a 3-minute run:
 ```bash
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe ADI
-PYTHONPATH=. uv run python analysis/class_density_probe.py --classe RE
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe ADI
+PYTHONPATH=. uv run python scripts/class_density_probe.py --classe RE
 ```
 
 Practical starting point: **probe sweep on HCs 1..1000** (first thousand, low-numbered historical cases) plus one near the top (269000..270000) to validate the parser holds across eras. ~50 min each with the validated defaults:

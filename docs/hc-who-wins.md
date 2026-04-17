@@ -122,7 +122,7 @@ pointed at sweep H only.
 - **Stratified follow-up sweep B** (100 HCs / year × 15 years) is
   still on the table. If the 2023 slice shows meaningful era drift
   against the sweep H parser sanity check, B becomes more valuable.
-  Ranges are in `analysis/hc_calendar.py::year_to_id_range`.
+  Ranges are in `src/utils/hc_calendar.py::year_to_id_range`.
 - **Full HC backfill** (~216 k extant cases, ~215 h wall time per
   handoff § size estimate) is the long-term ask but not blocked on
   this analysis. The who-wins plot quality at 1000 cases will tell
