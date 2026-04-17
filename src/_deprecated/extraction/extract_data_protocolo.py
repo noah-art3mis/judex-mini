@@ -5,7 +5,7 @@ Extract data_protocolo from process data
 from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.utils.get_element import find_element_by_xpath
+from src._deprecated.utils.get_element import find_element_by_xpath
 from src.utils.text_utils import normalize_spaces
 from src.utils.timing import track_extraction_timing
 

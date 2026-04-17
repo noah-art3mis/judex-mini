@@ -5,7 +5,6 @@ from datetime import datetime
 import typer
 
 from src.config import ScraperConfig
-from src.scraper import run_scraper
 from src.scraper_http import run_scraper_http
 from src.testing.ground_truth_test import test_ground_truth
 from src.utils.validation import (
@@ -15,12 +14,19 @@ from src.utils.validation import (
     validate_test_format,
 )
 
-BACKENDS = ("selenium", "http")
+BACKENDS = ("http",)
 
 app = typer.Typer(add_completion=False)
 
 
 def _validate_backend(backend: str) -> None:
+    if backend == "selenium":
+        raise typer.BadParameter(
+            "--backend selenium is deprecated. The Selenium scraper "
+            "moved to src/_deprecated/scraper.py on 2026-04-17. Use "
+            "--backend http (the new default), or pin a pre-2026-04-17 "
+            "release if you need the Selenium path."
+        )
     if backend not in BACKENDS:
         raise typer.BadParameter(
             f"Invalid backend: {backend!r}. Must be one of {BACKENDS}."
@@ -64,9 +70,11 @@ def main(
         help="Directory containing ground truth files",
     ),
     backend: str = typer.Option(
-        "selenium",
+        "http",
         "--backend",
-        help="Scraper backend: 'selenium' (default) or 'http' (faster, no browser).",
+        help="Scraper backend. Only 'http' is supported; the legacy "
+             "Selenium backend was deprecated on 2026-04-17 and lives "
+             "under src/_deprecated/.",
     ),
     fetch_pdfs: bool = typer.Option(
         True,
@@ -91,7 +99,6 @@ def main(
         ],
     )
 
-    logging.getLogger("selenium").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("pypdf").setLevel(logging.ERROR)
 
@@ -105,27 +112,16 @@ def main(
     logging.info(f"Logging to: {log_file}")
     logging.info(f"Backend: {backend}")
 
-    if backend == "http":
-        run_scraper_http(
-            classe=classe,
-            processo_inicial=processo_inicial,
-            processo_final=processo_final,
-            output_format=output_format,
-            output_dir=output_dir,
-            overwrite=overwrite,
-            config=ScraperConfig(),
-            fetch_pdfs=fetch_pdfs,
-        )
-    else:
-        run_scraper(
-            classe=classe,
-            processo_inicial=processo_inicial,
-            processo_final=processo_final,
-            output_format=output_format,
-            output_dir=output_dir,
-            overwrite=overwrite,
-            config=ScraperConfig(),
-        )
+    run_scraper_http(
+        classe=classe,
+        processo_inicial=processo_inicial,
+        processo_final=processo_final,
+        output_format=output_format,
+        output_dir=output_dir,
+        overwrite=overwrite,
+        config=ScraperConfig(),
+        fetch_pdfs=fetch_pdfs,
+    )
 
     logging.info("🎉 Finished processing all processes!")
 

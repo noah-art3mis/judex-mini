@@ -15,30 +15,30 @@ from src.data.export import export_item
 from src.data.missing import check_missing_processes
 from src.data.output import OutputConfig
 from src.data.types import StfItem
-from src.extraction.extract_andamentos import extract_andamentos
-from src.extraction.extract_assuntos import extract_assuntos
-from src.extraction.extract_badges import extract_badges
-from src.extraction.extract_data_protocolo import extract_data_protocolo
-from src.extraction.extract_deslocamentos import extract_deslocamentos
-from src.extraction.extract_incidente import extract_incidente
+from src._deprecated.extraction.extract_andamentos import extract_andamentos
+from src._deprecated.extraction.extract_assuntos import extract_assuntos
+from src._deprecated.extraction.extract_badges import extract_badges
+from src._deprecated.extraction.extract_data_protocolo import extract_data_protocolo
+from src._deprecated.extraction.extract_deslocamentos import extract_deslocamentos
+from src._deprecated.extraction.extract_incidente import extract_incidente
 from src.extraction.extract_meio import extract_meio
-from src.extraction.extract_numero_origem import extract_numero_origem
+from src._deprecated.extraction.extract_numero_origem import extract_numero_origem
 from src.extraction.extract_numero_unico import extract_numero_unico
-from src.extraction.extract_orgao_origem import extract_orgao_origem
-from src.extraction.extract_origem import extract_origem
-from src.extraction.extract_partes import extract_partes
-from src.extraction.extract_peticoes import extract_peticoes
-from src.extraction.extract_primeiro_autor import extract_primeiro_autor
+from src._deprecated.extraction.extract_orgao_origem import extract_orgao_origem
+from src._deprecated.extraction.extract_origem import extract_origem
+from src._deprecated.extraction.extract_partes import extract_partes
+from src._deprecated.extraction.extract_peticoes import extract_peticoes
+from src._deprecated.extraction.extract_primeiro_autor import extract_primeiro_autor
 from src.extraction.extract_publicidade import extract_publicidade
-from src.extraction.extract_recursos import extract_recursos
+from src._deprecated.extraction.extract_recursos import extract_recursos
 from src.extraction.extract_relator import extract_relator
-from src.extraction.extract_sessao_virtual import extract_sessao_virtual
-from src.extraction.extract_volumes_folhas_apensos import (
+from src._deprecated.extraction.extract_sessao_virtual import extract_sessao_virtual
+from src._deprecated.extraction.extract_volumes_folhas_apensos import (
     extract_apensos,
     extract_folhas,
     extract_volumes,
 )
-from src.utils.driver import get_driver, load_page_with_retry
+from src._deprecated.utils.driver import get_driver, load_page_with_retry
 from src.utils.text_utils import normalize_spaces
 from src.utils.timing import ProcessTimer, track_extraction_timing
 

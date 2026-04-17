@@ -16,12 +16,14 @@ dependencies = [
     "pypdf>=6.1.2",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
-    "selenium>=4.37.0",
     "striprtf>=0.0.29",
     "tenacity>=9.1.2",
     "typer>=0.19.2",
     "umap-learn>=0.5.9.post2",
 ]
+
+[project.optional-dependencies]
+selenium-legacy = ["selenium>=4.37.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

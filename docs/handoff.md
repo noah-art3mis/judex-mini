@@ -258,7 +258,7 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
   - `scrape_processo_http` fetches detalhe + 9 tabs concurrently, derives `tema` from abaSessao, then hits the repgeral JSON endpoints for `sessao_virtual` and (when `fetch_pdfs=True`) fetches+extracts each Relatório/Voto PDF.
 - `src/extraction_http_sessao.py` — pure parsers (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`) plus the `extract_sessao_virtual_from_json` orchestrator. Fetchers are dependency-injected for testability.
 - `src/utils/pdf_cache.py` — URL-keyed PDF text cache under `.cache/pdf/<sha1>.txt.gz`. ADI 2820 cold ≈ 12.9s → cached ≈ 0.18s.
-- `src/data/missing.py` — `check_missing_processes` lives here now (was in `src/scraper.py`). Backend-neutral.
+- `src/data/missing.py` — `check_missing_processes` lives here now (was in `src/_deprecated/scraper.py`). Backend-neutral.
 - `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper_http` loads 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
 - `tests/unit/` — **48 unit tests** covering retry semantics (incl. 403 opt-in), CLI dispatch, PDF cache, sessao_virtual parsers, sweep state recovery + atomic writes, CSV parsing, exception classification. `uv run pytest tests/unit/`.
 - `scripts/validate_ground_truth.py` — still the source of truth for HTTP parity. 4/5 MATCH; ACO_2652 shows two pre-existing diffs (assuntos drift on the live site, `pautas: null` vs `[]`). `sessao_virtual` is a SKIP field so it doesn't participate — parsers are validated by the unit tests instead.
@@ -298,15 +298,22 @@ Sweep C's `docs/sweep-results/2026-04-16-C-full-1000.md` predates the robust dri
 
 Either works. The first is more honest about wall time; the second is faster to start.
 
-### 4. Retire the Selenium path
+### 4. Retire the Selenium path — DONE 2026-04-17
 
-After the measurement settles:
+Phase 1 of `docs/superpowers/specs/2026-04-17-selenium-retirement.md`
+landed: 19 files moved to `src/_deprecated/`, `main.py` defaults to
+`--backend http`, `--backend selenium` errors with a deprecation
+message, `selenium` moved to the `[selenium-legacy]` opt-in extra.
+158/158 unit tests green post-move.
 
-- Delete `src/scraper.py`, `src/utils/driver.py`, `src/utils/get_element.py`.
-- Drop `selenium` from `pyproject.toml`.
-- In `src/extraction/`: many extractors are still Selenium-bound (`extract_andamentos.py`, `extract_assuntos.py`, `extract_deslocamentos.py`, `extract_peticoes.py`, `extract_recursos.py`, `extract_partes.py` old bs4 path, `extract_primeiro_autor.py`, `extract_sessao_virtual.py`, `extract_orgao_origem.py`, `extract_data_protocolo.py`, `extract_numero_origem.py`, `extract_volumes_folhas_apensos.py`, `extract_origem.py`, `extract_incidente.py`, `extract_badges.py`). Pure-soup ones (`extract_classe.py`, `extract_meio.py`, `extract_numero_unico.py`, `extract_publicidade.py`, `extract_relator.py`) are imported by `src/extraction_http.py` — keep those.
-- **Surfaced during sweeps**: `src/extraction/extract_recursos.py:39` emits `{"index": …}` but the ground-truth fixtures and HTTP extractor emit `{"id": …}`. This is a real Selenium-side inconsistency (see sweep B/C diffs). Deleting the Selenium path resolves it.
-- `src/extraction/__init__.py` is already empty; no further `__init__` cleanup needed.
+Phase 2 (re-capture ground-truth fixtures under HTTP, audit
+`_deprecated/` self-containment) and Phase 3 (CI check that no live
+file imports from `src._deprecated`) still pending.
+
+**`recursos[].id` vs `recursos[].index`** is now moot — the
+selenium-side `index` emission lives at
+`src/_deprecated/extraction/extract_recursos.py` and isn't imported
+by any live code path.
 
 ### 5. PDF extraction quality
 
@@ -318,8 +325,8 @@ Currently PDFs go through `pypdf.PdfReader.extract_text(extraction_mode="layout"
 
 Surfaced during the dedup review; untouched because the Selenium path has no automated coverage:
 
-- `src/extraction/extract_peticoes.py:28-30`: `data_match` is assigned from `bg-font-info` on line 28, then immediately overwritten by `processo-detalhes` on line 30. The first match is dead.
-- `src/extraction/extract_deslocamentos.py:113-152`: `_clean_extracted_data` looks dead — `_clean_data_fields` is the one called from `_extract_single_deslocamento`. Verify with grep.
+- `src/_deprecated/extraction/extract_peticoes.py:28-30`: `data_match` is assigned from `bg-font-info` on line 28, then immediately overwritten by `processo-detalhes` on line 30. The first match is dead.
+- `src/_deprecated/extraction/extract_deslocamentos.py:113-152`: `_clean_extracted_data` looks dead — `_clean_data_fields` is the one called from `_extract_single_deslocamento`. Verify with grep.
 - `src/data/types.py:47-78`: commented-out dataclasses. Git remembers; delete.
 
 Not blocking. Clean up if you're already in those files. Safe to defer until Step 2 deletes these files anyway.

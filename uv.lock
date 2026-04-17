@@ -1104,11 +1104,15 @@ dependencies = [
     { name = "pypdf" },
     { name = "python-dotenv" },
     { name = "requests" },
-    { name = "selenium" },
     { name = "striprtf" },
     { name = "tenacity" },
     { name = "typer" },
     { name = "umap-learn" },
+]
+
+[package.optional-dependencies]
+selenium-legacy = [
+    { name = "selenium" },
 ]
 
 [package.dev-dependencies]
@@ -1139,12 +1143,13 @@ requires-dist = [
     { name = "pypdf", specifier = ">=6.1.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "requests", specifier = ">=2.32.5" },
-    { name = "selenium", specifier = ">=4.37.0" },
+    { name = "selenium", marker = "extra == 'selenium-legacy'", specifier = ">=4.37.0" },
     { name = "striprtf", specifier = ">=0.0.29" },
     { name = "tenacity", specifier = ">=9.1.2" },
     { name = "typer", specifier = ">=0.19.2" },
     { name = "umap-learn", specifier = ">=0.5.9.post2" },
 ]
+provides-extras = ["selenium-legacy"]
 
 [package.metadata.requires-dev]
 dev = [

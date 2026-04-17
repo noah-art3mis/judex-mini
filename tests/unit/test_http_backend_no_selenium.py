@@ -11,10 +11,9 @@ import subprocess
 import sys
 
 
-def test_importing_src_scraper_http_loads_zero_selenium_modules() -> None:
+def _count_selenium_modules_after_import(target: str) -> int:
     code = (
-        "import sys; "
-        "import src.scraper_http;"  # noqa
+        f"import sys; import {target};"  # noqa
         "print(len([m for m in sys.modules if m.startswith('selenium')]))"
     )
     result = subprocess.run(
@@ -24,8 +23,19 @@ def test_importing_src_scraper_http_loads_zero_selenium_modules() -> None:
         text=True,
         cwd=".",
     )
-    count = int(result.stdout.strip())
+    return int(result.stdout.strip())
+
+
+def test_importing_src_scraper_http_loads_zero_selenium_modules() -> None:
+    count = _count_selenium_modules_after_import("src.scraper_http")
     assert count == 0, (
-        f"Importing src.scraper_http pulled in {count} selenium modules. "
-        f"First 5: {result.stderr}"
+        f"Importing src.scraper_http pulled in {count} selenium modules."
+    )
+
+
+def test_importing_main_loads_zero_selenium_modules() -> None:
+    count = _count_selenium_modules_after_import("main")
+    assert count == 0, (
+        f"Importing main pulled in {count} selenium modules — the "
+        f"Selenium dispatch should be entirely gone post-2026-04-17."
     )

@@ -1,6 +1,6 @@
 # CLAUDE.md — judex-mini (project-level)
 
-Scraper + parser for STF (Brazilian Supreme Court) process data. Two backends live side-by-side: **Selenium** (legacy, being retired) and **HTTP** (default target, faster). See `docs/handoff.md` for current task state.
+Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the only first-class backend.** The legacy Selenium implementation was frozen under `src/_deprecated/` on 2026-04-17 (`docs/superpowers/specs/2026-04-17-selenium-retirement.md`); `--backend selenium` now errors out. See `docs/handoff.md` for current task state.
 
 ## Read first
 
@@ -29,9 +29,9 @@ PYTHONPATH=. uv run python scripts/run_sweep.py ...
 
 ## Scraping architecture
 
-- **HTTP backend** (`src/scraper_http.py`): replays the XHR requests `/processos/detalhe.asp` and `/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently (`_TAB_WORKERS=4`). `sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs.
-- **Selenium backend** (`src/scraper.py`): the legacy path. Slower; still the default for `main.py`. To be retired (handoff step 4).
-- **Shared extractors** (`src/extraction/*.py`): some are pure-soup (class/meio/numero_unico/publicidade/relator) and imported by both; the rest are Selenium-bound and being replaced.
+- **HTTP backend** (`src/scraper_http.py`): replays the XHR requests `/processos/detalhe.asp` and `/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently (`_TAB_WORKERS=4`). `sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs. The only live scraping path.
+- **Selenium backend** (`src/_deprecated/scraper.py`): frozen reference, not imported by live code. To install the optional dep + import it directly: `uv sync --extra selenium-legacy`. See `src/_deprecated/README.md`.
+- **Pure-soup extractors** (`src/extraction/*.py`): five small modules — `extract_classe`, `extract_meio`, `extract_numero_unico`, `extract_publicidade`, `extract_relator` — plus `_shared.py` regex helpers. Imported by `src/extraction_http.py`. The 16 Selenium-bound extractors moved to `src/_deprecated/extraction/`.
 - **HTTP extractors** (`src/extraction_http.py`, `src/extraction_http_sessao.py`): fragment parsers for the HTTP path.
 - **Sweep driver** (`scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py`): CSV-driven, appends to `sweep.log.jsonl`, atomic `sweep.state.json`, derived `sweep.errors.jsonl`. Supports `--resume`, `--retry-from`, `--retry-403`, `--throttle-sleep`, graceful SIGINT/SIGTERM. Circuit breaker, signal handlers and exception classifier live in `src/_shared.py` and are reused by `src/pdf_driver.py`.
 
@@ -52,8 +52,7 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 - **Ground-truth fixtures have inconsistent `sessao_virtual` schemas.** HTTP emits the ADI shape (`{metadata, voto_relator, votes, documentos, …}`). `sessao_virtual` is a SKIP field in `scripts/_diff.SKIP_FIELDS` — do not try to diff it.
 - **PDF URLs live on `sistemas.stf.jus.br`**, NOT `portal.stf.jus.br`. Separate origin, separate throttle counter.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
-- **`src/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper_http` loads 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
-- **`recursos[].id` vs `recursos[].index`**: HTTP emits `id` (matches ground truth), Selenium code emits `index` (doesn't). Surfaced by sweeps B and C. Fix = retire Selenium.
+- **`src/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper_http` and `import main` both load 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **`.cache/pdf/<sha1>.txt.gz` is monotonic-by-length, not archival.** `scripts/reextract_unstructured.py` overwrites the pypdf extract when the OCR pass is longer. The prior attempt is lost unless the script is routed through `src/pdf_driver.py` (which keeps history in `pdfs.log.jsonl`). Right now it isn't — see the script's "Known gaps" block. Implication: don't trust the on-disk cache as an audit trail of what a given extractor produced at a given time.
 
 ## Don't break these
