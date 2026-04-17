@@ -1,35 +1,39 @@
-"""Re-extract image-only famous-lawyer HC PDFs via the Unstructured API.
+"""Re-extract image-only PDFs via the Unstructured API.
 
-Context. `analysis/famous_lawyers_profile.md` notes that 78/108 of the
-substantive PDFs fetched for the marquee criminal-bar HC corpus are
-image-only scans. pypdf's `extract_text` only returns header/footer
-from those, so the on-disk `.cache/pdf/<sha1>.txt.gz` entries are
-short and useless for downstream text analysis.
+Generic counterpart to `scripts/fetch_pdfs.py`: same filter flags
+(``--classe / --impte-contains / --doc-types / --relator-contains``),
+same target collection, but instead of the normal pypdf path this
+script POSTs each short-cached PDF to the Unstructured SaaS API
+with ``strategy=hi_res`` (OCR).
 
-This script:
-
-1. Rebuilds the same famous-lawyer PDF target set used by
-   `scripts/fetch_pdfs.py`'s famous-lawyer preset.
-2. Flags cache entries with length < --min-chars (or no entry at all)
-   as re-extraction candidates.
-3. Re-downloads each candidate PDF via the STF-aware scraper session
-   (WAF-aware retries / pacing) and POSTs the bytes to the Unstructured
-   SaaS API with `strategy=hi_res` (OCR).
-4. If the Unstructured extract is longer than what was cached,
-   overwrites the cache entry.
+Cache-monotonic: only overwrites ``.cache/pdf/<sha1(url)>.txt.gz``
+when the new extract is longer than the old. Safe to re-run; the
+cache only ever improves.
 
 Usage:
 
-    # Show what would be re-extracted (no network, no API spend).
-    PYTHONPATH=. uv run python scripts/reextract_unstructured.py --dry-run
-
-    # Actually re-extract (requires UNSTRUCTURED_API_KEY in .env).
+    # Dry run — show what would be re-extracted.
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
-        --min-chars 1000 --throttle-sleep 2.0
+        --classe HC --dry-run
+
+    # Famous-lawyer HC preset (matches fetch_pdfs.py's preset).
+    PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
+        --classe HC \\
+        --impte-contains "TORON,PIERPAOLO,PEDRO MACHADO DE ALMEIDA CASTRO,\\
+ARRUDA BOTELHO,MARCELO LEONARDO,NILO BATISTA,VILARDI,PODVAL,\\
+MUDROVITSCH,BADARO,DANIEL GERBER,TRACY JOSEPH REINALDET" \\
+        --doc-types "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO,\\
+MANIFESTAÇÃO DA PGR" \\
+        --min-chars 5000
+
+    # Re-OCR Fachin's acórdãos specifically.
+    PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
+        --classe HC --relator-contains FACHIN \\
+        --doc-types "INTEIRO TEOR DO ACÓRDÃO"
 
 Optional env vars:
     UNSTRUCTURED_API_KEY   required to run (not needed for --dry-run)
-    UNSTRUCTURED_API_URL   defaults to https://api.unstructuredapp.io/general/v0/general
+    UNSTRUCTURED_API_URL   defaults to the SaaS general endpoint
 """
 
 from __future__ import annotations
@@ -53,29 +57,13 @@ from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 
 
-FAMOUS_NEEDLES: list[str] = [
-    "TORON",
-    "PIERPAOLO",
-    "PEDRO MACHADO DE ALMEIDA CASTRO",
-    "ARRUDA BOTELHO",
-    "MARCELO LEONARDO",
-    "NILO BATISTA",
-    "VILARDI",
-    "PODVAL",
-    "MUDROVITSCH",
-    "BADARO",
-    "DANIEL GERBER",
-    "TRACY JOSEPH REINALDET",
-]
-
-DOC_TYPES: list[str] = [
-    "DECISÃO MONOCRÁTICA",
-    "INTEIRO TEOR DO ACÓRDÃO",
-    "MANIFESTAÇÃO DA PGR",
-    "DESPACHO",
-]
-
 DEFAULT_UNSTRUCTURED_URL = "https://api.unstructuredapp.io/general/v0/general"
+
+
+def _split_csv(s: str | None) -> list[str]:
+    if not s:
+        return []
+    return [p.strip() for p in s.split(",") if p.strip()]
 
 
 def _concat_elements(elements: Any) -> str:
@@ -137,6 +125,37 @@ def main(argv: Optional[list[str]] = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    # Filter flags — shape matches scripts/fetch_pdfs.py
+    ap.add_argument(
+        "--roots", nargs="+", type=Path,
+        default=[Path("output"), Path("output/sample")],
+        help="Directories to walk for judex-mini_*.json files.",
+    )
+    ap.add_argument(
+        "--classe", type=str, default=None,
+        help='Match exact classe, e.g. "HC", "RE", "ADI".',
+    )
+    ap.add_argument(
+        "--impte-contains", type=str, default="",
+        help='Comma-separated substrings (ANY match) for '
+             '.partes[].nome where .tipo == "IMPTE.(S)".',
+    )
+    ap.add_argument(
+        "--doc-types", type=str, default="",
+        help='Comma-separated exact andamento.link_descricao values. '
+             'Empty = all doc types.',
+    )
+    ap.add_argument(
+        "--relator-contains", type=str, default="",
+        help="Comma-separated substrings to match in .relator.",
+    )
+    ap.add_argument(
+        "--exclude-doc-types", type=str, default="",
+        help="Comma-separated doc_types to skip. Useful for 'DESPACHO' "
+             "which is naturally short and won't benefit from OCR.",
+    )
+
+    # OCR-specific flags
     ap.add_argument(
         "--min-chars", type=int, default=1000,
         help="re-extract cache entries shorter than this (default: 1000).",
@@ -166,15 +185,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--force", action="store_true",
         help="re-extract even if cached length >= --min-chars.",
     )
-    ap.add_argument(
-        "--exclude-doc-types", default="",
-        help="comma-separated list of doc_types to skip. Useful for "
-             "'DESPACHO' which is naturally short and won't benefit from OCR.",
-    )
     args = ap.parse_args(argv)
-
-    excluded = {s.strip() for s in args.exclude_doc_types.split(",") if s.strip()}
-    doc_types = [d for d in DOC_TYPES if d not in excluded]
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     load_dotenv()
@@ -188,15 +199,19 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return 2
 
-    roots = [Path("output"), Path("output/sample")]
     targets = collect_pdf_targets(
-        roots,
-        classe="HC",
-        impte_contains=FAMOUS_NEEDLES,
-        doc_types=doc_types,
+        args.roots,
+        classe=args.classe,
+        impte_contains=_split_csv(args.impte_contains),
+        doc_types=_split_csv(args.doc_types),
+        relator_contains=_split_csv(args.relator_contains),
     )
-    n_hcs = len({t.processo_id for t in targets if t.processo_id is not None})
-    print(f"target pool: {len(targets)} PDFs across {n_hcs} HCs")
+    excluded = set(_split_csv(args.exclude_doc_types))
+    if excluded:
+        targets = [t for t in targets if t.doc_type not in excluded]
+
+    n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
+    print(f"target pool: {len(targets)} PDFs across {n_procs} processes")
 
     candidates: list[tuple[Any, int]] = []
     cached_ok = 0
@@ -232,7 +247,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     failed = 0
     try:
         for i, (t, old_len) in enumerate(candidates, 1):
-            prefix = f"[{i}/{len(candidates)}] HC {t.processo_id} {t.doc_type}"
+            prefix = f"[{i}/{len(candidates)}] {t.classe} {t.processo_id} {t.doc_type}"
             try:
                 r = _http_get_with_retry(
                     session, t.url, config=config, timeout=90,
