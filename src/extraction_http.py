@@ -165,9 +165,21 @@ def extract_partes(partes_html: str) -> list[dict]:
     return extract_partes_from_soup(container)
 
 
+_PRIMEIRO_AUTOR_TIPOS = (
+    "AUTOR",   # ACO and other generic-author filings
+    "REQTE",   # ADI/ADC/ADPF/ADO/petições — requerente
+    "RECTE",   # RE/ARE/ED — recorrente
+    "AGTE",    # AI/AG — agravante
+    "PACTE",   # HC — paciente (subject of habeas corpus)
+    "IMPTE",   # MS/MI/HC — impetrante (falls back after PACTE for HCs)
+    "RECLTE",  # RCL — reclamante
+    "EMBTE",   # embargos — embargante
+)
+
+
 def extract_primeiro_autor(partes: list[dict]) -> Optional[str]:
     for parte in partes:
-        if parte.get("tipo", "").startswith(("RECTE", "REQTE", "AUTOR")):
+        if parte.get("tipo", "").startswith(_PRIMEIRO_AUTOR_TIPOS):
             return parte.get("nome")
     return None
 
