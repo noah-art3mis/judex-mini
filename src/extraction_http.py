@@ -44,6 +44,7 @@ from src.extraction._shared import (
 
 # Direct reuse of pure-soup Selenium extractors — they already take a
 # BeautifulSoup, no need to reimplement.
+from src.legal_vocab import AUTHOR_PARTY_TIPOS, VERDICT_PATTERNS
 from src.extraction.extract_classe import extract_classe
 from src.extraction.extract_meio import extract_meio
 from src.extraction.extract_numero_unico import extract_numero_unico
@@ -165,22 +166,47 @@ def extract_partes(partes_html: str) -> list[dict]:
     return extract_partes_from_soup(container)
 
 
-_PRIMEIRO_AUTOR_TIPOS = (
-    "AUTOR",   # ACO and other generic-author filings
-    "REQTE",   # ADI/ADC/ADPF/ADO/petições — requerente
-    "RECTE",   # RE/ARE/ED — recorrente
-    "AGTE",    # AI/AG — agravante
-    "PACTE",   # HC — paciente (subject of habeas corpus)
-    "IMPTE",   # MS/MI/HC — impetrante (falls back after PACTE for HCs)
-    "RECLTE",  # RCL — reclamante
-    "EMBTE",   # embargos — embargante
-)
-
-
 def extract_primeiro_autor(partes: list[dict]) -> Optional[str]:
     for parte in partes:
-        if parte.get("tipo", "").startswith(_PRIMEIRO_AUTOR_TIPOS):
+        if parte.get("tipo", "").startswith(AUTHOR_PARTY_TIPOS):
             return parte.get("nome")
+    return None
+
+
+def derive_outcome(item: dict) -> Optional[str]:
+    """Derive a coarse outcome label from voto_relator + andamentos.
+
+    See `src.legal_vocab.VERDICT_PATTERNS` for the full vocabulary.
+    Returns None for pending cases or when no pattern matches.
+    """
+    # 1. sessao_virtual: check the LAST session's voto_relator text.
+    #    A later session overrides any earlier ones.
+    sv = item.get("sessao_virtual") or []
+    if isinstance(sv, list) and sv:
+        last = sv[-1]
+        if isinstance(last, dict):
+            voto = (last.get("voto_relator") or "").strip()
+            if voto:
+                outcome = _match_verdict(voto)
+                if outcome is not None:
+                    return outcome
+
+    # 2. andamentos fallback: scan nome+complemento for verdict phrases.
+    for a in item.get("andamentos") or []:
+        if not isinstance(a, dict):
+            continue
+        blob = f"{a.get('nome', '')}\n{a.get('complemento', '') or ''}"
+        outcome = _match_verdict(blob)
+        if outcome is not None:
+            return outcome
+
+    return None
+
+
+def _match_verdict(text: str) -> Optional[str]:
+    for pattern, label in VERDICT_PATTERNS:
+        if pattern.search(text):
+            return label
     return None
 
 
@@ -386,4 +412,5 @@ __all__ = [
     "extract_deslocamentos",
     "extract_peticoes",
     "extract_recursos",
+    "derive_outcome",
 ]

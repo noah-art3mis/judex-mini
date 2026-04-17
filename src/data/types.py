@@ -32,6 +32,8 @@ class StfItem(TypedDict):
     recursos: List
     pautas: Optional[List]
 
+    outcome: Optional[str]
+
     status: int
     extraido: str
     html: str

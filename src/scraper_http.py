@@ -532,6 +532,7 @@ def scrape_processo_http(
         if owns_session:
             sessao_session.close()
 
+    andamentos = ex.extract_andamentos(fetched.tabs.get(TAB_ANDAMENTOS, ""))
     return StfItem(
         incidente=fetched.incidente,
         classe=classe,
@@ -551,12 +552,16 @@ def scrape_processo_http(
         relator=ex.extract_relator(detalhe_soup),
         primeiro_autor=ex.extract_primeiro_autor(partes),
         partes=partes,
-        andamentos=ex.extract_andamentos(fetched.tabs.get(TAB_ANDAMENTOS, "")),
+        andamentos=andamentos,
         sessao_virtual=sessao_virtual,
         deslocamentos=ex.extract_deslocamentos(fetched.tabs.get(TAB_DESLOCAMENTOS, "")),
         peticoes=ex.extract_peticoes(fetched.tabs.get(TAB_PETICOES, "")),
         recursos=ex.extract_recursos(fetched.tabs.get(TAB_RECURSOS, "")),
         pautas=[],
+        outcome=ex.derive_outcome({
+            "sessao_virtual": sessao_virtual,
+            "andamentos": andamentos,
+        }),
         status=200,
         extraido=datetime.now().isoformat(),
         html=fetched.detalhe_html,
