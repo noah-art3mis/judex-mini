@@ -19,7 +19,7 @@ from src.extraction_http_sessao import (
     parse_tema,
     resolve_documentos,
 )
-from src.scraper_http import _extract_tema_from_abasessao
+from src.scraper import _extract_tema_from_abasessao
 
 FIX = Path(__file__).parent.parent / "fixtures" / "sessao_virtual"
 

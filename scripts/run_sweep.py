@@ -43,10 +43,10 @@ from typing import Any, Optional, TextIO
 
 from scripts._diff import diff_item
 from src import _shared
-from src import scraper_http as sh
+from src import scraper as sh
 from src.config import ScraperConfig
 from src.process_store import AttemptRecord, SweepStore, load_retry_list
-from src.scraper_http import new_session, scrape_processo_http
+from src.scraper import new_session, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

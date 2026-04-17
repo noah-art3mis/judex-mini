@@ -25,7 +25,7 @@ import time
 import urllib3
 
 from src.config import ScraperConfig
-from src.scraper_http import new_session, resolve_incidente
+from src.scraper import new_session, resolve_incidente
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

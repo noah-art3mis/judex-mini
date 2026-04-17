@@ -87,15 +87,18 @@ output/.../judex-mini_HC_135041.json
 
 ## Architecture
 
-Two scraping backends live side-by-side:
+**HTTP is the only first-class scraping backend** (`src/scraper.py`):
+replays the XHR requests `/processos/detalhe.asp` and
+`/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently;
+`sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao`
+as JSON + PDFs. ~10× faster per process than the original Selenium
+path.
 
-- **HTTP** (`src/scraper_http.py`, default target): replays the XHR
-  requests `/processos/detalhe.asp` and `/processos/abaX.asp` make.
-  Fetches detalhe + 9 tabs concurrently; `sessao_virtual` comes from
-  `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs. ~10× faster
-  per process than Selenium.
-- **Selenium** (`src/scraper.py`, being retired): the legacy path,
-  still the default in `main.py` during the migration window.
+The legacy Selenium scraper was frozen at `src/_deprecated/scraper.py`
+on 2026-04-17. To install the optional dep:
+`uv sync --extra selenium-legacy`. Passing `main.py --backend selenium`
+errors with a deprecation message — see
+`docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
 
 STF's `/processos/*` is disallowed by `robots.txt` and the WAF
 enforces it with 403 bursts (not 429) above a ~100-process
@@ -137,7 +140,7 @@ for the PDF-sweep directory conventions.
 
 | Module | Role |
 |---|---|
-| `src/scraper_http.py`                                        | HTTP backend orchestrator. `fetch_process` + `scrape_processo_http`. |
+| `src/scraper.py`                                             | HTTP backend orchestrator. `fetch_process` + `scrape_processo_http`. (Was `scraper_http.py` until 2026-04-17.) |
 | `src/extraction_http*.py`                                    | Pure-soup parsers for the HTTP path. |
 | `src/data/types.py`                                          | `StfItem` TypedDict — the case-JSON schema. |
 | `src/utils/pdf_cache.py`                                     | URL-keyed text + elements cache. |

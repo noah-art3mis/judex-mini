@@ -17,7 +17,7 @@ import urllib3
 from pathlib import Path
 
 from scripts._diff import diff_item
-from src.scraper_http import fetch_process, scrape_processo_http
+from src.scraper import fetch_process, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

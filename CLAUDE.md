@@ -29,7 +29,7 @@ PYTHONPATH=. uv run python scripts/run_sweep.py ...
 
 ## Scraping architecture
 
-- **HTTP backend** (`src/scraper_http.py`): replays the XHR requests `/processos/detalhe.asp` and `/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently (`_TAB_WORKERS=4`). `sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs. The only live scraping path.
+- **HTTP backend** (`src/scraper.py`): replays the XHR requests `/processos/detalhe.asp` and `/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently (`_TAB_WORKERS=4`). `sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs. The only live scraping path. Was `src/scraper_http.py` until 2026-04-17 — renamed once Selenium retirement freed up the canonical name.
 - **Selenium backend** (`src/_deprecated/scraper.py`): frozen reference, not imported by live code. To install the optional dep + import it directly: `uv sync --extra selenium-legacy`. See `src/_deprecated/README.md`.
 - **Pure-soup extractors** (`src/extraction/*.py`): five small modules — `extract_classe`, `extract_meio`, `extract_numero_unico`, `extract_publicidade`, `extract_relator` — plus `_shared.py` regex helpers. Imported by `src/extraction_http.py`. The 16 Selenium-bound extractors moved to `src/_deprecated/extraction/`.
 - **HTTP extractors** (`src/extraction_http.py`, `src/extraction_http_sessao.py`): fragment parsers for the HTTP path.
@@ -45,14 +45,14 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 
 ## Non-obvious gotchas
 
-- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper_http._decode` sets `r.encoding = "utf-8"` before reading `r.text`. Never bypass.
+- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper._decode` sets `r.encoding = "utf-8"` before reading `r.text`. Never bypass.
 - **`/processos/*` is disallowed in STF's `robots.txt`.** STF enforces it at the WAF: HTTP **403 Forbidden** (not 429) blocks IPs that exceed a behavioral threshold. The block clears within minutes. `cfg.retry_403=True` (via `ScraperConfig` or `--retry-403`) rides it out with tenacity backoff; `--throttle-sleep <s>` paces proactively. Non-browser UAs (`curl/*`) get permanent 403 — our default Chrome UA is fine.
 - **`abaX.asp` endpoints return 403 without three things**: valid `ASPSESSIONID…` + `AWSALB` cookies, `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. `requests.Session()` plus those two headers suffices.
 - **`extract_partes` has two sources** on `abaPartes.asp`: `#todas-partes` (full, 9 entries for ADI 2820) and `#partes-resumidas` (main parties, 4 entries). HTTP path uses `#partes-resumidas` for parity with Selenium's `#resumo-partes`.
 - **Ground-truth fixtures have inconsistent `sessao_virtual` schemas.** HTTP emits the ADI shape (`{metadata, voto_relator, votes, documentos, …}`). `sessao_virtual` is a SKIP field in `scripts/_diff.SKIP_FIELDS` — do not try to diff it.
 - **PDF URLs live on `sistemas.stf.jus.br`**, NOT `portal.stf.jus.br`. Separate origin, separate throttle counter.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
-- **`src/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper_http` and `import main` both load 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
+- **`src/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper` and `import main` both load 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **`.cache/pdf/<sha1>.txt.gz` is monotonic-by-length, not archival.** `scripts/reextract_unstructured.py` overwrites the pypdf extract when the OCR pass is longer. The prior attempt is lost unless the script is routed through `src/pdf_driver.py` (which keeps history in `pdfs.log.jsonl`). Right now it isn't — see the script's "Known gaps" block. Implication: don't trust the on-disk cache as an audit trail of what a given extractor produced at a given time.
 
 ## Don't break these
@@ -71,7 +71,7 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 ## Conventions (project-specific)
 
 - **No backwards-compat shims.** Change the call sites + tests. See user-level `CLAUDE.md`.
-- **Keep files focused.** When `scraper_http.py` grows past ~600 lines, split by concern — `fetch_process`, PDF fetchers, sessão orchestration already have their own modules.
+- **Keep files focused.** When `scraper.py` grows past ~600 lines, split by concern — `fetch_process`, PDF fetchers, sessão orchestration already have their own modules. (`http_session.py` was carved off in this exact way; see `src/http_session.py`.)
 - **Extractor tests should diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write everything to a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Measure before optimising.** The perf claim in `docs/perf-bulk-data.md` has caveats; sweep C showed a new constraint (STF's WAF threshold) that invalidated the naive extrapolation. Check `docs/sweep-results/` for the latest reality.

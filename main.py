@@ -5,7 +5,7 @@ from datetime import datetime
 import typer
 
 from src.config import ScraperConfig
-from src.scraper_http import run_scraper_http
+from src.scraper import run_scraper_http
 from src.testing.ground_truth_test import test_ground_truth
 from src.utils.validation import (
     validate_output_format,

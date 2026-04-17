@@ -252,14 +252,14 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
 ## What works today
 
 - `main.py --backend={selenium,http}` — default `selenium`. HTTP path additionally accepts `--fetch-pdfs/--no-fetch-pdfs` (default on).
-- `src/scraper_http.py`:
+- `src/scraper.py` (was `src/scraper_http.py` until 2026-04-17):
   - `_http_get_with_retry` wraps every GET in tenacity (retries 429/5xx/connection errors via `ScraperConfig`; 4xx non-429 fails fast; `cfg.retry_403=True` adds 403 to the retriable set).
-  - `run_scraper_http` mirrors `run_scraper` (same output shape, same missing-retry loop).
+  - `run_scraper_http` is the public entry. Same output shape as the now-deprecated Selenium `run_scraper` (frozen at `src/_deprecated/scraper.py`).
   - `scrape_processo_http` fetches detalhe + 9 tabs concurrently, derives `tema` from abaSessao, then hits the repgeral JSON endpoints for `sessao_virtual` and (when `fetch_pdfs=True`) fetches+extracts each Relatório/Voto PDF.
 - `src/extraction_http_sessao.py` — pure parsers (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`) plus the `extract_sessao_virtual_from_json` orchestrator. Fetchers are dependency-injected for testability.
 - `src/utils/pdf_cache.py` — URL-keyed PDF text cache under `.cache/pdf/<sha1>.txt.gz`. ADI 2820 cold ≈ 12.9s → cached ≈ 0.18s.
 - `src/data/missing.py` — `check_missing_processes` lives here now (was in `src/_deprecated/scraper.py`). Backend-neutral.
-- `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper_http` loads 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
+- `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper` and `import main` both load 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
 - `tests/unit/` — **48 unit tests** covering retry semantics (incl. 403 opt-in), CLI dispatch, PDF cache, sessao_virtual parsers, sweep state recovery + atomic writes, CSV parsing, exception classification. `uv run pytest tests/unit/`.
 - `scripts/validate_ground_truth.py` — still the source of truth for HTTP parity. 4/5 MATCH; ACO_2652 shows two pre-existing diffs (assuntos drift on the live site, `pautas: null` vs `[]`). `sessao_virtual` is a SKIP field so it doesn't participate — parsers are validated by the unit tests instead.
 - `scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py` — CSV-driven sweep driver with append-only log, atomic state, resume, retry-from, structured errors, 403 retry, throttle sleep. Circuit breaker, signal handlers, and exception classifier come from `src/_shared.py` (shared with `src/pdf_driver.py`). See the "Running sweeps" section below.
@@ -343,7 +343,7 @@ Worth knowing if you're debugging:
 ## Non-obvious things (kept from previous handoff, still true)
 
 - **The `abaX.asp` endpoints return 403 without three things**: valid session cookie (`ASPSESSIONID…` + `AWSALB`), `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. `requests.Session()` plus the two headers suffices.
-- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper_http._decode` handles it; never bypass.
+- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper._decode` handles it; never bypass.
 - **`extract_partes` has two possible sources** on `abaPartes.asp`: `#todas-partes` (full, 9 entries for ADI 2820) and `#partes-resumidas` (main parties, 4 entries). The HTTP path uses `#partes-resumidas` for parity with Selenium's `#resumo-partes`.
 - **Ground-truth fixtures have inconsistent `sessao_virtual` schemas** across files (MI/RE/AI use `{data,tipo,numero,relator,status,participantes}`; ACO_2652 uses `{lista,relator,orgao_julgador,voto_texto,…}`; ADI_2820_reread uses `{metadata,voto_relator,votes,documentos,julgamento_item_titulo}`). The HTTP port emits the ADI schema — that's what the current code commits to.
 - **PDF URLs live on `sistemas.stf.jus.br`, not `portal.stf.jus.br`.** Separate origin, separate throttle counter. Interleaving PDF fetches between tab fetches naturally slows the portal hit rate.
@@ -458,7 +458,7 @@ regenerates both at its end.
 
 ## Files you probably need to touch first
 
-- `src/scraper_http.py` — HTTP orchestrator, `fetch_process`, `scrape_processo_http`, retry helper (incl. 403 opt-in), PDF/sessão fetcher factories
+- `src/scraper.py` — HTTP orchestrator, `fetch_process`, `scrape_processo_http`, retry helper (incl. 403 opt-in), PDF/sessão fetcher factories. Was `scraper_http.py` until 2026-04-17.
 - `src/config.py` — `ScraperConfig` including `retry_403` flag
 - `src/extraction_http.py` — fragment parsers (re-exports Selenium pure-soup extractors)
 - `src/extraction_http_sessao.py` — sessao_virtual parsers + orchestrator
