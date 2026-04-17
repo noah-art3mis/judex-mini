@@ -106,8 +106,15 @@ def _extract_with_unstructured(
     strategy: str = "hi_res",
     languages: tuple[str, ...] = ("por",),
     timeout: int = 300,
-) -> Optional[str]:
-    """POST PDF bytes to the Unstructured SaaS API, return joined text."""
+) -> tuple[Optional[str], list[dict[str, Any]]]:
+    """POST PDF bytes to the Unstructured SaaS API.
+
+    Returns `(joined_text, elements)`. The elements list is the raw
+    API response — dicts with `type`, `text`, `metadata`, etc. —
+    written to the parallel elements cache so downstream consumers
+    can recover structure (section titles, page numbers, table rows)
+    that the flat text throws away.
+    """
     headers = {
         "unstructured-api-key": api_key,
         "accept": "application/json",
@@ -120,7 +127,10 @@ def _extract_with_unstructured(
         api_url, headers=headers, files=files, data=data, timeout=timeout
     )
     r.raise_for_status()
-    return _concat_elements(r.json())
+    elements = r.json() or []
+    if not isinstance(elements, list):
+        elements = []
+    return _concat_elements(elements), elements
 
 
 def _build_session_and_config(throttle_sleep: float) -> tuple[Any, ScraperConfig]:
@@ -240,7 +250,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 continue
 
             try:
-                new_text = _extract_with_unstructured(
+                new_text, new_elements = _extract_with_unstructured(
                     pdf_bytes,
                     api_url=api_url, api_key=api_key,
                     strategy=args.strategy,
@@ -258,6 +268,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             new_len = len(new_text or "")
             if new_text and new_len > old_len:
                 pdf_cache.write(t.url, new_text)
+                # Also persist the structured element list so future
+                # consumers can recover section titles / page numbers /
+                # table structure. See src/utils/pdf_cache.py docstring.
+                if new_elements:
+                    pdf_cache.write_elements(t.url, new_elements)
                 improved += 1
                 logging.info(
                     f"{prefix}: ok (old {old_len} → new {new_len} chars)"

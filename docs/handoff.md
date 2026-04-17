@@ -364,6 +364,29 @@ uv run python main.py -c AI -i 772309 -f 772309 -o json -d output/test --overwri
 rm -rf .cache  # HTML fragments, sessao JSON, PDF text
 ```
 
+### Marimo notebooks under `analysis/`
+
+The HC analysis lives in five marimo notebooks. `analysis/` is git-ignored
+(scratch), so these won't be on a fresh checkout — see
+`## HC who-wins — investigation-strand layout` above for the
+hub-and-strand structure.
+
+```bash
+# interactive editor (opens a browser tab, full reactivity):
+uv run marimo edit analysis/hc_famous_lawyers.py
+
+# view-only (opens a browser tab, cells hidden by default):
+uv run marimo run analysis/hc_famous_lawyers.py
+
+# view-only, no auto-open browser — useful when running remotely,
+# inside a WSL or SSH session, or in a container. Marimo will print a
+# localhost URL you open yourself (forward the port first if remote):
+uv run marimo run --headless analysis/hc_famous_lawyers.py
+```
+
+Swap `hc_famous_lawyers.py` for any of `hc_explorer.py`,
+`hc_top_volume.py`, `hc_minister_archetypes.py`, `hc_admissibility.py`.
+
 ## Running sweeps
 
 ```bash
