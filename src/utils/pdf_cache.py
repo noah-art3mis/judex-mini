@@ -1,6 +1,6 @@
 """On-disk caches for PDF-derived content, keyed by URL sha1.
 
-Two parallel caches, both under `.cache/pdf/`, both sha1(url)-keyed:
+Two parallel caches, both under `data/pdf/`, both sha1(url)-keyed:
 
 - **Text cache** (`<sha1>.txt.gz`): flat extracted text. Written by
   every extractor path (pypdf, Unstructured OCR, RTF fallback). This
@@ -27,7 +27,7 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-CACHE_ROOT: Path = Path(".cache/pdf")
+CACHE_ROOT: Path = Path("data/pdf")
 
 
 def _hash(url: str) -> str:

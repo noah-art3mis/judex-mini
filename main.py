@@ -48,7 +48,7 @@ def main(
         "csv", "-o", "--output-format", help="Output format (csv, json, jsonl)"
     ),
     output_dir: str = typer.Option(
-        "output", "-d", "--output-dir", help="Output directory"
+        "data/output", "-d", "--output-dir", help="Output directory"
     ),
     log_level: str = typer.Option(
         "INFO", "-l", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"
@@ -84,9 +84,9 @@ def main(
 ) -> None:
     """CLI entry point for JUDEX MINI scraper."""
 
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs("data/logs", exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f"logs/scraper_{timestamp}.log"
+    log_file = f"data/logs/scraper_{timestamp}.log"
 
     # Configure logging to both console and file
     logging.basicConfig(

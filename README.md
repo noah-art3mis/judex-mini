@@ -38,7 +38,7 @@ uv run python main.py -c AI -i 1234567 -f 1234570
 
 # backend HTTP (padrão para novos casos — ~10× mais rápido)
 uv run python main.py --backend http -c HC -i 135041 -f 135041 \
-    -o json -d output/test --overwrite
+    -o json -d data/output/test --overwrite
 
 # salvar arquivos no desktop do windows
 uv run python main.py --output-dir /mnt/c/Users/YourUsername/Desktop/judex-mini
@@ -66,21 +66,21 @@ JSON to cached PDF text.
 
 TL;DR three stores:
 
-- **Case JSON**: `output/**/judex-mini_<CLASSE>_<N>.json` — one record
+- **Case JSON**: `data/output/**/judex-mini_<CLASSE>_<N>.json` — one record
   per process, schema in `src/data/types.py` (`StfItem` TypedDict).
-- **PDF text cache**: `.cache/pdf/<sha1(url)>.txt.gz` — extracted
+- **PDF text cache**: `data/pdf/<sha1(url)>.txt.gz` — extracted
   text, URL-keyed. Read via `src.utils.pdf_cache.read(url)`.
-- **PDF elements cache**: `.cache/pdf/<sha1(url)>.elements.json.gz` —
+- **PDF elements cache**: `data/pdf/<sha1(url)>.elements.json.gz` —
   structured Unstructured element list for OCR-sourced entries only.
   Read via `pdf_cache.read_elements(url)` (returns `None` for
   pypdf-sourced URLs).
-- **HTML fragment cache**: `.cache/html/<CLASSE>_<N>/*.html.gz` —
+- **HTML fragment cache**: `data/html/<CLASSE>_<N>/*.html.gz` —
   per-tab raw HTML; ~60× speedup on re-scrapes.
 
 The foreign key from a case to its PDF text:
 
 ```
-output/.../judex-mini_HC_135041.json
+data/output/.../judex-mini_HC_135041.json
   └── andamentos[17].link                   ← STF portal PDF URL
        └── src.utils.pdf_cache.read(link)   ← extracted text
 ```

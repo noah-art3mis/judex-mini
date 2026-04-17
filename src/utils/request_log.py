@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_fetched_at ON requests(fetched_at);
 
 
 class RequestLog:
-    def __init__(self, db_path: Path | str = ".cache/requests.db") -> None:
+    def __init__(self, db_path: Path | str = "data/requests.db") -> None:
         self._path = Path(db_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._init_lock = threading.Lock()

@@ -6,7 +6,7 @@ same target collection, but instead of the normal pypdf path this
 script POSTs each short-cached PDF to the Unstructured SaaS API
 with ``strategy=hi_res`` (OCR).
 
-Cache-monotonic: only overwrites ``.cache/pdf/<sha1(url)>.txt.gz``
+Cache-monotonic: only overwrites ``data/pdf/<sha1(url)>.txt.gz``
 when the new extract is longer than the old. Safe to re-run; the
 cache only ever improves.
 
@@ -40,7 +40,7 @@ Known gaps (pre-Phase-A debt):
 - **Does not route through `src/pdf_driver.run_pdf_sweep`.** The
   loop below is inlined; `PdfStore` / `pdfs.state.json` /
   `pdfs.log.jsonl` / `pdfs.errors.jsonl` / `requests.db` are NOT
-  produced. Only stdout logging + the URL-keyed `.cache/pdf/*.txt.gz`
+  produced. Only stdout logging + the URL-keyed `data/pdf/*.txt.gz`
   cache. Consequences: no `--resume`, no `--retry-from`, no circuit
   breaker, no per-GET latency data. Fix = write a `FetcherFn` that
   does the POST+cache.write and pass it as `pdf_driver.run_pdf_sweep`'s

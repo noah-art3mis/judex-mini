@@ -27,7 +27,7 @@ def split_csv(s: str | None) -> list[str]:
 def add_filter_args(ap: argparse.ArgumentParser) -> None:
     ap.add_argument(
         "--roots", nargs="+", type=Path,
-        default=[Path("output"), Path("output/sample")],
+        default=[Path("data/output"), Path("data/output/sample")],
         help="Directories to walk for judex-mini_*.json files.",
     )
     ap.add_argument(

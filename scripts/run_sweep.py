@@ -509,7 +509,7 @@ def main(argv: list[str]) -> int:
     )
     ap.add_argument(
         "--wipe-cache", action="store_true",
-        help="Remove .cache entries for the processes in the sweep before starting.",
+        help="Remove data/html entries for the processes in the sweep before starting.",
     )
     ap.add_argument(
         "--resume", action="store_true",
@@ -562,7 +562,7 @@ def main(argv: list[str]) -> int:
 
     if args.wipe_cache:
         for classe, processo, _ in rows:
-            d = Path(".cache/html") / f"{classe}_{processo}"
+            d = Path("data/html") / f"{classe}_{processo}"
             if d.exists():
                 shutil.rmtree(d)
 

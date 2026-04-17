@@ -9,8 +9,6 @@ wheels/
 .venv
 .env
 notes/
-output/
-logs/
-.cache/
+data/
 analysis/
 .claude/

@@ -245,7 +245,7 @@ PYTHONPATH=. uv run python scripts/run_sweep.py \
 
 1. **Minimum professional floor** — custom `User-Agent` identifying the project with a contact email, `NOTICE.md` explaining LAI basis + LGPD obligations, keep scraping with adaptive pacing.
 2. **Talk to STF first** — Ouvidoria. Brazilian courts sometimes grant whitelisted access. Slow, safe.
-3. **Cache-first distribution** — ship as a parser. Users populate `.cache/` themselves; library never sweeps from one IP.
+3. **Cache-first distribution** — ship as a parser. Users populate `data/` themselves; library never sweeps from one IP.
 
 Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403` + `--throttle-sleep` + `--retry-from` handle it), only the posture question. Doesn't block Selenium retirement either (still internal cleanup).
 
@@ -257,7 +257,7 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
   - `run_scraper_http` is the public entry. Same output shape as the now-deprecated Selenium `run_scraper` (frozen at `src/_deprecated/scraper.py`).
   - `scrape_processo_http` fetches detalhe + 9 tabs concurrently, derives `tema` from abaSessao, then hits the repgeral JSON endpoints for `sessao_virtual` and (when `fetch_pdfs=True`) fetches+extracts each Relatório/Voto PDF.
 - `src/extraction_http_sessao.py` — pure parsers (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`) plus the `extract_sessao_virtual_from_json` orchestrator. Fetchers are dependency-injected for testability.
-- `src/utils/pdf_cache.py` — URL-keyed PDF text cache under `.cache/pdf/<sha1>.txt.gz`. ADI 2820 cold ≈ 12.9s → cached ≈ 0.18s.
+- `src/utils/pdf_cache.py` — URL-keyed PDF text cache under `data/pdf/<sha1>.txt.gz`. ADI 2820 cold ≈ 12.9s → cached ≈ 0.18s.
 - `src/data/missing.py` — `check_missing_processes` lives here now (was in `src/_deprecated/scraper.py`). Backend-neutral.
 - `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper` and `import main` both load 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
 - `tests/unit/` — **48 unit tests** covering retry semantics (incl. 403 opt-in), CLI dispatch, PDF cache, sessao_virtual parsers, sweep state recovery + atomic writes, CSV parsing, exception classification. `uv run pytest tests/unit/`.
@@ -319,7 +319,7 @@ by any live code path.
 
 Currently PDFs go through `pypdf.PdfReader.extract_text(extraction_mode="layout")`. You'll see warnings like `Rotated text discovered. Output will be incomplete.` — these are real: STF often stamps signed documents with rotated watermarks and the extractor drops content around them. Two options: (a) fall back to default mode on rotation, (b) use `pdfminer.six` or OCR for the problem documents. Worth investigating if downstream analysis needs the full text.
 
-**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`, 2026-04-17): walks the `pdf_targets` output, re-downloads cache entries shorter than `--min-chars`, POSTs to Unstructured's SaaS API with `strategy=hi_res`, overwrites `.cache/pdf/<sha1>.txt.gz` when the new extract is longer. First production run: `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`. **Known gap**: the script does *not* route through `src/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced. Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to `run_pdf_sweep`). The script's docstring carries the full list of gaps.
+**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`, 2026-04-17): walks the `pdf_targets` output, re-downloads cache entries shorter than `--min-chars`, POSTs to Unstructured's SaaS API with `strategy=hi_res`, overwrites `data/pdf/<sha1>.txt.gz` when the new extract is longer. First production run: `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`. **Known gap**: the script does *not* route through `src/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced. Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to `run_pdf_sweep`). The script's docstring carries the full list of gaps.
 
 ### 5. Pre-existing bugs in the Selenium side
 
@@ -359,16 +359,16 @@ uv run pytest tests/unit/
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run python main.py --backend http -c ADI -i 2820 -f 2820 -o json -d output/test --overwrite
+uv run python main.py --backend http -c ADI -i 2820 -f 2820 -o json -d data/output/test --overwrite
 
 # HTTP scrape without the PDF fetch (faster, documentos stay as URLs)
-uv run python main.py --backend http --no-fetch-pdfs -c AI -i 772309 -f 772309 -o json -d output/test --overwrite
+uv run python main.py --backend http --no-fetch-pdfs -c AI -i 772309 -f 772309 -o json -d data/output/test --overwrite
 
 # Selenium scrape (unchanged default path)
-uv run python main.py -c AI -i 772309 -f 772309 -o json -d output/test --overwrite
+uv run python main.py -c AI -i 772309 -f 772309 -o json -d data/output/test --overwrite
 
 # Wipe caches
-rm -rf .cache  # HTML fragments, sessao JSON, PDF text
+rm -rf data  # HTML fragments, sessao JSON, PDF text
 ```
 
 ### Marimo notebooks under `analysis/`

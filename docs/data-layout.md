@@ -7,20 +7,20 @@ New contributors start here.
 
 | Store | Path | Key | Contents |
 |---|---|---|---|
-| **Case JSON** | `output/**/judex-mini_<CLASSE>_<N>.json` | `(classe, processo_id)` | One record per STF process: parties, andamentos (events), relator, outcome, metadata. Written by `main.py` / sweep drivers. Tracked in git where useful. |
-| **PDF text cache** | `.cache/pdf/<sha1(url)>.txt.gz` | `sha1(andamento link URL)` | Flat extracted text of each andamento PDF, gzipped. Written by pypdf on first scrape; re-written by `scripts/reextract_unstructured.py` when OCR beats pypdf. **Not in git** (`.gitignore`'d). |
-| **PDF elements cache** | `.cache/pdf/<sha1(url)>.elements.json.gz` | same as text cache | Structured Unstructured element list (`type` / `metadata` / `text` per element) for OCR-sourced entries only. Lets consumers filter Header/Footer, group by page, extract Tables. Absent for pypdf-sourced URLs. Not in git. |
-| **HTML fragment cache** | `.cache/html/<CLASSE>_<N>/*.html.gz` | `(classe, processo, tab)` | Per-process raw HTML of each STF tab. Lets re-scrapes replay from disk in ~60× less time. Not in git. |
+| **Case JSON** | `data/output/**/judex-mini_<CLASSE>_<N>.json` | `(classe, processo_id)` | One record per STF process: parties, andamentos (events), relator, outcome, metadata. Written by `main.py` / sweep drivers. Tracked in git where useful. |
+| **PDF text cache** | `data/pdf/<sha1(url)>.txt.gz` | `sha1(andamento link URL)` | Flat extracted text of each andamento PDF, gzipped. Written by pypdf on first scrape; re-written by `scripts/reextract_unstructured.py` when OCR beats pypdf. **Not in git** (`.gitignore`'d). |
+| **PDF elements cache** | `data/pdf/<sha1(url)>.elements.json.gz` | same as text cache | Structured Unstructured element list (`type` / `metadata` / `text` per element) for OCR-sourced entries only. Lets consumers filter Header/Footer, group by page, extract Tables. Absent for pypdf-sourced URLs. Not in git. |
+| **HTML fragment cache** | `data/html/<CLASSE>_<N>/*.html.gz` | `(classe, processo, tab)` | Per-process raw HTML of each STF tab. Lets re-scrapes replay from disk in ~60× less time. Not in git. |
 
 ## The foreign key
 
 The join from a case to its PDF text is a three-hop:
 
 ```
-output/.../judex-mini_HC_135041.json        ← case record
+data/output/.../judex-mini_HC_135041.json   ← case record
   └── andamentos[17].link                    ← STF portal URL for a PDF
        └── sha1(link)                        ← content-addressed key
-            └── .cache/pdf/<sha1>.txt.gz     ← the extracted text
+            └── data/pdf/<sha1>.txt.gz     ← the extracted text
 ```
 
 Reading it in code:
@@ -30,7 +30,7 @@ import json
 from pathlib import Path
 from src.utils import pdf_cache
 
-record = json.loads(Path("output/sample/hc_sweep/judex-mini_HC_135041.json").read_text())
+record = json.loads(Path("data/output/sample/hc_sweep/judex-mini_HC_135041.json").read_text())
 for a in record[0]["andamentos"]:
     link = a.get("link")
     if not link or not link.lower().endswith(".pdf"):
@@ -98,7 +98,7 @@ directory.
 
 The notebooks read from the three stores above; they don't write to
 them. They do sometimes write their own intermediate files (e.g.
-`analysis/defmg_texts.json`) — those are scratch too, never a
+`analysis/data/defmg_texts.json`) — those are scratch too, never a
 shared artifact.
 
 ## Source of truth for schemas
@@ -116,7 +116,7 @@ shared artifact.
 ## Non-obvious implications
 
 - **Cache is monotonic-by-length, not archival.** When OCR rewrites
-  a `.cache/pdf/<sha1>.txt.gz` entry, the prior pypdf extract is
+  a `data/pdf/<sha1>.txt.gz` entry, the prior pypdf extract is
   lost. See `CLAUDE.md` § "Non-obvious gotchas". For an audit trail
   of which extractor produced what when, use the `pdfs.log.jsonl`
   written by `pdf_driver`-routed runs.
@@ -124,11 +124,11 @@ shared artifact.
   PDF URL share a cache entry. That's generally what you want (cites
   are deduplicated), but it means cache-per-case accounting requires
   walking `andamentos[].link` from each case.
-- **`output/` contains both sample and production data.**
-  Conventionally `output/sample/` is the curated testing corpus,
-  `output/` (top-level) is production sweep output. The notebooks in
-  `analysis/` default to reading both roots
-  (`[Path("output"), Path("output/sample")]`) unless overridden.
+- **`data/output/` contains both sample and production data.**
+  Conventionally `data/output/sample/` is the curated testing corpus,
+  `data/output/` (top-level) is production sweep output. The notebooks
+  in `analysis/` default to reading both roots
+  (`[Path("data/output"), Path("data/output/sample")]`) unless overridden.
 - **`docs/perf-bulk-data.md` and `docs/handoff.md` are the narrative
   history.** They chronologically explain *why* the current structure
   exists (DataJud dead-end, Selenium retirement, Phase A/B refactor,
