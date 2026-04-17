@@ -30,6 +30,7 @@ def collect_pdf_targets(
     impte_contains: Sequence[str] = (),
     doc_types: Sequence[str] = (),
     relator_contains: Sequence[str] = (),
+    exclude_doc_types: Sequence[str] = (),
 ) -> list[PdfTarget]:
     """Collect PDF targets from judex-mini output files.
 
@@ -40,6 +41,8 @@ def collect_pdf_targets(
       appears in a `.partes[].nome` field whose `.tipo == "IMPTE.(S)"`.
     - `doc_types`: `andamento.link_descricao` must be in this set.
     - `relator_contains`: any of these substrings appears in `.relator`.
+    - `exclude_doc_types`: `andamento.link_descricao` must NOT be in
+      this set. Applied after `doc_types`.
 
     Deduplicates by URL across input files.
     """
@@ -49,6 +52,7 @@ def collect_pdf_targets(
     })
 
     doc_type_set = set(doc_types) if doc_types else None
+    excluded_doc_types = set(exclude_doc_types) if exclude_doc_types else None
     impte_needles = tuple(s.upper() for s in impte_contains) or None
     relator_needles = tuple(s.upper() for s in relator_contains) or None
 
@@ -91,6 +95,8 @@ def collect_pdf_targets(
             if not link or not link.lower().endswith(".pdf"):
                 continue
             if doc_type_set is not None and desc not in doc_type_set:
+                continue
+            if excluded_doc_types is not None and desc in excluded_doc_types:
                 continue
             if link in seen_urls:
                 continue

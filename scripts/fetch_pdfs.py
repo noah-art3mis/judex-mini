@@ -38,15 +38,9 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from scripts._filters import add_filter_args, targets_from_args
 from src.pdf_driver import run_pdf_sweep
-from src.pdf_targets import collect_pdf_targets
 from src.utils import pdf_cache
-
-
-def _split_csv(s: str | None) -> list[str]:
-    if not s:
-        return []
-    return [p.strip() for p in s.split(",") if p.strip()]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,29 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Output directory. Holds pdfs.state.json, pdfs.log.jsonl, "
              "pdfs.errors.jsonl, requests.db, report.md.",
     )
-    ap.add_argument(
-        "--roots", nargs="+", type=Path,
-        default=[Path("output"), Path("output/sample")],
-        help="Directories to walk for judex-mini_*.json files.",
-    )
-    ap.add_argument(
-        "--classe", type=str, default=None,
-        help='Match exact classe, e.g. "HC", "RE", "ADI".',
-    )
-    ap.add_argument(
-        "--impte-contains", type=str, default="",
-        help='Comma-separated substrings (ANY match) for '
-             '.partes[].nome where .tipo == "IMPTE.(S)".',
-    )
-    ap.add_argument(
-        "--doc-types", type=str, default="",
-        help="Comma-separated exact andamento.link_descricao values "
-             '(e.g. "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO").',
-    )
-    ap.add_argument(
-        "--relator-contains", type=str, default="",
-        help="Comma-separated substrings to match in .relator.",
-    )
+    add_filter_args(ap)
     ap.add_argument(
         "--throttle-sleep", type=float, default=2.0,
         help="Seconds between successive GETs (default: 2.0). Pass 0 to "
@@ -132,13 +104,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    targets = collect_pdf_targets(
-        args.roots,
-        classe=args.classe,
-        impte_contains=_split_csv(args.impte_contains),
-        doc_types=_split_csv(args.doc_types),
-        relator_contains=_split_csv(args.relator_contains),
-    )
+    targets = targets_from_args(args)
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     print(f"targets: {len(targets)} PDF URLs across {n_procs} processes")
 

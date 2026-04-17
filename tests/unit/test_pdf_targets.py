@@ -131,6 +131,19 @@ def test_multiple_filters_and_together(tmp_path: Path) -> None:
     assert targets[0].doc_type == "DECISÃO MONOCRÁTICA"
 
 
+def test_exclude_doc_types_filter(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        andamentos=[
+            _andamento("DECISÃO MONOCRÁTICA", "a.pdf"),
+            _andamento("DESPACHO", "b.pdf"),
+        ],
+    ))
+    targets = collect_pdf_targets([tmp_path], exclude_doc_types=["DESPACHO"])
+    assert len(targets) == 1
+    assert targets[0].doc_type == "DECISÃO MONOCRÁTICA"
+
+
 def test_dedupes_by_url_across_files(tmp_path: Path) -> None:
     shared_url = "https://portal.stf.jus.br/processos/shared.pdf"
     _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(

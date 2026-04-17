@@ -54,6 +54,7 @@ Wipe everything: `rm -rf .cache`. Wipe per-process: `rm -rf .cache/html/<CLASSE>
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
 - **`src/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper_http` loads 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **`recursos[].id` vs `recursos[].index`**: HTTP emits `id` (matches ground truth), Selenium code emits `index` (doesn't). Surfaced by sweeps B and C. Fix = retire Selenium.
+- **`.cache/pdf/<sha1>.txt.gz` is monotonic-by-length, not archival.** `scripts/reextract_unstructured.py` overwrites the pypdf extract when the OCR pass is longer. The prior attempt is lost unless the script is routed through `src/pdf_driver.py` (which keeps history in `pdfs.log.jsonl`). Right now it isn't — see the script's "Known gaps" block. Implication: don't trust the on-disk cache as an audit trail of what a given extractor produced at a given time.
 
 ## Don't break these
 

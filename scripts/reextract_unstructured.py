@@ -34,6 +34,26 @@ MANIFESTAÇÃO DA PGR" \\
 Optional env vars:
     UNSTRUCTURED_API_KEY   required to run (not needed for --dry-run)
     UNSTRUCTURED_API_URL   defaults to the SaaS general endpoint
+
+Known gaps (pre-Phase-A debt):
+
+- **Does not route through `src/pdf_driver.run_pdf_sweep`.** The
+  loop below is inlined; `PdfStore` / `pdfs.state.json` /
+  `pdfs.log.jsonl` / `pdfs.errors.jsonl` / `requests.db` are NOT
+  produced. Only stdout logging + the URL-keyed `.cache/pdf/*.txt.gz`
+  cache. Consequences: no `--resume`, no `--retry-from`, no circuit
+  breaker, no per-GET latency data. Fix = write a `FetcherFn` that
+  does the POST+cache.write and pass it as `pdf_driver.run_pdf_sweep`'s
+  `fetcher=` kwarg.
+- **Cache overwrite is monotonic-by-length but non-archival.** The
+  pypdf extract is discarded when OCR wins. If OCR ever writes
+  garbage that happens to be longer than the real extract, we lose
+  the real extract. Mitigation after Phase-A routing: the prior
+  attempt survives in `pdfs.log.jsonl` even after cache overwrite.
+- **`--api-sleep` has no measured rationale.** Unstructured's
+  `hi_res` OCR is self-paced by response latency (2–10s per call).
+  The 1s sleep on top is padding atop a naturally paced call;
+  drop to 0 on next run if you want to verify.
 """
 
 from __future__ import annotations
@@ -50,20 +70,14 @@ from typing import Any, Optional
 import requests
 from dotenv import load_dotenv
 
+from scripts._filters import add_filter_args, targets_from_args
 from src.config import ScraperConfig
-from src.pdf_targets import collect_pdf_targets
 from src.scraper_http import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 
 
 DEFAULT_UNSTRUCTURED_URL = "https://api.unstructuredapp.io/general/v0/general"
-
-
-def _split_csv(s: str | None) -> list[str]:
-    if not s:
-        return []
-    return [p.strip() for p in s.split(",") if p.strip()]
 
 
 def _concat_elements(elements: Any) -> str:
@@ -125,37 +139,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    # Filter flags — shape matches scripts/fetch_pdfs.py
-    ap.add_argument(
-        "--roots", nargs="+", type=Path,
-        default=[Path("output"), Path("output/sample")],
-        help="Directories to walk for judex-mini_*.json files.",
-    )
-    ap.add_argument(
-        "--classe", type=str, default=None,
-        help='Match exact classe, e.g. "HC", "RE", "ADI".',
-    )
-    ap.add_argument(
-        "--impte-contains", type=str, default="",
-        help='Comma-separated substrings (ANY match) for '
-             '.partes[].nome where .tipo == "IMPTE.(S)".',
-    )
-    ap.add_argument(
-        "--doc-types", type=str, default="",
-        help='Comma-separated exact andamento.link_descricao values. '
-             'Empty = all doc types.',
-    )
-    ap.add_argument(
-        "--relator-contains", type=str, default="",
-        help="Comma-separated substrings to match in .relator.",
-    )
-    ap.add_argument(
-        "--exclude-doc-types", type=str, default="",
-        help="Comma-separated doc_types to skip. Useful for 'DESPACHO' "
-             "which is naturally short and won't benefit from OCR.",
-    )
-
-    # OCR-specific flags
+    add_filter_args(ap)
     ap.add_argument(
         "--min-chars", type=int, default=1000,
         help="re-extract cache entries shorter than this (default: 1000).",
@@ -199,17 +183,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return 2
 
-    targets = collect_pdf_targets(
-        args.roots,
-        classe=args.classe,
-        impte_contains=_split_csv(args.impte_contains),
-        doc_types=_split_csv(args.doc_types),
-        relator_contains=_split_csv(args.relator_contains),
-    )
-    excluded = set(_split_csv(args.exclude_doc_types))
-    if excluded:
-        targets = [t for t in targets if t.doc_type not in excluded]
-
+    targets = targets_from_args(args)
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     print(f"target pool: {len(targets)} PDFs across {n_procs} processes")
 

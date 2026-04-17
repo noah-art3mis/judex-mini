@@ -312,6 +312,8 @@ After the measurement settles:
 
 Currently PDFs go through `pypdf.PdfReader.extract_text(extraction_mode="layout")`. You'll see warnings like `Rotated text discovered. Output will be incomplete.` — these are real: STF often stamps signed documents with rotated watermarks and the extractor drops content around them. Two options: (a) fall back to default mode on rotation, (b) use `pdfminer.six` or OCR for the problem documents. Worth investigating if downstream analysis needs the full text.
 
+**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`, 2026-04-17): walks the `pdf_targets` output, re-downloads cache entries shorter than `--min-chars`, POSTs to Unstructured's SaaS API with `strategy=hi_res`, overwrites `.cache/pdf/<sha1>.txt.gz` when the new extract is longer. First production run: `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`. **Known gap**: the script does *not* route through `src/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced. Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to `run_pdf_sweep`). The script's docstring carries the full list of gaps.
+
 ### 5. Pre-existing bugs in the Selenium side
 
 Surfaced during the dedup review; untouched because the Selenium path has no automated coverage:
