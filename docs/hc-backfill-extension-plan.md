@@ -49,9 +49,9 @@ Successor to `analysis/hc_backfill_plan.md` (queue exhausted 2026-04-17 with swe
 
 ## Calendar correction (do first)
 
-`analysis/hc_calendar.year_to_id_range` predicts pre-2018 ranges that overshoot reality. Two sweeps mapped to the same actual year (R/2015→2016, S/2014→2016; Q/2016→2017, P/2017→2017). Likely cause: linear interpolation between sparse anchors masks a non-linear filing-rate change in the 2014–2017 STJ→STF transfer regime.
+`src.utils.hc_calendar.year_to_id_range` predicts pre-2018 ranges that overshoot reality. Two sweeps mapped to the same actual year (R/2015→2016, S/2014→2016; Q/2016→2017, P/2017→2017). Likely cause: linear interpolation between sparse anchors masks a non-linear filing-rate change in the 2014–2017 STJ→STF transfer regime.
 
-**Fix**: extend `analysis/hc_id_to_date.json` with all 8 951 (id, data_protocolo) anchors from the existing samples (collector cell at the bottom of `analysis/hc_calendar.py`). Re-run `python analysis/hc_calendar.py` and verify the 2015 and 2014 ranges now point below HC 138 000. Cost: ~5 min.
+**Fix** (done 2026-04-17): `src/utils/hc_id_to_date.json` now holds **9 897 anchors** (id range 82959..271060), merged from the extended collector output that previously lived in `analysis/hc_id_to_date.json` (since deleted). Re-run `uv run python src/utils/hc_calendar.py` to inspect the year→id table; 2014 resolves to 120926..126076 and 2015 to 126093..132210, both well below HC 138 000. Collector cell lives at the bottom of `src/utils/hc_calendar.py`.
 
 ```python
 # one-shot recalibration sketch
@@ -142,8 +142,8 @@ Last gate guards against another calendar-mismatch surprise; if it fires, halt a
 1. **Read** `docs/sweep-results/<date>-<label>/sweep.state.json`.
 2. **Check health gates** above. If any fail → halt and surface numbers; don't proceed.
 3. **Replay cache-hot** into `output/sample/<label>/judex-mini_HC_<n>-<n>.json` (chunk size 1 in `main.py` would write each as its own file; see existing replay invocation in backfill log).
-4. **Extend** `analysis/hc_id_to_date.json` with the new (id, data_protocolo) anchors.
-5. **Recalibrate** `analysis/hc_calendar.py` after every 2 sweeps in Track 1 (since each new cohort tightens the interpolation in the paper era).
+4. **Extend** `src/utils/hc_id_to_date.json` with the new (id, data_protocolo) anchors.
+5. **Recalibrate** `src/utils/hc_calendar.py` after every 2 sweeps in Track 1 (since each new cohort tightens the interpolation in the paper era).
 6. **Append** a row to `docs/sweep-results/2026-04-17-backfill-log.md` with sweep, range, ok/fail, WAF cycles, wall.
 7. **Launch** next queued sweep in the background.
 
@@ -155,7 +155,7 @@ Last gate guards against another calendar-mismatch surprise; if it fires, halt a
 
 ## What this plan does NOT cover
 
-- **Other classes** (RHC, AP, MS). Marquee criminal-bar lawyers are more likely to appear in RHC/AP than HC; if the lawyer×relator analysis stalls on volume, scope an RHC sweep separately. Density probe at `analysis/class_density_probe.py`.
+- **Other classes** (RHC, AP, MS). Marquee criminal-bar lawyers are more likely to appear in RHC/AP than HC; if the lawyer×relator analysis stalls on volume, scope an RHC sweep separately. Density probe at `scripts/class_density_probe.py`.
 - **PDF re-extraction quality**. Some 2016-era HCs had documentos with rotated-watermark artefacts (see handoff § PDF extraction quality). Out of scope here.
 - **Robots.txt posture**. Still unresolved; sweeps continue under the current adaptive-pacing arrangement.
 
@@ -163,4 +163,4 @@ Last gate guards against another calendar-mismatch surprise; if it fires, halt a
 
 - `docs/handoff.md` § "Next major goal" — mark the HC backfill as completed across the planned eras.
 - `docs/hc-who-wins.md` — incorporate era-drift findings (or note their absence) in the writeup.
-- `analysis/hc_backfill_plan.md` — supersede with a one-line pointer to this file.
+- ~~`analysis/hc_backfill_plan.md` — supersede with a one-line pointer to this file.~~ Done 2026-04-17: file deleted; this doc is the canonical successor.

@@ -1,8 +1,9 @@
 # HC year-backfill — autonomous session log
 
 Narrative record of the unattended multi-sweep backfill kicked off on
-2026-04-17. Plan at `analysis/hc_backfill_plan.md`. Health-gate rules
-documented there; this file interprets what happened.
+2026-04-17. Plan was at `analysis/hc_backfill_plan.md` (since deleted;
+see `docs/hc-backfill-extension-plan.md` for the successor). Health-gate
+rules documented there; this file interprets what happened.
 
 ## Context at start
 
