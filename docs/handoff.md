@@ -1,7 +1,7 @@
 # Handoff — judex-mini perf/bulk-data work
 
 Branch: `experiment/perf-bulk-data`
-Status: landed locally, **not yet pushed**. Tip: `018f26d`. 13 commits ahead of `main`.
+Status: landed locally, **not yet pushed**. Tip: `c101310`. 15 commits ahead of `main`.
 PR: https://github.com/noah-art3mis/judex-mini/pull/new/experiment/perf-bulk-data
 
 Start by reading `docs/perf-bulk-data.md` for the original investigation (DataJud dead-end, STF portal mechanics, 5.7×/~20× perf claim with caveats). Then skim `docs/superpowers/specs/2026-04-16-validation-sweep-design.md` for the sweep plan and `docs/sweep-results/` for what actually happened. This note only covers what's unfinished and why.
@@ -25,37 +25,31 @@ Start by reading `docs/perf-bulk-data.md` for the original investigation (DataJu
 
 **Block-scope probe** (not committed, see conversation log): STF's sweep-C 403 block was session-agnostic and lifted within minutes. Non-browser UAs (`curl/*`) get permanent 403. Browser-shaped UAs all pass — our default Chrome UA is fine. Implication: the block isn't UA/cookie-based; it's rate/behavior-based.
 
-## In-flight at session clear
+## Rate-budget findings (D-runs)
 
-A rate-budget measurement was started but not completed. Three experiments on disjoint ADI slices:
+Three 200-process sweeps on disjoint ADI slices (commit `c101310`, results at `docs/sweep-results/2026-04-16-D*`). Full analysis: `docs/sweep-results/2026-04-16-D-rate-budget.md`.
 
-| run | CSV                                    | flags                   | goal |
-|-----|----------------------------------------|-------------------------|------|
-| R1  | `tests/sweep/rate_probe_R1.csv` (1–200)   | `--retry-403`            | Is reactive 403 retry practical? |
-| R2  | `tests/sweep/rate_probe_R2.csv` (201–400) | `--throttle-sleep 0.5`   | Does ~5 req/s avoid the wall? |
-| R3  | `tests/sweep/rate_probe_R3.csv` (401–600) | `--throttle-sleep 2.0`   | Is ~2.5 req/s over-conservative? |
+| run | pacing | retry-403 | ok/200 | first block | stall   | wall  |
+|-----|-------:|:---------:|-------:|------------:|--------:|------:|
+| R1  | 0      | ✓         | 199    | process 121 | 4.5 min | 7.3 min |
+| R2  | 0.5 s  | ✗         | 30     | process 31 (hot start) | n/a | 2.1 min |
+| R3  | 2.0 s  | ✗         | 175    | process 106 | 1.0 min (then resumed) | 9.8 min |
 
-**R1 was launched** to `docs/sweep-results/2026-04-16-D1-retry403/`. State as of this handoff: ~120/200 complete, **zero 403s so far** — which is strange, because sweep C blocked at #108 at comparable request rate earlier the same day. Suggests STF's block threshold has hysteresis we don't yet understand, or the earlier probe (fresh sessions, 4 different UAs) counted against the global window.
+Headline findings:
+- **STF's block threshold is ~100–120 processes at any pacing tested.** Pacing doesn't prevent blocks; it just changes their duration (4.5 min at zero sleep → ~1 min at 2 s).
+- **Reactive retry is the better default.** R1's 199/200 vs R3's 175/200.
+- **Warm-start measurements are meaningless.** R2 ran immediately after R1 and inherited a hot WAF counter; its 30/200 result doesn't tell us about 0.5 s pacing on a fresh IP.
 
-**Action for next session**:
-
-1. Check `docs/sweep-results/2026-04-16-D1-retry403/sweep.state.json` for final counts. If completed cleanly, R1's zero-403 result is the finding: at this point in time STF tolerated 200 sequential processes with no pacing.
-2. Run R2 and R3 back-to-back. Commands:
-   ```bash
-   PYTHONPATH=. uv run python scripts/run_sweep.py \
-       --csv tests/sweep/rate_probe_R2.csv --label rate_probe_R2_sleep05 \
-       --wipe-cache --throttle-sleep 0.5 \
-       --parity-csv output/judex-mini_ADI_1-1000.csv \
-       --out docs/sweep-results/2026-04-16-D2-sleep05
-   PYTHONPATH=. uv run python scripts/run_sweep.py \
-       --csv tests/sweep/rate_probe_R3.csv --label rate_probe_R3_sleep20 \
-       --wipe-cache --throttle-sleep 2.0 \
-       --parity-csv output/judex-mini_ADI_1-1000.csv \
-       --out docs/sweep-results/2026-04-16-D3-sleep20
-   ```
-3. Write `docs/sweep-results/2026-04-16-D-rate-budget.md` comparing all three.
-
-Open TaskList at session start has the three experiments pending under IDs 12/13/14/15.
+**Recommended production config:**
+```bash
+--throttle-sleep 2.0 --retry-403
+```
+plus raise retry budget in `src/config.py`:
+```python
+driver_max_retries: int = 20     # was 10
+driver_backoff_max: int = 60     # was 30
+```
+Expected wall for 1000 ADIs: ~52 min (vs Selenium's 77.6 min) with near-perfect completion.
 
 ## The one thing still to decide
 
@@ -84,17 +78,15 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
 
 ## Next steps, ordered
 
-### 1. Finish the rate-budget experiments
+### 1. Apply the rate-budget settings as the default
 
-Three sweeps queued in `tests/sweep/rate_probe_R{1,2,3}.csv` (ADI 1..200, 201..400, 401..600). R1 launched before this handoff with `--retry-403` and no pacing — check `docs/sweep-results/2026-04-16-D1-retry403/sweep.state.json` for the result. **R2 (0.5 s sleep) and R3 (2.0 s sleep) still need to run.** Exact commands in the "In-flight" section above.
-
-After all three finish: write `docs/sweep-results/2026-04-16-D-rate-budget.md` comparing wall time, 403 rate, stall patterns. The verdict tells us whether reactive retry (zero tuning) or proactive pacing (predictable pace) is the right default.
+Commit the recommended config (raise `driver_max_retries` + `driver_backoff_max`, document `--retry-403` + `--throttle-sleep 2.0` as the default for sweeps ≥100 processes). See "Rate-budget findings" above for the numbers. Small patch in `src/config.py`; maybe expose `--max-retries` and `--backoff-max` CLI knobs. ~20 min.
 
 ### 2. Circuit breaker for the sweep driver
 
-Current `--retry-403` retries per-request with tenacity; per-process can spend ~2.5 min per request × 10 requests = 25 min in worst case if blocks cluster. Should add: abort the sweep if error rate crosses X % in a rolling window of N processes. Also stops the "cascade of 5-min waits" scenario.
+Even with retry-403 + pacing, pathological WAF escalation could cascade. Should add: abort the sweep if error rate crosses X % in a rolling window of N processes.
 
-Implementation sketch: maintain a `collections.deque(maxlen=N)` of recent statuses in `run_sweep.main`; after each process, if more than X % of the deque is non-ok, write errors, write state, exit with status 2 and a clear message. Tunable via two CLI flags. ~15 min of work.
+Implementation sketch: maintain a `collections.deque(maxlen=N)` of recent statuses in `run_sweep.main`; after each process, if more than X % of the deque is non-ok, write errors, write state, exit with status 2 and a clear message. Tunable via two CLI flags. Minimum viable: N=25, X=50 %. ~15 min of work.
 
 ### 3. Retry sweep C's 893 blocked processes
 
