@@ -492,7 +492,7 @@ def _to_attempt_record(
 # ----- Main ---------------------------------------------------------------
 
 
-def main(argv: list[str]) -> int:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--csv", type=Path, help="Input CSV of (classe, processo) pairs")
     ap.add_argument("--label", required=True)
@@ -550,34 +550,171 @@ def main(argv: list[str]) -> int:
 
     if args.retry_from is None and args.csv is None:
         ap.error("either --csv or --retry-from is required")
+    return args
 
+
+def _load_rows(args: argparse.Namespace) -> tuple[list[tuple[str, int, Optional[str]]], str]:
     if args.retry_from:
         retry_rows = load_retry_list(args.retry_from)
-        rows: list[tuple[str, int, Optional[str]]] = [(c, p, "retry") for c, p in retry_rows]
-        input_source = f"retry-from `{args.retry_from}` ({len(rows)} rows)"
-    else:
-        with args.csv.open(newline="") as f:  # type: ignore[union-attr]
-            rows = parse_sweep_csv(f)
-        input_source = f"csv `{args.csv}` ({len(rows)} rows)"
+        rows = [(c, p, "retry") for c, p in retry_rows]
+        return rows, f"retry-from `{args.retry_from}` ({len(rows)} rows)"
+    with args.csv.open(newline="") as f:
+        rows = parse_sweep_csv(f)
+    return rows, f"csv `{args.csv}` ({len(rows)} rows)"
 
-    if args.wipe_cache:
-        for classe, processo, _ in rows:
-            d = Path("data/html") / f"{classe}_{processo}"
-            if d.exists():
-                shutil.rmtree(d)
 
-    parity_csv: Optional[dict[tuple[str, int], dict[str, Any]]] = None
-    parity_source = "none"
-    if args.parity_dir:
-        parity_source = f"gt-dir `{args.parity_dir}`"
+def _resolve_parity(
+    args: argparse.Namespace,
+) -> tuple[Optional[dict[tuple[str, int], dict[str, Any]]], str]:
     if args.parity_csv:
         parity_csv = load_parity_csv(args.parity_csv)
-        parity_source = f"selenium-csv `{args.parity_csv}` ({len(parity_csv)} rows)"
+        return parity_csv, f"selenium-csv `{args.parity_csv}` ({len(parity_csv)} rows)"
+    if args.parity_dir:
+        return None, f"gt-dir `{args.parity_dir}`"
+    return None, "none"
+
+
+def _wipe_html_caches(rows: list[tuple[str, int, Optional[str]]]) -> None:
+    for classe, processo, _ in rows:
+        d = Path("data/html") / f"{classe}_{processo}"
+        if d.exists():
+            shutil.rmtree(d)
+
+
+def _print_row(i: int, n: int, res: ProcessResult) -> None:
+    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
+    print(
+        f"  [{i:>4d}/{n}] {res.classe:<4s} {res.processo:<8d} "
+        f"{res.wall_s:>6.2f}s  status={res.status:<5s}  "
+        f"retries={retries}  diffs={res.diff_count}  anomalies={len(res.anomalies)}"
+        + (f"  ERR: {res.error}" if res.error else ""),
+        flush=True,
+    )
+
+
+def _print_row_warm(i: int, n: int, classe: str, processo: int, res: ProcessResult) -> None:
+    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
+    print(
+        f"  [{i:>4d}/{n}] {classe:<4s} {processo:<8d} "
+        f"{res.wall_s * 1000:>7.1f}ms  status={res.status}  retries={retries}",
+        flush=True,
+    )
+
+
+@dataclass
+class SweepOutcome:
+    cold_results: list[ProcessResult]
+    warm_results: Optional[list[ProcessResult]]
+    totals: dict[str, int]
+    tripped: bool
+
+
+def _run_passes(
+    args: argparse.Namespace,
+    rows: list[tuple[str, int, Optional[str]]],
+    parity_csv: Optional[dict[tuple[str, int], dict[str, Any]]],
+    store: SweepStore,
+    counter: RetryCounter,
+    config: ScraperConfig,
+    started: datetime,
+) -> SweepOutcome:
+    cold_results: list[ProcessResult] = []
+    totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
+    breaker: Optional[_shared.CircuitBreaker] = (
+        _shared.CircuitBreaker(args.circuit_window, args.circuit_threshold)
+        if args.circuit_window > 0 else None
+    )
+
+    def on_item_cold(i: int, n: int, row: tuple[str, int, Optional[str]]) -> str:
+        classe, processo, source = row
+        res = run_one(
+            classe, processo, source, session, counter,
+            args.parity_dir, parity_csv, config=config,
+        )
+        cold_results.append(res)
+        store.record(
+            _to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1)
+        )
+        totals[res.status] = totals.get(res.status, 0) + 1
+        totals["429"] += res.retries.get("429", 0)
+        totals["5xx"] += res.retries.get("5xx", 0)
+        _print_row(i, n, res)
+        return res.status
+
+    def on_skip_cold(_row: tuple[str, int, Optional[str]]) -> None:
+        totals["skipped"] += 1
+
+    def is_done_cold(row: tuple[str, int, Optional[str]]) -> bool:
+        return args.resume and store.already_ok(row[0], row[1])
+
+    def on_progress_cold(i: int, n: int) -> None:
+        _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
+        print(
+            f"  [progress] ok={totals['ok']} fail={totals['fail']} "
+            f"error={totals['error']} skipped={totals['skipped']} "
+            f"429×{totals['429']} 5xx×{totals['5xx']} · "
+            f"{rate:.2f} proc/s · eta {eta_s/60:.1f} min",
+            flush=True,
+        )
+
+    warm_results: Optional[list[ProcessResult]] = None
+    with new_session() as session:
+        tripped = _shared.iterate_with_guards(
+            rows,
+            on_item=on_item_cold,
+            should_resume_skip=is_done_cold,
+            on_skip=on_skip_cold,
+            breaker=breaker,
+            error_statuses=("error",),
+            trip_noun="processes",
+            progress_every=args.progress_every,
+            on_progress=on_progress_cold,
+            throttle_sleep=args.throttle_sleep,
+        )
+
+        if args.warm_pass and not _shared.shutdown_requested():
+            print("\n=== warm pass (cache warm) ===", flush=True)
+            warm_results = []
+
+            def on_item_warm(i: int, n: int, row: tuple[str, int, Optional[str]]) -> None:
+                classe, processo, source = row
+                res = run_one(
+                    classe, processo, source, session, counter,
+                    args.parity_dir, parity_csv,
+                )
+                warm_results.append(res)
+                store.record(
+                    _to_attempt_record(
+                        res, attempt=store.attempt_count(classe, processo) + 1
+                    )
+                )
+                _print_row_warm(i, n, classe, processo, res)
+                return None
+
+            _shared.iterate_with_guards(
+                rows,
+                on_item=on_item_warm,
+                progress_every=0,
+            )
+
+    return SweepOutcome(
+        cold_results=cold_results,
+        warm_results=warm_results,
+        totals=totals,
+        tripped=tripped,
+    )
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    rows, input_source = _load_rows(args)
+    if args.wipe_cache:
+        _wipe_html_caches(rows)
+    parity_csv, parity_source = _resolve_parity(args)
 
     store = SweepStore(args.out)
     counter = install_retry_counter()
     _shared.install_signal_handlers()
-
     config = ScraperConfig(retry_403=args.retry_403)
 
     started = datetime.now(timezone.utc)
@@ -587,97 +724,7 @@ def main(argv: list[str]) -> int:
         flush=True,
     )
 
-    cold_results: list[ProcessResult] = []
-    totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
-    breaker: Optional[_shared.CircuitBreaker] = (
-        _shared.CircuitBreaker(args.circuit_window, args.circuit_threshold)
-        if args.circuit_window > 0 else None
-    )
-    tripped = False
-
-    def print_row(i: int, n: int, res: ProcessResult, note: str = "") -> None:
-        retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
-        anomalies = len(res.anomalies)
-        print(
-            f"  [{i:>4d}/{n}] {res.classe:<4s} {res.processo:<8d} "
-            f"{res.wall_s:>6.2f}s  status={res.status:<5s}  "
-            f"retries={retries}  diffs={res.diff_count}  anomalies={anomalies}"
-            + (f"  ERR: {res.error}" if res.error else "")
-            + (f"  {note}" if note else ""),
-            flush=True,
-        )
-
-    with new_session() as session:
-        for i, (classe, processo, source) in enumerate(rows, 1):
-            if _shared.shutdown_requested():
-                print(f"  stopping before process {i}/{len(rows)}", flush=True)
-                break
-            if args.resume and store.already_ok(classe, processo):
-                totals["skipped"] += 1
-                continue
-
-            res = run_one(
-                classe, processo, source, session, counter,
-                args.parity_dir, parity_csv, config=config,
-            )
-            cold_results.append(res)
-            store.record(_to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1))
-
-            totals[res.status] = totals.get(res.status, 0) + 1
-            totals["429"] += res.retries.get("429", 0)
-            totals["5xx"] += res.retries.get("5xx", 0)
-
-            print_row(i, len(rows), res)
-
-            if breaker is not None:
-                breaker.record(res.status)
-                if breaker.tripped():
-                    tripped = True
-                    print(
-                        f"\n!! circuit breaker tripped: >{args.circuit_threshold:.0%} "
-                        f"non-ok in the last {args.circuit_window} processes. "
-                        f"Stopping at {i}/{len(rows)}. Resume with --resume once "
-                        f"conditions recover.",
-                        flush=True,
-                    )
-                    break
-
-            if args.progress_every and i % args.progress_every == 0:
-                elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-                rate = i / elapsed if elapsed > 0 else 0
-                eta_s = (len(rows) - i) / rate if rate > 0 else 0
-                print(
-                    f"  [progress] ok={totals['ok']} fail={totals['fail']} "
-                    f"error={totals['error']} skipped={totals['skipped']} "
-                    f"429×{totals['429']} 5xx×{totals['5xx']} · "
-                    f"{rate:.2f} proc/s · eta {eta_s/60:.1f} min",
-                    flush=True,
-                )
-
-            if args.throttle_sleep > 0 and i < len(rows):
-                time.sleep(args.throttle_sleep)
-
-        warm_results: Optional[list[ProcessResult]] = None
-        if args.warm_pass and not _shared.shutdown_requested():
-            print("\n=== warm pass (cache warm) ===", flush=True)
-            warm_results = []
-            for i, (classe, processo, source) in enumerate(rows, 1):
-                if _shared.shutdown_requested():
-                    break
-                res = run_one(
-                    classe, processo, source, session, counter,
-                    args.parity_dir, parity_csv,
-                )
-                warm_results.append(res)
-                store.record(
-                    _to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1)
-                )
-                retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
-                print(
-                    f"  [{i:>4d}/{len(rows)}] {classe:<4s} {processo:<8d} "
-                    f"{res.wall_s * 1000:>7.1f}ms  status={res.status}  retries={retries}",
-                    flush=True,
-                )
+    outcome = _run_passes(args, rows, parity_csv, store, counter, config, started)
 
     finished = datetime.now(timezone.utc)
     errors_path = store.write_errors_file()
@@ -690,10 +737,11 @@ def main(argv: list[str]) -> int:
         finished=finished,
         commit=_git_sha(),
         parity_source=parity_source,
-        cold_results=cold_results,
-        warm_results=warm_results,
+        cold_results=outcome.cold_results,
+        warm_results=outcome.warm_results,
     )
 
+    totals = outcome.totals
     print(
         f"\nsummary: ok={totals['ok']} fail={totals['fail']} error={totals['error']} "
         f"skipped={totals['skipped']} 429×{totals['429']} 5xx×{totals['5xx']}",
@@ -704,7 +752,7 @@ def main(argv: list[str]) -> int:
     print(f"  errors: {errors_path}")
     print(f"  report: {report_path}")
 
-    if tripped:
+    if outcome.tripped:
         return 2
     n_error = totals["error"] + totals["fail"]
     return 0 if n_error == 0 else 1

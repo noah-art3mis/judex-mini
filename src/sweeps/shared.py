@@ -11,6 +11,7 @@ from __future__ import annotations
 import signal
 import time
 from collections import deque
+from datetime import datetime, timezone
 from statistics import median, quantiles
 from typing import Any, Callable, Optional, Sequence, TypeVar
 
@@ -157,6 +158,20 @@ def iterate_with_guards(
         if throttle_sleep > 0 and i < n:
             time.sleep(throttle_sleep)
     return False
+
+
+def elapsed_rate_eta(
+    started: datetime, i: int, n: int
+) -> tuple[float, float, float]:
+    """(elapsed_s, rate_per_s, eta_s) based on items done so far.
+
+    rate and eta are 0.0 when the run hasn't accumulated any wall time
+    yet — callers display them uniformly.
+    """
+    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    rate = i / elapsed if elapsed > 0 else 0.0
+    eta_s = (n - i) / rate if rate > 0 else 0.0
+    return elapsed, rate, eta_s
 
 
 def percentiles(values: list[float]) -> tuple[float, float, float]:

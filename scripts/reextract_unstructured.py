@@ -1,23 +1,32 @@
 """Re-extract image-only PDFs via the Unstructured API.
 
-Generic counterpart to `scripts/fetch_pdfs.py`: same filter flags
+OCR counterpart to `scripts/fetch_pdfs.py`: same filter flags
 (``--classe / --impte-contains / --doc-types / --relator-contains``),
-same target collection, but instead of the normal pypdf path this
-script POSTs each short-cached PDF to the Unstructured SaaS API
-with ``strategy=hi_res`` (OCR).
+same target collection, but instead of the default pypdf path each
+short-cached PDF is POSTed to the Unstructured SaaS API with
+``strategy=hi_res``.
 
-Cache-monotonic: only overwrites ``data/pdf/<sha1(url)>.txt.gz``
-when the new extract is longer than the old. Safe to re-run; the
-cache only ever improves.
+Routes through `src.sweeps.pdf_driver.run_pdf_sweep` so every attempt
+is captured in `pdfs.state.json` / `pdfs.log.jsonl` / `pdfs.errors.jsonl`
+under ``--out``. That gives `--resume`, `--retry-from`, circuit breaker,
+and per-GET latency history for free.
+
+Cache-monotonic: only overwrites ``data/pdf/<sha1(url)>.txt.gz`` when
+the new OCR extract is strictly longer than the prior cached text.
+The per-attempt record uses ``extractor="unstructured_api"`` on
+improvement and ``extractor="unchanged"`` otherwise, so the report
+at `<out>/report.md` breaks down improved vs unchanged.
 
 Usage:
 
     # Dry run — show what would be re-extracted.
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
+        --out docs/pdf-sweeps/$(date +%Y-%m-%d)-reextract \\
         --classe HC --dry-run
 
     # Famous-lawyer HC preset (matches fetch_pdfs.py's preset).
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
+        --out docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr \\
         --classe HC \\
         --impte-contains "TORON,PIERPAOLO,PEDRO MACHADO DE ALMEIDA CASTRO,\\
 ARRUDA BOTELHO,MARCELO LEONARDO,NILO BATISTA,VILARDI,PODVAL,\\
@@ -26,34 +35,9 @@ MUDROVITSCH,BADARO,DANIEL GERBER,TRACY JOSEPH REINALDET" \\
 MANIFESTAÇÃO DA PGR" \\
         --min-chars 5000
 
-    # Re-OCR Fachin's acórdãos specifically.
-    PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
-        --classe HC --relator-contains FACHIN \\
-        --doc-types "INTEIRO TEOR DO ACÓRDÃO"
-
 Optional env vars:
     UNSTRUCTURED_API_KEY   required to run (not needed for --dry-run)
     UNSTRUCTURED_API_URL   defaults to the SaaS general endpoint
-
-Known gaps (pre-Phase-A debt):
-
-- **Does not route through `src/sweeps/pdf_driver.run_pdf_sweep`.** The
-  loop below is inlined; `PdfStore` / `pdfs.state.json` /
-  `pdfs.log.jsonl` / `pdfs.errors.jsonl` / `requests.db` are NOT
-  produced. Only stdout logging + the URL-keyed `data/pdf/*.txt.gz`
-  cache. Consequences: no `--resume`, no `--retry-from`, no circuit
-  breaker, no per-GET latency data. Fix = write a `FetcherFn` that
-  does the POST+cache.write and pass it as `pdf_driver.run_pdf_sweep`'s
-  `fetcher=` kwarg.
-- **Cache overwrite is monotonic-by-length but non-archival.** The
-  pypdf extract is discarded when OCR wins. If OCR ever writes
-  garbage that happens to be longer than the real extract, we lose
-  the real extract. Mitigation after Phase-A routing: the prior
-  attempt survives in `pdfs.log.jsonl` even after cache overwrite.
-- **`--api-sleep` has no measured rationale.** Unstructured's
-  `hi_res` OCR is self-paced by response latency (2–10s per call).
-  The 1s sleep on top is padding atop a naturally paced call;
-  drop to 0 on next run if you want to verify.
 """
 
 from __future__ import annotations
@@ -62,7 +46,6 @@ import argparse
 import logging
 import os
 import sys
-import time
 from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
@@ -71,10 +54,10 @@ import requests
 from dotenv import load_dotenv
 
 from scripts._filters import add_filter_args, targets_from_args
-from src.config import ScraperConfig
-from src.scraping.http_session import _http_get_with_retry, new_session
+from src.sweeps.pdf_driver import FetcherFn, run_pdf_sweep
+from src.sweeps.pdf_targets import PdfTarget
+from src.scraping.http_session import _http_get_with_retry
 from src.utils import pdf_cache
-from src.utils.adaptive_throttle import AdaptiveThrottle
 
 
 DEFAULT_UNSTRUCTURED_URL = "https://api.unstructuredapp.io/general/v0/general"
@@ -111,9 +94,9 @@ def _extract_with_unstructured(
 
     Returns `(joined_text, elements)`. The elements list is the raw
     API response — dicts with `type`, `text`, `metadata`, etc. —
-    written to the parallel elements cache so downstream consumers
-    can recover structure (section titles, page numbers, table rows)
-    that the flat text throws away.
+    written to the parallel elements cache when accepted so downstream
+    consumers can recover section titles, page numbers, and table
+    structure that the flat text throws away.
     """
     headers = {
         "unstructured-api-key": api_key,
@@ -133,21 +116,76 @@ def _extract_with_unstructured(
     return _concat_elements(elements), elements
 
 
-def _build_session_and_config(throttle_sleep: float) -> tuple[Any, ScraperConfig]:
-    session = new_session()
-    throttle = AdaptiveThrottle(
-        target_concurrency=1.0,
-        start_delay=throttle_sleep,
-        min_delay=throttle_sleep,
-        max_delay=max(throttle_sleep * 10, 30.0),
-    )
-    return session, ScraperConfig(throttle=throttle)
+def _make_fetcher(
+    *,
+    api_url: str,
+    api_key: str,
+    strategy: str,
+    old_len_by_url: dict[str, int],
+) -> FetcherFn:
+    """Build a FetcherFn suitable for `pdf_driver.run_pdf_sweep`.
+
+    The closure captures the per-URL "prior length" map so the
+    monotonic guard can compare without a fresh `pdf_cache.read`.
+    """
+    def fetcher(
+        session: Any, target: PdfTarget, config: Any,
+    ) -> tuple[Optional[str], Optional[str], str]:
+        r = _http_get_with_retry(session, target.url, config=config, timeout=90)
+        if not r.content.startswith(b"%PDF"):
+            return (None, "unstructured_api", "unknown_type")
+
+        new_text, new_elements = _extract_with_unstructured(
+            r.content, api_url=api_url, api_key=api_key, strategy=strategy,
+        )
+        new_len = len(new_text or "")
+        old_len = old_len_by_url.get(target.url, 0)
+        old_text = pdf_cache.read(target.url) or ""
+
+        if new_text and new_len > old_len:
+            pdf_cache.write_elements(target.url, new_elements)
+            return (new_text, "unstructured_api", "ok")
+
+        # No improvement — preserve the prior cache, record as "unchanged".
+        if old_text:
+            return (old_text, "unchanged", "ok")
+        return (None, "unstructured_api", "empty")
+
+    return fetcher
+
+
+def _classify_candidates(
+    targets: list[PdfTarget], *, min_chars: int, force: bool,
+) -> tuple[list[tuple[PdfTarget, int]], int, int]:
+    """Split targets into (re-extract candidates, cached-ok, no-cache).
+
+    Returns `(candidates, cached_ok, no_cache)` where each candidate
+    is a `(target, old_len)` pair (0 if no prior cache).
+    """
+    candidates: list[tuple[PdfTarget, int]] = []
+    cached_ok = 0
+    no_cache = 0
+    for t in targets:
+        existing = pdf_cache.read(t.url)
+        if existing is None:
+            candidates.append((t, 0))
+            no_cache += 1
+        elif force or len(existing) < min_chars:
+            candidates.append((t, len(existing)))
+        else:
+            cached_ok += 1
+    return candidates, cached_ok, no_cache
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument(
+        "--out", required=True, type=Path,
+        help="Output DIRECTORY for pdfs.state.json / pdfs.log.jsonl / "
+             "pdfs.errors.jsonl / requests.db / report.md.",
     )
     add_filter_args(ap)
     ap.add_argument(
@@ -156,11 +194,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument(
         "--throttle-sleep", type=float, default=2.0,
-        help="seconds between STF portal PDF downloads (default: 2.0).",
-    )
-    ap.add_argument(
-        "--api-sleep", type=float, default=1.0,
-        help="seconds between successive Unstructured API calls (default: 1.0).",
+        help="seconds between successive targets (default: 2.0). Paces "
+             "STF PDF downloads; the adaptive throttle still applies.",
     )
     ap.add_argument(
         "--strategy", default="hi_res",
@@ -178,6 +213,22 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument(
         "--force", action="store_true",
         help="re-extract even if cached length >= --min-chars.",
+    )
+    ap.add_argument(
+        "--resume", action="store_true",
+        help="skip URLs already recorded as status=ok in pdfs.state.json.",
+    )
+    ap.add_argument(
+        "--retry-from", type=Path,
+        help="path to a prior pdfs.errors.jsonl; re-run those URLs only.",
+    )
+    ap.add_argument(
+        "--circuit-window", type=int, default=50,
+        help="rolling window of recent targets the breaker watches (0 = off).",
+    )
+    ap.add_argument(
+        "--circuit-threshold", type=float, default=0.8,
+        help="error-like fraction that trips the breaker (default: 0.8).",
     )
     args = ap.parse_args(argv)
 
@@ -197,18 +248,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     print(f"target pool: {len(targets)} PDFs across {n_procs} processes")
 
-    candidates: list[tuple[Any, int]] = []
-    cached_ok = 0
-    no_cache = 0
-    for t in targets:
-        existing = pdf_cache.read(t.url)
-        if existing is None:
-            candidates.append((t, 0))
-            no_cache += 1
-        elif args.force or len(existing) < args.min_chars:
-            candidates.append((t, len(existing)))
-        else:
-            cached_ok += 1
+    candidates, cached_ok, no_cache = _classify_candidates(
+        targets, min_chars=args.min_chars, force=args.force,
+    )
 
     print(f"  cached with >= {args.min_chars} chars: {cached_ok}")
     print(f"  re-extraction candidates:             {len(candidates)} "
@@ -224,71 +266,25 @@ def main(argv: Optional[list[str]] = None) -> int:
         candidates = candidates[: args.limit]
         print(f"  limited to first {args.limit}")
 
-    session, config = _build_session_and_config(args.throttle_sleep)
+    candidate_targets = [t for t, _ in candidates]
+    old_len_by_url = {t.url: old_len for t, old_len in candidates}
 
-    improved = 0
-    unchanged = 0
-    failed = 0
-    try:
-        for i, (t, old_len) in enumerate(candidates, 1):
-            prefix = f"[{i}/{len(candidates)}] {t.classe} {t.processo_id} {t.doc_type}"
-            try:
-                r = _http_get_with_retry(
-                    session, t.url, config=config, timeout=90,
-                )
-                pdf_bytes = r.content
-            except Exception as e:
-                logging.warning(f"{prefix}: download FAIL {e}")
-                failed += 1
-                continue
+    fetcher = _make_fetcher(
+        api_url=api_url, api_key=api_key or "",
+        strategy=args.strategy,
+        old_len_by_url=old_len_by_url,
+    )
 
-            if not pdf_bytes.startswith(b"%PDF"):
-                logging.warning(
-                    f"{prefix}: not a PDF (first bytes: {pdf_bytes[:8]!r})"
-                )
-                failed += 1
-                continue
-
-            try:
-                new_text, new_elements = _extract_with_unstructured(
-                    pdf_bytes,
-                    api_url=api_url, api_key=api_key,
-                    strategy=args.strategy,
-                )
-            except requests.HTTPError as e:
-                status = getattr(e.response, "status_code", "?")
-                logging.warning(f"{prefix}: unstructured FAIL http {status}")
-                failed += 1
-                continue
-            except Exception as e:
-                logging.warning(f"{prefix}: unstructured FAIL {e}")
-                failed += 1
-                continue
-
-            new_len = len(new_text or "")
-            if new_text and new_len > old_len:
-                pdf_cache.write(t.url, new_text)
-                # Also persist the structured element list so future
-                # consumers can recover section titles / page numbers /
-                # table structure. See src/utils/pdf_cache.py docstring.
-                if new_elements:
-                    pdf_cache.write_elements(t.url, new_elements)
-                improved += 1
-                logging.info(
-                    f"{prefix}: ok (old {old_len} → new {new_len} chars)"
-                )
-            else:
-                unchanged += 1
-                logging.info(
-                    f"{prefix}: no improvement (old {old_len}, new {new_len})"
-                )
-
-            if args.api_sleep and i < len(candidates):
-                time.sleep(args.api_sleep)
-    finally:
-        session.close()
-
-    print(f"\nsummary: improved={improved} unchanged={unchanged} failed={failed}")
+    fetched, cached_hits, failed = run_pdf_sweep(
+        candidate_targets,
+        out_dir=args.out,
+        throttle_sleep=args.throttle_sleep,
+        resume=args.resume,
+        retry_from=args.retry_from,
+        circuit_window=args.circuit_window,
+        circuit_threshold=args.circuit_threshold,
+        fetcher=fetcher,
+    )
     return 0 if failed == 0 else 1
 
 

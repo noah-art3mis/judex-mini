@@ -204,13 +204,11 @@ def run_pdf_sweep(
         return status
 
     def on_progress(i: int, n: int) -> None:
-        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-        rate = i / elapsed if elapsed > 0 else 0
-        eta = (n - i) / rate if rate > 0 else 0
+        _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
         print(
             f"  [progress] ok={counters.fetched} cached={counters.cached_hits} "
             f"fail={counters.failed} · {rate:.2f} tgt/s · "
-            f"eta {eta / 60:.1f} min",
+            f"eta {eta_s / 60:.1f} min",
             flush=True,
         )
 
