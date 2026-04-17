@@ -31,24 +31,21 @@ import argparse
 import csv
 import json
 import shutil
-import signal
 import subprocess
 import sys
 import time
 import urllib3
-from collections import Counter, deque
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from statistics import median, quantiles
 from typing import Any, Optional, TextIO
 
-import requests
-
 from scripts._diff import diff_item
-from scripts.sweep_state import AttemptRecord, SweepStore, load_retry_list
+from src import _shared
 from src import scraper_http as sh
 from src.config import ScraperConfig
+from src.process_store import AttemptRecord, SweepStore, load_retry_list
 from src.scraper_http import new_session, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -153,35 +150,6 @@ def install_retry_counter() -> RetryCounter:
     return counter
 
 
-# ----- Circuit breaker ----------------------------------------------------
-
-
-class CircuitBreaker:
-    """Abort a sweep early if the recent exception rate exceeds a threshold.
-
-    Tracks the last `window` process statuses; trips when the *error*
-    fraction of a full window strictly exceeds `threshold`. Only
-    status="error" (thrown exception — HTTP 403/5xx, connection errors)
-    counts. status="fail" means STF returned 200 for a non-existent
-    process, which is expected for sparse numbering ranges and should
-    not trip the breaker.
-    """
-
-    def __init__(self, window: int, threshold: float) -> None:
-        self.window = window
-        self.threshold = threshold
-        self._recent: deque[str] = deque(maxlen=window)
-
-    def record(self, status: str) -> None:
-        self._recent.append(status)
-
-    def tripped(self) -> bool:
-        if len(self._recent) < self.window:
-            return False
-        errors = sum(1 for s in self._recent if s == "error")
-        return errors / self.window > self.threshold
-
-
 # ----- Shape probe --------------------------------------------------------
 
 
@@ -274,30 +242,6 @@ class ProcessResult:
         return len(self.diffs)
 
 
-def classify_exception(e: BaseException) -> tuple[str, Optional[int], Optional[str]]:
-    """Return (error_type, http_status, url) extracted from a scrape exception.
-
-    Handles:
-    - requests.HTTPError: pulls the status from the underlying Response
-    - sh.RetryableHTTPError: has .status_code + .url directly
-    - anything else: just the class name
-    """
-    etype = type(e).__name__
-    http_status: Optional[int] = None
-    url: Optional[str] = None
-
-    if isinstance(e, sh.RetryableHTTPError):
-        http_status = e.status_code
-        url = e.url or None
-    elif isinstance(e, requests.HTTPError):
-        resp = getattr(e, "response", None)
-        if resp is not None:
-            http_status = getattr(resp, "status_code", None)
-            url = getattr(resp, "url", None)
-
-    return etype, http_status, url
-
-
 def run_one(
     classe: str,
     processo: int,
@@ -316,7 +260,7 @@ def run_one(
             classe, processo, use_cache=True, session=session, config=config
         )
     except Exception as e:
-        etype, http_status, url = classify_exception(e)
+        etype, http_status, url = _shared.classify_exception(e)
         return ProcessResult(
             classe, processo, source,
             wall_s=time.perf_counter() - t0,
@@ -375,18 +319,6 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def _percentiles(values: list[float]) -> tuple[float, float, float]:
-    if not values:
-        return (0.0, 0.0, 0.0)
-    if len(values) == 1:
-        v = values[0]
-        return (v, v, v)
-    qs = quantiles(values, n=10)
-    p50 = median(values)
-    p90 = qs[8]
-    return (p50, p90, max(values))
-
-
 def _pct_cell(key: str, results: list[ProcessResult]) -> int:
     return sum(r.retries.get(key, 0) for r in results)
 
@@ -420,7 +352,7 @@ def render_report(
                 f"{anomalies_str} | {status} |"
             )
         wall = [r.wall_s for r in results if r.status == "ok"]
-        p50, p90, pmax = _percentiles(wall)
+        p50, p90, pmax = _shared.percentiles(wall)
         total_429 = _pct_cell("429", results)
         total_5xx = _pct_cell("5xx", results)
         ok = sum(1 for r in results if r.status == "ok")
@@ -537,22 +469,6 @@ def render_report(
     out_path.write_text("\n".join(out_lines))
 
 
-# ----- Signal handling ----------------------------------------------------
-
-
-_SHUTDOWN = False
-
-
-def _install_signal_handlers() -> None:
-    def handler(signum: int, _frame: Any) -> None:
-        global _SHUTDOWN
-        _SHUTDOWN = True
-        print(f"\n!! received signal {signum}; finishing current process and stopping", flush=True)
-
-    signal.signal(signal.SIGINT, handler)
-    signal.signal(signal.SIGTERM, handler)
-
-
 def _to_attempt_record(
     res: ProcessResult, attempt: int, ts: Optional[str] = None
 ) -> AttemptRecord:
@@ -660,7 +576,7 @@ def main(argv: list[str]) -> int:
 
     store = SweepStore(args.out)
     counter = install_retry_counter()
-    _install_signal_handlers()
+    _shared.install_signal_handlers()
 
     config = ScraperConfig(retry_403=args.retry_403)
 
@@ -673,8 +589,8 @@ def main(argv: list[str]) -> int:
 
     cold_results: list[ProcessResult] = []
     totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
-    breaker: Optional[CircuitBreaker] = (
-        CircuitBreaker(window=args.circuit_window, threshold=args.circuit_threshold)
+    breaker: Optional[_shared.CircuitBreaker] = (
+        _shared.CircuitBreaker(args.circuit_window, args.circuit_threshold)
         if args.circuit_window > 0 else None
     )
     tripped = False
@@ -693,7 +609,7 @@ def main(argv: list[str]) -> int:
 
     with new_session() as session:
         for i, (classe, processo, source) in enumerate(rows, 1):
-            if _SHUTDOWN:
+            if _shared.shutdown_requested():
                 print(f"  stopping before process {i}/{len(rows)}", flush=True)
                 break
             if args.resume and store.already_ok(classe, processo):
@@ -742,11 +658,11 @@ def main(argv: list[str]) -> int:
                 time.sleep(args.throttle_sleep)
 
         warm_results: Optional[list[ProcessResult]] = None
-        if args.warm_pass and not _SHUTDOWN:
+        if args.warm_pass and not _shared.shutdown_requested():
             print("\n=== warm pass (cache warm) ===", flush=True)
             warm_results = []
             for i, (classe, processo, source) in enumerate(rows, 1):
-                if _SHUTDOWN:
+                if _shared.shutdown_requested():
                     break
                 res = run_one(
                     classe, processo, source, session, counter,

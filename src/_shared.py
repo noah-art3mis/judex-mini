@@ -1,8 +1,8 @@
 """Shared primitives for sweep drivers.
 
 CircuitBreaker, signal handlers, exception classifier, percentile
-helper — used by both the process sweep (scripts/run_sweep.py, which
-will migrate in Phase B) and the PDF sweep (src/pdf_driver.py).
+helper — used by both the process sweep (scripts/run_sweep.py) and
+the PDF sweep (src/pdf_driver.py).
 """
 
 from __future__ import annotations

@@ -13,11 +13,10 @@ from unittest.mock import Mock
 import requests
 
 from scripts.run_sweep import (
-    CircuitBreaker,
-    classify_exception,
     parse_selenium_row,
     parse_sweep_csv,
 )
+from src._shared import CircuitBreaker, classify_exception
 from src.scraper_http import RetryableHTTPError
 
 
