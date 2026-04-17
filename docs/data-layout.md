@@ -129,9 +129,9 @@ shared artifact.
   `data/output/` (top-level) is production sweep output. The notebooks
   in `analysis/` default to reading both roots
   (`[Path("data/output"), Path("data/output/sample")]`) unless overridden.
-- **`docs/perf-bulk-data.md` and `docs/handoff.md` are the narrative
-  history.** They chronologically explain *why* the current structure
-  exists (DataJud dead-end, Selenium retirement, Phase A/B refactor,
-  WAF findings). This document is the *spatial* map; those are the
-  *temporal* narrative. Read this one first for orientation, then
-  the handoff for what's in flight.
+- **This doc is the spatial map; four sibling docs cover the rest of the conceptual surface.**
+  - [`docs/stf-portal.md`](stf-portal.md) — how the portal works (URL flow, auth triad, UTF-8, field→source map, DataJud dead-end).
+  - [`docs/rate-limits.md`](rate-limits.md) — WAF behavior, validated sweep defaults, the robots.txt posture question.
+  - [`docs/process-space.md`](process-space.md) — class sizes (HC / ADI / RE), density probes, ceiling refresh.
+  - [`docs/performance.md`](performance.md) — HTTP vs Selenium numbers and why caching is the real lever.
+  - [`docs/handoff.md`](handoff.md) — temporal view: what's in flight, blocked, next. Read this one first, handoff for what's current.

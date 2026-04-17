@@ -50,9 +50,8 @@ sweep keeps moving; the stall cycles are now invisible to downstream.
   closer to 70 min. Either way, well under Selenium's 77.6 min.
 - **HTTP vs Selenium**: at 60 min measured projection, HTTP is
   **~22% faster** end-to-end than Selenium's 77.6 min for the same
-  1000 ADIs — less than the original perf claim of 5.7×/~20× from
-  `docs/perf-bulk-data.md` because that was measured against the
-  single-process hot-cache case, not a full sweep with WAF friction.
+  1000 ADIs — less than the 5.7×/~20× cold-single-process numbers in
+  `docs/performance.md` because that was measured without WAF friction.
 
 ## Interpretation
 

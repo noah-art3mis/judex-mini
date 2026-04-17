@@ -102,6 +102,56 @@ Ship as additions to the existing notebook, not a new file. Keep the
 smoke-data-aware branches so the notebook does not break when
 pointed at sweep H only.
 
+## Notebook layout — investigation strands (2026-04-17)
+
+The `analysis/` marimo notebooks are organized as a hub-and-strand
+pattern. `hc_explorer.py` is the hub (case drilldown, EB-shrunk
+lawyer/minister grant rates, affinity heatmap, narrative deep dives
+on Gilmar's Súmula-691 exception and the Alexandre de Moraes /
+Defensoria-MG archetypes). Four narrow sibling notebooks answer one
+question each and point back at the hub:
+
+| Notebook | Question |
+| --- | --- |
+| `hc_explorer.py` | Hub. Full treatment + case drilldown. Carries an **Investigation index** cell near the top. |
+| `hc_famous_lawyers.py` | Do marquee criminal-defense lawyers (Toron, Bottini, Kakay, …) show up in HCs, with what outcomes? |
+| `hc_top_volume.py` | Who files the most HCs? HC-mill practices + Defensoria breakdown + OAB-state geography. |
+| `hc_minister_archetypes.py` | Stacked wins / losses / procedural bar per minister — grantor vs denier vs gatekeeper at a glance. |
+| `hc_admissibility.py` | Who reaches the merits? `nao_conhecido` rate per minister. |
+
+`analysis/` is git-ignored scratch so these won't be on a fresh
+checkout — recreate from this doc if needed.
+
+**How the slicing was chosen.** The lawyer-side splits into "famous
+name matching" (curated list) and "volume-by-count" (raw impetrante
+ranking) — different populations, different dedup strategies, so
+different notebooks. The minister-side splits into "how do they
+dispose of cases" (3-way disposition shape) and "do they reach the
+merits" (admissibility gate) — orthogonal axes that jointly generate
+the archetype story.
+
+Ran against `output/sample/hc_*` — 8,954 HCs across the sampled
+ranges (2023-vintage dominated).
+
+**Findings (sample-conditional, write up with appropriate hedges):**
+
+1. **Public defenders dominate volume.** DPU 591, DPE-SP 287, DPE-MG 74. Any private lawyer is a rounding error against the Defensoria baseline.
+2. **Top-volume *private* impetrantes are HC-mill practices, not marquee names.** Victor Hugo Anuvale Rodrigues tops the list at ~86 (solo + "E Outro" folded); Cicero Salum do Amaral Lincoln 70; Fábio Rogério Donadon Costa 50. Fav% near the corpus baseline.
+3. **Marquee criminal-bar lawyers file in single digits** on this HC sample. Toron 11; Bottini 6; Pedro M. de Almeida Castro (Kakay firm) 2; everyone else ≤ 2. Famous ≠ volume at STF.
+4. **Minister identity dominates lawyer identity for HC grant rate.** Once per-minister cells are restricted to ≥ 3 merits decisions, the famous list empties out entirely — only the Defensorias have enough volume to read a pattern per relator:
+   - Fachin, Celso de Mello: 67–100 % for Defensorias.
+   - Toffoli, Barroso: 70–80 % for DPU.
+   - Gilmar, Lewandowski, Cármen: baseline (~25–50 %).
+   - **Alexandre de Moraes: 5 % (2/38) for DPU, 7 % (1/14) for DPE-SP.** Same counsel, same pleadings, ~15× spread across ministers.
+   Implication: at this sample size the relator draw is a larger factor than counsel. The famous-lawyer premium (if real) is invisible.
+5. **Admissibility rate spans 4 %–98 % across relators.** Marco Aurélio engages on merits for ~96 % of his HCs; the Ministro Presidente bucket dismisses ~98 % procedurally. Same outcome label ("low grant rate") can mean completely different things — see `hc_admissibility.py`.
+6. **Caveats bank**: ~68 % of STF HCs end in `nao_conhecido` (not heard on merits), so `N` overstates the decidable sample. Substring name-matching means "ALMEIDA CASTRO" picks up multiple lawyers at a firm; we narrowed to "PEDRO MACHADO DE ALMEIDA CASTRO". Selection bias uncontrolled — lawyers self-select into case types. Not causal.
+
+**Doesn't block scraping**; the sample corpus is adequate for the
+current question. Expanding to RHC or AP would give more coverage of
+the marquee criminal bar (Toron, Bottini et al. more likely to appear
+in criminal appeals than in HCs).
+
 ## Open TODOs that block this
 
 1. **Sweep driver should persist per-process JSON natively.** Right
@@ -123,10 +173,13 @@ pointed at sweep H only.
   still on the table. If the 2023 slice shows meaningful era drift
   against the sweep H parser sanity check, B becomes more valuable.
   Ranges are in `src/utils/hc_calendar.py::year_to_id_range`.
-- **Full HC backfill** (~216 k extant cases, ~215 h wall time per
-  handoff § size estimate) is the long-term ask but not blocked on
-  this analysis. The who-wins plot quality at 1000 cases will tell
-  us whether the ceiling analysis needs 10 k or 100 k.
-- **Robots.txt posture.** Unchanged from handoff § "The one thing
-  still to decide". Not blocking; shapes whether we publish raw
-  aggregate numbers vs. just methodology.
+- **Full HC backfill** (~216 k extant cases, ~215 h wall time — see
+  [`docs/process-space.md`](process-space.md) and
+  [`docs/rate-limits.md § Wall-time math at scale`](rate-limits.md#wall-time-math-at-scale))
+  is the long-term ask but not blocked on this analysis. The who-wins
+  plot quality at 1000 cases will tell us whether the ceiling analysis
+  needs 10 k or 100 k.
+- **Robots.txt posture.** See
+  [`docs/rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt).
+  Not blocking; shapes whether we publish raw aggregate numbers vs.
+  just methodology.

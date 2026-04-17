@@ -4,10 +4,13 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 
 ## Read first
 
-1. **`docs/handoff.md`** — what's in flight, what's blocked, what's next.
-2. **`docs/perf-bulk-data.md`** — original investigation (DataJud dead-end, STF mechanics, 5.7× / ~20× perf claim).
-3. **`docs/sweep-results/`** — results from validation sweeps A, B, C, and whatever's in flight under `D*`.
-4. **`docs/superpowers/specs/`** — design specs for major features (sweep driver, rate-budget experiments).
+1. **`docs/data-layout.md`** — spatial map (the three stores + foreign key).
+2. **`docs/stf-portal.md`** — how the portal works (URL flow, auth triad, field→source map).
+3. **`docs/rate-limits.md`** — WAF behavior + validated sweep defaults + robots.txt posture question.
+4. **`docs/handoff.md`** — what's in flight, blocked, next.
+5. **`docs/process-space.md`** / **`docs/performance.md`** — class sizes + perf numbers (on demand).
+6. **`docs/sweep-results/`** — per-run artifacts from validation sweeps A–I+.
+7. **`docs/superpowers/specs/`** — design specs for major features.
 
 ## Runtime
 
@@ -74,7 +77,7 @@ Wipe everything: `rm -rf data`. Wipe per-process: `rm -rf data/html/<CLASSE>_<N>
 - **Keep files focused.** When `scraper.py` grows past ~600 lines, split by concern — `fetch_process`, PDF fetchers, sessão orchestration already have their own modules. (`http_session.py` was carved off in this exact way; see `src/scraping/http_session.py`.)
 - **Extractor tests should diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write everything to a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
-- **Measure before optimising.** The perf claim in `docs/perf-bulk-data.md` has caveats; sweep C showed a new constraint (STF's WAF threshold) that invalidated the naive extrapolation. Check `docs/sweep-results/` for the latest reality.
+- **Measure before optimising.** The perf numbers in `docs/performance.md` apply to cold single-process requests; at sweep scale the WAF ceiling (`docs/rate-limits.md`) dominates and the naive extrapolation doesn't hold. Check `docs/sweep-results/` for the latest reality.
 
 ## Testing
 
@@ -140,9 +143,13 @@ OCR re-extraction (`scripts/reextract_unstructured.py`) runs as a sibling of the
 | File | What it tells you |
 |---|---|
 | [`README.md`](README.md)                                 | End-user getting-started guide (Portuguese). Install → first run → troubleshooting. |
-| [`docs/data-layout.md`](docs/data-layout.md)             | Spatial map — every store, every key, every cross-reference. |
-| [`docs/handoff.md`](docs/handoff.md)                     | Temporal map — what's in flight, blocked, next. |
-| [`docs/perf-bulk-data.md`](docs/perf-bulk-data.md)       | Original investigation — DataJud dead-end, STF mechanics, perf claims + caveats. |
+| [`docs/data-layout.md`](docs/data-layout.md)             | Spatial map — every store, every key, every cross-reference. **Start here.** |
+| [`docs/stf-portal.md`](docs/stf-portal.md)               | How the STF portal works — URL flow, auth triad, UTF-8 quirk, field→source map, DataJud dead-end. |
+| [`docs/rate-limits.md`](docs/rate-limits.md)             | WAF behavior (403-not-429), empirical thresholds, validated defaults, robots.txt posture question. |
+| [`docs/process-space.md`](docs/process-space.md)         | HC / ADI / RE ceilings + density-probe numbers + methodology. |
+| [`docs/performance.md`](docs/performance.md)             | HTTP-vs-Selenium measured numbers; caching is the real lever. |
+| [`docs/handoff.md`](docs/handoff.md)                     | Temporal map — what just landed, in flight, next steps. |
+| [`docs/hc-who-wins.md`](docs/hc-who-wins.md)             | HC deep-dive research question + notebook-strand layout + findings. |
 | [`docs/sweep-results/`](docs/sweep-results/)             | Per-run artifacts for process sweeps. `2026-04-16-E-full-1k-defaults/SUMMARY.md` is the canonical SUMMARY template. |
 | [`docs/pdf-sweeps/README.md`](docs/pdf-sweeps/README.md) | PDF-sweep directory conventions. |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/)     | Design specs for major features (sweep driver, rate-budget experiments, Selenium retirement). |

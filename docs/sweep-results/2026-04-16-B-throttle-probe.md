@@ -166,7 +166,7 @@ Diffs vs parity source:
   the default path on purpose.
 - **Warm throughput: 11 s for 50 processes ≈ 0.22 s/process** (p50 0.14 s,
   p90 0.27 s). The cache is delivering the ~60× speed-up that
-  `docs/perf-bulk-data.md` predicted.
+  `docs/performance.md` predicts.
 - **Two recurring diffs — NOT a regression.** Both are the
   `recursos[*].id` vs `recursos[*].index` key-name divergence between
   the HTTP extractor and the **Selenium extractor code**. The ground-
