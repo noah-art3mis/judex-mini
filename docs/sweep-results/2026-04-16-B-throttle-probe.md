@@ -173,7 +173,7 @@ Diffs vs parity source:
   truth fixtures (`tests/ground_truth/ACO_2652.json`) use `id`, which
   is what the HTTP port emits. The bulk Selenium CSV used as parity
   here was produced by the Selenium path which emits `index`
-  (see `src/extraction/extract_recursos.py:39`). The Selenium output
+  (see `src/scraping/extraction/recursos.py:39`). The Selenium output
   disagrees with its own ground truth. Retiring the Selenium path
   (handoff step #2) resolves this automatically; no fix needed on
   HTTP.

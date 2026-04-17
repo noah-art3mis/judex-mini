@@ -1,4 +1,4 @@
-"""Unit tests for src.extraction_http.extract_primeiro_autor.
+"""Unit tests for src.scraping.extraction.http.extract_primeiro_autor.
 
 The extractor scans `partes` for the first party whose `tipo` matches
 one of the known "author" codes (class-specific: AUTOR for ACO, REQTE
@@ -7,7 +7,7 @@ for ADI, RECTE for RE, IMPTE for MS/MI, PACTE for HC, AGTE for AI, …).
 
 from __future__ import annotations
 
-from src.extraction_http import extract_primeiro_autor
+from src.scraping.extraction.http import extract_primeiro_autor
 
 
 def test_aco_autor():

@@ -1,6 +1,6 @@
 # Andamentos classifier — gaps between legacy and production
 
-`src/transform/andamentos.py` was ported from
+`src/analysis/andamentos.py` was ported from
 `docs/reference/processar_andamentos_legacy.py` (Costa, 2025-10-12).
 The port is **partial**. This note lists what didn't make it across, so
 downstream analyses (especially ADI/ADC merits, HC liminares) don't
@@ -90,7 +90,7 @@ When porting, follow the project TDD convention:
 1. Capture legacy behavior as fixture input → expected-label JSON in
    `tests/fixtures/andamentos_classifier/` (one case per rule above).
 2. Red: add a failing test that asserts the new bucket.
-3. Green: add the mask to `src/transform/andamentos.py::STRING_MASKS`.
+3. Green: add the mask to `src/analysis/andamentos.py::STRING_MASKS`.
 4. Refactor only after all six gaps have green tests.
 
 Order suggestion (by analysis blast radius):

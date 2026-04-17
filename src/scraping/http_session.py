@@ -23,7 +23,7 @@ This module centralises:
   ``requests`` defaults to Latin-1 → mojibake. Always decode through
   here.
 
-Carved out of ``src/scraper.py`` on 2026-04-17 once the file crossed
+Carved out of ``src/scraping/scraper.py`` on 2026-04-17 once the file crossed
 the 600-line ceiling (CLAUDE.md § Conventions).
 """
 

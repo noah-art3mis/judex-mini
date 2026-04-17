@@ -27,9 +27,9 @@ def _count_selenium_modules_after_import(target: str) -> int:
 
 
 def test_importing_src_scraper_loads_zero_selenium_modules() -> None:
-    count = _count_selenium_modules_after_import("src.scraper")
+    count = _count_selenium_modules_after_import("src.scraping.scraper")
     assert count == 0, (
-        f"Importing src.scraper pulled in {count} selenium modules."
+        f"Importing src.scraping.scraper pulled in {count} selenium modules."
     )
 
 

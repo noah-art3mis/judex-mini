@@ -1,4 +1,4 @@
-"""Unit tests for src.extraction_http.derive_outcome.
+"""Unit tests for src.scraping.extraction.http.derive_outcome.
 
 Given a partially-built StfItem dict (sessao_virtual + andamentos are
 what matter), derive a coarse `outcome` label that says who won:
@@ -22,7 +22,7 @@ andamentos nome+complemento.
 
 from __future__ import annotations
 
-from src.extraction_http import derive_outcome
+from src.scraping.extraction.http import derive_outcome
 
 
 def _make_item(**kwargs):

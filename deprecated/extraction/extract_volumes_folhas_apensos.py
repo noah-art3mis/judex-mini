@@ -5,7 +5,7 @@ Extract volumes, folhas, apensos from process data
 from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src._deprecated.utils.get_element import find_element_by_xpath
+from deprecated.utils.get_element import find_element_by_xpath
 from src.utils.timing import track_extraction_timing
 
 

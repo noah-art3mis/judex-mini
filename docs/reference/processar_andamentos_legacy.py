@@ -3,7 +3,7 @@
 ARCHIVED — reference only. Do not import.
 
 Originally authored by Alexandre Araújo Costa (2025-10-12). This is the
-legacy andamento-classification pipeline that seeded `src/transform/andamentos.py`.
+legacy andamento-classification pipeline that seeded `src/analysis/andamentos.py`.
 The port is partial: several rules here are NOT yet in the production path.
 
 See `docs/andamentos-classifier-gaps.md` for the gap list. Treat this file

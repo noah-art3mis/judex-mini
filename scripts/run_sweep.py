@@ -42,11 +42,11 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 
 from scripts._diff import diff_item
-from src import _shared
+from src.sweeps import shared as _shared
 from src.config import ScraperConfig
-from src.http_session import RetryableHTTPError, new_session
-from src.process_store import AttemptRecord, SweepStore, load_retry_list
-from src.scraper import scrape_processo_http
+from src.scraping.http_session import RetryableHTTPError, new_session
+from src.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
+from src.scraping.scraper import scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

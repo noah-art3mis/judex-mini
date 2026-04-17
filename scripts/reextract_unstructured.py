@@ -37,7 +37,7 @@ Optional env vars:
 
 Known gaps (pre-Phase-A debt):
 
-- **Does not route through `src/pdf_driver.run_pdf_sweep`.** The
+- **Does not route through `src/sweeps/pdf_driver.run_pdf_sweep`.** The
   loop below is inlined; `PdfStore` / `pdfs.state.json` /
   `pdfs.log.jsonl` / `pdfs.errors.jsonl` / `requests.db` are NOT
   produced. Only stdout logging + the URL-keyed `data/pdf/*.txt.gz`
@@ -72,7 +72,7 @@ from dotenv import load_dotenv
 
 from scripts._filters import add_filter_args, targets_from_args
 from src.config import ScraperConfig
-from src.http_session import _http_get_with_retry, new_session
+from src.scraping.http_session import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 

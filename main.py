@@ -5,8 +5,8 @@ from datetime import datetime
 import typer
 
 from src.config import ScraperConfig
-from src.scraper import run_scraper_http
-from src.testing.ground_truth_test import test_ground_truth
+from src.scraping.scraper import run_scraper_http
+from src.ground_truth_test import test_ground_truth
 from src.utils.validation import (
     validate_output_format,
     validate_process_range,
@@ -23,7 +23,7 @@ def _validate_backend(backend: str) -> None:
     if backend == "selenium":
         raise typer.BadParameter(
             "--backend selenium is deprecated. The Selenium scraper "
-            "moved to src/_deprecated/scraper.py on 2026-04-17. Use "
+            "moved to deprecated/scraper.py on 2026-04-17. Use "
             "--backend http (the new default), or pin a pre-2026-04-17 "
             "release if you need the Selenium path."
         )
@@ -74,7 +74,7 @@ def main(
         "--backend",
         help="Scraper backend. Only 'http' is supported; the legacy "
              "Selenium backend was deprecated on 2026-04-17 and lives "
-             "under src/_deprecated/.",
+             "under deprecated/.",
     ),
     fetch_pdfs: bool = typer.Option(
         True,

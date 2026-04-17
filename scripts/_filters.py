@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from src.pdf_targets import PdfTarget, collect_pdf_targets
+from src.sweeps.pdf_targets import PdfTarget, collect_pdf_targets
 
 
 def split_csv(s: str | None) -> list[str]:

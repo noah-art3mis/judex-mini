@@ -121,7 +121,7 @@ stats helpers for the notebooks).
 - **B — throttle probe (50 ADIs, cold + warm).** 50/50 cold in 81 s, 0 retries. Warm pass p50 0.14 s — the ~60× cache speed-up `docs/perf-bulk-data.md` predicted.
 - **C — full ADI 1–1000 sweep.** **STF blocked us at process #108** with HTTP 403 (not 429) from `listarProcessos.asp`. 107 ok; 893 fast-fail 403s. In the pre-ban window: **~0.79 s/process = 9.7× faster than Selenium's 7.65 s/process**. Selenium baseline for the same range: 77.6 min / 609 ok (measured from `extraido` timestamps in `output/judex-mini_ADI_1-1000.csv`). Selenium completed the range because it's 10× slower per process and stayed under the rate gate; HTTP at current posture tripped it.
 
-**Robust sweep state/log machinery landed** (`src/process_store.py`, first landed as `scripts/sweep_state.py` in commit `018f26d` then promoted to `src/` in the Phase A/B refactor):
+**Robust sweep state/log machinery landed** (`src/sweeps/process_store.py`, first landed as `scripts/sweep_state.py` in commit `018f26d` then promoted to `src/` in the Phase A/B refactor):
 
 - Every sweep run writes an append-only `sweep.log.jsonl` (fsynced per record) + atomic `sweep.state.json` + derived `sweep.errors.jsonl`. Report at `report.md`.
 - `--resume` skips already-ok processes. `--retry-from <errors.jsonl>` re-runs only failures from a prior sweep.
@@ -252,17 +252,17 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
 ## What works today
 
 - `main.py --backend={selenium,http}` — default `selenium`. HTTP path additionally accepts `--fetch-pdfs/--no-fetch-pdfs` (default on).
-- `src/scraper.py` (was `src/scraper_http.py` until 2026-04-17):
+- `src/scraping/scraper.py` (was `src/scraper_http.py` until 2026-04-17):
   - `_http_get_with_retry` wraps every GET in tenacity (retries 429/5xx/connection errors via `ScraperConfig`; 4xx non-429 fails fast; `cfg.retry_403=True` adds 403 to the retriable set).
-  - `run_scraper_http` is the public entry. Same output shape as the now-deprecated Selenium `run_scraper` (frozen at `src/_deprecated/scraper.py`).
+  - `run_scraper_http` is the public entry. Same output shape as the now-deprecated Selenium `run_scraper` (frozen at `deprecated/scraper.py`).
   - `scrape_processo_http` fetches detalhe + 9 tabs concurrently, derives `tema` from abaSessao, then hits the repgeral JSON endpoints for `sessao_virtual` and (when `fetch_pdfs=True`) fetches+extracts each Relatório/Voto PDF.
-- `src/extraction_http_sessao.py` — pure parsers (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`) plus the `extract_sessao_virtual_from_json` orchestrator. Fetchers are dependency-injected for testability.
+- `src/scraping/extraction/sessao.py` — pure parsers (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`) plus the `extract_sessao_virtual_from_json` orchestrator. Fetchers are dependency-injected for testability.
 - `src/utils/pdf_cache.py` — URL-keyed PDF text cache under `data/pdf/<sha1>.txt.gz`. ADI 2820 cold ≈ 12.9s → cached ≈ 0.18s.
-- `src/data/missing.py` — `check_missing_processes` lives here now (was in `src/_deprecated/scraper.py`). Backend-neutral.
-- `src/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper` and `import main` both load 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
+- `src/data/missing.py` — `check_missing_processes` lives here now (was in `deprecated/scraper.py`). Backend-neutral.
+- `src/scraping/extraction/__init__.py` is intentionally empty — keeps the HTTP backend Selenium-free on import. `import src.scraper` and `import main` both load 0 selenium modules (pinned by `tests/unit/test_http_backend_no_selenium.py`).
 - `tests/unit/` — **48 unit tests** covering retry semantics (incl. 403 opt-in), CLI dispatch, PDF cache, sessao_virtual parsers, sweep state recovery + atomic writes, CSV parsing, exception classification. `uv run pytest tests/unit/`.
 - `scripts/validate_ground_truth.py` — still the source of truth for HTTP parity. 4/5 MATCH; ACO_2652 shows two pre-existing diffs (assuntos drift on the live site, `pautas: null` vs `[]`). `sessao_virtual` is a SKIP field so it doesn't participate — parsers are validated by the unit tests instead.
-- `scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py` — CSV-driven sweep driver with append-only log, atomic state, resume, retry-from, structured errors, 403 retry, throttle sleep. Circuit breaker, signal handlers, and exception classifier come from `src/_shared.py` (shared with `src/pdf_driver.py`). See the "Running sweeps" section below.
+- `scripts/run_sweep.py` + `src/sweeps/process_store.py` + `src/sweeps/shared.py` — CSV-driven sweep driver with append-only log, atomic state, resume, retry-from, structured errors, 403 retry, throttle sleep. Circuit breaker, signal handlers, and exception classifier come from `src/sweeps/shared.py` (shared with `src/sweeps/pdf_driver.py`). See the "Running sweeps" section below.
 
 ## Next steps, ordered
 
@@ -287,7 +287,7 @@ StfItem has no "winner"/"verdict" field. The data is there but scattered — det
 - Checking `sessao_virtual[-1].votes` — if `diverge_relator` is empty AND `pedido_vista` is empty or resolved in a later session, the relator's vote is the outcome.
 - Checking `andamentos` for `TRANSITADO(A) EM JULGADO` (final-and-unappealable) and event names like `JULGADO PROCEDENTE`, `EMBARGOS RECEBIDOS EM PARTE` — the `complemento` field on these often carries the full decision text.
 
-Worth adding as a derived field during parse (`src/extraction_http_sessao.py`) OR as a post-processing pass. Brazilian legal vocabulary is richer than the table above (`prejudicado`, `extinto sem resolução de mérito`, `conversão em diligência`, …), so a first pass will have a meaningful `unknown`/`pending` tail. Needed by the HC deep dive if it wants outcome statistics.
+Worth adding as a derived field during parse (`src/scraping/extraction/sessao.py`) OR as a post-processing pass. Brazilian legal vocabulary is richer than the table above (`prejudicado`, `extinto sem resolução de mérito`, `conversão em diligência`, …), so a first pass will have a meaningful `unknown`/`pending` tail. Needed by the HC deep dive if it wants outcome statistics.
 
 ### 5. Retry sweep C's 893 blocked processes
 
@@ -301,7 +301,7 @@ Either works. The first is more honest about wall time; the second is faster to 
 ### 4. Retire the Selenium path — DONE 2026-04-17
 
 Phase 1 of `docs/superpowers/specs/2026-04-17-selenium-retirement.md`
-landed: 19 files moved to `src/_deprecated/`, `main.py` defaults to
+landed: 19 files moved to `deprecated/`, `main.py` defaults to
 `--backend http`, `--backend selenium` errors with a deprecation
 message, `selenium` moved to the `[selenium-legacy]` opt-in extra.
 158/158 unit tests green post-move.
@@ -312,21 +312,21 @@ file imports from `src._deprecated`) still pending.
 
 **`recursos[].id` vs `recursos[].index`** is now moot — the
 selenium-side `index` emission lives at
-`src/_deprecated/extraction/extract_recursos.py` and isn't imported
+`deprecated/extraction/extract_recursos.py` and isn't imported
 by any live code path.
 
 ### 5. PDF extraction quality
 
 Currently PDFs go through `pypdf.PdfReader.extract_text(extraction_mode="layout")`. You'll see warnings like `Rotated text discovered. Output will be incomplete.` — these are real: STF often stamps signed documents with rotated watermarks and the extractor drops content around them. Two options: (a) fall back to default mode on rotation, (b) use `pdfminer.six` or OCR for the problem documents. Worth investigating if downstream analysis needs the full text.
 
-**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`, 2026-04-17): walks the `pdf_targets` output, re-downloads cache entries shorter than `--min-chars`, POSTs to Unstructured's SaaS API with `strategy=hi_res`, overwrites `data/pdf/<sha1>.txt.gz` when the new extract is longer. First production run: `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`. **Known gap**: the script does *not* route through `src/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced. Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to `run_pdf_sweep`). The script's docstring carries the full list of gaps.
+**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`, 2026-04-17): walks the `pdf_targets` output, re-downloads cache entries shorter than `--min-chars`, POSTs to Unstructured's SaaS API with `strategy=hi_res`, overwrites `data/pdf/<sha1>.txt.gz` when the new extract is longer. First production run: `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`. **Known gap**: the script does *not* route through `src/sweeps/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced. Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to `run_pdf_sweep`). The script's docstring carries the full list of gaps.
 
 ### 5. Pre-existing bugs in the Selenium side
 
 Surfaced during the dedup review; untouched because the Selenium path has no automated coverage:
 
-- `src/_deprecated/extraction/extract_peticoes.py:28-30`: `data_match` is assigned from `bg-font-info` on line 28, then immediately overwritten by `processo-detalhes` on line 30. The first match is dead.
-- `src/_deprecated/extraction/extract_deslocamentos.py:113-152`: `_clean_extracted_data` looks dead — `_clean_data_fields` is the one called from `_extract_single_deslocamento`. Verify with grep.
+- `deprecated/extraction/extract_peticoes.py:28-30`: `data_match` is assigned from `bg-font-info` on line 28, then immediately overwritten by `processo-detalhes` on line 30. The first match is dead.
+- `deprecated/extraction/extract_deslocamentos.py:113-152`: `_clean_extracted_data` looks dead — `_clean_data_fields` is the one called from `_extract_single_deslocamento`. Verify with grep.
 - `src/data/types.py:47-78`: commented-out dataclasses. Git remembers; delete.
 
 Not blocking. Clean up if you're already in those files. Safe to defer until Step 2 deletes these files anyway.
@@ -335,7 +335,7 @@ Not blocking. Clean up if you're already in those files. Safe to defer until Ste
 
 Worth knowing if you're debugging:
 
-- **Vote categories are partial**: only `tipoVoto.codigo` 7 (diverge), 8 (acompanha-divergência), 9 (acompanha) land in the final `votes` dict. Codes 3 (impedido), 10 (acompanha-ressalva), 11 (suspeito), 13 (acompanha-ressalva-ministro) drop out for parity with the Selenium extractor's 5-category DOM scrape. If downstream needs these, extend `_VOTE_CATEGORY` in `src/extraction_http_sessao.py`.
+- **Vote categories are partial**: only `tipoVoto.codigo` 7 (diverge), 8 (acompanha-divergência), 9 (acompanha) land in the final `votes` dict. Codes 3 (impedido), 10 (acompanha-ressalva), 11 (suspeito), 13 (acompanha-ressalva-ministro) drop out for parity with the Selenium extractor's 5-category DOM scrape. If downstream needs these, extend `_VOTE_CATEGORY` in `src/scraping/extraction/sessao.py`.
 - **documentos values are mixed types**: string containing extracted text (success) or the original URL (fetch failed). Consumers must check `startswith("https://")` to tell. Re-running the scraper picks up where failures left off via the URL-keyed PDF cache.
 - **Tema branch has only one fixture test (tema 1020)**. If you see drift there, probe another tema + add a fixture.
 - **No Sessão-branch support for "suspended" lists** — if STF ever returns a listaJulgamento mid-suspension with a different JSON shape, `parse_sessao_virtual` will pass through missing fields as empty strings. No known case.
@@ -458,19 +458,19 @@ regenerates both at its end.
 
 ## Files you probably need to touch first
 
-- `src/scraper.py` — HTTP orchestrator, `fetch_process`, `scrape_processo_http`, retry helper (incl. 403 opt-in), PDF/sessão fetcher factories. Was `scraper_http.py` until 2026-04-17.
+- `src/scraping/scraper.py` — HTTP orchestrator, `fetch_process`, `scrape_processo_http`, retry helper (incl. 403 opt-in), PDF/sessão fetcher factories. Was `scraper_http.py` until 2026-04-17.
 - `src/config.py` — `ScraperConfig` including `retry_403` flag
-- `src/extraction_http.py` — fragment parsers (re-exports Selenium pure-soup extractors)
-- `src/extraction_http_sessao.py` — sessao_virtual parsers + orchestrator
+- `src/scraping/extraction/http.py` — fragment parsers (re-exports Selenium pure-soup extractors)
+- `src/scraping/extraction/sessao.py` — sessao_virtual parsers + orchestrator
 - `src/utils/pdf_cache.py` — URL-keyed PDF text cache
 - `src/data/missing.py` — backend-neutral check_missing_processes
-- `src/extraction/_shared.py` — regex patterns + helpers shared by both paths
+- `src/scraping/extraction/_shared.py` — regex patterns + helpers shared by both paths
 - `src/utils/html_cache.py` — gzip + incidente cache (also used for sessão JSON)
 - `scripts/_diff.py` — shared field-by-field diff
 - `scripts/run_sweep.py` — CSV-driven sweep driver (state/log/errors + resume/retry-from/signal handling)
-- `src/process_store.py` — append-only log + atomic compacted state (independent of run_sweep, reusable; promoted from `scripts/sweep_state.py` in the Phase A refactor)
-- `src/_shared.py` — `CircuitBreaker`, `install_signal_handlers`, `classify_exception`, `percentiles`; shared by `scripts/run_sweep.py` and `src/pdf_driver.py`
-- `src/pdf_driver.py` + `src/pdf_store.py` + `src/pdf_targets.py` — sibling of `scripts/run_sweep.py` for PDF sweeps (per-URL state, circuit breaker, signal handlers, same resume/retry-from contract)
+- `src/sweeps/process_store.py` — append-only log + atomic compacted state (independent of run_sweep, reusable; promoted from `scripts/sweep_state.py` in the Phase A refactor)
+- `src/sweeps/shared.py` — `CircuitBreaker`, `install_signal_handlers`, `classify_exception`, `percentiles`; shared by `scripts/run_sweep.py` and `src/sweeps/pdf_driver.py`
+- `src/sweeps/pdf_driver.py` + `src/sweeps/pdf_store.py` + `src/sweeps/pdf_targets.py` — sibling of `scripts/run_sweep.py` for PDF sweeps (per-URL state, circuit breaker, signal handlers, same resume/retry-from contract)
 - `src/utils/adaptive_throttle.py` + `src/utils/request_log.py` — per-host latency-aware throttle + SQLite request archive, wired in via `ScraperConfig.throttle` / `ScraperConfig.request_log`
 - `main.py` — CLI
 

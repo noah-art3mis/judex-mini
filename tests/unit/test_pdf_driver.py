@@ -16,10 +16,10 @@ from pathlib import Path
 
 import pytest
 
-from src import _shared
-from src.pdf_driver import run_pdf_sweep
-from src.pdf_store import PdfStore
-from src.pdf_targets import PdfTarget
+from src.sweeps import shared as _shared
+from src.sweeps.pdf_driver import run_pdf_sweep
+from src.sweeps.pdf_store import PdfStore
+from src.sweeps.pdf_targets import PdfTarget
 
 
 @pytest.fixture(autouse=True)

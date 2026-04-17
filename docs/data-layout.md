@@ -62,8 +62,8 @@ Layout is the same across both:
 
 | Sweep type | Directory root | Driver module |
 |---|---|---|
-| Process sweep (scrape N cases, compare vs ground truth) | `docs/sweep-results/<date>-<label>/` | `scripts/run_sweep.py` + `src/process_store.py` + `src/_shared.py` |
-| PDF sweep (walk JSON, fetch andamento PDFs) | `docs/pdf-sweeps/<date>-<label>/` | `scripts/fetch_pdfs.py` routing through `src/pdf_driver.run_pdf_sweep` |
+| Process sweep (scrape N cases, compare vs ground truth) | `docs/sweep-results/<date>-<label>/` | `scripts/run_sweep.py` + `src/sweeps/process_store.py` + `src/sweeps/shared.py` |
+| PDF sweep (walk JSON, fetch andamento PDFs) | `docs/pdf-sweeps/<date>-<label>/` | `scripts/fetch_pdfs.py` routing through `src/sweeps/pdf_driver.run_pdf_sweep` |
 
 Each sweep directory follows the same institutional shape when
 driven through `pdf_driver.py` or the process-sweep equivalent:
@@ -106,8 +106,8 @@ shared artifact.
 - **Case JSON**: `src/data/types.py` defines `StfItem` as a
   `TypedDict`. Fields are Optional for a reason — STF data is
   irregular and fields-that-can-be-absent must be nullable.
-- **Attempt records**: `src/process_store.AttemptRecord` (process
-  sweeps) and `src/pdf_store.PdfAttemptRecord` (PDF sweeps) are the
+- **Attempt records**: `src/sweeps/process_store.AttemptRecord` (process
+  sweeps) and `src/sweeps/pdf_store.PdfAttemptRecord` (PDF sweeps) are the
   dataclasses written into the `.jsonl` files.
 - **Ground-truth fixtures**: `tests/ground_truth/*.json` — five
   hand-validated cases that `scripts/validate_ground_truth.py`

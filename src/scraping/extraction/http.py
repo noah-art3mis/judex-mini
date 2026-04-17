@@ -16,7 +16,7 @@ Routing summary (which fragment each reads):
     abaPeticoes       → peticoes
     abaRecursos       → recursos
 
-(sessao_virtual is handled in src/extraction_http_sessao.py — its tab
+(sessao_virtual is handled in src/scraping/extraction/sessao.py — its tab
 fragment is a JS template, so the orchestrator fetches the JSON
 endpoints the template would have called.)
 """
@@ -28,7 +28,7 @@ from typing import Optional
 
 from bs4 import BeautifulSoup
 
-from src.extraction._shared import (
+from src.scraping.extraction._shared import (
     P_DETAIL_BASIC,
     P_DETAIL_BOLD,
     P_DETAIL_INFO,
@@ -44,12 +44,12 @@ from src.extraction._shared import (
 
 # Direct reuse of pure-soup Selenium extractors — they already take a
 # BeautifulSoup, no need to reimplement.
-from src.legal_vocab import AUTHOR_PARTY_TIPOS, VERDICT_PATTERNS
-from src.extraction.extract_classe import extract_classe
-from src.extraction.extract_meio import extract_meio
-from src.extraction.extract_numero_unico import extract_numero_unico
-from src.extraction.extract_publicidade import extract_publicidade
-from src.extraction.extract_relator import extract_relator
+from src.analysis.legal_vocab import AUTHOR_PARTY_TIPOS, VERDICT_PATTERNS
+from src.scraping.extraction.classe import extract_classe
+from src.scraping.extraction.meio import extract_meio
+from src.scraping.extraction.numero_unico import extract_numero_unico
+from src.scraping.extraction.publicidade import extract_publicidade
+from src.scraping.extraction.relator import extract_relator
 from src.utils.text_utils import normalize_spaces
 
 
@@ -176,7 +176,7 @@ def extract_primeiro_autor(partes: list[dict]) -> Optional[str]:
 def derive_outcome(item: dict) -> Optional[str]:
     """Derive a coarse outcome label from voto_relator + andamentos.
 
-    See `src.legal_vocab.VERDICT_PATTERNS` for the full vocabulary.
+    See `src.analysis.legal_vocab.VERDICT_PATTERNS` for the full vocabulary.
     Returns None for pending cases or when no pattern matches.
     """
     # 1. sessao_virtual: check the LAST session's voto_relator text.
@@ -384,7 +384,7 @@ def extract_recursos(recursos_html: str) -> list[dict]:
     return out
 
 
-# abaSessao is handled separately in src.extraction_http_sessao —
+# abaSessao is handled separately in src.scraping.extraction.sessao —
 # its JS template fires two JSON endpoints on sistemas.stf.jus.br, so
 # orchestration (not just fragment parsing) is needed.
 

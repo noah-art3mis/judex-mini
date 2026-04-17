@@ -7,7 +7,7 @@ session cookies, then fetch each tab fragment directly
 (abaAndamentos.asp, abaPartes.asp, ...) with the XHR headers that
 jQuery's .load() would set.
 
-Fragment parsing lives in src/extraction_http.py — this module only
+Fragment parsing lives in src/scraping/extraction/http.py — this module only
 handles fetching, caching, and the end-to-end orchestration that
 mirrors extract_processo() from the Selenium path.
 """
@@ -25,11 +25,11 @@ from typing import Any, Optional
 import requests
 from bs4 import BeautifulSoup
 
-from src import extraction_http as ex
-from src import extraction_http_sessao as sessao_ex
+from src.scraping.extraction import http as ex
+from src.scraping.extraction import sessao as sessao_ex
 from src.config import ScraperConfig
 from src.data.types import StfItem
-from src.http_session import (
+from src.scraping.http_session import (
     RetryableHTTPError,
     _decode,
     _http_get_with_retry,
@@ -208,7 +208,7 @@ def run_scraper_http(
     config: ScraperConfig,
     fetch_pdfs: bool = True,
 ) -> None:
-    """HTTP-backed equivalent of src.scraper.run_scraper.
+    """HTTP-backed equivalent of src.scraping.scraper.run_scraper.
 
     Shares the output path and missing-retry shape; swaps the per-process
     Selenium drive for fetch_process + parse under a shared session.

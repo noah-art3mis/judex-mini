@@ -2,7 +2,7 @@
 
 PDF-sweep results live here in one directory per run, named
 `<date>-<label>/`. Contents match the institutional layout written
-by `src/pdf_driver.run_pdf_sweep` (when routed through it) plus a
+by `src/sweeps/pdf_driver.run_pdf_sweep` (when routed through it) plus a
 human summary.
 
 ## Expected files

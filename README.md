@@ -1,158 +1,261 @@
 # judex-mini
 
-Extração automatizada de dados de processos do STF.
+Extração automatizada de dados de processos do STF (Supremo Tribunal
+Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo
+de números de processo**; o programa acessa o portal do STF, extrai
+metadados de cada processo (partes, andamentos, relator, decisão, PDFs
+anexados) e grava um arquivo `.csv` ou `.json` por processo.
 
-Scraper + parser for case metadata at `portal.stf.jus.br/processos/`.
-Given a class and a process number (e.g. `HC 135041`), fetches the
-process page, parses parties / andamentos / relator / outcome /
-linked PDFs, and emits one JSON record per process.
+Este README é o **guia prático para rodar a ferramenta**. Detalhes de
+arquitetura, testes e convenções para quem contribui com o código estão
+em [`CLAUDE.md`](CLAUDE.md).
 
-## Instalação
+---
 
-```bash
-# instalar wsl (SOMENTE WINDOWS)
+## 1. Pré-requisitos
+
+O projeto só roda em **Linux / macOS / WSL**. No Windows você precisa
+do **WSL** (Windows Subsystem for Linux); Linux e macOS rodam direto no
+terminal.
+
+Você vai precisar de três coisas:
+
+1. Um terminal Linux (Ubuntu via WSL no Windows, Terminal no macOS, seu
+   emulador preferido no Linux).
+2. O gerenciador Python **`uv`** — instalado abaixo, não precisa
+   instalar Python antes.
+3. `git` (geralmente já vem instalado; se não, `sudo apt install git`).
+
+> **Atenção Windows:** toda a execução acontece **dentro do WSL**, nunca
+> no PowerShell nem no CMD. Depois de instalar o WSL, abra o app
+> "Ubuntu" no menu iniciar e rode os comandos lá.
+
+---
+
+## 2. Instalação (passo a passo)
+
+### 2.1 (Só Windows) Instalar o WSL
+
+No PowerShell **como administrador**:
+
+```powershell
 wsl --install
+```
 
-# instalar uv
+Reinicie o computador quando pedir. Depois abra o app **Ubuntu** que
+apareceu no menu iniciar e crie um usuário/senha quando ele pedir. A
+partir daí, todos os comandos deste guia são digitados **dentro do
+Ubuntu**.
+
+### 2.2 Instalar o `uv`
+
+No terminal do Ubuntu (ou macOS/Linux):
+
+```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-# instalar chromedriver (pode demorar) — necessário apenas para o
-# backend Selenium legado; o backend HTTP padrão não precisa
-sudo apt install chromium-chromedriver
+**Depois de instalar, feche e reabra o terminal** — senão o comando
+`uv` não vai ser encontrado. Para confirmar que funcionou:
 
-# clonar repositório
+```bash
+uv --version
+```
+
+Se aparecer algo como `uv 0.x.y`, está tudo certo. Se der
+`command not found`, veja **[Problemas comuns](#6-problemas-comuns)**.
+
+### 2.3 Clonar o repositório
+
+```bash
 git clone https://github.com/noah-art3mis/judex-mini
-
-# baixar dependências
-cd judex-mini && uv sync
+cd judex-mini
 ```
 
-## Uso
+### 2.4 Instalar as dependências
+
+Ainda dentro da pasta `judex-mini`:
 
 ```bash
-# uso normal
-uv run python main.py --classe ADI --processo-inicial 1 --processo-final 2
-
-# abreviado (ver uv run python main.py --help)
-uv run python main.py -c AI -i 1234567 -f 1234570
-
-# backend HTTP (padrão para novos casos — ~10× mais rápido)
-uv run python main.py --backend http -c HC -i 135041 -f 135041 \
-    -o json -d data/output/test --overwrite
-
-# salvar arquivos no desktop do windows
-uv run python main.py --output-dir /mnt/c/Users/YourUsername/Desktop/judex-mini
+uv sync
 ```
 
-Para mais detalhes ver `uv run python main.py --help`. Para alterar
-valores (max_retries, webdriver_timeout, etc.), ver `src/config.py`.
+Isso baixa a versão certa do Python e todas as bibliotecas. Só precisa
+ser feito uma vez (e a cada `git pull` que mexa nas dependências).
 
-## Testes
+Para conferir que ficou tudo ok:
 
 ```bash
-# suíte unitária (157 testes, <3s)
-uv run pytest tests/unit/
-
-# validação contra fixtures de ground-truth (parity vs. dados
-# conferidos à mão em tests/ground_truth/*.json)
-PYTHONPATH=. uv run python scripts/validate_ground_truth.py
+uv run python main.py --help
 ```
 
-## Where the data lives
+Deve aparecer a tela de ajuda com todas as opções.
 
-Start with **[`docs/data-layout.md`](docs/data-layout.md)** — the
-canonical spatial map of stores, keys, and the foreign key from case
-JSON to cached PDF text.
+---
 
-TL;DR three stores:
+## 3. Primeiro uso
 
-- **Case JSON**: `data/output/**/judex-mini_<CLASSE>_<N>.json` — one record
-  per process, schema in `src/data/types.py` (`StfItem` TypedDict).
-- **PDF text cache**: `data/pdf/<sha1(url)>.txt.gz` — extracted
-  text, URL-keyed. Read via `src.utils.pdf_cache.read(url)`.
-- **PDF elements cache**: `data/pdf/<sha1(url)>.elements.json.gz` —
-  structured Unstructured element list for OCR-sourced entries only.
-  Read via `pdf_cache.read_elements(url)` (returns `None` for
-  pypdf-sourced URLs).
-- **HTML fragment cache**: `data/html/<CLASSE>_<N>/*.html.gz` —
-  per-tab raw HTML; ~60× speedup on re-scrapes.
+Comando mínimo para baixar **um único processo** (ex.: `HC 135041`):
 
-The foreign key from a case to its PDF text:
-
-```
-data/output/.../judex-mini_HC_135041.json
-  └── andamentos[17].link                   ← STF portal PDF URL
-       └── src.utils.pdf_cache.read(link)   ← extracted text
+```bash
+uv run python main.py -c HC -i 135041 -f 135041 -o json
 ```
 
-## Architecture
+O que cada pedaço significa:
 
-**HTTP is the only first-class scraping backend** (`src/scraper.py`):
-replays the XHR requests `/processos/detalhe.asp` and
-`/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently;
-`sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao`
-as JSON + PDFs. ~10× faster per process than the original Selenium
-path.
+| Flag  | Significa             | Exemplo                |
+|-------|-----------------------|------------------------|
+| `-c`  | **c**lasse processual | `HC`, `ADI`, `RE`, `AI`|
+| `-i`  | número **i**nicial    | `135041`               |
+| `-f`  | número **f**inal      | `135041`               |
+| `-o`  | formato de saída      | `csv`, `json`, `jsonl` |
 
-The legacy Selenium scraper was frozen at `src/_deprecated/scraper.py`
-on 2026-04-17. To install the optional dep:
-`uv sync --extra selenium-legacy`. Passing `main.py --backend selenium`
-errors with a deprecation message — see
-`docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
+Se tudo deu certo, o arquivo fica em
+`data/output/judex-mini_HC_135041.json`.
 
-STF's `/processos/*` is disallowed by `robots.txt` and the WAF
-enforces it with 403 bursts (not 429) above a ~100-process
-behavioral threshold. `ScraperConfig.retry_403=True` + a 2s
-`--throttle-sleep` floor absorb the block cycles transparently.
+> **Sempre use `uv run python main.py ...`**, nunca `python main.py`
+> sozinho. O `uv run` garante que o Python certo e as bibliotecas certas
+> estão sendo usados. Rodar `python main.py` direto vai dar
+> `ModuleNotFoundError` ou pior.
 
-### Sweep drivers
+---
 
-Two institutional sweep drivers, both with resume / retry-from /
-circuit breaker / SIGINT-safe shutdown / atomic state:
+## 4. Comandos comuns
 
-- **Process sweep** — `scripts/run_sweep.py` (+ `src/process_store.py`
-  + `src/_shared.py`): CSV-driven, one (classe, processo) per row.
-  Output at `docs/sweep-results/<date>-<label>/`.
-- **PDF sweep** — `scripts/fetch_pdfs.py` (+ `src/pdf_driver.py` +
-  `src/pdf_store.py`): walks case JSON, filters by
-  `--classe/--impte-contains/--doc-types/--relator-contains`,
-  fetches each andamento PDF. Output at
-  `docs/pdf-sweeps/<date>-<label>/`.
+**Baixar um intervalo de processos** (ex.: HC 135041 a 135050):
 
-OCR re-extraction (`scripts/reextract_unstructured.py`) runs as a
-sibling of the PDF sweep; uses the Unstructured API's `hi_res`
-strategy and writes both the flat text and the structured element
-list back to the cache. See [`docs/pdf-sweeps/README.md`](docs/pdf-sweeps/README.md)
-for the PDF-sweep directory conventions.
+```bash
+uv run python main.py -c HC -i 135041 -f 135050 -o json
+```
 
-## Documentation index
+**Salvar em uma pasta específica**:
 
-| File | What it tells you |
-|---|---|
-| [`docs/data-layout.md`](docs/data-layout.md)         | Spatial map — where every store lives and how they reference each other. **Start here.** |
-| [`docs/handoff.md`](docs/handoff.md)                 | Temporal map — what's in flight, what's blocked, what's next. |
-| [`docs/perf-bulk-data.md`](docs/perf-bulk-data.md)   | Original investigation — DataJud dead-end, STF portal mechanics, perf claims and caveats. |
-| [`docs/sweep-results/`](docs/sweep-results/)         | Per-run artifacts for process sweeps. `2026-04-16-E-full-1k-defaults/SUMMARY.md` is the canonical SUMMARY template. |
-| [`docs/pdf-sweeps/README.md`](docs/pdf-sweeps/README.md) | PDF-sweep directory conventions. |
-| [`CLAUDE.md`](CLAUDE.md)                             | Agent + contributor gotchas, conventions, "don't break these" list. |
+```bash
+uv run python main.py -c HC -i 135041 -f 135041 -o json \
+  -d data/output/meu_teste
+```
 
-## Key source modules
+**Sobrescrever arquivos que já existem** (útil para refazer uma
+extração):
 
-| Module | Role |
-|---|---|
-| `src/scraper.py`                                             | HTTP backend orchestrator. `fetch_process` + `scrape_processo_http`. (Was `scraper_http.py` until 2026-04-17.) |
-| `src/extraction_http*.py`                                    | Pure-soup parsers for the HTTP path. |
-| `src/data/types.py`                                          | `StfItem` TypedDict — the case-JSON schema. |
-| `src/utils/pdf_cache.py`                                     | URL-keyed text + elements cache. |
-| `src/process_store.py` + `src/_shared.py`                    | Process-sweep state / log / errors + shared primitives. |
-| `src/pdf_driver.py` + `src/pdf_store.py`                     | PDF-sweep driver — resumable, circuit-breakered, SIGINT-safe. |
-| `src/utils/adaptive_throttle.py` + `src/utils/request_log.py`| Per-host latency-aware delay + per-GET SQLite archive. |
-| `scripts/run_sweep.py`                                       | CSV-driven process sweep. |
-| `scripts/fetch_pdfs.py`                                      | Generic PDF sweep. |
-| `scripts/reextract_unstructured.py`                          | Re-OCR image-only PDFs via the Unstructured API. |
+```bash
+uv run python main.py -c HC -i 135041 -f 135041 -o json --overwrite
+```
 
-## Dependencies
+**Salvar direto no Desktop do Windows** (rodando no WSL):
 
-`selenium` (legacy backend), `requests` + `beautifulsoup4` (HTTP backend),
-`tenacity` (retry), `typer` (CLI), `pypdf` (PDF text), `python-dotenv`
-(env loading), `unstructured-client` via HTTP (OCR).
+```bash
+uv run python main.py -c HC -i 135041 -f 135041 -o json \
+  -d /mnt/c/Users/SeuUsuario/Desktop/judex-mini
+```
+
+Substitua `SeuUsuario` pelo seu nome de usuário do Windows. Os arquivos
+aparecem no Desktop como se tivessem sido gerados pelo próprio Windows.
+
+**Ver todas as opções**:
+
+```bash
+uv run python main.py --help
+```
+
+---
+
+## 5. Onde ficam os arquivos
+
+Por padrão a ferramenta cria estas pastas dentro do projeto:
+
+```
+data/
+├── output/                        ← o que você quer ver
+│   └── judex-mini_HC_135041.json     (um arquivo por processo)
+├── html/                          ← cache interno (pode ignorar)
+│   └── HC_135041/
+│       ├── detalhe.html.gz
+│       ├── abaPartes.html.gz
+│       └── ...
+├── pdf/                           ← cache de PDFs extraídos
+│   └── <hash>.txt.gz
+└── logs/                          ← log de cada execução
+    └── scraper_YYYYMMDD_HHMMSS.log
+```
+
+- **`data/output/`** é o que importa — um arquivo por processo, com
+  todos os metadados.
+- **`data/html/`** e **`data/pdf/`** são caches. Se você rodar o mesmo
+  processo de novo, a ferramenta reaproveita o cache e fica ~60× mais
+  rápida. Pode apagar à vontade (`rm -rf data/html data/pdf`) — só vai
+  demorar mais na próxima vez.
+- **`data/logs/`** tem o registro detalhado de cada execução. Útil para
+  reportar bugs.
+
+Quer usar outra pasta para a saída? Passe `-d /caminho/da/pasta`.
+
+---
+
+## 6. Problemas comuns
+
+### `command not found: uv`
+
+Você instalou o `uv` mas não reabriu o terminal. Feche e abra de novo.
+Se persistir:
+
+```bash
+source ~/.bashrc     # ou ~/.zshrc no macOS
+```
+
+### `ModuleNotFoundError` ou `No module named 'src'`
+
+Você provavelmente rodou `python main.py` em vez de
+`uv run python main.py`. **Sempre use `uv run`**. Se ainda assim der
+erro, rode `uv sync` de novo de dentro da pasta `judex-mini`.
+
+### Muitos erros `403 Forbidden`
+
+O portal do STF bloqueia IPs que fazem requisições demais em pouco
+tempo. O bloqueio dura alguns minutos e libera sozinho. O que fazer:
+
+- **Espere 5 a 10 minutos** e tente de novo.
+- **Rode intervalos menores** (ex.: 50 processos por vez, não 1000).
+- Para extrações grandes (centenas ou milhares de processos), existem
+  ferramentas de *sweep* com retry automático e pacing configurável —
+  veja [`CLAUDE.md`](CLAUDE.md).
+
+### Caracteres quebrados nos nomes (ex.: `JosÃ©` em vez de `José`)
+
+Não deveria acontecer — o programa já corrige o encoding do STF. Se
+aparecer, abra uma *issue* anexando o log.
+
+### O arquivo de saída não aparece
+
+Confira, nessa ordem:
+
+1. Qual pasta você passou em `-d` (padrão é `data/output/`).
+2. Se o processo existe mesmo no STF (tente abrir no navegador:
+   `https://portal.stf.jus.br/processos/detalhe.asp?classe=HC&numero=135041`).
+3. O arquivo de log em `data/logs/` — ele diz exatamente o que deu
+   errado.
+
+### Como limpar tudo e começar do zero
+
+```bash
+rm -rf data
+```
+
+Isso apaga saída, caches e logs. Na próxima execução o programa recria
+as pastas.
+
+---
+
+## 7. Para saber mais
+
+- [`CLAUDE.md`](CLAUDE.md) — guia técnico para quem contribui: módulos,
+  testes, convenções, arquitetura, pegadinhas do portal do STF,
+  ferramentas de *sweep* em larga escala.
+- [`docs/data-layout.md`](docs/data-layout.md) — mapa detalhado de onde
+  cada arquivo mora e como se referenciam.
+- [`docs/handoff.md`](docs/handoff.md) — estado atual do trabalho em
+  andamento.
+- [`docs/sweep-results/`](docs/sweep-results/) — relatórios de extrações
+  em larga escala (centenas/milhares de processos).
+
+Para relatar bugs ou sugerir melhorias, abra uma *issue* no GitHub.

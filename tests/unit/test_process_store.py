@@ -1,4 +1,4 @@
-"""Tests for src.process_store — append log + atomic compacted state.
+"""Tests for src.sweeps.process_store — append log + atomic compacted state.
 
 Design covered:
 - record() appends to log and updates state; state survives a fresh
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from src.process_store import (
+from src.sweeps.process_store import (
     AttemptRecord,
     SweepStore,
     load_retry_list,

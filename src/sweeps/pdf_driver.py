@@ -15,6 +15,9 @@ Per-URL loop with:
 - `_shared.install_signal_handlers()` for graceful SIGINT/SIGTERM
 - `--resume` (via `PdfStore.already_ok`) and `--retry-from` (reads
   prior `pdfs.errors.jsonl` and scopes the run to that URL set)
+
+The per-item loop skeleton lives in `_shared.iterate_with_guards`; this
+module supplies the domain-specific `on_item` + `on_progress` callbacks.
 """
 
 from __future__ import annotations
@@ -22,17 +25,18 @@ from __future__ import annotations
 import logging
 import time
 from collections import Counter
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import requests
 
-from src import _shared
+from src.sweeps import shared as _shared
 from src.config import ScraperConfig
-from src.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
-from src.pdf_targets import PdfTarget
-from src.http_session import _http_get_with_retry, new_session
+from src.sweeps.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
+from src.sweeps.pdf_targets import PdfTarget
+from src.scraping.http_session import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 from src.utils.pdf_utils import (
@@ -52,6 +56,13 @@ FetcherFn = Callable[
 status ∈ {"ok", "empty", "unknown_type"}. Raises on HTTP failure;
 the driver catches and records status="http_error".
 """
+
+
+@dataclass
+class _Counters:
+    fetched: int = 0
+    cached_hits: int = 0
+    failed: int = 0
 
 
 def _default_fetcher(
@@ -121,117 +132,107 @@ def run_pdf_sweep(
         _shared.CircuitBreaker(circuit_window, circuit_threshold)
         if circuit_window > 0 else None
     )
-    error_statuses = ("http_error", "extract_error")
 
-    fetched = 0
-    cached_hits = 0
-    failed = 0
-    tripped = False
-
+    counters = _Counters()
     started = datetime.now(timezone.utc)
     print(f"=== pdf sweep · {len(targets)} targets · out={out_dir} ===", flush=True)
 
     fetch_fn: FetcherFn = fetcher or _default_fetcher
 
-    try:
-        for i, tgt in enumerate(targets, 1):
-            if _shared.shutdown_requested():
-                print(f"  stopping before target {i}/{len(targets)}", flush=True)
-                break
-
-            if resume and store.already_ok(tgt.url):
-                cached_hits += 1
-                continue
-
-            # Disk-cache fast path — no network, no throttle budget spent.
-            existing_text = pdf_cache.read(tgt.url)
-            if existing_text is not None:
-                cached_hits += 1
-                store.record(_make_record(
-                    tgt, status="ok", extractor="cache",
-                    chars=len(existing_text), wall_s=0.0,
-                    attempt=store.attempt_count(tgt.url) + 1,
-                ))
-                if config.request_log is not None:
-                    config.request_log.log(
-                        url=tgt.url, from_cache=True,
-                        context={
-                            "processo_id": tgt.processo_id,
-                            "classe": tgt.classe,
-                            "doc_type": tgt.doc_type,
-                            **tgt.context,
-                        },
-                    )
-                continue
-
-            t0 = time.perf_counter()
-            status = "ok"
-            error: Optional[str] = None
-            error_type: Optional[str] = None
-            http_status: Optional[int] = None
-            extractor: Optional[str] = None
-            chars: Optional[int] = None
-            text: Optional[str] = None
-            try:
-                text, extractor, status = fetch_fn(session, tgt, config)
-            except Exception as e:
-                status = "http_error"
-                etype, hstatus, _ = _shared.classify_exception(e)
-                error_type = etype
-                http_status = hstatus
-                error = f"{etype}: {e}"
-
-            wall = time.perf_counter() - t0
-
-            if status == "ok" and text:
-                pdf_cache.write(tgt.url, text)
-                chars = len(text)
-                fetched += 1
-                logging.info(
-                    f"[{i}/{len(targets)}] {tgt.url}: ok ({chars} chars)"
-                )
-            else:
-                failed += 1
-                if status != "http_error" and error is None:
-                    error = status
-                    error_type = error_type or status
-                logging.warning(
-                    f"[{i}/{len(targets)}] {tgt.url}: {status}"
-                    + (f" ({error})" if error else "")
-                )
-
+    def on_item(i: int, n: int, tgt: PdfTarget) -> str:
+        # Disk-cache fast path — no network, no throttle budget spent.
+        existing_text = pdf_cache.read(tgt.url)
+        if existing_text is not None:
+            counters.cached_hits += 1
             store.record(_make_record(
-                tgt, status=status, error=error, error_type=error_type,
-                http_status=http_status, extractor=extractor, chars=chars,
-                wall_s=round(wall, 3),
+                tgt, status="ok", extractor="cache",
+                chars=len(existing_text), wall_s=0.0,
                 attempt=store.attempt_count(tgt.url) + 1,
             ))
-
-            if breaker is not None:
-                breaker.record(status)
-                if breaker.tripped(error_statuses):
-                    tripped = True
-                    print(
-                        f"\n!! circuit breaker tripped: >{circuit_threshold:.0%} "
-                        f"error-like statuses in the last {circuit_window} targets. "
-                        f"Stopping at {i}/{len(targets)}.",
-                        flush=True,
-                    )
-                    break
-
-            if progress_every and i % progress_every == 0:
-                elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-                rate = i / elapsed if elapsed > 0 else 0
-                eta = (len(targets) - i) / rate if rate > 0 else 0
-                print(
-                    f"  [progress] ok={fetched} cached={cached_hits} "
-                    f"fail={failed} · {rate:.2f} tgt/s · "
-                    f"eta {eta / 60:.1f} min",
-                    flush=True,
+            if config.request_log is not None:
+                config.request_log.log(
+                    url=tgt.url, from_cache=True,
+                    context={
+                        "processo_id": tgt.processo_id,
+                        "classe": tgt.classe,
+                        "doc_type": tgt.doc_type,
+                        **tgt.context,
+                    },
                 )
+            return "ok"
 
-            if throttle_sleep > 0 and i < len(targets):
-                time.sleep(throttle_sleep)
+        t0 = time.perf_counter()
+        status = "ok"
+        error: Optional[str] = None
+        error_type: Optional[str] = None
+        http_status: Optional[int] = None
+        extractor: Optional[str] = None
+        chars: Optional[int] = None
+        text: Optional[str] = None
+        try:
+            text, extractor, status = fetch_fn(session, tgt, config)
+        except Exception as e:
+            status = "http_error"
+            etype, hstatus, _ = _shared.classify_exception(e)
+            error_type = etype
+            http_status = hstatus
+            error = f"{etype}: {e}"
+
+        wall = time.perf_counter() - t0
+
+        if status == "ok" and text:
+            pdf_cache.write(tgt.url, text)
+            chars = len(text)
+            counters.fetched += 1
+            logging.info(f"[{i}/{n}] {tgt.url}: ok ({chars} chars)")
+        else:
+            counters.failed += 1
+            if status != "http_error" and error is None:
+                error = status
+                error_type = error_type or status
+            logging.warning(
+                f"[{i}/{n}] {tgt.url}: {status}"
+                + (f" ({error})" if error else "")
+            )
+
+        store.record(_make_record(
+            tgt, status=status, error=error, error_type=error_type,
+            http_status=http_status, extractor=extractor, chars=chars,
+            wall_s=round(wall, 3),
+            attempt=store.attempt_count(tgt.url) + 1,
+        ))
+        return status
+
+    def on_progress(i: int, n: int) -> None:
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        rate = i / elapsed if elapsed > 0 else 0
+        eta = (n - i) / rate if rate > 0 else 0
+        print(
+            f"  [progress] ok={counters.fetched} cached={counters.cached_hits} "
+            f"fail={counters.failed} · {rate:.2f} tgt/s · "
+            f"eta {eta / 60:.1f} min",
+            flush=True,
+        )
+
+    def is_already_done(tgt: PdfTarget) -> bool:
+        return resume and store.already_ok(tgt.url)
+
+    def on_resume_skip(_tgt: PdfTarget) -> None:
+        counters.cached_hits += 1
+
+    try:
+        tripped = _shared.iterate_with_guards(
+            targets,
+            on_item=on_item,
+            should_resume_skip=is_already_done,
+            on_skip=on_resume_skip,
+            breaker=breaker,
+            error_statuses=("http_error", "extract_error"),
+            trip_noun="targets",
+            progress_every=progress_every,
+            on_progress=on_progress,
+            throttle_sleep=throttle_sleep,
+        )
     finally:
         if owns_session:
             session.close()
@@ -244,7 +245,8 @@ def run_pdf_sweep(
     )
 
     print(
-        f"\nsummary: fetched={fetched} cached={cached_hits} failed={failed}"
+        f"\nsummary: fetched={counters.fetched} cached={counters.cached_hits} "
+        f"failed={counters.failed}"
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
@@ -252,7 +254,7 @@ def run_pdf_sweep(
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")
     print(f"  report: {report_path}")
-    return fetched, cached_hits, failed
+    return counters.fetched, counters.cached_hits, counters.failed
 
 
 def _make_record(

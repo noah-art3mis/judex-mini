@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from src.pdf_targets import PdfTarget, collect_pdf_targets
+from src.sweeps.pdf_targets import PdfTarget, collect_pdf_targets
 
 
 def _write_item(path: Path, rec: dict) -> None:

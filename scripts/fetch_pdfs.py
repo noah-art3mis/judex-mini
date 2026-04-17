@@ -2,7 +2,7 @@
 
 Walks the judex-mini output tree, filters processes + their andamento
 PDFs by classe / impetrante / doc_type / relator, and runs them
-through the institutional PDF sweep driver (`src.pdf_driver`).
+through the institutional PDF sweep driver (`src.sweeps.pdf_driver`).
 
 Durability: every attempt goes to an atomic `pdfs.state.json`, an
 append-only `pdfs.log.jsonl`, and a per-GET `requests.db`. `--resume`
@@ -39,7 +39,7 @@ from collections import Counter
 from pathlib import Path
 
 from scripts._filters import add_filter_args, targets_from_args
-from src.pdf_driver import run_pdf_sweep
+from src.sweeps.pdf_driver import run_pdf_sweep
 from src.utils import pdf_cache
 
 

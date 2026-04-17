@@ -8,7 +8,7 @@ wheels/
 
 .venv
 .env
-notes/
-data/
-analysis/
+/notes/
+/data/
+/analysis/
 .claude/

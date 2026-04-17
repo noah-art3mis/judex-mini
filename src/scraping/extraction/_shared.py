@@ -1,6 +1,6 @@
 """
-Shared helpers used by both the Selenium extractors (src/extraction/)
-and the HTTP extractors (src/extraction_http.py).
+Shared helpers used by both the Selenium extractors (src/scraping/extraction/)
+and the HTTP extractors (src/scraping/extraction/http.py).
 
 These are pure functions/constants that operate on BeautifulSoup trees
 or raw HTML strings — no driver dependency.

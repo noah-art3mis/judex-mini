@@ -1,4 +1,4 @@
-"""Unit tests for src.text_norm.
+"""Unit tests for src.analysis.text_norm.
 
 Normalizes Brazilian legal names for grouping. Strips accents, folds
 case, collapses whitespace, and produces a surname-based group key so
@@ -7,7 +7,7 @@ case, collapses whitespace, and produces a surname-based group key so
 
 from __future__ import annotations
 
-from src.text_norm import normalize_name, surname_key
+from src.analysis.text_norm import normalize_name, surname_key
 
 
 def test_normalize_strips_accents():

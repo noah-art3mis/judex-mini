@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.pdf_store import (
+from src.sweeps.pdf_store import (
     PdfAttemptRecord,
     PdfStore,
     load_retry_list,

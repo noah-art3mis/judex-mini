@@ -152,7 +152,7 @@ The HTTP path is **~5.7× faster than Selenium steady-state** on a *cold, unrate
 
 Prototype files:
 - `src/scraper_http.py` — session, incidente resolution, tab fetching, `scrape_processo_http` orchestrator
-- `src/extraction_http.py` — fragment-based ports of every extractor
+- `src/scraping/extraction/http.py` — fragment-based ports of every extractor
 - `src/utils/html_cache.py` — on-disk cache under `.cache/html/{classe}_{processo}/{tab}.html`
 - `scripts/bench_http_vs_selenium.py` — single-process diff harness
 - `scripts/validate_ground_truth.py` — runs HTTP path against every fixture in tests/ground_truth/

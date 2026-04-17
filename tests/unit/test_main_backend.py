@@ -52,7 +52,7 @@ def test_backend_selenium_errors_with_deprecation_message(
 
     assert result.exit_code != 0
     assert "deprecated" in result.output.lower()
-    assert "_deprecated" in result.output
+    assert "deprecated/scraper.py" in result.output
     http.assert_not_called()
 
 

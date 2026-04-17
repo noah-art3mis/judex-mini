@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from src import http_session as scraper_http
+from src.scraping import http_session as scraper_http
 from src.config import ScraperConfig
 
 

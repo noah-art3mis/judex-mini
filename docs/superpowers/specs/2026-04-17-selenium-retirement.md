@@ -1,11 +1,11 @@
-# Selenium retirement — move to `src/_deprecated/`, HTTP becomes default
+# Selenium retirement — move to `deprecated/`, HTTP becomes default
 
 Status: **draft**, not yet executed. Author: 2026-04-17.
 
 ## Goal
 
 Make the HTTP backend the only first-class scraping path. Move all
-Selenium-specific code into `src/_deprecated/` as a frozen reference,
+Selenium-specific code into `deprecated/` as a frozen reference,
 flip `main.py`'s default backend to `http`, and shrink the runtime
 import graph (and the wheel) by dropping `selenium` from the default
 dependency set.
@@ -18,7 +18,7 @@ actually emits at the DOM level.
 
 ## Non-goals
 
-- **No new shim layer.** `src/_deprecated/` is a destination, not a
+- **No new shim layer.** `deprecated/` is a destination, not a
   redirect. Nothing in the live code path imports from it. Per
   `CLAUDE.md` (no-backwards-compat-shims rule) we are NOT keeping a
   `from src.scraper import run_scraper` re-export at the old path.
@@ -34,11 +34,11 @@ actually emits at the DOM level.
 **19 files import `selenium` directly:**
 
 - Orchestrator + driver helpers (3):
-  - `src/scraper.py`
+  - `src/scraping/scraper.py`
   - `src/utils/driver.py`
   - `src/utils/get_element.py`
 
-- Selenium-bound extractors (16, all under `src/extraction/`):
+- Selenium-bound extractors (16, all under `src/scraping/extraction/`):
   - `extract_andamentos.py`
   - `extract_assuntos.py`
   - `extract_badges.py`
@@ -56,7 +56,7 @@ actually emits at the DOM level.
   - `extract_sessao_virtual.py`
   - `extract_volumes_folhas_apensos.py`
 
-**Stays in `src/extraction/` (pure-soup, imported by HTTP path):**
+**Stays in `src/scraping/extraction/` (pure-soup, imported by HTTP path):**
 
 - `extract_classe.py`
 - `extract_meio.py`
@@ -84,16 +84,16 @@ actually emits at the DOM level.
 
 ```
 src/
-  _deprecated/                       # new; private leading-underscore per src/_shared.py convention
+  _deprecated/                       # new; private leading-underscore per src/sweeps/shared.py convention
     __init__.py                      # empty, signals "do not import from runtime code"
     README.md                        # 1-page note: why this exists, how to read it
-    scraper.py                       # was src/scraper.py
+    scraper.py                       # was src/scraping/scraper.py
     utils/
       driver.py
       get_element.py
     extraction/
       __init__.py                    # empty
-      _shared.py                     # COPY of src/extraction/_shared.py if any selenium ext needs it
+      _shared.py                     # COPY of src/scraping/extraction/_shared.py if any selenium ext needs it
       extract_andamentos.py
       extract_assuntos.py
       extract_badges.py
@@ -122,9 +122,9 @@ src/
   ...                                # everything else unchanged
 ```
 
-`src/_deprecated/` is named with a leading underscore for two reasons:
+`deprecated/` is named with a leading underscore for two reasons:
 
-1. Matches the existing `src/_shared.py` private-module convention.
+1. Matches the existing `src/sweeps/shared.py` private-module convention.
 2. Linters / test discovery skip leading-underscore packages by
    default; CI doesn't try to import the deprecated tree.
 
@@ -148,12 +148,12 @@ Single commit: `refactor: deprecate Selenium backend, default to HTTP`.
    `--backend selenium` is passed, error with a clear message:
    ```
    ERROR: --backend selenium is deprecated. The Selenium scraper has
-   moved to src/_deprecated/scraper.py. Use --backend http (the new
+   moved to deprecated/scraper.py. Use --backend http (the new
    default), or pin an older judex-mini release if you need Selenium.
    ```
    Validate this in `_validate_backend` before any work happens.
 
-3. **Move 19 files** to `src/_deprecated/` per the layout above. Use
+3. **Move 19 files** to `deprecated/` per the layout above. Use
    `git mv` so the history follows. Group the moves in the same
    commit as the main.py flip — the import graph would be broken
    between steps otherwise.
@@ -164,7 +164,7 @@ Single commit: `refactor: deprecate Selenium backend, default to HTTP`.
 
 5. **Decide pyproject:** move `selenium>=4.37.0` from default
    dependencies to an `[selenium-legacy]` optional extra. This keeps
-   `src/_deprecated/` *importable* if a user installs the extra
+   `deprecated/` *importable* if a user installs the extra
    (`uv sync --extra selenium-legacy`), but the default install no
    longer pulls Chrome/chromedriver/selenium into the wheel. Update
    `pyproject.toml`:
@@ -186,7 +186,7 @@ Single commit: `refactor: deprecate Selenium backend, default to HTTP`.
 
 7. **Update `CLAUDE.md`:**
    - "Two backends live side-by-side" → "HTTP is the only backend;
-     the Selenium tree is frozen under `src/_deprecated/`".
+     the Selenium tree is frozen under `deprecated/`".
    - Update the `Scraping architecture` section.
    - Remove the `recursos[].id` vs `recursos[].index` gotcha — once
      Selenium is out of the dispatch path, the `index` emission can't
@@ -225,16 +225,16 @@ After Phase 1 stabilises (~1 week), evaluate:
 
 3. **`_deprecated/extraction/_shared.py` duplication.** If any
    Selenium extractor in `_deprecated/` references a regex still live
-   in `src/extraction/_shared.py`, copy that regex into
+   in `src/scraping/extraction/_shared.py`, copy that regex into
    `_deprecated/extraction/_shared.py` so the deprecated tree is
    self-contained (no live ↔ deprecated dependency edge).
 
 4. **Hard-remove decision.** If a year passes with no one running
    `--backend selenium` (check telemetry / git log of the deprecated
-   tree), delete `src/_deprecated/` entirely and drop the
+   tree), delete `deprecated/` entirely and drop the
    `[selenium-legacy]` extra. Until then, keep it as documentation.
 
-### Phase 3 — Stretch: nothing imports from `src/_deprecated/`
+### Phase 3 — Stretch: nothing imports from `deprecated/`
 
 Add a CI check (single shell line, in `pyproject.toml` or a
 `Makefile`):
@@ -252,9 +252,9 @@ tree. Pins the architectural boundary.
 |------|------------|--------|------------|
 | HTTP backend has a parity bug not yet surfaced | Medium | High | Phase 2 ground-truth re-capture catches it; sweep E shows 429/429 ok at scale; 4/5 fixtures already MATCH. |
 | External user has hardcoded `--backend selenium` | Low | Low | Phase 1 keeps the flag, just errors clearly. They install `[selenium-legacy]` and pin an older release if they need to keep running it. |
-| `src/extraction/_shared.py` regex used only by deprecated extractors | Low | Low | Phase 2 step 3 audits and copies. Worst case: live code drops a now-dead regex. |
+| `src/scraping/extraction/_shared.py` regex used only by deprecated extractors | Low | Low | Phase 2 step 3 audits and copies. Worst case: live code drops a now-dead regex. |
 | `tests/ground_truth/*.json` were captured under Selenium and their `recursos[].index` shape becomes the asymmetric ground truth | Already known | Medium | Phase 2 step 1 re-captures. Until then, `validate_ground_truth.py` already SKIPs `sessao_virtual` and tolerates the `recursos` diff. |
-| `selenium-legacy` extra isn't installed → user can't import `src/_deprecated/scraper` even if they want to read it | By design | None | The point of the extra is exactly this: deprecated code is greppable but not runnable without an opt-in install. |
+| `selenium-legacy` extra isn't installed → user can't import `deprecated/scraper` even if they want to read it | By design | None | The point of the extra is exactly this: deprecated code is greppable but not runnable without an opt-in install. |
 
 ## Estimated effort
 
@@ -278,7 +278,7 @@ tree. Pins the architectural boundary.
    (and an `[selenium-legacy]` install). This is the user's local
    problem, not a repo concern.
 
-3. **Should we promote `src/transform/andamentos.py` (the
+3. **Should we promote `src/analysis/andamentos.py` (the
    andamentos-classifier port) into the HTTP path *before* Phase 1?**
    See `docs/andamentos-classifier-gaps.md` — the port is partial.
    Probably orthogonal: the classifier consumes andamentos JSON

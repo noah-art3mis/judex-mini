@@ -5,7 +5,7 @@
 **Date**: 2026-04-17 (commits `ef464cc` → `ca3ce83`).
 
 **Script**: `scripts/reextract_unstructured.py` (inlined loop —
-**does not route through `src/pdf_driver.run_pdf_sweep`**; see the
+**does not route through `src/sweeps/pdf_driver.run_pdf_sweep`**; see the
 script's "Known gaps" docstring block). Consequence: no
 `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` were produced by
 this run; only this `run.log` (tee-captured stdout).
