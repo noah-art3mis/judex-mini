@@ -12,34 +12,37 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.config import ScraperConfig
 from src.data.export import export_item
+from src.data.missing import check_missing_processes
 from src.data.output import OutputConfig
 from src.data.types import StfItem
-from src.extraction import (
-    extract_andamentos,
+from src.extraction.extract_andamentos import extract_andamentos
+from src.extraction.extract_assuntos import extract_assuntos
+from src.extraction.extract_badges import extract_badges
+from src.extraction.extract_data_protocolo import extract_data_protocolo
+from src.extraction.extract_deslocamentos import extract_deslocamentos
+from src.extraction.extract_incidente import extract_incidente
+from src.extraction.extract_meio import extract_meio
+from src.extraction.extract_numero_origem import extract_numero_origem
+from src.extraction.extract_numero_unico import extract_numero_unico
+from src.extraction.extract_orgao_origem import extract_orgao_origem
+from src.extraction.extract_origem import extract_origem
+from src.extraction.extract_partes import extract_partes
+from src.extraction.extract_peticoes import extract_peticoes
+from src.extraction.extract_primeiro_autor import extract_primeiro_autor
+from src.extraction.extract_publicidade import extract_publicidade
+from src.extraction.extract_recursos import extract_recursos
+from src.extraction.extract_relator import extract_relator
+from src.extraction.extract_sessao_virtual import extract_sessao_virtual
+from src.extraction.extract_volumes_folhas_apensos import (
     extract_apensos,
-    extract_assuntos,
-    extract_badges,
-    extract_data_protocolo,
-    extract_deslocamentos,
     extract_folhas,
-    extract_incidente,
-    extract_meio,
-    extract_numero_origem,
-    extract_numero_unico,
-    extract_orgao_origem,
-    extract_origem,
-    extract_partes,
-    extract_peticoes,
-    extract_primeiro_autor,
-    extract_publicidade,
-    extract_recursos,
-    extract_relator,
-    extract_sessao_virtual,
     extract_volumes,
 )
 from src.utils.driver import get_driver, load_page_with_retry
 from src.utils.text_utils import normalize_spaces
 from src.utils.timing import ProcessTimer, track_extraction_timing
+
+__all__ = ["run_scraper", "check_missing_processes"]
 
 
 def run_scraper(
@@ -255,77 +258,3 @@ def retry_missing_processes(
         all_exported_files.extend(exported_files)
 
     return all_exported_files
-
-
-def check_missing_processes(
-    classe: str,
-    processo_inicial: int,
-    processo_final: int,
-    output_dir: str,
-    output_config: OutputConfig,
-) -> list[int]:
-    """Check for missing process numbers in the output files and log them."""
-    import json
-    import os
-
-    import pandas as pd
-
-    # Check which output files exist
-    base_file = f"{output_dir}/judex-mini_{classe}_{processo_inicial}-{processo_final}"
-
-    # Try to find an existing output file
-    existing_file = None
-    file_type = None
-
-    if output_config.csv and os.path.exists(base_file + ".csv"):
-        existing_file = base_file + ".csv"
-        file_type = "csv"
-    elif output_config.jsonl and os.path.exists(base_file + ".jsonl"):
-        existing_file = base_file + ".jsonl"
-        file_type = "jsonl"
-    elif output_config.json and os.path.exists(base_file + ".json"):
-        existing_file = base_file + ".json"
-        file_type = "json"
-
-    if not existing_file:
-        logging.warning(
-            f"No output file found for {classe} {processo_inicial}-{processo_final}"
-        )
-        return []
-
-    try:
-        if file_type == "csv":
-            # Read CSV file
-            df = pd.read_csv(existing_file)
-            if "processo_id" not in df.columns:
-                logging.warning("No 'processo_id' column found in CSV file")
-                return []
-            processed_numbers = set(df["processo_id"].astype(str))
-
-        elif file_type == "jsonl":
-            # Read JSONL file
-            processed_numbers = set()
-            with open(existing_file, "r") as f:
-                for line in f:
-                    data = json.loads(line.strip())
-                    if "processo_id" in data:
-                        processed_numbers.add(str(data["processo_id"]))
-
-        elif file_type == "json":
-            # Read JSON file
-            with open(existing_file, "r") as f:
-                data = json.load(f)
-                processed_numbers = set(
-                    str(item["processo_id"]) for item in data if "processo_id" in item
-                )
-
-        # Generate the expected range of process numbers
-        expected_numbers = set(
-            str(i) for i in range(processo_inicial, processo_final + 1)
-        )
-
-        return [int(num) for num in expected_numbers - processed_numbers]
-
-    except Exception as e:
-        logging.error(f"Error checking missing processes: {e}")
-        return []

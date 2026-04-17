@@ -18,20 +18,32 @@ class ScraperConfig:
     # - 100 itens demora 40min
 
     # Timeouts & Delays
-    webdriver_timeout: int = 480
+    webdriver_timeout: int = 120
     initial_delay: float = 0.2
     driver_sleep_time: float = 0.1
     driver_max_retries_for_missing: int = 5
     button_wait: float = 10
 
     # Retry Configuration - Driver
-    driver_max_retries: int = 10
+    # Budget widened 2026-04-16 after the D-run rate-budget experiments
+    # (docs/sweep-results/2026-04-16-D-rate-budget.md): STF's WAF block
+    # can last up to ~4.5 min; 20 × 60 s of exponential backoff covers it
+    # with ~4× headroom.
+    driver_max_retries: int = 20
     driver_backoff_multiplier: int = 1
     driver_backoff_min: int = 0
-    driver_backoff_max: int = 30
+    driver_backoff_max: int = 60
 
     # Retry Configuration - Documents
     document_max_retries: int = 3
     document_backoff_multiplier: int = 1
     document_backoff_min: int = 2
     document_backoff_max: int = 5
+
+    # Treat HTTP 403 as a retryable throttle signal. STF's portal issues
+    # 403 (not 429) once a sweep trips its WAF rate gate, and the block
+    # clears after a few minutes — retrying with exponential backoff rides
+    # out the cooldown. Default-on after the D-run experiments
+    # (docs/sweep-results/2026-04-16-D-rate-budget.md) showed 199/200
+    # completion with retry-403 vs 107/1000 without.
+    retry_403: bool = True

@@ -1,0 +1,51 @@
+hc_id,auto_label,manual_label,confidence,note,agree
+230006,nao_conhecido,nao_conhecido,high,,True
+230026,denegado,denegado,high,,True
+230028,nao_conhecido,nao_conhecido,high,,True
+230031,nao_conhecido,nao_conhecido,high,,True
+230033,nao_conhecido,nao_conhecido,high,,True
+230098,nao_provido,nao_provido,high,AgRg denied,True
+230103,nao_conhecido,nao_conhecido,high,,True
+230104,nao_conhecido,extinto,high,desistência homologada - auto fires on older nego seguimento,False
+230108,nao_provido,nao_provido,high,AgRg denied,True
+230113,nao_conhecido,nao_conhecido,high,,True
+230123,,nao_conhecido,high,"auto MISSED — empty complemento on ""NÃO CONHECIDO(S)"" andamento",False
+230152,nao_conhecido,nao_conhecido,high,,True
+230170,nao_provido,nao_provido,high,AgRg denied,True
+230174,nao_conhecido,nao_conhecido,high,,True
+230214,nao_conhecido,nao_conhecido,high,,True
+230231,nao_provido,nao_provido,high,AgRg denied,True
+230234,nao_conhecido,nao_conhecido,high,,True
+230236,nao_conhecido,nao_conhecido,high,,True
+230239,nao_conhecido,nao_conhecido,high,,True
+230249,nao_provido,nao_provido,high,AgRg denied,True
+230261,nao_conhecido,nao_conhecido,high,,True
+230293,nao_provido,nao_provido,high,AgRg denied,True
+230296,nao_conhecido,nao_conhecido,high,,True
+230356,nao_conhecido,nao_conhecido,high,,True
+230360,nao_provido,nao_provido,high,AgRg denied,True
+230379,nao_conhecido,nao_conhecido,high,,True
+230403,denegado,denegado,high,,True
+230443,nao_conhecido,nao_conhecido,high,,True
+230446,concedido_parcial,concedido_parcial,high,CONCEDO PARCIALMENTE a ordem,True
+230473,nao_conhecido,concedido,high,não conheço MAS concedo de ofício — auto sees the nao_conhecido verb first,False
+230560,nao_conhecido,concedido,high,nego seguimento MAS concedo de ofício (absolver o paciente),False
+230625,nao_conhecido,nao_conhecido,high,,True
+230642,prejudicado,prejudicado,high,,True
+230671,nao_conhecido,nao_conhecido,high,,True
+230672,nao_conhecido,nao_conhecido,high,,True
+230684,nao_conhecido,nao_conhecido,high,,True
+230723,nao_conhecido,nao_conhecido,high,,True
+230734,nao_conhecido,nao_conhecido,high,,True
+230762,nao_provido,nao_provido,high,AgRg denied,True
+230784,,extinto,high,desistência homologada - auto MISSED (no pattern),False
+230788,denegado,denegado,high,,True
+230807,nao_provido,nao_provido,high,AgRg denied,True
+230829,nao_provido,nao_provido,high,AgRg denied,True
+230833,nao_provido,nao_provido,high,AgRg denied,True
+230834,nao_conhecido,nao_provido,high,AgRg denied — auto fires on older nego seguimento,False
+230852,prejudicado,prejudicado,high,,True
+230856,nao_provido,nao_provido,high,AgRg denied,True
+230910,denegado,denegado,high,,True
+230913,concedido,concedido,high,CONCEDO a ordem,True
+230984,nao_conhecido,nao_conhecido,high,,True

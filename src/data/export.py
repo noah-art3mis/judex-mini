@@ -62,6 +62,31 @@ def handle_overwrite(overwrite: bool, config: OutputConfig, out_file: str) -> No
 def _save_to_csv(item: StfItem, out_file: str) -> str:
     """Save item to CSV file and return the file path."""
     df = pd.DataFrame([item])
+
+    # Drop the html field as it's too large and not useful for CSV analysis
+    if "html" in df.columns:
+        df = df.drop(columns=["html"])
+
+    # Convert JSON fields to proper JSON strings before saving
+    json_columns = [
+        "badges",
+        "assuntos",
+        "numero_origem",
+        "partes",
+        "andamentos",
+        "sessao_virtual",
+        "deslocamentos",
+        "peticoes",
+        "recursos",
+        "pautas",
+    ]
+
+    for col in json_columns:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: json.dumps(x, ensure_ascii=False) if x is not None else None
+            )
+
     csv_file = out_file + ".csv"
 
     df.to_csv(
@@ -69,7 +94,6 @@ def _save_to_csv(item: StfItem, out_file: str) -> str:
         mode="a",
         index=False,
         encoding="utf-8",
-        quoting=1,
         doublequote=True,
         header=not os.path.exists(csv_file),  # Write header only if file doesn't exist
     )

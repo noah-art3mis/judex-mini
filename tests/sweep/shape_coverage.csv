@@ -1,0 +1,13 @@
+classe,processo,source
+AI,772309,ground_truth
+MI,12,ground_truth
+RE,1234567,ground_truth
+ACO,2652,ground_truth
+ADI,2820,ground_truth
+ADI,4000,curated
+RE,1058333,curated
+AI,500000,curated
+ACO,3000,curated
+MI,943,curated
+HC,82959,curated
+HC,126292,curated

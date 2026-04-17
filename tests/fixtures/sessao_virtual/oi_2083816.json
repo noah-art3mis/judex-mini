@@ -1,0 +1,24 @@
+[ {
+  "objetoIncidente" : {
+    "id" : 2083816,
+    "identificacao" : "ADI 2820",
+    "identificacaoCompleta" : "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+    "principal" : 2083816,
+    "tipoObjetoIncidente" : {
+      "codigo" : "PR",
+      "descricao" : "Processo"
+    }
+  }
+}, {
+  "objetoIncidente" : {
+    "id" : 6702594,
+    "identificacao" : "ADI 2820 ED",
+    "identificacaoCompleta" : "EMB.DECL. NA AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+    "principal" : 2083816,
+    "pai" : 2083816,
+    "tipoObjetoIncidente" : {
+      "codigo" : "RC",
+      "descricao" : "Recurso"
+    }
+  }
+} ]
