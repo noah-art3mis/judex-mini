@@ -8,8 +8,8 @@ short and useless for downstream text analysis.
 
 This script:
 
-1. Rebuilds the same famous-lawyer PDF target set used by the original
-   `fetch_famous_lawyer_pdfs.py` / `fetch_pdfs.py` preset.
+1. Rebuilds the same famous-lawyer PDF target set used by
+   `scripts/fetch_pdfs.py`'s famous-lawyer preset.
 2. Flags cache entries with length < --min-chars (or no entry at all)
    as re-extraction candidates.
 3. Re-downloads each candidate PDF via the STF-aware scraper session
@@ -166,7 +166,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--force", action="store_true",
         help="re-extract even if cached length >= --min-chars.",
     )
+    ap.add_argument(
+        "--exclude-doc-types", default="",
+        help="comma-separated list of doc_types to skip. Useful for "
+             "'DESPACHO' which is naturally short and won't benefit from OCR.",
+    )
     args = ap.parse_args(argv)
+
+    excluded = {s.strip() for s in args.exclude_doc_types.split(",") if s.strip()}
+    doc_types = [d for d in DOC_TYPES if d not in excluded]
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     load_dotenv()
@@ -185,7 +193,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         roots,
         classe="HC",
         impte_contains=FAMOUS_NEEDLES,
-        doc_types=DOC_TYPES,
+        doc_types=doc_types,
     )
     n_hcs = len({t.processo_id for t in targets if t.processo_id is not None})
     print(f"target pool: {len(targets)} PDFs across {n_hcs} HCs")
