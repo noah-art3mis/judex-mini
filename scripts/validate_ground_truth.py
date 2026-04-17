@@ -25,7 +25,8 @@ from pathlib import Path
 from typing import Any
 
 from scripts._diff import diff_item
-from src.scraper import new_session, scrape_processo_http
+from src.http_session import new_session
+from src.scraper import scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

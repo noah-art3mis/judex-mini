@@ -17,7 +17,7 @@ from scripts.run_sweep import (
     parse_sweep_csv,
 )
 from src._shared import CircuitBreaker, classify_exception
-from src.scraper import RetryableHTTPError
+from src.http_session import RetryableHTTPError
 
 
 def test_parse_sweep_csv_minimal_columns():

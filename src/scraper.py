@@ -16,37 +16,31 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from typing import Any, Optional
-from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import (
-    retry,
-    retry_if_exception,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from src import extraction_http as ex
 from src import extraction_http_sessao as sessao_ex
 from src.config import ScraperConfig
 from src.data.types import StfItem
+from src.http_session import (
+    RetryableHTTPError,
+    _decode,
+    _http_get_with_retry,
+    new_session,
+)
 from src.utils import html_cache, pdf_cache
 from src.utils.pdf_utils import extract_document_text
 
 SESSAO_JSON_BASE = "https://sistemas.stf.jus.br/repgeral/votacao"
 
 BASE = "https://portal.stf.jus.br/processos"
-DEFAULT_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-)
 
 DETALHE = "detalhe"
 TAB_INFORMACOES = "abaInformacoes"
@@ -82,118 +76,6 @@ class ProcessFetch:
     incidente: int
     detalhe_html: str
     tabs: dict[str, str]
-
-
-def new_session() -> requests.Session:
-    s = requests.Session()
-    s.headers.update({"User-Agent": DEFAULT_UA})
-    s.verify = False  # WSL sandbox lacks full CA bundle; site is public anyway
-    return s
-
-
-class RetryableHTTPError(Exception):
-    """Raised for HTTP status codes that warrant a retry (429, 5xx)."""
-
-    def __init__(self, status_code: int, url: str = "") -> None:
-        self.status_code = status_code
-        self.url = url
-        super().__init__(f"HTTP {status_code} {url}".rstrip())
-
-
-_RETRYABLE_NETWORK_EXCS = (
-    requests.ConnectionError,
-    requests.Timeout,
-)
-
-
-def _should_retry(exc: BaseException) -> bool:
-    return isinstance(exc, (RetryableHTTPError,) + _RETRYABLE_NETWORK_EXCS)
-
-
-def _http_get_with_retry(
-    session: requests.Session,
-    url: str,
-    *,
-    params: Optional[dict] = None,
-    headers: Optional[dict] = None,
-    timeout: int = 30,
-    allow_redirects: bool = True,
-    config: Optional[ScraperConfig] = None,
-) -> requests.Response:
-    """GET with tenacity retries on 429, 5xx, and network errors.
-
-    4xx responses other than 429 raise immediately (no retry) — they signal
-    a client-side problem that won't resolve on its own.
-    """
-    cfg = config or ScraperConfig()
-
-    @retry(
-        stop=stop_after_attempt(cfg.driver_max_retries),
-        wait=wait_exponential(
-            multiplier=cfg.driver_backoff_multiplier,
-            min=cfg.driver_backoff_min,
-            max=cfg.driver_backoff_max,
-        ),
-        retry=retry_if_exception(_should_retry),
-        reraise=True,
-        before_sleep=lambda st: logging.debug(
-            f"Retry {st.attempt_number}/{cfg.driver_max_retries} for GET {url}: "
-            f"{st.outcome.exception()}"
-        ),
-    )
-    def _go() -> requests.Response:
-        host = urlparse(url).hostname or ""
-        if cfg.throttle is not None:
-            cfg.throttle.wait(host)
-
-        started = time.perf_counter()
-        try:
-            r = session.get(
-                url,
-                params=params,
-                headers=headers,
-                timeout=timeout,
-                allow_redirects=allow_redirects,
-            )
-        except Exception:
-            elapsed = time.perf_counter() - started
-            if cfg.throttle is not None:
-                cfg.throttle.record(host, elapsed, was_error=True)
-            if cfg.request_log is not None:
-                cfg.request_log.log(
-                    url=url, status=None,
-                    elapsed_ms=int(elapsed * 1000),
-                )
-            raise
-
-        elapsed = time.perf_counter() - started
-        is_error = r.status_code >= 400
-        if cfg.throttle is not None:
-            cfg.throttle.record(host, elapsed, was_error=is_error)
-        if cfg.request_log is not None:
-            cfg.request_log.log(
-                url=url,
-                status=r.status_code,
-                elapsed_ms=int(elapsed * 1000),
-                bytes=len(r.content) if r.content is not None else None,
-            )
-
-        if (
-            r.status_code == 429
-            or 500 <= r.status_code < 600
-            or (cfg.retry_403 and r.status_code == 403)
-        ):
-            raise RetryableHTTPError(r.status_code, url)
-        r.raise_for_status()  # non-429 4xx: don't retry
-        return r
-
-    return _go()
-
-
-def _decode(r: requests.Response) -> str:
-    """STF serves UTF-8 without a charset; requests defaults to Latin-1 → mojibake."""
-    r.encoding = "utf-8"
-    return r.text
 
 
 def resolve_incidente(

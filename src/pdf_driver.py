@@ -32,7 +32,7 @@ from src import _shared
 from src.config import ScraperConfig
 from src.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
 from src.pdf_targets import PdfTarget
-from src.scraper import _http_get_with_retry, new_session
+from src.http_session import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 from src.utils.pdf_utils import (

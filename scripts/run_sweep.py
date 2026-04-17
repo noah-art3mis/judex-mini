@@ -43,10 +43,10 @@ from typing import Any, Optional, TextIO
 
 from scripts._diff import diff_item
 from src import _shared
-from src import scraper as sh
 from src.config import ScraperConfig
+from src.http_session import RetryableHTTPError, new_session
 from src.process_store import AttemptRecord, SweepStore, load_retry_list
-from src.scraper import new_session, scrape_processo_http
+from src.scraper import scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -140,13 +140,13 @@ class RetryCounter:
 def install_retry_counter() -> RetryCounter:
     """Monkey-patch `RetryableHTTPError` to count every retriable failure."""
     counter = RetryCounter()
-    orig_init = sh.RetryableHTTPError.__init__
+    orig_init = RetryableHTTPError.__init__
 
-    def tracking_init(self: sh.RetryableHTTPError, status_code: int, url: str = "") -> None:  # type: ignore[override]
+    def tracking_init(self: RetryableHTTPError, status_code: int, url: str = "") -> None:  # type: ignore[override]
         counter.add(status_code)
         orig_init(self, status_code, url)
 
-    sh.RetryableHTTPError.__init__ = tracking_init  # type: ignore[method-assign]
+    RetryableHTTPError.__init__ = tracking_init  # type: ignore[method-assign]
     return counter
 
 

@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 import requests
 
-from src.scraper import RetryableHTTPError
+from src.http_session import RetryableHTTPError
 
 _SHUTDOWN = False
 

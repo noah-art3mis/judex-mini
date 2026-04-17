@@ -72,7 +72,7 @@ from dotenv import load_dotenv
 
 from scripts._filters import add_filter_args, targets_from_args
 from src.config import ScraperConfig
-from src.scraper import _http_get_with_retry, new_session
+from src.http_session import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 
