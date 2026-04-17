@@ -1,10 +1,17 @@
 # Handoff — judex-mini perf/bulk-data work
 
 Branch: `experiment/perf-bulk-data`
-Status: landed locally, **not yet pushed**. Tip: `c101310`. 15 commits ahead of `main`.
+Status: landed locally, **not yet pushed**. Tip: `acac647` (or newer if this handoff has been committed). ~19 commits ahead of `main`.
 PR: https://github.com/noah-art3mis/judex-mini/pull/new/experiment/perf-bulk-data
 
 Start by reading `docs/perf-bulk-data.md` for the original investigation (DataJud dead-end, STF portal mechanics, 5.7×/~20× perf claim with caveats). Then skim `docs/superpowers/specs/2026-04-16-validation-sweep-design.md` for the sweep plan and `docs/sweep-results/` for what actually happened. This note only covers what's unfinished and why.
+
+## Working conventions
+
+- **`analysis/`** — git-ignored scratch folder for this-session exploration (notebooks, one-off scripts, raw JSON dumps you don't want in version control). Safe to fill freely.
+- **All non-trivial arithmetic via `uv run python -c`** — never mental math. See `CLAUDE.md § Calculations`. The rate-budget doc (`docs/sweep-results/2026-04-16-D-rate-budget.md`) is the cautionary tale.
+- **Sweeps write a directory**, not a file (`<out>/sweep.log.jsonl` + `sweep.state.json` + `sweep.errors.jsonl` + `report.md`). Old sweep A/B reports are single `.md` files from the pre-state driver; they stay as-is.
+- **Calculations in this doc were re-run with python** as of the `acac647` commit. Any new numbers you add should follow the same rule.
 
 ## What happened since the last handoff
 
@@ -25,6 +32,48 @@ Start by reading `docs/perf-bulk-data.md` for the original investigation (DataJu
 
 **Block-scope probe** (not committed, see conversation log): STF's sweep-C 403 block was session-agnostic and lifted within minutes. Non-browser UAs (`curl/*`) get permanent 403. Browser-shaped UAs all pass — our default Chrome UA is fine. Implication: the block isn't UA/cookie-based; it's rate/behavior-based.
 
+## Next major goal — Habeas Corpus deep dive
+
+**User's stated next step**: scrape all Habeas Corpus cases and take a deep dive on the resulting data.
+
+Things to think through before launching:
+
+- **Scale.** HC is the highest-volume class at STF. There are well over 200 000 HCs on file (sweep A confirmed HC 82959 and HC 126292 exist). At the current validated throughput (~3 s per process with defaults) a full backfill is **~170 hours of wall time** from one IP. That's an 8-day continuous run, assuming STF's WAF keeps tolerating the 2 s-paced + retry-403 posture at scale. Sweep E (below) is testing 1000 ADIs as a first proof point — if E completes cleanly, a 10× or 100× run becomes more credible.
+- **Decomposition options**:
+  1. **Time-sliced**: HCs filed in e.g. 2020–2025. Unknown up-front which `processo_id` ranges correspond; would need a probe sweep (one per year) to find boundaries, then backfill the range.
+  2. **Sample-first**: a few thousand HCs across a range, enough for the deep dive's analysis. Ship the sweep tool + let the user re-run for more scale later.
+  3. **Relator-sliced**: scrape HCs by relator. No current API for this — would need the listagem endpoint (`listarProcessos.asp` with different params) and is more work.
+- **Deep dive needs**: not scoped here. Likely wants party-type breakdown, outcome distribution (see "Outcome derivation" below), relator patterns, timeline analysis. Ask before building.
+- **Robots.txt**: still unresolved. HC is a much bigger footprint than ADI — posture question becomes more pressing.
+
+**Size of the HC space (binary-searched 2026-04-16)**:
+
+| class | highest extant processo_id | approx count (assuming ~60 % existence) |
+|-------|----:|----:|
+| HC    | **270,071** | ~160,000 |
+| ADI   | 7,956       | ~4,800   |
+| RE    | 640,321     | ~380,000 |
+
+The "~60 %" comes from sweep C (609/1000 valid ADIs in 1..1000). Real rate for HC will come out of the first probe sweep.
+
+Practical starting point: **probe sweep on HCs 1..1000** (first thousand, low-numbered historical cases) plus one near the top (269000..270000) to validate the parser holds across eras. ~50 min each with the validated defaults:
+```bash
+# generate CSV for HC 1..1000
+uv run python -c "import csv; w=csv.writer(open('tests/sweep/hc_probe_1_1000.csv','w')); w.writerow(['classe','processo']); [w.writerow(['HC',n]) for n in range(1,1001)]"
+
+PYTHONPATH=. uv run python scripts/run_sweep.py \
+    --csv tests/sweep/hc_probe_1_1000.csv --label hc_probe_1_1000 --wipe-cache \
+    --out docs/sweep-results/<date>-F-hc-probe-1-1000
+```
+Scale decisions (full backfill vs 10 k sample vs whatever the deep-dive question wants) should follow the probe results.
+
+**Binary-search technique** (use this whenever a class ceiling matters):
+```python
+# probe with resolve_incidente — 302 with Location = exists, 200 empty = missing.
+# double an upper bound until it 404s, then binary-search between low and the confirmed bound.
+# ~20 probes per class total (one request each). See conversation 2026-04-16 for the one-shot script.
+```
+
 ## Rate-budget findings (D-runs)
 
 Three 200-process sweeps on disjoint ADI slices (commit `c101310`, results at `docs/sweep-results/2026-04-16-D*`). Full analysis: `docs/sweep-results/2026-04-16-D-rate-budget.md`.
@@ -40,16 +89,34 @@ Headline findings:
 - **Reactive retry is the better default.** R1's 199/200 vs R3's 175/200.
 - **Warm-start measurements are meaningless.** R2 ran immediately after R1 and inherited a hot WAF counter; its 30/200 result doesn't tell us about 0.5 s pacing on a fresh IP.
 
-**Recommended production config:**
+**These are now the defaults** (commit `2a2833d`):
+- `ScraperConfig.retry_403: True`
+- `ScraperConfig.driver_max_retries: 20` (was 10)
+- `ScraperConfig.driver_backoff_max: 60` (was 30)
+- `run_sweep.py --throttle-sleep` default: `2.0` (was 0)
+- `run_sweep.py` flag renamed `--retry-403` → `--no-retry-403` (opt-out)
+
+Expected wall for 1000 ADIs: ~52 min (vs Selenium's 77.6 min) with near-perfect completion. Validated by sweep E (below).
+
+## Sweep E — 1k validation in flight
+
+Launched with the new defaults as a scale validation:
+- input: `tests/sweep/full_range_adi.csv` (ADI 1..1000, same as sweep C)
+- output dir: `docs/sweep-results/2026-04-16-E-full-1k-defaults/`
+- command: `--csv ... --wipe-cache --parity-csv output/judex-mini_ADI_1-1000.csv`
+- cold start; new defaults (retry-403 + 2 s pacing + 20/60 retry budget)
+- background task id `buntqtywq` (output logged to `/tmp/claude-1000/.../buntqtywq.output` — may be gone next session)
+
+**State as of this handoff**: 220/1000 complete, **0 errors**, 0 stalls. Pace matches the ~52-min projection. If the block triggers at some process N, `--retry-403` should ride it out.
+
+**First thing next session should do**:
 ```bash
---throttle-sleep 2.0 --retry-403
+# check completion
+wc -l docs/sweep-results/2026-04-16-E-full-1k-defaults/sweep.log.jsonl
+# if 1000, summarize and compare against Selenium's 77.6 min / 609 ok
+uv run python -c "import json; [print(json.loads(l)) for l in open('docs/sweep-results/2026-04-16-E-full-1k-defaults/sweep.log.jsonl')][:5]"
 ```
-plus raise retry budget in `src/config.py`:
-```python
-driver_max_retries: int = 20     # was 10
-driver_backoff_max: int = 60     # was 30
-```
-Expected wall for 1000 ADIs: ~52 min (vs Selenium's 77.6 min) with near-perfect completion.
+If the sweep is still running, let it finish (won't hurt) or `pkill -f 'full_1k_defaults'` to stop it early. Resumable via `--resume`.
 
 ## The one thing still to decide
 
@@ -78,9 +145,9 @@ Still unresolved. No longer blocks the *mechanics* of long sweeps (`--retry-403`
 
 ## Next steps, ordered
 
-### 1. Apply the rate-budget settings as the default
+### 1. Close out sweep E
 
-Commit the recommended config (raise `driver_max_retries` + `driver_backoff_max`, document `--retry-403` + `--throttle-sleep 2.0` as the default for sweeps ≥100 processes). See "Rate-budget findings" above for the numbers. Small patch in `src/config.py`; maybe expose `--max-retries` and `--backoff-max` CLI knobs. ~20 min.
+Check `docs/sweep-results/2026-04-16-E-full-1k-defaults/sweep.state.json` for final counts. Append a section to `docs/sweep-results/2026-04-16-D-rate-budget.md` (or its own file) comparing E's numbers with the 52-min projection and Selenium's baseline. Commit. See "Sweep E" section above for the one-liner to check status.
 
 ### 2. Circuit breaker for the sweep driver
 
@@ -88,7 +155,20 @@ Even with retry-403 + pacing, pathological WAF escalation could cascade. Should 
 
 Implementation sketch: maintain a `collections.deque(maxlen=N)` of recent statuses in `run_sweep.main`; after each process, if more than X % of the deque is non-ok, write errors, write state, exit with status 2 and a clear message. Tunable via two CLI flags. Minimum viable: N=25, X=50 %. ~15 min of work.
 
-### 3. Retry sweep C's 893 blocked processes
+### 3. Scope the HC deep dive
+
+See "Next major goal" at the top. Decide scope (time-sliced / sample-first / relator-sliced). Probe HCs 200000..201000 first to measure completion + rate before a bigger commitment. Ask the user what the deep dive wants to answer — that shapes what data matters.
+
+### 4. Outcome derivation (new)
+
+StfItem has no "winner"/"verdict" field. The data is there but scattered — determining the outcome requires:
+- Parsing `sessao_virtual[-1].voto_relator` for verdict phrases (`julgo procedente|improcedente|procedente em parte|nego provimento|dou provimento|não conheço`).
+- Checking `sessao_virtual[-1].votes` — if `diverge_relator` is empty AND `pedido_vista` is empty or resolved in a later session, the relator's vote is the outcome.
+- Checking `andamentos` for `TRANSITADO(A) EM JULGADO` (final-and-unappealable) and event names like `JULGADO PROCEDENTE`, `EMBARGOS RECEBIDOS EM PARTE` — the `complemento` field on these often carries the full decision text.
+
+Worth adding as a derived field during parse (`src/extraction_http_sessao.py`) OR as a post-processing pass. Brazilian legal vocabulary is richer than the table above (`prejudicado`, `extinto sem resolução de mérito`, `conversão em diligência`, …), so a first pass will have a meaningful `unknown`/`pending` tail. Needed by the HC deep dive if it wants outcome statistics.
+
+### 5. Retry sweep C's 893 blocked processes
 
 Sweep C's `docs/sweep-results/2026-04-16-C-full-1000.md` predates the robust driver — it wrote a flat markdown file, no `sweep.errors.jsonl`. So `--retry-from` can't be pointed at it directly. Two options:
 
