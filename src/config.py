@@ -3,6 +3,11 @@ Configuration for JUDEX MINI scraper
 """
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from src.utils.adaptive_throttle import AdaptiveThrottle
+    from src.utils.request_log import RequestLog
 
 
 @dataclass
@@ -47,3 +52,11 @@ class ScraperConfig:
     # (docs/sweep-results/2026-04-16-D-rate-budget.md) showed 199/200
     # completion with retry-403 vs 107/1000 without.
     retry_403: bool = True
+
+    # Optional observability hooks. When set, `_http_get_with_retry`
+    # drives them on every GET: `throttle.wait(host)` before the call,
+    # `throttle.record(host, latency, was_error=...)` after, and
+    # `request_log.log(...)` once the response (or exception) lands.
+    # Leaving them None preserves the original pure-retry behavior.
+    throttle: Optional["AdaptiveThrottle"] = None
+    request_log: Optional["RequestLog"] = None

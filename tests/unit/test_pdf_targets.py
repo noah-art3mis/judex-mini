@@ -1,0 +1,172 @@
+"""collect_pdf_targets — generic filter for substantive-doc PDF URLs."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from src.pdf_targets import PdfTarget, collect_pdf_targets
+
+
+def _write_item(path: Path, rec: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rec, ensure_ascii=False))
+
+
+def _make_rec(
+    *,
+    classe: str = "HC",
+    processo_id: int = 100000,
+    impte_names: tuple[str, ...] = ("JOÃO DA SILVA",),
+    relator: str = "MIN. EXEMPLO",
+    andamentos: list | None = None,
+) -> dict:
+    return {
+        "classe": classe,
+        "processo_id": processo_id,
+        "relator": relator,
+        "partes": [{"tipo": "IMPTE.(S)", "nome": n} for n in impte_names],
+        "andamentos": andamentos or [],
+    }
+
+
+def _andamento(desc: str, pdf_name: str = "doc.pdf") -> dict:
+    return {
+        "link": f"https://portal.stf.jus.br/processos/{pdf_name}",
+        "link_descricao": desc,
+    }
+
+
+def test_no_filters_collects_all_pdfs(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        andamentos=[
+            _andamento("DECISÃO MONOCRÁTICA", "a.pdf"),
+            _andamento("DESPACHO", "b.pdf"),
+        ],
+    ))
+    targets = collect_pdf_targets([tmp_path])
+    urls = {t.url for t in targets}
+    assert len(targets) == 2
+    assert urls == {
+        "https://portal.stf.jus.br/processos/a.pdf",
+        "https://portal.stf.jus.br/processos/b.pdf",
+    }
+
+
+def test_classe_filter(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        classe="HC", processo_id=1,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    ))
+    _write_item(tmp_path / "judex-mini_RE_2.json", _make_rec(
+        classe="RE", processo_id=2,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "b.pdf")],
+    ))
+    targets = collect_pdf_targets([tmp_path], classe="HC")
+    assert len(targets) == 1
+    assert targets[0].processo_id == 1
+
+
+def test_impte_contains_filter(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        impte_names=("ALBERTO ZACHARIAS TORON",),
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    ))
+    _write_item(tmp_path / "judex-mini_HC_2.json", _make_rec(
+        processo_id=2,
+        impte_names=("DEFENSORIA PÚBLICA",),
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "b.pdf")],
+    ))
+    targets = collect_pdf_targets([tmp_path], impte_contains=["TORON"])
+    assert {t.processo_id for t in targets} == {1}
+    assert targets[0].context["impte_hits"] == ["TORON"]
+
+
+def test_doc_types_filter(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        andamentos=[
+            _andamento("DECISÃO MONOCRÁTICA", "a.pdf"),
+            _andamento("DESPACHO", "b.pdf"),
+        ],
+    ))
+    targets = collect_pdf_targets([tmp_path], doc_types=["DECISÃO MONOCRÁTICA"])
+    assert len(targets) == 1
+    assert targets[0].doc_type == "DECISÃO MONOCRÁTICA"
+
+
+def test_relator_contains_filter(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1, relator="MIN. EDSON FACHIN",
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    ))
+    _write_item(tmp_path / "judex-mini_HC_2.json", _make_rec(
+        processo_id=2, relator="MIN. ROSA WEBER",
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "b.pdf")],
+    ))
+    targets = collect_pdf_targets([tmp_path], relator_contains=["FACHIN"])
+    assert len(targets) == 1
+    assert targets[0].processo_id == 1
+
+
+def test_multiple_filters_and_together(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        classe="HC", processo_id=1,
+        impte_names=("TORON",),
+        andamentos=[
+            _andamento("DECISÃO MONOCRÁTICA", "a.pdf"),
+            _andamento("DESPACHO", "b.pdf"),
+        ],
+    ))
+    targets = collect_pdf_targets(
+        [tmp_path],
+        classe="HC", impte_contains=["TORON"],
+        doc_types=["DECISÃO MONOCRÁTICA"],
+    )
+    assert len(targets) == 1
+    assert targets[0].doc_type == "DECISÃO MONOCRÁTICA"
+
+
+def test_dedupes_by_url_across_files(tmp_path: Path) -> None:
+    shared_url = "https://portal.stf.jus.br/processos/shared.pdf"
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        andamentos=[
+            {"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"},
+        ],
+    ))
+    _write_item(tmp_path / "judex-mini_HC_2.json", _make_rec(
+        processo_id=2,
+        andamentos=[{"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"}],
+    ))
+    targets = collect_pdf_targets([tmp_path])
+    assert len(targets) == 1
+
+
+def test_skips_non_pdf_links(tmp_path: Path) -> None:
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        andamentos=[
+            {"link": "https://x.test/a.pdf", "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": "https://x.test/b.html", "link_descricao": "DECISÃO MONOCRÁTICA"},
+        ],
+    ))
+    targets = collect_pdf_targets([tmp_path])
+    assert len(targets) == 1
+    assert targets[0].url.endswith(".pdf")
+
+
+def test_empty_impte_list_skips_filter(tmp_path: Path) -> None:
+    # No impte_contains → all processes match regardless of parties.
+    _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
+        processo_id=1,
+        impte_names=("DEFENSORIA PÚBLICA",),
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    ))
+    targets = collect_pdf_targets([tmp_path], impte_contains=[])
+    assert len(targets) == 1

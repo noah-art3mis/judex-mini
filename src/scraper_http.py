@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -140,13 +142,42 @@ def _http_get_with_retry(
         ),
     )
     def _go() -> requests.Response:
-        r = session.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=timeout,
-            allow_redirects=allow_redirects,
-        )
+        host = urlparse(url).hostname or ""
+        if cfg.throttle is not None:
+            cfg.throttle.wait(host)
+
+        started = time.perf_counter()
+        try:
+            r = session.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+            )
+        except Exception:
+            elapsed = time.perf_counter() - started
+            if cfg.throttle is not None:
+                cfg.throttle.record(host, elapsed, was_error=True)
+            if cfg.request_log is not None:
+                cfg.request_log.log(
+                    url=url, status=None,
+                    elapsed_ms=int(elapsed * 1000),
+                )
+            raise
+
+        elapsed = time.perf_counter() - started
+        is_error = r.status_code >= 400
+        if cfg.throttle is not None:
+            cfg.throttle.record(host, elapsed, was_error=is_error)
+        if cfg.request_log is not None:
+            cfg.request_log.log(
+                url=url,
+                status=r.status_code,
+                elapsed_ms=int(elapsed * 1000),
+                bytes=len(r.content) if r.content is not None else None,
+            )
+
         if (
             r.status_code == 429
             or 500 <= r.status_code < 600
