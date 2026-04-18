@@ -136,6 +136,34 @@ _(append-only log. UTC timestamps.)_
   T+30 s probe: all four shards writing, 26 warming + 4
   under_utilising globally, zero failures beyond the 23
   retry-candidate fails inherited by shard-0.
+- **2026-04-18 ~03:30 UTC — scaling turned out sublinear.**
+  Aggregate throughput after ~25 min: ~1.7 rec/sec (shard-0
+  ~1.0 burning through dead-zone retries, shards 1–3 at
+  0.2–0.26 each doing real dense-territory fetches). The
+  earlier "16 h ETA at 4×" estimate assumed linear scaling;
+  actual projection is ~40–42 h because the per-record bottleneck
+  in dense territory is PDF fetch + parse, not proxy throughput.
+  Still a ~2× improvement over 89 h monolithic but not 4×.
+- **2026-04-18 ~03:52 UTC — data/ + docs/ layout reorg landed.**
+  Commits `217623c` (reshuffle — 113 files, 19 renames, 92
+  tracked-file deletions) + `80f8157` (code paths — 14 files).
+  Five-axis structure: `config/` (secrets) / `runs/` (operational
+  state) / `data/cache/` (regenerable) / `data/cases/` (scientific
+  product) / `data/exports/` (derived) / `docs/reports/` (curated
+  narratives). Shards SIGTERM'd at 23:48, relaunched at 00:04
+  under new paths via launcher idempotency (each shard's state
+  file preserved by plain `mv`; `--resume` picked up where it
+  left off). Net throughput lost: ~5 records across 15 min. Full
+  spec at [`docs/data-layout.md`](data-layout.md).
+- **2026-04-18 ~03:58 UTC — `data/output/sample/` discovery.**
+  Spot-check during the cleanup phase revealed that sample/
+  was **not** a duplicate of `hc_backfill/` — it held 13 018
+  distinct HC JSONs from earlier sweeps, with zero filename
+  overlap. Merged into `data/cases/HC/` (total now 17 674 HC
+  records). A naive "looks redundant, delete it" would have
+  destroyed ~13 k scientific records. Rule confirmed: **always
+  verify before deleting gitignored data**; the git safety net
+  doesn't cover it.
 
 ## Decisions
 
@@ -160,6 +188,49 @@ _(append-only log. UTC timestamps.)_
   Hypothesis (a) "soft-block" and (c) "intermittent" both ruled
   out. CliffDetector's WAF-shape filter correctly treats it as
   zero WAF pressure (0/39 counted). See REPORT-v2.
+- **2026-04-18 ~03:52 UTC — five-axis layout adopted.** The
+  old `data/output/` mixed product + exports + tests + samples
+  in one tier, and `docs/sweep-results/` mixed curated narrative
+  with per-run ephemera. The reorg separates them by
+  *ownership-and-lifetime*: who writes, who reads, and whether
+  it's safe to delete. Deletion stakes are now path-visible
+  (`data/cache/` = throwaway; `data/cases/` = precious). See
+  the four-axes table at the top of `docs/data-layout.md`.
+
+## Session lessons (2026-04-18)
+
+Meta-learnings worth carrying forward to future sessions:
+
+- **"Verify before delete" for any gitignored store.** The
+  `data/output/sample/` near-miss (13 k HCs almost deleted as
+  "duplicates") is the canonical example. Before any `rm -rf`
+  on gitignored paths, spot-check a handful of records for
+  filename/content overlap against the presumed "real" copy.
+  Git won't save you here.
+- **Scaling assumptions are sublinear for mixed workloads.**
+  4 shards gave ~2× aggregate throughput, not 4×, because dense-
+  territory records are PDF-fetch-bound rather than proxy-
+  throughput-bound. Linear back-of-envelope extrapolations under-
+  estimate wall time. Next time: measure the per-shard bottleneck
+  before projecting.
+- **Launcher idempotency pays for itself on migrations.** The
+  sharded launcher's "state already has N records — leaving
+  untouched" short-circuit made the 15-min migration + relaunch
+  a ~5-record throughput loss. Preserving state across path
+  changes via plain `mv` + `--resume` is robust; no special
+  migration code needed.
+- **`git add -u` during a reorg grabs unrelated uncommitted
+  work.** During Commit B staging, `git add -u` silently pulled
+  in a separate in-progress `main.py` → `judex` subcommand
+  refactor (README, main.py, pyproject, uv.lock, tests). Had to
+  `git restore --staged` each one. Prefer explicit file lists
+  when the working tree has multiple parallel changesets.
+- **Path-visible semantics beats documentation.** A reader who
+  sees `data/cache/pdf/<sha1>.txt.gz` knows three things without
+  a doc lookup: it's cache (deletable), URL-keyed (content-
+  addressed), gzipped (reading needs decompress). The old
+  `data/pdf/...` required reading CLAUDE.md to infer the same.
+  Structure is the cheapest documentation.
 
 ## Open questions
 
@@ -228,6 +299,13 @@ _(append-only log. UTC timestamps.)_
   [`docs/reports/2026-04-17-proxy-canary-v1.md`](reports/2026-04-17-proxy-canary-v1.md) (+ [PLAN](reports/2026-04-17-proxy-canary-v1-PLAN.md)).
 - **Two-axis regime documented** in
   [`docs/rate-limits.md § The two CliffDetector axes`](rate-limits.md#the-two-cliffdetector-axes).
+- **Five-axis repo layout (2026-04-18, commits `217623c` +
+  `80f8157`).** `config/` (secrets) / `runs/` (operational) /
+  `data/cache/` + `data/cases/` + `data/exports/` / `docs/reports/`.
+  `runs/` is fully gitignored — ends per-sweep `sweep.log.jsonl`
+  churn in `git status`. `data/output/sample/` merged into
+  `data/cases/HC/` (13 018 distinct HCs preserved; 17 674 total
+  now). Full spec at [`docs/data-layout.md`](data-layout.md).
 
 ## In flight
 
@@ -300,7 +378,7 @@ uv run pytest tests/unit/
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run judex scrape -c ADI -i 2820 -f 2820 -o json -d data/cases/ADI --overwrite
+uv run judex coletar -c ADI -i 2820 -f 2820 -o json -d data/cases/ADI --sobrescrever
 
 # Wipe all regenerable caches (safe; HC case JSONs under data/cases/ survive)
 rm -rf data/cache  # HTML fragments, sessao JSON, PDF text, requests.db
@@ -409,16 +487,16 @@ hub (`main.py`):
 
 ```bash
 # all five → exports/html/*.html (gitignored)
-uv run judex export
+uv run judex exportar
 
 # single notebook or custom out-dir
-uv run judex export --only hc_famous_lawyers
-uv run judex export --out-dir /tmp/share
+uv run judex exportar --apenas hc_famous_lawyers
+uv run judex exportar --diretorio-saida /tmp/share
 ```
 
 The same hub exposes the scraper and every sweep-adjacent script
-— `main.py scrape / sweep / fetch-pdfs / reextract /
-validate-ground-truth / density-probe`. Run
-`uv run judex --help` for the list; `main.py <cmd> --help`
-shows each subcommand's flags (passthrough commands forward to the
-underlying argparse script).
+— `coletar / exportar / varredura / pdfs / validar-gabarito /
+sondar-densidade`. Run `uv run judex --help` for the list;
+`uv run judex <cmd> --help` shows each subcommand's flags
+(Portuguese-native, with English flags preserved on the underlying
+argparse scripts).
