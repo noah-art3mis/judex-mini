@@ -57,7 +57,11 @@ def extract_andamentos(
         if anchor:
             href = anchor.get("href")
             if href:
-                link = href if href.startswith("http") else f"{base_url}/processos/{href.replace('amp;', '')}"
+                url = href if href.startswith("http") else f"{base_url}/processos/{href.replace('amp;', '')}"
+                # text is populated later by an OCR/pypdf enrichment pass;
+                # keeping it None here means the scrape output is structurally
+                # complete without blocking on PDF downloads.
+                link = {"url": url, "text": None}
             text = anchor.get_text()
             if text:
                 link_descricao = normalize_spaces(text).upper() or None

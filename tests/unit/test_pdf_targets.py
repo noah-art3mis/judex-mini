@@ -34,7 +34,10 @@ def _make_rec(
 
 def _andamento(desc: str, pdf_name: str = "doc.pdf") -> dict:
     return {
-        "link": f"https://portal.stf.jus.br/processos/{pdf_name}",
+        "link": {
+            "url": f"https://portal.stf.jus.br/processos/{pdf_name}",
+            "text": None,
+        },
         "link_descricao": desc,
     }
 
@@ -146,16 +149,17 @@ def test_exclude_doc_types_filter(tmp_path: Path) -> None:
 
 def test_dedupes_by_url_across_files(tmp_path: Path) -> None:
     shared_url = "https://portal.stf.jus.br/processos/shared.pdf"
+    shared_link = {"url": shared_url, "text": None}
     _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
         processo_id=1,
         andamentos=[
-            {"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"},
-            {"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": shared_link, "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": shared_link, "link_descricao": "DECISÃO MONOCRÁTICA"},
         ],
     ))
     _write_item(tmp_path / "judex-mini_HC_2.json", _make_rec(
         processo_id=2,
-        andamentos=[{"link": shared_url, "link_descricao": "DECISÃO MONOCRÁTICA"}],
+        andamentos=[{"link": shared_link, "link_descricao": "DECISÃO MONOCRÁTICA"}],
     ))
     targets = collect_pdf_targets([tmp_path])
     assert len(targets) == 1
@@ -165,8 +169,8 @@ def test_skips_non_pdf_links(tmp_path: Path) -> None:
     _write_item(tmp_path / "judex-mini_HC_1.json", _make_rec(
         processo_id=1,
         andamentos=[
-            {"link": "https://x.test/a.pdf", "link_descricao": "DECISÃO MONOCRÁTICA"},
-            {"link": "https://x.test/b.html", "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": {"url": "https://x.test/a.pdf",  "text": None}, "link_descricao": "DECISÃO MONOCRÁTICA"},
+            {"link": {"url": "https://x.test/b.html", "text": None}, "link_descricao": "DECISÃO MONOCRÁTICA"},
         ],
     ))
     targets = collect_pdf_targets([tmp_path])

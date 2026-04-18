@@ -92,21 +92,22 @@ def collect_pdf_targets(
         for a in rec.get("andamentos") or []:
             link = a.get("link")
             desc = a.get("link_descricao")
-            if not link or not link.lower().endswith(".pdf"):
+            url = link.get("url") if isinstance(link, dict) else None
+            if not url or not url.lower().endswith(".pdf"):
                 continue
             if doc_type_set is not None and desc not in doc_type_set:
                 continue
             if excluded_doc_types is not None and desc in excluded_doc_types:
                 continue
-            if link in seen_urls:
+            if url in seen_urls:
                 continue
-            seen_urls.add(link)
+            seen_urls.add(url)
 
             ctx: dict[str, Any] = {}
             if impte_hits:
                 ctx["impte_hits"] = list(impte_hits)
             out.append(PdfTarget(
-                url=link,
+                url=url,
                 processo_id=pid,
                 classe=rec_classe,
                 doc_type=desc,
