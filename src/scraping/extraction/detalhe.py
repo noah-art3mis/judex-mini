@@ -24,10 +24,11 @@ def extract_incidente(detalhe_soup: BeautifulSoup) -> Optional[int]:
 
 
 def extract_badges(detalhe_soup: BeautifulSoup) -> list[str]:
-    out: list[str] = []
-    for el in detalhe_soup.select(".badge"):
-        text = el.get_text(" ", strip=True)
-        upper = text.upper()
-        if "MAIOR DE 60 ANOS" in upper or "DOENÇA GRAVE" in upper or "DOENCA GRAVE" in upper:
-            out.append(text)
-    return out
+    # Only bg-danger pills are actual flags (Criminal, Medida Liminar, Réu
+    # Preso, Maior de 60 anos). bg-primary / bg-success duplicate `meio` /
+    # `publicidade`.
+    return [
+        el.get_text(" ", strip=True)
+        for el in detalhe_soup.select(".badge.bg-danger")
+        if el.get_text(" ", strip=True)
+    ]
