@@ -1,1508 +1,1611 @@
 [
-    {
-        "incidente": 4752531,
-        "classe": "ACO",
-        "processo_id": 2652,
-        "numero_unico": "0001133-66.2015.1.00.0000",
-        "meio": "ELETRONICO",
-        "publicidade": "PUBLICO",
-        "badges": [],
-        "assuntos": [
-            "DIREITO TRIBUTÁRIO | Procedimentos Fiscais | Cadastro de Inadimplentes - CADIN"
-        ],
-        "data_protocolo": "10/04/2015",
-        "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
-        "origem": "SE - SERGIPE",
-        "numero_origem": null,
-        "volumes": 1,
-        "folhas": null,
-        "apensos": null,
-        "relator": "MARCO AURÉLIO",
-        "primeiro_autor": "ESTADO DE SERGIPE",
-        "partes": [
-            {
-                "index": 1,
-                "tipo": "AUTOR(A/S)(ES)",
-                "nome": "ESTADO DE SERGIPE"
-            },
-            {
-                "index": 2,
-                "tipo": "PROC.(A/S)(ES)",
-                "nome": "PROCURADOR-GERAL DO ESTADO DE SERGIPE"
-            },
-            {
-                "index": 3,
-                "tipo": "RÉU(É)(S)",
-                "nome": "UNIÃO"
-            },
-            {
-                "index": 4,
-                "tipo": "PROC.(A/S)(ES)",
-                "nome": "ADVOGADO-GERAL DA UNIÃO"
-            }
-        ],
-        "andamentos": [
-            {
-                "index_num": 120,
-                "data": "12/09/2023",
-                "nome": "BAIXA AO ARQUIVO DO STF",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 119,
-                "data": "12/09/2023",
-                "nome": "TRANSITADO(A) EM JULGADO",
-                "complemento": "12/09/2023.",
-                "julgador": null,
-                "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360950383&ext=.pdf"
-            },
-            {
-                "index_num": 118,
-                "data": "30/08/2023",
-                "nome": "PETIÇÃO",
-                "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 96258 - Data: 30/08/2023, às 18:16:43, via Web Service MNI 2.2.2.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 117,
-                "data": "30/08/2023",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 116,
-                "data": "28/08/2023",
-                "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360056774&ext=.pdf"
-            },
-            {
-                "index_num": 115,
-                "data": "25/08/2023",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 114,
-                "data": "25/08/2023",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 113,
-                "data": "15/08/2023",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 112,
-                "data": "15/08/2023",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 111,
-                "data": "15/08/2023",
-                "nome": "PUBLICADO ACÓRDÃO, DJE",
-                "complemento": "DJE publicado em 15/08/2023. Divulgado em 14/08/2023",
-                "julgador": null,
-                "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360056774&ext=.pdf"
-            },
-            {
-                "index_num": 110,
-                "data": "12/07/2023",
-                "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
-                "complemento": "Divulgado em 11/07/2023",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 109,
-                "data": "07/07/2023",
-                "nome": "JUNTADA",
-                "complemento": "Certidão de Julgamento da Sessão Virtual",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 108,
-                "data": "03/07/2023",
-                "nome": "EMBARGOS REJEITADOS",
-                "complemento": "Decisão: O Tribunal, por unanimidade, rejeitou os embargos de declaração, nos termos do voto do Relator. Plenário, Sessão Virtual de 23.6.2023 a 30.6.2023.",
-                "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
-                "link_descricao": "DECISÃO DE JULGAMENTO",
-                "link": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5814973&ext=RTF"
-            },
-            {
-                "index_num": 107,
-                "data": "01/07/2023",
-                "nome": "FINALIZADO JULGAMENTO VIRTUAL",
-                "complemento": "Finalizado Julgamento Virtual em 30 de Junho de 2023 (Sexta-feira), às 23:59 .",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 106,
-                "data": "23/06/2023",
-                "nome": "INICIADO JULGAMENTO VIRTUAL",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 105,
-                "data": "09/06/2023",
-                "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
-                "complemento": "Divulgado em 07/06/2023",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 104,
-                "data": "07/06/2023",
-                "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
-                "complemento": "Julgamento Virtual: ACO-ED. Incluído na Lista 174-2023.ALM - Agendado para: 23/06/2023 a 30/06/2023.",
-                "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 103,
-                "data": "18/04/2022",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 102,
-                "data": "18/04/2022",
-                "nome": "DECURSO DE PRAZO PARA APRESENTAR RESPOSTA",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": "CERTIDÃO DE DECURSO DE PRAZO PARA RESPOSTA",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15350705585&ext=.pdf"
-            },
-            {
-                "index_num": 101,
-                "data": "24/03/2022",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 100,
-                "data": "24/03/2022",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 99,
-                "data": "14/03/2022",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 98,
-                "data": "14/03/2022",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 97,
-                "data": "14/03/2022",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "Divulgado em 11/03/2022",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 96,
-                "data": "11/03/2022",
-                "nome": "DETERMINADA A INTIMAÇÃO",
-                "complemento": "Em 11/03/2022:\"Os embargos veiculam pedido de modificação da decisão proferida. 2. Ouça-se a parte embargada. Publique-se.\"",
-                "julgador": "MIN. ANDRÉ MENDONÇA",
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15350096167&ext=.pdf"
-            },
-            {
-                "index_num": 95,
-                "data": "16/12/2021",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 94,
-                "data": "16/12/2021",
-                "nome": "SUBSTITUIÇÃO DO RELATOR, ART. 38 DO RISTF",
-                "complemento": "MIN. ANDRÉ MENDONÇA",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 93,
-                "data": "22/07/2021",
-                "nome": "OPOSTOS EMBARGOS DE DECLARAÇÃO",
-                "complemento": "Juntada Petição: 73201/2021",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 92,
-                "data": "22/07/2021",
-                "nome": "PETIÇÃO",
-                "complemento": "ADVOGADO-GERAL DA UNIÃO - Petição: 73201 - Data: 22/07/2021, às 10:42:17, via Web Service MNI 2.2.2.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 91,
-                "data": "28/06/2021",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 90,
-                "data": "28/06/2021",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 89,
-                "data": "21/06/2021",
-                "nome": "PETIÇÃO",
-                "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 63505 - Data: 21/06/2021, às 15:59:28, via Web Service MNI 2.2.2.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 88,
-                "data": "20/06/2021",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 87,
-                "data": "18/06/2021",
-                "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346734026&ext=.pdf"
-            },
-            {
-                "index_num": 86,
-                "data": "18/06/2021",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 85,
-                "data": "18/06/2021",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 84,
-                "data": "18/06/2021",
-                "nome": "PUBLICADO ACÓRDÃO, DJE",
-                "complemento": "DATA DE PUBLICAÇÃO DJE 18/06/2021 - ATA Nº 105/2021. DJE nº 117, divulgado em 17/06/2021",
-                "julgador": null,
-                "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346734026&ext=.pdf"
-            },
-            {
-                "index_num": 83,
-                "data": "16/06/2021",
-                "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
-                "complemento": "ATA Nº 18, de 08/06/2021. DJE nº 115, divulgado em 15/06/2021",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 82,
-                "data": "14/06/2021",
-                "nome": "EXPEDIDO(A)",
-                "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 81,
-                "data": "14/06/2021",
-                "nome": "COMUNICAÇÃO ASSINADA",
-                "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 80,
-                "data": "13/06/2021",
-                "nome": "CERTIDÃO",
-                "complemento": "Certifico a elaboração de 1 ofício(s) eletrônico(s). Plenário. Sessão virtual de 28 de maio a 7 de junho de 2021",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 79,
-                "data": "11/06/2021",
-                "nome": "JUNTADA",
-                "complemento": "Certidão de Julgamento da Sessão Virtual",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 78,
-                "data": "08/06/2021",
-                "nome": "PROCEDENTE EM PARTE",
-                "complemento": "Decisão: O Tribunal, por unanimidade, julgou parcialmente procedente o pedido, confirmando a antecipação da tutela, para condenar a União a abster-se de considerar os débitos versados nas Execuções Fiscais nº 0000427-17.2009.4.05.8500 e 0001746-15.2012.4.05.8500, enquanto pendente o precatório e ainda em curso o prazo para liquidação, como óbice à Certidão Positiva com Efeitos de Negativa – Cepen, e condenou a ré a arcar com as despesas processuais e os honorários advocatícios, arbitrados em R$ 5.000,00, nos termos do voto do Relator. Plenário, Sessão Virtual de 28.5.2021 a 7.6.2021.",
-                "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
-                "link_descricao": "DECISÃO DE JULGAMENTO",
-                "link": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5356528&ext=RTF"
-            },
-            {
-                "index_num": 77,
-                "data": "08/06/2021",
-                "nome": "FINALIZADO JULGAMENTO VIRTUAL",
-                "complemento": "Finalizado Julgamento Virtual em 07 de Junho de 2021 (Segunda-feira), às 23:59 .",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 76,
-                "data": "31/05/2021",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 75,
-                "data": "31/05/2021",
-                "nome": "INTIMADO ELETRONICAMENTE",
-                "complemento": "ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 74,
-                "data": "28/05/2021",
-                "nome": "INICIADO JULGAMENTO VIRTUAL",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 73,
-                "data": "20/05/2021",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 72,
-                "data": "20/05/2021",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 71,
-                "data": "20/05/2021",
-                "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
-                "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 70,
-                "data": "20/05/2021",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 96, divulgado em 19/05/2021",
-                "julgador": null,
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346472656&ext=.pdf"
-            },
-            {
-                "index_num": 69,
-                "data": "19/05/2021",
-                "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
-                "complemento": "PAUTA Nº 73/2021. DJE nº 95, divulgado em 18/05/2021",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 68,
-                "data": "18/05/2021",
-                "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
-                "complemento": "Julgamento Virtual: ACO. Incluído na Lista 552-2021.MAM - Agendado para: 28/05/2021 a 07/06/2021.",
-                "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 67,
-                "data": "18/05/2021",
-                "nome": "DESPACHO",
-                "complemento": "Em 18.5.2021; [...] 1. A crise é aguda. Sem qualquer previsão de o Tribunal voltar às sessões presenciais, há de viabilizar-se, em ambiente colegiado, a jurisdição. 2. Aciono, em caráter excepcional, o sistema virtual e passo a liberar, considerado o fator tempo, os processos. [...]",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 66,
-                "data": "24/02/2016",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 65,
-                "data": "24/02/2016",
-                "nome": "MANIFESTAÇÃO DA PGR",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": "MANIFESTAÇÃO DA PGR",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308773053&ext=.pdf"
-            },
-            {
-                "index_num": 64,
-                "data": "04/12/2015",
-                "nome": "VISTA À PGR",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 63,
-                "data": "04/12/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 63405 Data: 04/12/2015 13:12:03.249 GMT-02:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 62,
-                "data": "01/12/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 19/11/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 61,
-                "data": "27/11/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 24/11/2015) Do AGU, ref. DJE de 19/11/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 60,
-                "data": "24/11/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 61123 Data: 24/11/2015 12:18:27.849 GMT-02:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 59,
-                "data": "19/11/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 232, divulgado em 18/11/2015",
-                "julgador": null,
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308184708&ext=.pdf"
-            },
-            {
-                "index_num": 58,
-                "data": "17/11/2015",
-                "nome": "DESPACHO",
-                "complemento": "Em 16/11/2015:\"Abro às partes o prazo sucessivo de cinco dias para apresentarem razões finais. Após, colham o parecer do Procurador-Geral da República. Publiquem.\"",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 57,
-                "data": "16/11/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 56,
-                "data": "13/11/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 59001 Data: 13/11/2015 17:11:07.118 GMT-02:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 55,
-                "data": "11/11/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 04/11/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 54,
-                "data": "10/11/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 09/11/2015) Do AGU, ref. DJE de 04/11/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 53,
-                "data": "04/11/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 21/10/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 52,
-                "data": "04/11/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 219, divulgado em 03/11/2015",
-                "julgador": null,
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308053629&ext=.pdf"
-            },
-            {
-                "index_num": 51,
-                "data": "03/11/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 56508 Data: 03/11/2015 17:06:53.90 GMT-02:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 50,
-                "data": "29/10/2015",
-                "nome": "DESPACHO",
-                "complemento": "Em 28/10/2015:\"Especifiquem as partes as provas que pretendem produzir, justificando o que vier a ser requerido. Publiquem.\"",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 49,
-                "data": "29/10/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 28/10/2015) Do AGU, ref. DJE de 21/10/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 48,
-                "data": "28/10/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 47,
-                "data": "28/10/2015",
-                "nome": "CERTIDÃO",
-                "complemento": "CERTIDÃO DE AUSÊNCIA DE MANIFESTAÇÃO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 46,
-                "data": "21/10/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 210, divulgado em 20/10/2015",
-                "julgador": null,
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307957107&ext=.pdf"
-            },
-            {
-                "index_num": 45,
-                "data": "19/10/2015",
-                "nome": "DESPACHO",
-                "complemento": "Em 15/10/2015: Manifeste-se o autor acerca da contestação.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 44,
-                "data": "15/10/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 43,
-                "data": "15/10/2015",
-                "nome": "DECORRIDO O PRAZO",
-                "complemento": "CERTIDÃO DE DECURSO DE PRAZO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 42,
-                "data": "01/10/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 17/09/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 41,
-                "data": "25/09/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 24/09/2015) Do AGU, ref. DJE de 17/09/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 40,
-                "data": "17/09/2015",
-                "nome": "PUBLICADO ACÓRDÃO, DJE",
-                "complemento": "DATA DE PUBLICAÇÃO DJE 17/09/2015 - ATA Nº 132/2015. DJE nº 184, divulgado em 16/09/2015",
-                "julgador": null,
-                "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307738595&ext=.pdf"
-            },
-            {
-                "index_num": 39,
-                "data": "03/08/2015",
-                "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
-                "complemento": "ATA Nº 17, de 23/06/2015. DJE nº 151, divulgado em 31/07/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 38,
-                "data": "31/07/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 36464 Data: 31/07/2015 08:30:29.244 GMT-03:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 37,
-                "data": "25/06/2015",
-                "nome": "EXPEDIDO(A)",
-                "complemento": "OFÍCIO - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 36,
-                "data": "24/06/2015",
-                "nome": "EXPEDIDO(A)",
-                "complemento": "FAX - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 35,
-                "data": "24/06/2015",
-                "nome": "COMUNICAÇÃO ASSINADA",
-                "complemento": "OFÍCIO - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 34,
-                "data": "24/06/2015",
-                "nome": "COMUNICAÇÃO ASSINADA",
-                "complemento": "FAX - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 33,
-                "data": "24/06/2015",
-                "nome": "CERTIDÃO",
-                "complemento": "Certifico que elaborei 1 ofício e 1 fax. 1ª Turma sessão de 23/06/2015.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 32,
-                "data": "23/06/2015",
-                "nome": "JUNTADA",
-                "complemento": "Certidão de Julgamento da Sessão Ordinária de 23.6.2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 31,
-                "data": "23/06/2015",
-                "nome": "LIMINAR REFERENDADA",
-                "complemento": "Decisão: A Turma referendou a medida cautelar, nos termos do voto do Relator. Unânime. Falou a Dra. Grace Maria Fernandes Mendonça, pela Advocacia-Geral da União. Presidência da Senhora Ministra Rosa Weber. 1ª Turma, 23.6.2015.",
-                "julgador": "1ª TURMA",
-                "link_descricao": "DECISÃO DE JULGAMENTO",
-                "link": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=3848561&ext=RTF"
-            },
-            {
-                "index_num": 30,
-                "data": "18/06/2015",
-                "nome": "APRESENTADO EM MESA PARA JULGAMENTO",
-                "complemento": "1ª Turma em 18/06/2015 14:03:12 - ACO-MC-Ref",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 29,
-                "data": "09/06/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 02/06/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 28,
-                "data": "03/06/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 03/06/2015) Do AGU, ref. ao despacho publicado no DJE de 02/06/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 27,
-                "data": "03/06/2015",
-                "nome": "EXPEDIDO OFÍCIO Nº",
-                "complemento": "1862/R, ao Advogado-Geral da União.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 26,
-                "data": "02/06/2015",
-                "nome": "EXPEDIDO TELEX/FAX Nº",
-                "complemento": "659 em 02/06/2015, ao Advogado-Geral da União",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 25,
-                "data": "02/06/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 104, divulgado em 01/06/2015",
-                "julgador": null,
-                "link_descricao": "DECISÃO MONOCRÁTICA",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=306948330&ext=.pdf"
-            },
-            {
-                "index_num": 24,
-                "data": "29/05/2015",
-                "nome": "CERTIDÃO",
-                "complemento": "Certifico que elaborei 1 ofício e 1 telex. Decisão de 27/05/2015.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 23,
-                "data": "29/05/2015",
-                "nome": "RECONSIDERAÇÃO",
-                "complemento": "Em 27/05/2015: 3. Ante o quadro, reconsidero a decisão proferida em 17 de abril de 2015 e defiro a liminar. 4. À Primeira Turma, para referendo desta decisão.",
-                "julgador": "MIN. MARCO AURÉLIO",
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 22,
-                "data": "26/05/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 21,
-                "data": "25/05/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Manifestação - Petição: 25921 Data: 25/05/2015 17:45:55.941 GMT-03:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 20,
-                "data": "20/05/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJE de 11/05/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 19,
-                "data": "15/05/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 15/05/2015) Do AGU, ref. ao despacho publicado no DJE de 11/05/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 18,
-                "data": "11/05/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 86, divulgado em 08/05/2015",
-                "julgador": null,
-                "link_descricao": "DESPACHO",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15337571355&ext=.pdf"
-            },
-            {
-                "index_num": 17,
-                "data": "07/05/2015",
-                "nome": "DESPACHO",
-                "complemento": "Em 05/05/2015: 1. Ante a garantia constitucional do contraditório, abro vista à parte agravada para, querendo, manifestar-se.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 16,
-                "data": "06/05/2015",
-                "nome": "JUNTADA DO MANDADO CUMPRIDO",
-                "complemento": "ref. a citação da União, na pessoa do Advogado-Geral da União",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 15,
-                "data": "06/05/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 14,
-                "data": "05/05/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Juntada de documentos - Petição: 21561 Data: 05/05/2015 18:13:01.727 GMT-03:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 13,
-                "data": "05/05/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 12,
-                "data": "05/05/2015",
-                "nome": "INTERPOSTO AGRAVO REGIMENTAL",
-                "complemento": "Juntada Petição: 21430/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 11,
-                "data": "05/05/2015",
-                "nome": "PETIÇÃO",
-                "complemento": "Agravo Regimental - Petição: 21430 Data: 05/05/2015 11:47:44.234 GMT-03:00",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 10,
-                "data": "04/05/2015",
-                "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
-                "complemento": "ref. ao DJe de 27/04/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 9,
-                "data": "29/04/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 28/04/2015) Da União, Na Pessoa do AGU",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 8,
-                "data": "29/04/2015",
-                "nome": "DEVOLUÇÃO DE MANDADO",
-                "complemento": "(Em 28/04/2015) Do AGU, ref. ao despacho publicado no DJE de 27/04/2015",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 7,
-                "data": "27/04/2015",
-                "nome": "PUBLICAÇÃO, DJE",
-                "complemento": "DJE nº 77, divulgado em 24/04/2015",
-                "julgador": null,
-                "link_descricao": "DECISÃO MONOCRÁTICA",
-                "link": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15332039785&ext=.pdf"
-            },
-            {
-                "index_num": 6,
-                "data": "23/04/2015",
-                "nome": "CERTIDÃO",
-                "complemento": "Certifico que elaborei 1 mandado de citação. Decisão de 17/04/2015.",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 5,
-                "data": "23/04/2015",
-                "nome": "LIMINAR INDEFERIDA",
-                "complemento": "Em 17/04/20115: 3. Indefiro a tutela pleiteada. 4. Citem a União.5. Vindo ao processo a manifestação, colham o parecer da Procuradoria Geral da República.",
-                "julgador": "MIN. MARCO AURÉLIO",
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 4,
-                "data": "10/04/2015",
-                "nome": "CONCLUSOS AO(À) RELATOR(A)",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 3,
-                "data": "10/04/2015",
-                "nome": "DISTRIBUÍDO",
-                "complemento": "MIN. MARCO AURÉLIO",
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 2,
-                "data": "10/04/2015",
-                "nome": "AUTUADO",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            },
-            {
-                "index_num": 1,
-                "data": "10/04/2015",
-                "nome": "PROTOCOLADO",
-                "complemento": null,
-                "julgador": null,
-                "link_descricao": null,
-                "link": null
-            }
-        ],
-        "sessao_virtual": [
-            {
-                "lista": "552-2021",
-                "relator": "MIN. MARCO AURÉLIO",
-                "orgao_julgador": "Plenário",
-                "voto_texto": "Julgo parcialmente procedente o pedido, confirmando a antecipação da tutela, para condenar a União a abster-se de considerar os débitos versados nas Execuções Fiscais nº 0000427-17.2009.4.05.8500 e 0001746-15.2012.4.05.8500, enquanto pendente o precatório e ainda em curso o prazo para liquidação, como óbice à Certidão Positiva com Efeitos de Negativa — Cepen. Condeno a ré a arcar com as despesas processuais e os honorários advocatícios, os quais arbitro em R$ 5.000,00.",
-                "data_inicio": "28/05/2021",
-                "data_fim_prevista": "07/06/2021",
-                "acompanham_relator": [
-                    "MIN. ALEXANDRE DE MORAES",
-                    "MIN. EDSON FACHIN",
-                    "MIN. DIAS TOFFOLI",
-                    "MIN. CÁRMEN LÚCIA",
-                    "MIN. LUIZ FUX",
-                    "MIN. ROSA WEBER",
-                    "MIN. NUNES MARQUES",
-                    "MIN. GILMAR MENDES",
-                    "MIN. RICARDO LEWANDOWSKI",
-                    "MIN. LUÍS ROBERTO BARROSO"
-                ],
-                "url_relatorio": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552046",
-                "conteudo_relatorio": null,
-                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552056",
-                "conteudo_voto": null
-            },
-            {
-                "lista": "174-2023",
-                "relator": "MIN. ANDRÉ MENDONÇA",
-                "orgao_julgador": "Plenário",
-                "voto_texto": "Ante o exposto, não se verificando, na hipótese, quaisquer dos vícios previstos no art. 1.022 do Código de Processo Civil, rejeito os embargos de declaração.",
-                "data_inicio": "23/06/2023",
-                "data_fim_prevista": "30/06/2023",
-                "acompanham_relator": [
-                    "MIN. ALEXANDRE DE MORAES",
-                    "MIN. GILMAR MENDES",
-                    "MIN. EDSON FACHIN",
-                    "MIN. DIAS TOFFOLI",
-                    "MIN. LUIZ FUX",
-                    "MIN. CÁRMEN LÚCIA",
-                    "MIN. NUNES MARQUES",
-                    "MIN. LUÍS ROBERTO BARROSO",
-                    "MIN. ROSA WEBER"
-                ],
-                "url_relatorio": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794248",
-                "conteudo_relatorio": null,
-                "url_voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794217",
-                "conteudo_voto": null
-            }
-        ],
-        "deslocamentos": [
-            {
-                "index_num": 31,
-                "guia": "15496/2023",
-                "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
-                "data_recebido": "12/09/2023",
-                "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_enviado": "12/09/2023"
-            },
-            {
-                "index_num": 30,
-                "guia": "3531/2023",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_recebido": "15/08/2023",
-                "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-                "data_enviado": "15/08/2023"
-            },
-            {
-                "index_num": 29,
-                "guia": "3638/2023",
-                "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-                "data_recebido": "14/08/2023",
-                "enviado_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
-                "data_enviado": "14/08/2023"
-            },
-            {
-                "index_num": 28,
-                "guia": "2068/2022",
-                "recebido_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
-                "data_recebido": "18/04/2022",
-                "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_enviado": "18/04/2022"
-            },
-            {
-                "index_num": 27,
-                "guia": "372/2022",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_recebido": "11/03/2022",
-                "enviado_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
-                "data_enviado": "11/03/2022"
-            },
-            {
-                "index_num": 26,
-                "guia": "16045/2021",
-                "recebido_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
-                "data_recebido": "16/12/2021",
-                "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_enviado": "16/12/2021"
-            },
-            {
-                "index_num": 25,
-                "guia": "2859/2021",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_recebido": "18/06/2021",
-                "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-                "data_enviado": "18/06/2021"
-            },
-            {
-                "index_num": 24,
-                "guia": "16329/2021",
-                "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-                "data_recebido": "16/06/2021",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "16/06/2021"
-            },
-            {
-                "index_num": 23,
-                "guia": "11036/2021",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "20/05/2021",
-                "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_enviado": "20/05/2021"
-            },
-            {
-                "index_num": 22,
-                "guia": "15271/2021",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-                "data_recebido": "19/05/2021",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "19/05/2021"
-            },
-            {
-                "index_num": 21,
-                "guia": "1082/2016",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "24/02/2016",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "24/02/2016"
-            },
-            {
-                "index_num": 20,
-                "guia": "1474293/2016",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "24/02/2016",
-                "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-                "data_enviado": "24/02/2016"
-            },
-            {
-                "index_num": 19,
-                "guia": "9036/2015",
-                "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-                "data_recebido": null,
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "04/12/2015"
-            },
-            {
-                "index_num": 18,
-                "guia": "9971/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "17/11/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "17/11/2015"
-            },
-            {
-                "index_num": 17,
-                "guia": "8267/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "16/11/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "16/11/2015"
-            },
-            {
-                "index_num": 16,
-                "guia": "9448/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "29/10/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "29/10/2015"
-            },
-            {
-                "index_num": 15,
-                "guia": "7707/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "28/10/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "28/10/2015"
-            },
-            {
-                "index_num": 14,
-                "guia": "8861/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "16/10/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "16/10/2015"
-            },
-            {
-                "index_num": 13,
-                "guia": "7303/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "15/10/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "15/10/2015"
-            },
-            {
-                "index_num": 12,
-                "guia": "1849/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "17/09/2015",
-                "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
-                "data_enviado": "17/09/2015"
-            },
-            {
-                "index_num": 11,
-                "guia": "4745/2015",
-                "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
-                "data_recebido": "26/06/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "26/06/2015"
-            },
-            {
-                "index_num": 10,
-                "guia": "3453/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "29/05/2015",
-                "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
-                "data_enviado": "29/05/2015"
-            },
-            {
-                "index_num": 9,
-                "guia": "3775/2015",
-                "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
-                "data_recebido": "29/05/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "29/05/2015"
-            },
-            {
-                "index_num": 8,
-                "guia": "3658/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "28/05/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "28/05/2015"
-            },
-            {
-                "index_num": 7,
-                "guia": "3638/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "26/05/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "26/05/2015"
-            },
-            {
-                "index_num": 6,
-                "guia": "2677/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "06/05/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "06/05/2015"
-            },
-            {
-                "index_num": 5,
-                "guia": "2266/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "23/04/2015",
-                "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
-                "data_enviado": "23/04/2015"
-            },
-            {
-                "index_num": 4,
-                "guia": "2622/2015",
-                "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
-                "data_recebido": "23/04/2015",
-                "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_enviado": "23/04/2015"
-            },
-            {
-                "index_num": 3,
-                "guia": "2411/2015",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
-                "data_recebido": "22/04/2015",
-                "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_enviado": "22/04/2015"
-            },
-            {
-                "index_num": 2,
-                "guia": "3119/2015",
-                "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
-                "data_recebido": "10/04/2015",
-                "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-                "data_enviado": "10/04/2015"
-            },
-            {
-                "index_num": 1,
-                "guia": "1347869/2015",
-                "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-                "data_recebido": "10/04/2015",
-                "enviado_por": "DIVERSOS",
-                "data_enviado": "10/04/2015"
-            }
-        ],
-        "peticoes": [
-            {
-                "index": 11,
-                "id": "96258/2023",
-                "data": "30/08/2023",
-                "recebido_data": "30/08/2023 18:16:46",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
-            },
-            {
-                "index": 10,
-                "id": "73201/2021",
-                "data": "22/07/2021",
-                "recebido_data": "22/07/2021 10:42:21",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
-            },
-            {
-                "index": 9,
-                "id": "63505/2021",
-                "data": "21/06/2021",
-                "recebido_data": "21/06/2021 15:59:31",
-                "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
-            },
-            {
-                "index": 8,
-                "id": "63405/2015",
-                "data": "04/12/2015",
-                "recebido_data": "04/12/2015 13:12:05",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 7,
-                "id": "61123/2015",
-                "data": "24/11/2015",
-                "recebido_data": "24/11/2015 12:18:29",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 6,
-                "id": "59001/2015",
-                "data": "13/11/2015",
-                "recebido_data": "13/11/2015 17:11:09",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 5,
-                "id": "56508/2015",
-                "data": "03/11/2015",
-                "recebido_data": "03/11/2015 17:06:55",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 4,
-                "id": "36464/2015",
-                "data": "31/07/2015",
-                "recebido_data": "31/07/2015 08:30:32",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 3,
-                "id": "25921/2015",
-                "data": "25/05/2015",
-                "recebido_data": "25/05/2015 17:45:57",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 2,
-                "id": "21561/2015",
-                "data": "05/05/2015",
-                "recebido_data": "05/05/2015 18:13:03",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            },
-            {
-                "index": 1,
-                "id": "21430/2015",
-                "data": "05/05/2015",
-                "recebido_data": "05/05/2015 11:47:46",
-                "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
-            }
-        ],
-        "recursos": [{ "id": 1, "data": "EMB.DECL. NA AÇÃO CÍVEL ORIGINÁRIA" }],
-        "status": 200,
-        "extraido": "2025-10-21T21:08:27.404546"
-    }
+  {
+    "incidente": 4752531,
+    "classe": "ACO",
+    "processo_id": 2652,
+    "numero_unico": "0001133-66.2015.1.00.0000",
+    "meio": "ELETRONICO",
+    "publicidade": "PUBLICO",
+    "badges": [
+      "Medida Liminar"
+    ],
+    "assuntos": [
+      "DIREITO TRIBUTÁRIO | Procedimentos Fiscais | Cadastro de Inadimplentes - CADIN"
+    ],
+    "data_protocolo": "10/04/2015",
+    "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
+    "origem": "SE - SERGIPE",
+    "numero_origem": [
+      "2652",
+      "000"
+    ],
+    "volumes": 1,
+    "folhas": null,
+    "apensos": null,
+    "relator": "MARCO AURÉLIO",
+    "primeiro_autor": "ESTADO DE SERGIPE",
+    "partes": [
+      {
+        "index": 1,
+        "tipo": "AUTOR(A/S)(ES)",
+        "nome": "ESTADO DE SERGIPE"
+      },
+      {
+        "index": 2,
+        "tipo": "PROC.(A/S)(ES)",
+        "nome": "PROCURADOR-GERAL DO ESTADO DE SERGIPE"
+      },
+      {
+        "index": 3,
+        "tipo": "RÉU(É)(S)",
+        "nome": "UNIÃO"
+      },
+      {
+        "index": 4,
+        "tipo": "PROC.(A/S)(ES)",
+        "nome": "ADVOGADO-GERAL DA UNIÃO"
+      }
+    ],
+    "andamentos": [
+      {
+        "index_num": 120,
+        "data": "12/09/2023",
+        "nome": "BAIXA AO ARQUIVO DO STF",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 119,
+        "data": "12/09/2023",
+        "nome": "TRANSITADO(A) EM JULGADO",
+        "complemento": "12/09/2023.",
+        "julgador": null,
+        "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360950383&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 118,
+        "data": "30/08/2023",
+        "nome": "PETIÇÃO",
+        "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 96258 - Data: 30/08/2023, às 18:16:43, via Web Service MNI 2.2.2.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 117,
+        "data": "30/08/2023",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 116,
+        "data": "28/08/2023",
+        "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360056774&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 115,
+        "data": "25/08/2023",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 114,
+        "data": "25/08/2023",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 113,
+        "data": "15/08/2023",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 112,
+        "data": "15/08/2023",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 111,
+        "data": "15/08/2023",
+        "nome": "PUBLICADO ACÓRDÃO, DJE",
+        "complemento": "DJE publicado em 15/08/2023. Divulgado em 14/08/2023",
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15360056774&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 110,
+        "data": "12/07/2023",
+        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+        "complemento": "Divulgado em 11/07/2023",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 109,
+        "data": "07/07/2023",
+        "nome": "JUNTADA",
+        "complemento": "Certidão de Julgamento da Sessão Virtual",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 108,
+        "data": "03/07/2023",
+        "nome": "EMBARGOS REJEITADOS",
+        "complemento": "Decisão: O Tribunal, por unanimidade, rejeitou os embargos de declaração, nos termos do voto do Relator. Plenário, Sessão Virtual de 23.6.2023 a 30.6.2023.",
+        "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
+        "link_descricao": "DECISÃO DE JULGAMENTO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5814973&ext=RTF",
+          "text": null
+        }
+      },
+      {
+        "index_num": 107,
+        "data": "01/07/2023",
+        "nome": "FINALIZADO JULGAMENTO VIRTUAL",
+        "complemento": "Finalizado Julgamento Virtual em 30 de Junho de 2023 (Sexta-feira), às 23:59 .",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 106,
+        "data": "23/06/2023",
+        "nome": "INICIADO JULGAMENTO VIRTUAL",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 105,
+        "data": "09/06/2023",
+        "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
+        "complemento": "Divulgado em 07/06/2023",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 104,
+        "data": "07/06/2023",
+        "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
+        "complemento": "Julgamento Virtual: ACO-ED. Incluído na Lista 174-2023.ALM - Agendado para: 23/06/2023 a 30/06/2023.",
+        "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 103,
+        "data": "18/04/2022",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 102,
+        "data": "18/04/2022",
+        "nome": "DECURSO DE PRAZO PARA APRESENTAR RESPOSTA",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": "CERTIDÃO DE DECURSO DE PRAZO PARA RESPOSTA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15350705585&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 101,
+        "data": "24/03/2022",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 100,
+        "data": "24/03/2022",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 99,
+        "data": "14/03/2022",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 98,
+        "data": "14/03/2022",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 97,
+        "data": "14/03/2022",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "Divulgado em 11/03/2022",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 96,
+        "data": "11/03/2022",
+        "nome": "DETERMINADA A INTIMAÇÃO",
+        "complemento": "Em 11/03/2022:\"Os embargos veiculam pedido de modificação da decisão proferida. 2. Ouça-se a parte embargada. Publique-se.\"",
+        "julgador": "MIN. ANDRÉ MENDONÇA",
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15350096167&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 95,
+        "data": "16/12/2021",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 94,
+        "data": "16/12/2021",
+        "nome": "SUBSTITUIÇÃO DO RELATOR, ART. 38 DO RISTF",
+        "complemento": "MIN. ANDRÉ MENDONÇA",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 93,
+        "data": "22/07/2021",
+        "nome": "OPOSTOS EMBARGOS DE DECLARAÇÃO",
+        "complemento": "Juntada Petição: 73201/2021",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 92,
+        "data": "22/07/2021",
+        "nome": "PETIÇÃO",
+        "complemento": "ADVOGADO-GERAL DA UNIÃO - Petição: 73201 - Data: 22/07/2021, às 10:42:17, via Web Service MNI 2.2.2.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 91,
+        "data": "28/06/2021",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 90,
+        "data": "28/06/2021",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 89,
+        "data": "21/06/2021",
+        "nome": "PETIÇÃO",
+        "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 63505 - Data: 21/06/2021, às 15:59:28, via Web Service MNI 2.2.2.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 88,
+        "data": "20/06/2021",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 87,
+        "data": "18/06/2021",
+        "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346734026&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 86,
+        "data": "18/06/2021",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 85,
+        "data": "18/06/2021",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 84,
+        "data": "18/06/2021",
+        "nome": "PUBLICADO ACÓRDÃO, DJE",
+        "complemento": "DATA DE PUBLICAÇÃO DJE 18/06/2021 - ATA Nº 105/2021. DJE nº 117, divulgado em 17/06/2021",
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346734026&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 83,
+        "data": "16/06/2021",
+        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+        "complemento": "ATA Nº 18, de 08/06/2021. DJE nº 115, divulgado em 15/06/2021",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 82,
+        "data": "14/06/2021",
+        "nome": "EXPEDIDO(A)",
+        "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 81,
+        "data": "14/06/2021",
+        "nome": "COMUNICAÇÃO ASSINADA",
+        "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 80,
+        "data": "13/06/2021",
+        "nome": "CERTIDÃO",
+        "complemento": "Certifico a elaboração de 1 ofício(s) eletrônico(s). Plenário. Sessão virtual de 28 de maio a 7 de junho de 2021",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 79,
+        "data": "11/06/2021",
+        "nome": "JUNTADA",
+        "complemento": "Certidão de Julgamento da Sessão Virtual",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 78,
+        "data": "08/06/2021",
+        "nome": "PROCEDENTE EM PARTE",
+        "complemento": "Decisão: O Tribunal, por unanimidade, julgou parcialmente procedente o pedido, confirmando a antecipação da tutela, para condenar a União a abster-se de considerar os débitos versados nas Execuções Fiscais nº 0000427-17.2009.4.05.8500 e 0001746-15.2012.4.05.8500, enquanto pendente o precatório e ainda em curso o prazo para liquidação, como óbice à Certidão Positiva com Efeitos de Negativa – Cepen, e condenou a ré a arcar com as despesas processuais e os honorários advocatícios, arbitrados em R$ 5.000,00, nos termos do voto do Relator. Plenário, Sessão Virtual de 28.5.2021 a 7.6.2021.",
+        "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
+        "link_descricao": "DECISÃO DE JULGAMENTO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5356528&ext=RTF",
+          "text": null
+        }
+      },
+      {
+        "index_num": 77,
+        "data": "08/06/2021",
+        "nome": "FINALIZADO JULGAMENTO VIRTUAL",
+        "complemento": "Finalizado Julgamento Virtual em 07 de Junho de 2021 (Segunda-feira), às 23:59 .",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 76,
+        "data": "31/05/2021",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 75,
+        "data": "31/05/2021",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 74,
+        "data": "28/05/2021",
+        "nome": "INICIADO JULGAMENTO VIRTUAL",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 73,
+        "data": "20/05/2021",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 72,
+        "data": "20/05/2021",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - ADVOGADO-GERAL DA UNIÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 71,
+        "data": "20/05/2021",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL DO ESTADO DE SERGIPE",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 70,
+        "data": "20/05/2021",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 96, divulgado em 19/05/2021",
+        "julgador": null,
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15346472656&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 69,
+        "data": "19/05/2021",
+        "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
+        "complemento": "PAUTA Nº 73/2021. DJE nº 95, divulgado em 18/05/2021",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 68,
+        "data": "18/05/2021",
+        "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
+        "complemento": "Julgamento Virtual: ACO. Incluído na Lista 552-2021.MAM - Agendado para: 28/05/2021 a 07/06/2021.",
+        "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 67,
+        "data": "18/05/2021",
+        "nome": "DESPACHO",
+        "complemento": "Em 18.5.2021; [...] 1. A crise é aguda. Sem qualquer previsão de o Tribunal voltar às sessões presenciais, há de viabilizar-se, em ambiente colegiado, a jurisdição. 2. Aciono, em caráter excepcional, o sistema virtual e passo a liberar, considerado o fator tempo, os processos. [...]",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 66,
+        "data": "24/02/2016",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 65,
+        "data": "24/02/2016",
+        "nome": "MANIFESTAÇÃO DA PGR",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": "MANIFESTAÇÃO DA PGR",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308773053&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 64,
+        "data": "04/12/2015",
+        "nome": "VISTA À PGR",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 63,
+        "data": "04/12/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 63405 Data: 04/12/2015 13:12:03.249 GMT-02:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 62,
+        "data": "01/12/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 19/11/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 61,
+        "data": "27/11/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 24/11/2015) Do AGU, ref. DJE de 19/11/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 60,
+        "data": "24/11/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 61123 Data: 24/11/2015 12:18:27.849 GMT-02:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 59,
+        "data": "19/11/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 232, divulgado em 18/11/2015",
+        "julgador": null,
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308184708&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 58,
+        "data": "17/11/2015",
+        "nome": "DESPACHO",
+        "complemento": "Em 16/11/2015:\"Abro às partes o prazo sucessivo de cinco dias para apresentarem razões finais. Após, colham o parecer do Procurador-Geral da República. Publiquem.\"",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 57,
+        "data": "16/11/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 56,
+        "data": "13/11/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 59001 Data: 13/11/2015 17:11:07.118 GMT-02:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 55,
+        "data": "11/11/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 04/11/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 54,
+        "data": "10/11/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 09/11/2015) Do AGU, ref. DJE de 04/11/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 53,
+        "data": "04/11/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 21/10/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 52,
+        "data": "04/11/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 219, divulgado em 03/11/2015",
+        "julgador": null,
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=308053629&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 51,
+        "data": "03/11/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 56508 Data: 03/11/2015 17:06:53.90 GMT-02:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 50,
+        "data": "29/10/2015",
+        "nome": "DESPACHO",
+        "complemento": "Em 28/10/2015:\"Especifiquem as partes as provas que pretendem produzir, justificando o que vier a ser requerido. Publiquem.\"",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 49,
+        "data": "29/10/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 28/10/2015) Do AGU, ref. DJE de 21/10/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 48,
+        "data": "28/10/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 47,
+        "data": "28/10/2015",
+        "nome": "CERTIDÃO",
+        "complemento": "CERTIDÃO DE AUSÊNCIA DE MANIFESTAÇÃO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 46,
+        "data": "21/10/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 210, divulgado em 20/10/2015",
+        "julgador": null,
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307957107&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 45,
+        "data": "19/10/2015",
+        "nome": "DESPACHO",
+        "complemento": "Em 15/10/2015: Manifeste-se o autor acerca da contestação.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 44,
+        "data": "15/10/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 43,
+        "data": "15/10/2015",
+        "nome": "DECORRIDO O PRAZO",
+        "complemento": "CERTIDÃO DE DECURSO DE PRAZO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 42,
+        "data": "01/10/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 17/09/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 41,
+        "data": "25/09/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 24/09/2015) Do AGU, ref. DJE de 17/09/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 40,
+        "data": "17/09/2015",
+        "nome": "PUBLICADO ACÓRDÃO, DJE",
+        "complemento": "DATA DE PUBLICAÇÃO DJE 17/09/2015 - ATA Nº 132/2015. DJE nº 184, divulgado em 16/09/2015",
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307738595&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 39,
+        "data": "03/08/2015",
+        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+        "complemento": "ATA Nº 17, de 23/06/2015. DJE nº 151, divulgado em 31/07/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 38,
+        "data": "31/07/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 36464 Data: 31/07/2015 08:30:29.244 GMT-03:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 37,
+        "data": "25/06/2015",
+        "nome": "EXPEDIDO(A)",
+        "complemento": "OFÍCIO - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 36,
+        "data": "24/06/2015",
+        "nome": "EXPEDIDO(A)",
+        "complemento": "FAX - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 35,
+        "data": "24/06/2015",
+        "nome": "COMUNICAÇÃO ASSINADA",
+        "complemento": "OFÍCIO - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 34,
+        "data": "24/06/2015",
+        "nome": "COMUNICAÇÃO ASSINADA",
+        "complemento": "FAX - COMUNICAÇÃO DECISÃO COLEGIADA 1ª TURMA - SEJ",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 33,
+        "data": "24/06/2015",
+        "nome": "CERTIDÃO",
+        "complemento": "Certifico que elaborei 1 ofício e 1 fax. 1ª Turma sessão de 23/06/2015.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 32,
+        "data": "23/06/2015",
+        "nome": "JUNTADA",
+        "complemento": "Certidão de Julgamento da Sessão Ordinária de 23.6.2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 31,
+        "data": "23/06/2015",
+        "nome": "LIMINAR REFERENDADA",
+        "complemento": "Decisão: A Turma referendou a medida cautelar, nos termos do voto do Relator. Unânime. Falou a Dra. Grace Maria Fernandes Mendonça, pela Advocacia-Geral da União. Presidência da Senhora Ministra Rosa Weber. 1ª Turma, 23.6.2015.",
+        "julgador": "1ª TURMA",
+        "link_descricao": "DECISÃO DE JULGAMENTO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=3848561&ext=RTF",
+          "text": null
+        }
+      },
+      {
+        "index_num": 30,
+        "data": "18/06/2015",
+        "nome": "APRESENTADO EM MESA PARA JULGAMENTO",
+        "complemento": "1ª Turma em 18/06/2015 14:03:12 - ACO-MC-Ref",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 29,
+        "data": "09/06/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 02/06/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 28,
+        "data": "03/06/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 03/06/2015) Do AGU, ref. ao despacho publicado no DJE de 02/06/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 27,
+        "data": "03/06/2015",
+        "nome": "EXPEDIDO OFÍCIO Nº",
+        "complemento": "1862/R, ao Advogado-Geral da União.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 26,
+        "data": "02/06/2015",
+        "nome": "EXPEDIDO TELEX/FAX Nº",
+        "complemento": "659 em 02/06/2015, ao Advogado-Geral da União",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 25,
+        "data": "02/06/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 104, divulgado em 01/06/2015",
+        "julgador": null,
+        "link_descricao": "DECISÃO MONOCRÁTICA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=306948330&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 24,
+        "data": "29/05/2015",
+        "nome": "CERTIDÃO",
+        "complemento": "Certifico que elaborei 1 ofício e 1 telex. Decisão de 27/05/2015.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 23,
+        "data": "29/05/2015",
+        "nome": "RECONSIDERAÇÃO",
+        "complemento": "Em 27/05/2015: 3. Ante o quadro, reconsidero a decisão proferida em 17 de abril de 2015 e defiro a liminar. 4. À Primeira Turma, para referendo desta decisão.",
+        "julgador": "MIN. MARCO AURÉLIO",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 22,
+        "data": "26/05/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 21,
+        "data": "25/05/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Manifestação - Petição: 25921 Data: 25/05/2015 17:45:55.941 GMT-03:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 20,
+        "data": "20/05/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJE de 11/05/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 19,
+        "data": "15/05/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 15/05/2015) Do AGU, ref. ao despacho publicado no DJE de 11/05/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 18,
+        "data": "11/05/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 86, divulgado em 08/05/2015",
+        "julgador": null,
+        "link_descricao": "DESPACHO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15337571355&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 17,
+        "data": "07/05/2015",
+        "nome": "DESPACHO",
+        "complemento": "Em 05/05/2015: 1. Ante a garantia constitucional do contraditório, abro vista à parte agravada para, querendo, manifestar-se.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 16,
+        "data": "06/05/2015",
+        "nome": "JUNTADA DO MANDADO CUMPRIDO",
+        "complemento": "ref. a citação da União, na pessoa do Advogado-Geral da União",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 15,
+        "data": "06/05/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 14,
+        "data": "05/05/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Juntada de documentos - Petição: 21561 Data: 05/05/2015 18:13:01.727 GMT-03:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 13,
+        "data": "05/05/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 12,
+        "data": "05/05/2015",
+        "nome": "INTERPOSTO AGRAVO REGIMENTAL",
+        "complemento": "Juntada Petição: 21430/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 11,
+        "data": "05/05/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Agravo Regimental - Petição: 21430 Data: 05/05/2015 11:47:44.234 GMT-03:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 10,
+        "data": "04/05/2015",
+        "nome": "JUNTADA DO MANDADO DE INTIMAÇÃO DEVIDAMENTE CUMPRIDO - AGU",
+        "complemento": "ref. ao DJe de 27/04/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 9,
+        "data": "29/04/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 28/04/2015) Da União, Na Pessoa do AGU",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 8,
+        "data": "29/04/2015",
+        "nome": "DEVOLUÇÃO DE MANDADO",
+        "complemento": "(Em 28/04/2015) Do AGU, ref. ao despacho publicado no DJE de 27/04/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 7,
+        "data": "27/04/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 77, divulgado em 24/04/2015",
+        "julgador": null,
+        "link_descricao": "DECISÃO MONOCRÁTICA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15332039785&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 6,
+        "data": "23/04/2015",
+        "nome": "CERTIDÃO",
+        "complemento": "Certifico que elaborei 1 mandado de citação. Decisão de 17/04/2015.",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 5,
+        "data": "23/04/2015",
+        "nome": "LIMINAR INDEFERIDA",
+        "complemento": "Em 17/04/20115: 3. Indefiro a tutela pleiteada. 4. Citem a União.5. Vindo ao processo a manifestação, colham o parecer da Procuradoria Geral da República.",
+        "julgador": "MIN. MARCO AURÉLIO",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 4,
+        "data": "10/04/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 3,
+        "data": "10/04/2015",
+        "nome": "DISTRIBUÍDO",
+        "complemento": "MIN. MARCO AURÉLIO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 2,
+        "data": "10/04/2015",
+        "nome": "AUTUADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 1,
+        "data": "10/04/2015",
+        "nome": "PROTOCOLADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      }
+    ],
+    "sessao_virtual": [
+      {
+        "metadata": {
+          "relatora": "MIN. MARCO AURÉLIO",
+          "órgão_julgador": "Plenário",
+          "lista": "552-2021",
+          "processo": "ACO 2652",
+          "data_início": "28/05/2021",
+          "data_prevista_fim": "07/06/2021"
+        },
+        "voto_relator": "Voto: Julgo parcialmente procedente o pedido, confirmando a antecipação da tutela, para condenar a União a abster-se de considerar os débitos versados nas Execuções Fiscais nº 0000427-17.2009.4.05.8500 e 0001746-15.2012.4.05.8500, enquanto pendente o precatório e ainda em curso o prazo para liquidação, como óbice à Certidão Positiva com Efeitos de Negativa — Cepen. Condeno a ré a arcar com as despesas processuais e os honorários advocatícios, os quais arbitro em R$ 5.000,00.",
+        "votes": {
+          "relator": [
+            "MIN. MARCO AURÉLIO"
+          ],
+          "acompanha_relator": [
+            "MIN. ALEXANDRE DE MORAES",
+            "MIN. EDSON FACHIN",
+            "MIN. DIAS TOFFOLI",
+            "MIN. CÁRMEN LÚCIA",
+            "MIN. LUIZ FUX",
+            "MIN. ROSA WEBER",
+            "MIN. NUNES MARQUES",
+            "MIN. GILMAR MENDES",
+            "MIN. RICARDO LEWANDOWSKI",
+            "MIN. LUÍS ROBERTO BARROSO"
+          ],
+          "diverge_relator": [],
+          "acompanha_divergencia": [],
+          "pedido_vista": []
+        },
+        "documentos": {
+          "Relatório": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552046",
+            "text": null
+          },
+          "Voto": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4552056",
+            "text": null
+          }
+        },
+        "julgamento_item_titulo": "AÇÃO CÍVEL ORIGINÁRIA 2652"
+      },
+      {
+        "metadata": {
+          "relatora": "MIN. ANDRÉ MENDONÇA",
+          "órgão_julgador": "Plenário",
+          "lista": "174-2023",
+          "processo": "ACO 2652 ED",
+          "data_início": "23/06/2023",
+          "data_prevista_fim": "30/06/2023"
+        },
+        "voto_relator": "Ante o exposto, não se verificando, na hipótese, quaisquer dos vícios previstos no art. 1.022 do Código de Processo Civil, rejeito os embargos de declaração.",
+        "votes": {
+          "relator": [
+            "MIN. ANDRÉ MENDONÇA"
+          ],
+          "acompanha_relator": [
+            "MIN. ALEXANDRE DE MORAES",
+            "MIN. GILMAR MENDES",
+            "MIN. EDSON FACHIN",
+            "MIN. DIAS TOFFOLI",
+            "MIN. LUIZ FUX",
+            "MIN. CÁRMEN LÚCIA",
+            "MIN. NUNES MARQUES",
+            "MIN. LUÍS ROBERTO BARROSO",
+            "MIN. ROSA WEBER"
+          ],
+          "diverge_relator": [],
+          "acompanha_divergencia": [],
+          "pedido_vista": []
+        },
+        "documentos": {
+          "Relatório": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794248",
+            "text": null
+          },
+          "Voto": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5794217",
+            "text": null
+          }
+        },
+        "julgamento_item_titulo": "EMB.DECL. NA AÇÃO CÍVEL ORIGINÁRIA 2652"
+      }
+    ],
+    "deslocamentos": [
+      {
+        "index_num": 31,
+        "guia": "15496/2023",
+        "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+        "data_recebido": "12/09/2023",
+        "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_enviado": "12/09/2023"
+      },
+      {
+        "index_num": 30,
+        "guia": "3531/2023",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_recebido": "15/08/2023",
+        "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
+        "data_enviado": "15/08/2023"
+      },
+      {
+        "index_num": 29,
+        "guia": "3638/2023",
+        "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
+        "data_recebido": "14/08/2023",
+        "enviado_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
+        "data_enviado": "14/08/2023"
+      },
+      {
+        "index_num": 28,
+        "guia": "2068/2022",
+        "recebido_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
+        "data_recebido": "18/04/2022",
+        "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_enviado": "18/04/2022"
+      },
+      {
+        "index_num": 27,
+        "guia": "372/2022",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_recebido": "11/03/2022",
+        "enviado_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
+        "data_enviado": "11/03/2022"
+      },
+      {
+        "index_num": 26,
+        "guia": "16045/2021",
+        "recebido_por": "GABINETE MINISTRO ANDRÉ MENDONÇA",
+        "data_recebido": "16/12/2021",
+        "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_enviado": "16/12/2021"
+      },
+      {
+        "index_num": 25,
+        "guia": "2859/2021",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_recebido": "18/06/2021",
+        "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
+        "data_enviado": "18/06/2021"
+      },
+      {
+        "index_num": 24,
+        "guia": "16329/2021",
+        "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
+        "data_recebido": "16/06/2021",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "16/06/2021"
+      },
+      {
+        "index_num": 23,
+        "guia": "11036/2021",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "20/05/2021",
+        "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_enviado": "20/05/2021"
+      },
+      {
+        "index_num": 22,
+        "guia": "15271/2021",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
+        "data_recebido": "19/05/2021",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "19/05/2021"
+      },
+      {
+        "index_num": 21,
+        "guia": "1082/2016",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "24/02/2016",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "24/02/2016"
+      },
+      {
+        "index_num": 20,
+        "guia": "1474293/2016",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "24/02/2016",
+        "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
+        "data_enviado": "24/02/2016"
+      },
+      {
+        "index_num": 19,
+        "guia": "9036/2015",
+        "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA",
+        "data_recebido": null,
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "04/12/2015"
+      },
+      {
+        "index_num": 18,
+        "guia": "9971/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "17/11/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "17/11/2015"
+      },
+      {
+        "index_num": 17,
+        "guia": "8267/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "16/11/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "16/11/2015"
+      },
+      {
+        "index_num": 16,
+        "guia": "9448/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "29/10/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "29/10/2015"
+      },
+      {
+        "index_num": 15,
+        "guia": "7707/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "28/10/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "28/10/2015"
+      },
+      {
+        "index_num": 14,
+        "guia": "8861/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "16/10/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "16/10/2015"
+      },
+      {
+        "index_num": 13,
+        "guia": "7303/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "15/10/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "15/10/2015"
+      },
+      {
+        "index_num": 12,
+        "guia": "1849/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "17/09/2015",
+        "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_enviado": "17/09/2015"
+      },
+      {
+        "index_num": 11,
+        "guia": "4745/2015",
+        "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_recebido": "26/06/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "26/06/2015"
+      },
+      {
+        "index_num": 10,
+        "guia": "3453/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "29/05/2015",
+        "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
+        "data_enviado": "29/05/2015"
+      },
+      {
+        "index_num": 9,
+        "guia": "3775/2015",
+        "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
+        "data_recebido": "29/05/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "29/05/2015"
+      },
+      {
+        "index_num": 8,
+        "guia": "3658/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "28/05/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "28/05/2015"
+      },
+      {
+        "index_num": 7,
+        "guia": "3638/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "26/05/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "26/05/2015"
+      },
+      {
+        "index_num": 6,
+        "guia": "2677/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "06/05/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "06/05/2015"
+      },
+      {
+        "index_num": 5,
+        "guia": "2266/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "23/04/2015",
+        "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
+        "data_enviado": "23/04/2015"
+      },
+      {
+        "index_num": 4,
+        "guia": "2622/2015",
+        "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
+        "data_recebido": "23/04/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_enviado": "23/04/2015"
+      },
+      {
+        "index_num": 3,
+        "guia": "2411/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS",
+        "data_recebido": "22/04/2015",
+        "enviado_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_enviado": "22/04/2015"
+      },
+      {
+        "index_num": 2,
+        "guia": "3119/2015",
+        "recebido_por": "GABINETE MINISTRO MARCO AURÉLIO",
+        "data_recebido": "10/04/2015",
+        "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_enviado": "10/04/2015"
+      },
+      {
+        "index_num": 1,
+        "guia": "1347869/2015",
+        "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_recebido": "10/04/2015",
+        "enviado_por": "DIVERSOS",
+        "data_enviado": "10/04/2015"
+      }
+    ],
+    "peticoes": [
+      {
+        "index": 11,
+        "id": "96258/2023",
+        "data": "30/08/2023",
+        "recebido_data": "30/08/2023 18:16:46",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
+      },
+      {
+        "index": 10,
+        "id": "73201/2021",
+        "data": "22/07/2021",
+        "recebido_data": "22/07/2021 10:42:21",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
+      },
+      {
+        "index": 9,
+        "id": "63505/2021",
+        "data": "21/06/2021",
+        "recebido_data": "21/06/2021 15:59:31",
+        "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
+      },
+      {
+        "index": 8,
+        "id": "63405/2015",
+        "data": "04/12/2015",
+        "recebido_data": "04/12/2015 13:12:05",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 7,
+        "id": "61123/2015",
+        "data": "24/11/2015",
+        "recebido_data": "24/11/2015 12:18:29",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 6,
+        "id": "59001/2015",
+        "data": "13/11/2015",
+        "recebido_data": "13/11/2015 17:11:09",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 5,
+        "id": "56508/2015",
+        "data": "03/11/2015",
+        "recebido_data": "03/11/2015 17:06:55",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 4,
+        "id": "36464/2015",
+        "data": "31/07/2015",
+        "recebido_data": "31/07/2015 08:30:32",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 3,
+        "id": "25921/2015",
+        "data": "25/05/2015",
+        "recebido_data": "25/05/2015 17:45:57",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 2,
+        "id": "21561/2015",
+        "data": "05/05/2015",
+        "recebido_data": "05/05/2015 18:13:03",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      },
+      {
+        "index": 1,
+        "id": "21430/2015",
+        "data": "05/05/2015",
+        "recebido_data": "05/05/2015 11:47:46",
+        "recebido_por": "SEÇÃO DE PROCESSOS DIVERSOS"
+      }
+    ],
+    "recursos": [
+      {
+        "id": 1,
+        "data": "EMB.DECL. NA AÇÃO CÍVEL ORIGINÁRIA"
+      }
+    ],
+    "status": 200,
+    "extraido": "2025-10-21T21:08:27.404546"
+  }
 ]

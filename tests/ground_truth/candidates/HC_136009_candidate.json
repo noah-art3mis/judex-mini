@@ -1,0 +1,368 @@
+[
+  {
+    "incidente": 5026034,
+    "classe": "HC",
+    "processo_id": 136009,
+    "numero_unico": "4002929-87.2016.1.00.0000",
+    "meio": "ELETRONICO",
+    "publicidade": "PUBLICO",
+    "badges": [
+      "Criminal",
+      "Medida Liminar"
+    ],
+    "assuntos": [
+      "DIREITO DA CRIANÇA E DO ADOLESCENTE | Ato Infracional | Contra o Patrimônio | Receptação Qualificada",
+      "DIREITO PROCESSUAL PENAL | Execução Penal e de Medidas Alternativas | Execução Penal Provisória - Cabimento"
+    ],
+    "data_protocolo": "02/08/2016",
+    "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
+    "origem": "PB - PARAÍBA",
+    "numero_origem": [
+      "853713",
+      "136009"
+    ],
+    "volumes": 1,
+    "folhas": 0,
+    "apensos": null,
+    "relator": "TEORI ZAVASCKI",
+    "primeiro_autor": "ROGÉRIO DA SILVA CARVALHO",
+    "partes": [
+      {
+        "index": 1,
+        "tipo": "PACTE.(S)",
+        "nome": "ROGÉRIO DA SILVA CARVALHO"
+      },
+      {
+        "index": 2,
+        "tipo": "IMPTE.(S)",
+        "nome": "JOSE WALTER LINS DE ALBUQUERQUE (5250/PB)"
+      },
+      {
+        "index": 3,
+        "tipo": "COATOR(A/S)(ES)",
+        "nome": "SUPERIOR TRIBUNAL DE JUSTIÇA"
+      }
+    ],
+    "andamentos": [
+      {
+        "index_num": 19,
+        "data": "04/11/2016",
+        "nome": "BAIXA AO ARQUIVO DO STF",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 18,
+        "data": "04/11/2016",
+        "nome": "TRANSITADO(A) EM JULGADO",
+        "complemento": "em 04/11/2016",
+        "julgador": null,
+        "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=310674013&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 17,
+        "data": "26/10/2016",
+        "nome": "PUBLICADO ACÓRDÃO, DJE",
+        "complemento": "DATA DE PUBLICAÇÃO DJE 26/10/2016 - ATA Nº 163/2016. DJE nº 228, divulgado em 25/10/2016",
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=310605094&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 16,
+        "data": "18/10/2016",
+        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+        "complemento": "ATA Nº 8, de 07/10/2016. DJE nº 221, divulgado em 17/10/2016",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 15,
+        "data": "10/10/2016",
+        "nome": "JUNTADA",
+        "complemento": "certidão de julgamento",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 14,
+        "data": "07/10/2016",
+        "nome": "AGRAVO REGIMENTAL NÃO PROVIDO",
+        "complemento": "Decisão: A Turma, por unanimidade, negou provimento ao agravo regimental, nos termos do voto do Relator, com a ressalva do Ministro Celso de Mello. 2ª Turma, Sessão Virtual de 30.9 a 6.10.2016.",
+        "julgador": "2ª TURMA - SESSÃO VIRTUAL",
+        "link_descricao": "DECISÃO DE JULGAMENTO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=4165333&ext=RTF",
+          "text": null
+        }
+      },
+      {
+        "index_num": 13,
+        "data": "07/10/2016",
+        "nome": "FINALIZADO JULGAMENTO VIRTUAL",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 12,
+        "data": "30/09/2016",
+        "nome": "INICIADO JULGAMENTO VIRTUAL",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 11,
+        "data": "22/09/2016",
+        "nome": "PAUTA PUBLICADA NO DJE - 2ª TURMA",
+        "complemento": "PAUTA Nº 68/2016. DJE nº 202, divulgado em 21/09/2016",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 10,
+        "data": "20/09/2016",
+        "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
+        "complemento": "Julgamento Virtual - 2ª Turma em 20/09/2016 17:59:33 - HC-AgR",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 9,
+        "data": "05/09/2016",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 8,
+        "data": "05/09/2016",
+        "nome": "INTERPOSTO AGRAVO REGIMENTAL",
+        "complemento": "Juntada Petição: 49419/2016",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 7,
+        "data": "05/09/2016",
+        "nome": "PETIÇÃO",
+        "complemento": "Agravo Regimental - Petição: 49419 Data: 05/09/2016 às 14:06:36",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 6,
+        "data": "30/08/2016",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 183, divulgado em 29/08/2016",
+        "julgador": null,
+        "link_descricao": "DECISÃO MONOCRÁTICA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=310190723&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 5,
+        "data": "26/08/2016",
+        "nome": "NEGADO SEGUIMENTO",
+        "complemento": "Em 25.8.2016: \"...nego seguimento ao pedido. Arquive-se. Publique-se. Intime-se.\"",
+        "julgador": "MIN. TEORI ZAVASCKI",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 4,
+        "data": "02/08/2016",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 3,
+        "data": "02/08/2016",
+        "nome": "DISTRIBUÍDO",
+        "complemento": "MIN. TEORI ZAVASCKI. PRESIDENTE DO TSE(somente para liminares): Excluído(a) da distribuição MIN. GILMAR MENDES de 02/07/2016 a 29/11/2016, motivo: Art. 67 - § 5º RISTF",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 2,
+        "data": "02/08/2016",
+        "nome": "AUTUADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 1,
+        "data": "02/08/2016",
+        "nome": "PROTOCOLADO",
+        "complemento": "Em: 02/08/2016",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      }
+    ],
+    "sessao_virtual": [
+      {
+        "metadata": {
+          "relatora": "MIN. TEORI ZAVASCKI",
+          "órgão_julgador": "Segunda Turma",
+          "lista": "LISTA2",
+          "processo": "HC 136009 AgR",
+          "data_início": "30/09/2016",
+          "data_prevista_fim": "06/10/2016"
+        },
+        "voto_relator": "Matéria Criminal Voto: Nego provimento aos agravos regimentais.",
+        "votes": {
+          "relator": [
+            "MIN. TEORI ZAVASCKI"
+          ],
+          "acompanha_relator": [
+            "MIN. DIAS TOFFOLI",
+            "MIN. RICARDO LEWANDOWSKI",
+            "MIN. GILMAR MENDES"
+          ],
+          "diverge_relator": [],
+          "acompanha_divergencia": [],
+          "pedido_vista": []
+        },
+        "documentos": {
+          "Relatório": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4141391",
+            "text": null
+          },
+          "Voto": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4141404",
+            "text": null
+          },
+          "Voto Vogal": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4164210",
+            "text": null
+          }
+        },
+        "julgamento_item_titulo": "AG.REG. NO HABEAS CORPUS 136009"
+      }
+    ],
+    "deslocamentos": [
+      {
+        "index_num": 9,
+        "guia": "6/2021",
+        "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+        "data_recebido": "30/01/2021",
+        "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+        "data_enviado": "30/01/2021"
+      },
+      {
+        "index_num": 8,
+        "guia": "403/2019",
+        "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+        "data_recebido": "15/06/2019",
+        "enviado_por": "SEÇÃO DE ARQUIVO",
+        "data_enviado": "15/06/2019"
+      },
+      {
+        "index_num": 7,
+        "guia": "20677/2016",
+        "recebido_por": "SEÇÃO DE ARQUIVO",
+        "data_recebido": "04/11/2016",
+        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_enviado": "04/11/2016"
+      },
+      {
+        "index_num": 6,
+        "guia": "2155/2016",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_recebido": "26/10/2016",
+        "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_enviado": "26/10/2016"
+      },
+      {
+        "index_num": 5,
+        "guia": "6104/2016",
+        "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_recebido": "11/10/2016",
+        "enviado_por": "GABINETE MINISTRO TEORI ZAVASCKI",
+        "data_enviado": "11/10/2016"
+      },
+      {
+        "index_num": 4,
+        "guia": "15985/2016",
+        "recebido_por": "GABINETE MINISTRO TEORI ZAVASCKI",
+        "data_recebido": "05/09/2016",
+        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_enviado": "05/09/2016"
+      },
+      {
+        "index_num": 3,
+        "guia": "5296/2016",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_recebido": "26/08/2016",
+        "enviado_por": "GABINETE MINISTRO TEORI ZAVASCKI",
+        "data_enviado": "26/08/2016"
+      },
+      {
+        "index_num": 2,
+        "guia": "7180/2016",
+        "recebido_por": "GABINETE MINISTRO TEORI ZAVASCKI",
+        "data_recebido": "02/08/2016",
+        "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_enviado": "02/08/2016"
+      },
+      {
+        "index_num": 1,
+        "guia": "1540638/2016",
+        "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_recebido": "02/08/2016",
+        "enviado_por": "DIVERSOS",
+        "data_enviado": "02/08/2016"
+      }
+    ],
+    "peticoes": [
+      {
+        "index": 2,
+        "id": "49419/2016",
+        "data": "05/09/2016",
+        "recebido_data": "05/09/2016 14:06:08",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS"
+      },
+      {
+        "index": 1,
+        "id": "42026/2016",
+        "data": "02/08/2016",
+        "recebido_data": "04/11/2018 16:40:06",
+        "recebido_por": "AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE ORIGINÁRIOS CÍVEIS E CRIMINAIS"
+      }
+    ],
+    "recursos": [],
+    "pautas": [],
+    "outcome": "nao_provido",
+    "status": 200,
+    "extraido": "2026-04-18T00:05:40.854206"
+  }
+]

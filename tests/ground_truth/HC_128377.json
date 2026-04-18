@@ -1,0 +1,367 @@
+[
+  {
+    "incidente": 4780094,
+    "classe": "HC",
+    "processo_id": 128377,
+    "numero_unico": "0002818-11.2015.1.00.0000",
+    "meio": "ELETRONICO",
+    "publicidade": "PUBLICO",
+    "badges": [
+      "Criminal",
+      "Medida Liminar"
+    ],
+    "assuntos": [
+      "DIREITO PENAL | Parte Geral | Aplicação da Pena | Regime inicial",
+      "DIREITO PENAL | Parte Geral | Aplicação da Pena | Substituição da Pena"
+    ],
+    "data_protocolo": "21/05/2015",
+    "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
+    "origem": "SP - SÃO PAULO",
+    "numero_origem": [
+      "317097",
+      "201500379651"
+    ],
+    "volumes": 1,
+    "folhas": null,
+    "apensos": null,
+    "relator": "LUIZ FUX",
+    "primeiro_autor": "ODETE ETELVINA DE JESUS DOMINGOS",
+    "partes": [
+      {
+        "index": 1,
+        "tipo": "PACTE.(S)",
+        "nome": "ODETE ETELVINA DE JESUS DOMINGOS"
+      },
+      {
+        "index": 2,
+        "tipo": "IMPTE.(S)",
+        "nome": "ODULIA MAIA LAURENTI (0336533/SP)"
+      },
+      {
+        "index": 3,
+        "tipo": "IMPTE.(S)",
+        "nome": "NILTON DE SOUZA VIVAN NUNES (160488/SP)"
+      },
+      {
+        "index": 4,
+        "tipo": "COATOR(A/S)(ES)",
+        "nome": "SUPERIOR TRIBUNAL DE JUSTIÇA"
+      }
+    ],
+    "andamentos": [
+      {
+        "index_num": 19,
+        "data": "02/05/2017",
+        "nome": "BAIXA AO ARQUIVO DO STF",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 18,
+        "data": "02/05/2017",
+        "nome": "TRANSITADO(A) EM JULGADO",
+        "complemento": "em 29/04/2017",
+        "julgador": null,
+        "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=311725120&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 17,
+        "data": "20/04/2017",
+        "nome": "PUBLICADO ACÓRDÃO, DJE",
+        "complemento": "DATA DE PUBLICAÇÃO DJE 20/04/2017 - ATA Nº 52/2017. DJE nº 79, divulgado em 19/04/2017",
+        "julgador": null,
+        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=311636826&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 16,
+        "data": "04/04/2017",
+        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+        "complemento": "ATA Nº 8, de 24/03/2017. DJE nº 67, divulgado em 03/04/2017",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 15,
+        "data": "24/03/2017",
+        "nome": "JUNTADA",
+        "complemento": "Certidão de Julgamento da Sessão Virtual",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 14,
+        "data": "24/03/2017",
+        "nome": "AGRAVO REGIMENTAL NÃO PROVIDO",
+        "complemento": "Decisão: A Turma, por maioria, negou provimento ao agravo, nos termos do voto do Relator, vencido o Ministro Marco Aurélio. Primeira Turma, Sessão Virtual de 17 a 23.3.2017.",
+        "julgador": "1ª TURMA - SESSÃO VIRTUAL",
+        "link_descricao": "DECISÃO DE JULGAMENTO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=4265416&ext=RTF",
+          "text": null
+        }
+      },
+      {
+        "index_num": 13,
+        "data": "24/03/2017",
+        "nome": "FINALIZADO JULGAMENTO VIRTUAL",
+        "complemento": "Finalizado julgamento virtual em 23 de Março de 2017 (Quinta-feira), às 23:59 .",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 12,
+        "data": "17/03/2017",
+        "nome": "INICIADO JULGAMENTO VIRTUAL",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 11,
+        "data": "09/03/2017",
+        "nome": "PAUTA PUBLICADA NO DJE - 1ª TURMA",
+        "complemento": "PAUTA Nº 20/2017. DJE nº 44, divulgado em 08/03/2017",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 10,
+        "data": "07/03/2017",
+        "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
+        "complemento": "Julgamento Virtual - 1ª Turma em 07/03/2017 19:50:57 - HC-AgR",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 9,
+        "data": "10/08/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 8,
+        "data": "10/08/2015",
+        "nome": "INTERPOSTO AGRAVO REGIMENTAL",
+        "complemento": "Juntada Petição: 38146/2015",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 7,
+        "data": "10/08/2015",
+        "nome": "PETIÇÃO",
+        "complemento": "Agravo Regimental - Petição: 38146 Data: 10/08/2015 16:26:56.67 GMT-03:00",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 6,
+        "data": "07/08/2015",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "DJE nº 155, divulgado em 06/08/2015",
+        "julgador": null,
+        "link_descricao": "DECISÃO MONOCRÁTICA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307355314&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 5,
+        "data": "03/08/2015",
+        "nome": "NEGADO SEGUIMENTO",
+        "complemento": null,
+        "julgador": "MIN. LUIZ FUX",
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 4,
+        "data": "21/05/2015",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 3,
+        "data": "21/05/2015",
+        "nome": "DISTRIBUÍDO",
+        "complemento": "MIN. LUIZ FUX",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 2,
+        "data": "21/05/2015",
+        "nome": "AUTUADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 1,
+        "data": "21/05/2015",
+        "nome": "PROTOCOLADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      }
+    ],
+    "sessao_virtual": [
+      {
+        "metadata": {
+          "relatora": "MIN. LUIZ FUX",
+          "órgão_julgador": "Primeira Turma",
+          "lista": "LISTA1",
+          "processo": "HC 128377 AgR",
+          "data_início": "17/03/2017",
+          "data_prevista_fim": "23/03/2017"
+        },
+        "voto_relator": "DECISÃO: NEGO PROVIMENTO AO AGRAVO.",
+        "votes": {
+          "relator": [
+            "MIN. LUIZ FUX"
+          ],
+          "acompanha_relator": [
+            "MIN. ROSA WEBER",
+            "MIN. LUÍS ROBERTO BARROSO"
+          ],
+          "diverge_relator": [
+            "MIN. MARCO AURÉLIO"
+          ],
+          "acompanha_divergencia": [],
+          "pedido_vista": []
+        },
+        "documentos": {
+          "Relatório": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4248647",
+            "text": null
+          },
+          "Voto": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4248648",
+            "text": null
+          },
+          "Voto Vogal": {
+            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4263922",
+            "text": null
+          }
+        },
+        "julgamento_item_titulo": "AG.REG. NO HABEAS CORPUS 128377"
+      }
+    ],
+    "deslocamentos": [
+      {
+        "index_num": 9,
+        "guia": "6/2021",
+        "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+        "data_recebido": "30/01/2021",
+        "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+        "data_enviado": "30/01/2021"
+      },
+      {
+        "index_num": 8,
+        "guia": "404/2019",
+        "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+        "data_recebido": "15/06/2019",
+        "enviado_por": "SEÇÃO DE ARQUIVO",
+        "data_enviado": "15/06/2019"
+      },
+      {
+        "index_num": 7,
+        "guia": "9471/2017",
+        "recebido_por": "SEÇÃO DE ARQUIVO",
+        "data_recebido": "02/05/2017",
+        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_enviado": "02/05/2017"
+      },
+      {
+        "index_num": 6,
+        "guia": "632/2017",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_recebido": "20/04/2017",
+        "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_enviado": "20/04/2017"
+      },
+      {
+        "index_num": 5,
+        "guia": "2222/2017",
+        "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+        "data_recebido": "17/04/2017",
+        "enviado_por": "GABINETE MINISTRO LUIZ FUX",
+        "data_enviado": "17/04/2017"
+      },
+      {
+        "index_num": 4,
+        "guia": "11789/2015",
+        "recebido_por": "GABINETE MINISTRO LUIZ FUX",
+        "data_recebido": "10/08/2015",
+        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_enviado": "10/08/2015"
+      },
+      {
+        "index_num": 3,
+        "guia": "4762/2015",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+        "data_recebido": "03/08/2015",
+        "enviado_por": "GABINETE MINISTRO LUIZ FUX",
+        "data_enviado": "03/08/2015"
+      },
+      {
+        "index_num": 2,
+        "guia": "4898/2015",
+        "recebido_por": "GABINETE MINISTRO LUIZ FUX",
+        "data_recebido": "21/05/2015",
+        "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_enviado": "21/05/2015"
+      },
+      {
+        "index_num": 1,
+        "guia": "1365827/2015",
+        "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+        "data_recebido": "21/05/2015",
+        "enviado_por": "DIVERSOS",
+        "data_enviado": "21/05/2015"
+      }
+    ],
+    "peticoes": [
+      {
+        "index": 1,
+        "id": "38146/2015",
+        "data": "10/08/2015",
+        "recebido_data": "10/08/2015 16:26:58",
+        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS"
+      }
+    ],
+    "recursos": [],
+    "pautas": [],
+    "outcome": "nao_provido",
+    "status": 200,
+    "extraido": "2026-04-18T13:06:08.795306"
+  }
+]
