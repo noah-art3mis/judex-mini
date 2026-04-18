@@ -63,10 +63,6 @@ def _save_to_csv(item: StfItem, out_file: str) -> str:
     """Save item to CSV file and return the file path."""
     df = pd.DataFrame([item])
 
-    # Drop the html field as it's too large and not useful for CSV analysis
-    if "html" in df.columns:
-        df = df.drop(columns=["html"])
-
     # Convert JSON fields to proper JSON strings before saving
     json_columns = [
         "badges",

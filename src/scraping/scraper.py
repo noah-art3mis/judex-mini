@@ -501,5 +501,4 @@ def scrape_processo_http(
         }),
         status=200,
         extraido=datetime.now().isoformat(),
-        html=fetched.detalhe_html,
     )

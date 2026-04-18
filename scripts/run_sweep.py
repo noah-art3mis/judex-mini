@@ -91,8 +91,8 @@ _JSON_LIST_COLS = {
 _INT_COLS = {"incidente", "processo_id", "volumes", "folhas", "apensos", "status"}
 
 # Fields we skip when diffing because they're known to differ by design
-# (matches scripts/_diff.SKIP_FIELDS, plus `html` which the CSV lacks).
-_CSV_SKIP_FIELDS = {"extraido", "html", "sessao_virtual", "status"}
+# (matches scripts/_diff.SKIP_FIELDS).
+_CSV_SKIP_FIELDS = {"extraido", "sessao_virtual", "status"}
 
 
 # ----- CSV parsing ---------------------------------------------------------

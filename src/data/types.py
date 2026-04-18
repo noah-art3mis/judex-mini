@@ -36,7 +36,6 @@ class StfItem(TypedDict):
 
     status: int
     extraido: str
-    html: str
 
 
 # @dataclass

@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 # Not diffable or known to differ by design.
-SKIP_FIELDS = {"extraido", "html", "sessao_virtual", "status", "outcome"}
+SKIP_FIELDS = {"extraido", "sessao_virtual", "status", "outcome"}
 
 # Lists that can grow over time as the process adds new events.
 GROWING_LISTS = {"andamentos", "peticoes", "recursos", "deslocamentos"}
