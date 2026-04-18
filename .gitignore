@@ -12,3 +12,13 @@ wheels/
 /data/
 /analysis/
 .claude/
+
+# Local-only config — proxy pool, any other credentials / secrets.
+# Whole dir is ignored; create `config/` locally, put proxies.txt inside.
+/config/
+
+# Proxy-pool files at any location. Broad patterns because the name
+# varies by provider and it's safer to over-match than to leak creds.
+proxies.txt
+proxies*.txt
+*.proxies

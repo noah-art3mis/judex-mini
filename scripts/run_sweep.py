@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, TextIO
+from urllib.parse import urlparse
 
 from scripts._diff import diff_item
 from src.sweeps import shared as _shared
@@ -50,6 +51,27 @@ from src.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
 from src.scraping.scraper import scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def _redact_proxy(url: Optional[str]) -> str:
+    """Strip user:pass from a proxy URL before it lands in any log.
+
+    Returns `scheme://host:port` (identifying which proxy rotated, useful
+    for debugging) without the credentials (which are the secret). Returns
+    `"direct"` for None/empty input — the sentinel for "no proxy". Fails
+    safe: if parsing raises, returns a non-revealing placeholder.
+    """
+    if not url:
+        return "direct"
+    try:
+        p = urlparse(url)
+        if not p.hostname:
+            return "<proxy>"
+        port = f":{p.port}" if p.port else ""
+        scheme = p.scheme or "?"
+        return f"{scheme}://{p.hostname}{port}"
+    except Exception:
+        return "<proxy>"
 
 
 # Columns in the Selenium baseline CSV that are JSON-encoded lists.
@@ -727,7 +749,7 @@ def _run_passes(
         session_holder["started_at"] = time.monotonic()
         session_holder["rotations"] += 1
         print(
-            f"  [rotate] {old} → {new_proxy} "
+            f"  [rotate] {_redact_proxy(old)} → {_redact_proxy(new_proxy)} "
             f"(elapsed={elapsed:.0f}s reason={reason})",
             flush=True,
         )
@@ -806,7 +828,7 @@ def _run_passes(
             f"  proxy pool: {pool.size()} proxies · "
             f"rotate={args.proxy_rotate_seconds:.0f}s · "
             f"cooldown={args.proxy_cooldown_minutes:.1f}min · "
-            f"initial={initial_proxy}",
+            f"initial={_redact_proxy(initial_proxy)}",
             flush=True,
         )
     try:
