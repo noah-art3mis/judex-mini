@@ -24,12 +24,7 @@ proxies.txt
 proxies*.txt
 *.proxies
 
-# Ephemeral sweep state — regenerated on every run, pure churn in diffs.
-# What stays tracked: report.md, PLAN.md, SUMMARY.md (summaries), and
-# *.log.jsonl / *.errors.jsonl (append-only audit logs treated as
-# archival). Only the transient-current-position files are ignored.
-docs/sweep-results/**/sweep.state.json
-docs/sweep-results/**/driver.log
-docs/pdf-sweeps/**/pdfs.state.json
-docs/pdf-sweeps/**/run.log
-docs/pdf-sweeps/**/requests.db
+# Operational sweep artifacts — state files, logs, per-shard outputs.
+# The whole tree is gitignored; human-written narratives (REPORT,
+# SUMMARY, PLAN) get promoted to docs/reports/ instead.
+/runs/

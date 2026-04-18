@@ -35,9 +35,10 @@ behave, class sizes, perf numbers, where data lives), read:
 monolithic single-worker backfill at
 `docs/sweep-results/2026-04-17-hc-full-backfill/` was SIGTERM'd
 at 23:08 local after confirming the WAF-shape fix held over
-~1 637 fresh dead-zone records (all `under_utilising`, p50
-0.87 s, p95 1.74 s). It was replaced with a **4-shard concurrent
-deployment** under
+1 656 fresh dead-zone records (all `under_utilising`, p50
+0.87 s, p95 1.74 s, 7 rotations, driver-projected ETA for
+remaining work = 5 330 min ≈ 89 h single-worker). It was
+replaced with a **4-shard concurrent deployment** under
 `docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`,
 each shard consuming a disjoint 10–12-session ScrapeGW pool
 (`proxies.txt` / `.b.txt` / `.c.txt` / `.d.txt`; 42 total
@@ -103,8 +104,20 @@ _(append-only log. UTC timestamps.)_
   was **not** rate-limited; the single-worker bottleneck was the
   per-record proxy round-trip floor, not WAF.
 - **2026-04-18 ~03:08 UTC — monolithic SIGTERM, clean exit.**
-  Driver finished its in-flight record, wrote
-  `sweep.errors.jsonl` + `report.md` (80 KB), exited cleanly.
+  Stop signal hit at HC 271346 (record 1 655/273 000); driver
+  finished the in-flight record at HC 271345, printed `stopping
+  before item 1657/273000`, reported `proxy rotations during
+  sweep: 7`, and wrote `sweep.errors.jsonl` + `report.md` (80 KB)
+  before exiting. **Summary line from the exit transcript:**
+  `ok=0 fail=1 656 error=0 skipped=0 429×0 5xx×0 · 0.85 proc/s
+  · eta 5 330.2 min`. The `ok=0` is a display artifact of the
+  progress counter (resets on each `--resume` invocation and
+  counts only fresh attempts) — the 13 943 pre-existing ok
+  records were skipped via `--resume` and never re-attempted.
+  The 89-hour ETA directly motivated the 4-shard scale-out.
+  7 rotations over 1 656 records ≈ one per ~200 s, matching the
+  270 s timer cadence with zero reactive rotations — i.e. the
+  rotator fired on schedule, not under WAF pressure.
 - **2026-04-18 ~03:10 UTC — canary v2 complete.**
   50-record sweep against `proxies.txt` (now 10 distinct
   sessions), range HC 193000..192951. Result: 11 ok / 39 fail,
@@ -287,7 +300,7 @@ uv run pytest tests/unit/
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run python main.py -c ADI -i 2820 -f 2820 -o json -d data/output/test --overwrite
+uv run python main.py scrape -c ADI -i 2820 -f 2820 -o json -d data/output/test --overwrite
 
 # Wipe caches
 rm -rf data  # HTML fragments, sessao JSON, PDF text
@@ -391,13 +404,21 @@ uv run marimo run --headless analysis/hc_famous_lawyers.py
 Swap for `hc_explorer.py`, `hc_top_volume.py`,
 `hc_minister_archetypes.py`, `hc_admissibility.py`.
 
-HTML export (interactive plotly preserved):
+HTML export (interactive plotly preserved) — via the unified Typer
+hub (`main.py`):
 
 ```bash
 # all five → exports/html/*.html (gitignored)
-PYTHONPATH=. uv run python scripts/export_notebooks_html.py
+uv run python main.py export
 
 # single notebook or custom out-dir
-PYTHONPATH=. uv run python scripts/export_notebooks_html.py --only hc_famous_lawyers
-PYTHONPATH=. uv run python scripts/export_notebooks_html.py --out-dir /tmp/share
+uv run python main.py export --only hc_famous_lawyers
+uv run python main.py export --out-dir /tmp/share
 ```
+
+The same hub exposes the scraper and every sweep-adjacent script
+— `main.py scrape / sweep / fetch-pdfs / reextract /
+validate-ground-truth / density-probe`. Run
+`uv run python main.py --help` for the list; `main.py <cmd> --help`
+shows each subcommand's flags (passthrough commands forward to the
+underlying argparse script).
