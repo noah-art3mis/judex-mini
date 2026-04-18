@@ -296,6 +296,37 @@ L2 crossover — see § *Two-layer model*):
 | 20–30 %  | **approaching collapse**   | adaptive block firing; retry budget at risk                   |
 | > 30 %   | **V-style collapse**       | gaps < 15 HCs between cycles; stop and cool down              |
 
+### The two CliffDetector axes
+
+CliffDetector decides the regime above from two independent
+measurements on a rolling window of recent records — not just the
+fail-rate column shown in the table.
+
+- **Axis A — fail rate, WAF-shape-filtered.** A `status:fail`
+  record counts toward this axis only if one of:
+  `wall_s > 15 s`, `http_status ∈ {403, 429, 5xx}`, or `retries`
+  non-empty. Fast `NoIncidente` fails from sparse corpora
+  (unallocated HC numbers that STF has no record of) do *not*
+  count — they're a data-shape signal, not a WAF signal. This
+  filter is what lets a sweep traverse a 100 %-fail dead zone and
+  still correctly report `under_utilising`.
+- **Axis B — p95 `wall_s`, unfiltered.** Every record in the
+  window contributes, success or fail. Catches the adaptive-block
+  signature (§ *The 32-retry outlier as adaptive-block signature*):
+  tenacity absorbs the 403, stamps `status=ok`, but the 100 s+
+  `wall_s` still shows up here.
+
+**Regime is the worse of the two axes.** `l2_engaged` can trip
+from axis A crossing its threshold *or* from axis B's p95 crossing
+its threshold — whichever hits first. A dead-zone sweep sits at
+axis A = 0 % (all fails filtered out), axis B ≈ 1 s (fast NoIncidente
+returns), both happy. A V-style collapse trips axis A first; an
+adaptive-block-heavy session trips axis B first.
+
+When diagnosing a regime transition: read `sweep.log.jsonl` for both
+the filtered fail-rate and the raw p95 `wall_s` — don't assume the
+fail column alone explains the state.
+
 The `--resume`-per-record architecture turns L2-engaged operation
 from a crisis into deferred work — 15 % first-pass fails means ~85 %
 lands on the first attempt and the remainder clears on a

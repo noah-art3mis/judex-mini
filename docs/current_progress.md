@@ -1,10 +1,8 @@
 # Current progress — judex-mini
 
-Branch: `experiment/perf-bulk-data`
-Status: landed locally, **not yet pushed**. Tip: `acac647` (or newer).
-PR: https://github.com/noah-art3mis/edf-mini/pull/new/experiment/perf-bulk-data
+Branch: `main` (up to date with origin). Latest tip: `bb54e48`.
 
-Single live file covering both the **active task's lab notebook**
+Single live file covering the **active task's lab notebook**
 (plan / expectations / observations / decisions) and the **strategic
 state** across work-sessions (what landed, what's in flight, what's
 next, known limitations, operational reference). Convention at
@@ -33,237 +31,155 @@ behave, class sizes, perf numbers, where data lives), read:
 
 ## Task
 
-**Proxy-canary Stage 3 — validate the CliffDetector WAF-shape fix.**
-The first canary (2026-04-17 afternoon) tripped a false `collapse`
-regime because the regime classifier counted fast `NoIncidente` fails
-(non-existent HCs — corpus sparsity, not WAF pressure) as WAF signal.
-Two code fixes landed: (1) WAF-shape filter — a fail only counts
-toward the regime if `wall_s > 15 s` OR `http_status in {403, 429, 5xx}`
-OR `retries` is non-empty; (2) 30 s floor on reactive rotation so the
-pool can't panic-drain. This Stage 3 canary re-runs the same 50
-HCs under the fix to check whether the classifier now sees a
-healthy regime on a sparse corpus.
+**Monitor the 4-shard concurrent HC backfill to completion.** The
+monolithic single-worker backfill at
+`docs/sweep-results/2026-04-17-hc-full-backfill/` was SIGTERM'd
+at 23:08 local after confirming the WAF-shape fix held over
+~1 637 fresh dead-zone records (all `under_utilising`, p50
+0.87 s, p95 1.74 s). It was replaced with a **4-shard concurrent
+deployment** under
+`docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`,
+each shard consuming a disjoint 10–12-session ScrapeGW pool
+(`proxies.txt` / `.b.txt` / `.c.txt` / `.d.txt`; 42 total
+sessions across 4 files, zero overlap). Expected wall-time for
+the remaining ~259 k records: ~16 h + dense-territory PDF
+overhead vs. ~4–7 d single-worker.
 
-Sweep artifacts: `docs/sweep-results/2026-04-17-proxy-canary/`
-(`PLAN.md`, `report.md`, `sweep.log.jsonl`, `sweep.errors.jsonl`,
-`driver.log`).
+Prior cycle archived at
+[`docs/progress_archive/2026-04-18_0152_proxy-rotation-validated.md`](progress_archive/2026-04-18_0152_proxy-rotation-validated.md)
+— CliffDetector + ProxyPool + WAF-shape fix + canary validation +
+backfill relaunch. Reference for hypotheses, observation tables,
+and the (now-resolved, see Decisions) canary-vs-backfill
+divergence.
 
 ## Plan
 
-1. Commit the WAF-shape + rotation-rate-limit fix.
-2. Re-run the canary with identical config to Stage 2:
-
-   ```bash
-   PYTHONPATH=. uv run python scripts/run_sweep.py \
-       --csv tests/sweep/canary_50.csv \
-       --label proxy_canary \
-       --out docs/sweep-results/2026-04-17-proxy-canary \
-       --items-dir data/output/proxy_canary \
-       --proxy-pool proxies.txt \
-       --proxy-rotate-seconds 60 \
-       --proxy-cooldown-minutes 2
-   ```
-3. Compare observed regime trajectory + rotation count against H1.
-4. If H1 matches: unblock full-backfill with proxy rotation.
-5. If H0 matches: investigate CliffDetector filter path +
-   alternative regime inputs.
+1. **Passive monitoring** via `scripts/probe_sharded.py`
+   (see [Reference § Live sharded-sweep probe](#live-sharded-sweep-probe)).
+   Watch each shard's `regime` distribution and `min_processo`
+   progression.
+2. **Alarm response** (if any shard's regime → `approaching_collapse`
+   or `collapse`): that shard stops cleanly via SIGTERM; diagnose
+   via its `sweep.errors.jsonl` + `driver.log` `[rotate]` events.
+   Other shards keep running — circuit breaker is per-shard.
+3. **Milestone checkpoints:**
+   - **+1 h:** every shard has processed ≥ 2 000 fresh records.
+     Confirms all 4 proxy pools are healthy concurrently.
+   - **+8 h:** shard 3 (lowest HC, densest paper-era territory)
+     is first into heavy PDF work — log first dense-territory
+     OK wall_s + regime state.
+   - **+16 h:** projected completion; check for shard stragglers.
+4. **On completion:** merge all 4 shard states into a
+   consolidated `sweep.state.json` for downstream analyses,
+   archive per-shard dirs, write a completion `REPORT.md`.
 
 ## Expectations / hypotheses
 
-**H1 (expected — fix works).** On a sparse corpus (30 % non-existent
-HCs) the classifier now stays calm:
+**H1 (expected).** Backfill runs to completion with regime mostly
+`under_utilising` / `healthy`, occasional `l2_engaged` transitions
+as proxy rotation handles real WAF pressure. Zero `collapse`
+transitions. Throughput climbs to ~3–5 rec/sec in dense territory,
+total wall ~4–7 days for 216 k extant HCs (varies with proxy
+bandwidth + how often reactive rotations fire).
 
-- ~34 ok / ~16 fail (same as Stage 2 — sparsity is data reality).
-- Regime stays in `under_utilising` or `healthy` throughout.
-- Zero `approaching_collapse` / `collapse` transitions.
-- ≤4 rotations, all on the 60 s timer — no reactive rotations.
-- Scrape wall ~240 s (50 × 4.8 s/record, proxy latency dominates).
-- Exit code 1 because fails > 0 (sparsity), not because of collapse.
+**H0 (would falsify).** Backfill trips `collapse` in dense
+territory — meaning the fix works on `NoIncidente` but not on real
+403s, or ScrapeGW exits get warm past what rotation can handle.
 
-**H0 (null — would falsify the fix).**
-- Regime still transitions to `approaching_collapse` or `collapse`.
-- Rotation events > 5 in the run.
-
-**H2 (unexpected but possible — real WAF signal previously masked
-by false alarms).** Regime *correctly* detects true WAF pressure
-that the first canary's false alarms were hiding. If regime
-crosses `l2_engaged` based on p95 latency (not fail rate), the
-signal is real and worth investigating — the proxy path may be
-soft-blocked.
+**H2 (unexpected but plausible).** Canary-style soft-block
+surfaces in the backfill — fast uniform fails with `wall_s`
+clustering tightly. If this happens, the hypothesis (a)
+"soft-block" explanation from the archive gets promoted.
 
 ## Observations
 
-### 2026-04-18 01:25–01:26 UTC — canary ran, matched H0 on three of five axes
+_(append-only log. UTC timestamps.)_
 
-Full artifacts: `docs/sweep-results/2026-04-17-proxy-canary/`.
-
-| H1 prediction                                              | Observed                                                                               | Verdict |
-|------------------------------------------------------------|----------------------------------------------------------------------------------------|---------|
-| ~34 ok / ~16 fail                                          | 34 ok / 16 fail                                                                        | ✓       |
-| Regime stays in `under_utilising` / `healthy`              | `warming → under_utilising → healthy → l2_engaged → approaching_collapse → collapse`  | ✗       |
-| Zero collapse transitions                                  | Hit `collapse` at record 49/50                                                         | ✗       |
-| ≤4 rotations, all on 60 s timer                            | 10 rotations total; 5 reactive at 4–32 s intervals                                     | ✗       |
-| Scrape wall ~240 s                                         | Reported scrape wall 14.9 s; per-record 3–11 s (`_TAB_WORKERS=4` concurrency compression) | ~ |
-
-**Fails signature.** All 16 fails:
-- `error_type: NoIncidente`
-- `http_status: null` (no HTTP error from the proxy or STF — it's a 200)
-- `retries: {}` (no retry activity)
-- `wall_s`: first fail 2.60 s; next 11 fails cluster tightly at **0.60–0.68 s** (uniform enough to read as a templated response, not organic variance)
-
-Under the WAF-shape filter described in PLAN.md, *none* of these
-records should have contributed to regime pressure. Yet the regime
-climbed four levels in 15 records. The WAF-shape fix did **not**
-achieve what it was designed to.
-
-**Rotation trajectory:** 60 s timer rotations at records 11, 19, 28,
-36 (four scheduled), then reactive rotations at records 43 (elapsed
-32 s since last), 44 (5 s), 45 (4 s), 46 (4 s), 47 (4 s), 48 (5 s)
-— six reactive in a row as the pool drained.
-
-**CliffDetector stopped cleanly** at 49/50 — that's the intended
-design, and it worked. `summary: ok=34 fail=15 error=0` (one fail
-stopped before logging the full 16).
-
-### 2026-04-18 01:30–01:40 UTC — live backfill relaunch provides H1 evidence at 10× canary scale
-
-After the canary, the live HC backfill was SIGTERM'd cleanly (final
-state: 16 709 records / 13 943 ok / 2 766 fail, all preserved) and
-relaunched via the updated `launch_hc_backfill.sh` with
-`--proxy-pool proxies.txt`. The relaunch lands in the top of the
-descending CSV, which happens to be an **unallocated-HC zone**.
-Fail-rate by narrow HC range in the merged state file:
-
-| HC range       |   ok | fail | fail % |
-|----------------|-----:|-----:|-------:|
-| 273000–272500  |    0 |  501 | **100 %** |
-| 272499–272000  |    0 |  500 | **100 %** |
-| 271999–271000  |  101 |  899 |   90 % |
-| 270999–270000  |  715 |  285 |   28 % |
-| 269999–269000  |  887 |  113 |   11 % |
-
-STF reserves HC numbers in batches ahead of actual filings; the top
-~2 000 IDs of the active range are "reserved but not yet assigned"
-and return valid-200-with-no-incidente. Worth promoting to
-`docs/process-space.md § HC density` as a concrete datapoint.
-
-**Observed against the same H1 axes as the canary:**
-
-| metric                                | observed @ record 548                              | verdict |
-|---------------------------------------|----------------------------------------------------|---------|
-| fail-rate (rolling)                   | ~100 %                                             |         |
-| fails' shape                          | all `NoIncidente`, `wall_s≈0.77 s`, `http_status=None`, `retries={}` | |
-| regime distribution (new-sweep)       | `warming (19)`, `under_utilising (529)`            | ✓       |
-| regime transitions to collapse        | **0**                                              | ✓       |
-| regime transitions to approaching     | **0**                                              | ✓       |
-| rotations fired                       | **1** (proactive, at elapsed=270 s)                | ✓       |
-| reactive rotations                    | **0**                                              | ✓       |
-| credential leaks in driver.log        | 0                                                  | ✓       |
-
-**548 records at 100 % fail rate and regime held `under_utilising`.**
-Pre-fix code would have tripped `collapse` at record 20. This is
-stronger evidence than either canary could provide — the scale is
-10× and the fail rate is higher, yet the detector stays calm.
-
-**Unresolved contradiction with the 01:25 canary observation above.**
-Same code, same detector, same proxy provider, but the canary's
-fails clustered at 0.60–0.68 s (tight uniform) and the backfill's
-fails cluster at 0.77 s (slightly looser). One hypothesis: the
-canary's tight clustering suggests a ScrapeGW soft-block — synthetic
-response from proxy infra — while the backfill's responses are real
-STF no-incidente replies. The 10-distinct-session pool used in the
-backfill may rotate out of any warm session before soft-block
-thresholds trip, where the canary's effective pool-size-1 (all 9
-lines were the same URL, deduped) couldn't. Worth investigating but
-**does not block progress** — the production path works.
-
-Sweep artifacts: `docs/sweep-results/2026-04-17-hc-full-backfill/`.
+- **2026-04-18 ~02:55 UTC — pre-shard monolithic state.**
+  16 709 records / 13 943 ok / 2 766 fail. Fresh-sweep regime
+  distribution since relaunch: 19 warming + 1 637 under_utilising.
+  Zero 403, zero 429, zero retries. Last-200-records wall_s
+  distribution: p50 = 0.87 s, p95 = 1.74 s. Dead-zone traversal
+  was **not** rate-limited; the single-worker bottleneck was the
+  per-record proxy round-trip floor, not WAF.
+- **2026-04-18 ~03:08 UTC — monolithic SIGTERM, clean exit.**
+  Driver finished its in-flight record, wrote
+  `sweep.errors.jsonl` + `report.md` (80 KB), exited cleanly.
+- **2026-04-18 ~03:10 UTC — canary v2 complete.**
+  50-record sweep against `proxies.txt` (now 10 distinct
+  sessions), range HC 193000..192951. Result: 11 ok / 39 fail,
+  regime held `warming`→`under_utilising`, **0 / 39 fails
+  counted by the WAF-shape filter** (all NoIncidente, all
+  `wall_s` 0.78–3.05 s, zero retries, zero 403/429/5xx). Full
+  analysis at
+  [`docs/sweep-results/2026-04-17-proxy-canary/REPORT-v2.md`](sweep-results/2026-04-17-proxy-canary/REPORT-v2.md).
+- **2026-04-18 ~03:11 UTC — 4-shard backfill launched.**
+  Pids: 740399 (shard-0, proxies.txt), 740407 (shard-1,
+  proxies.b.txt), 740416 (shard-2, proxies.c.txt), 740422
+  (shard-3, proxies.d.txt). Each shard's state seeded from the
+  monolithic `sweep.state.json` (ok records only, partitioned
+  by the same range-split rule as `scripts/shard_csv.py`):
+  6 698 / 6 276 / 964 / 5 ok records pre-seeded per shard.
+  T+30 s probe: all four shards writing, 26 warming + 4
+  under_utilising globally, zero failures beyond the 23
+  retry-candidate fails inherited by shard-0.
 
 ## Decisions
 
-- **2026-04-18 01:40 UTC: Ship the fix; backfill relaunched.**
-  Live evidence (548 records at 100 % fail, regime `under_utilising`)
-  indicates the WAF-shape filter is working on realistic traffic at
-  10× canary scale. The canary's divergent result is preserved as an
-  open question but doesn't block the backfill.
-- **2026-04-18 01:40 UTC: Full HC backfill is now proxy-pooled.**
-  Replaces the single-IP run that was SIGTERM'd at 16 709 records
-  (13 943 ok preserved via `--resume`). 10 distinct ScrapeGW Brazilian
-  residential sessions, 270 s rotation, 4 min cooldown. Idempotency
-  guard added to `launch_hc_backfill.sh` so the state-merge bootstrap
-  skips when the backfill state already exists (prevents overwrite
-  on relaunch).
+- **2026-04-18 ~03:00 UTC — scale from 1 to 4 concurrent workers.**
+  Triggered by user observing slow dead-zone traversal and
+  noting that 42 disjoint ScrapeGW sessions are now available
+  (4 prepared files with 10/10/12/10 entries, zero cross-file
+  overlap). Chose range-partitioning over round-robin: preserves
+  HC-descending order within shards, keeps "shard i is at HC X"
+  reasoning intuitive.
+- **2026-04-18 ~03:00 UTC — `pdf_cache.write` made atomic.**
+  Concurrent shards can race on shared PDF URLs when an
+  andamento citation appears in two cases on different shards.
+  Patched `src/utils/pdf_cache.py` with `_atomic_write()`
+  (tempfile + `os.replace`, pid-suffixed to avoid racer
+  collisions). 221/221 unit tests green post-patch.
+- **2026-04-18 ~03:15 UTC — canary-vs-backfill divergence
+  resolved.** Canary v2 reproduced the same fast-uniform
+  `NoIncidente` shape with 10 distinct sessions that v1 produced
+  with 1 effective session. Shape is **STF's actual response for
+  unallocated HCs**, not a ScrapeGW soft-block artifact.
+  Hypothesis (a) "soft-block" and (c) "intermittent" both ruled
+  out. CliffDetector's WAF-shape filter correctly treats it as
+  zero WAF pressure (0/39 counted). See REPORT-v2.
 
 ## Open questions
 
-1. **[PARTIALLY RESOLVED]** ~~Is the WAF-shape filter being applied?~~
-   Live backfill evidence (548 records at 100 % fail, regime
-   `under_utilising`) shows the filter is working on realistic
-   traffic. The canary's divergent result is now the anomaly, not
-   the norm. Kept open as a data-collection question: add
-   `filter_skip` boolean to `sweep.log.jsonl` so we can count
-   filtered-vs-counted records directly in the log.
-2. **Does the regime have a second input beyond fail-rate?**
-   Re-read `src/sweeps/shared.py::CliffDetector` — the implementation
-   has two axes: fail-rate (with WAF-shape filter) and p95 `wall_s`
-   (no filter, any record contributes). The p95 axis could climb on
-   canary-style tight latency clustering if `wall_s` crosses 15 s
-   thresholds. **Action:** confirm by inspecting the canary
-   `sweep.log.jsonl` p95 trajectory per record — is p95 climbing
-   toward 15 despite fast individual responses? Document in
-   `docs/rate-limits.md § Wall taxonomy`.
-3. **Canary-vs-backfill divergence: real soft-block or measurement
-   artifact?** Both runs use the same code + detector + ScrapeGW
-   provider but canary (pool=1, deduped) tripped collapse; backfill
-   (pool=10 distinct sessions) holds `under_utilising` at 10× scale.
-   Three hypotheses:
-   - **(a) Soft-block hypothesis.** Canary's effective pool-size-1
-     warmed a single ScrapeGW exit past a soft-block threshold,
-     returning synthetic 200-with-empty-body. Backfill's 10-session
-     pool rotates out before any exit warms. Test: compare fail
-     response bodies (canary had 0.60–0.68 s uniform; backfill has
-     0.77 s looser).
-   - **(b) Rotation-cadence hypothesis.** Canary used 60 s rotation;
-     backfill uses 270 s rotation. The difference isn't frequency —
-     it's that the canary fires many reactive rotations while
-     the backfill has barely fired its proactive timer. The 30 s
-     floor on reactive rotation (introduced with the fix) may not
-     be enough to prevent the specific panic-drain pattern at 60 s
-     rotation cadence.
-   - **(c) Non-reproducibility.** Intermittent proxy behaviour —
-     re-run the canary and it might hold `under_utilising` too.
-     Cheapest test.
+1. **(Resolved — see Decisions)** Canary-vs-backfill divergence.
+2. **(Resolved — landed)** Two-axis regime documentation now at
+   [`docs/rate-limits.md § The two CliffDetector axes`](rate-limits.md#the-two-cliffdetector-axes).
+3. **Still open — `filter_skip` / `body_head` instrumentation.**
+   Add `filter_skip` boolean to `sweep.log.jsonl` (makes
+   CliffDetector's view of each record visible in the log) and
+   `body_head` to `sweep.errors.jsonl` on `NoIncidente` fails
+   (distinguishes real STF "no such incidente" from any future
+   proxy soft-block synthetic responses). ~8 lines total; not
+   blocking the backfill.
+4. **New — ScrapeGW concurrent-request cap.** We're now at
+   4 shards × 4 tab-workers = ~16 concurrent sockets. ScrapeGW
+   hasn't complained so far, but we don't have an explicit
+   contract on this from the provider. If shards start throwing
+   transport errors simultaneously, check provider dashboard
+   first.
 
-## Next steps (this task)
+## Next steps
 
-### Done
-
-1. ~~Commit the WAF-shape + rotation-rate-limit fix.~~ ✓ (`f5497d4`)
-2. ~~Re-run canary with identical config to Stage 2.~~ ✓
-3. ~~Compare observed regime vs H1.~~ ✓ (canary + live backfill
-   gave divergent answers; live backfill is H1, canary is
-   unexplained.)
-4. ~~Unblock full-backfill with proxy rotation.~~ ✓ (live at
-   `docs/sweep-results/2026-04-17-hc-full-backfill/`)
-
-### Follow-ups (non-blocking)
-
-1. **Resolve the canary-vs-backfill divergence.** Try option (c)
-   first (re-run canary with current file, same code). If it
-   holds healthy this time, classify the first canary as
-   intermittent and close. If it re-trips, bisect on (a) vs (b)
-   by changing one variable at a time: enlarge canary pool (test
-   a), change rotation cadence (test b).
-2. **Instrument `sweep.log.jsonl` with `filter_skip` boolean** —
-   makes the CliffDetector's view of each record visible in the
-   log. ~3 lines. Relevant for future canary forensics.
-3. **Instrument `sweep.errors.jsonl` with `body_head` (first ~200
-   bytes)** on `NoIncidente` fails — distinguishes real STF "no
-   such incidente" from ScrapeGW synthetic responses. ~5 lines
-   in `scrape_processo_http`.
-4. **Document the two-axis regime in `rate-limits.md § Wall
-   taxonomy`** — add explicit note that p95 `wall_s` contributes
-   to regime without the WAF-shape filter.
+1. **+1 h: confirm all 4 shards healthy.** Probe
+   `scripts/probe_sharded.py`; every shard should have ≥ 500
+   fresh records, all in `warming` / `under_utilising`.
+2. **+8 h: first dense-territory OK observation.** Shard 3
+   (HC 68 250..1) will hit pre-computer-era paper HCs first —
+   heavy PDF workloads. Log first OK wall_s.
+3. **`filter_skip` + `body_head` instrumentation** (~30 min).
+   Queued for any quiet slot; not blocking.
+4. **Write consolidated `REPORT.md` on completion.** Merge 4
+   shard state files, compute global fail/ok/regime distribution,
+   archive per-shard dirs.
 
 ---
 
@@ -271,447 +187,111 @@ Sweep artifacts: `docs/sweep-results/2026-04-17-hc-full-backfill/`.
 
 ## What just landed
 
-- **Centralized progress file (2026-04-18).** This file replaces
-  `docs/handoff.md`. The pre-consolidation handoff is preserved at
-  `docs/progress_archive/2026-04-18_0130_handoff-pre-consolidation.md`.
-  Convention documented in `CLAUDE.md § Progress tracking`.
-- **WAF-detection + proxy-rotation pipeline (2026-04-17 evening).**
-  Four commits land the full Phase 1 / Phase 2 WAF-handling stack:
-  - `b960568` — **CliffDetector** (rolling-window regime classifier) +
-    **ProxyPool** (time-based proactive IP rotation, 270 s default,
-    safely under STF's L1 window). Regime written into
-    `sweep.log.jsonl` per record; stop-on-collapse replaces the
-    circuit-breaker blind spot. `docs/rate-limits.md § Wall taxonomy
-    and severity timeline` + operating-regime table documents the
-    signal-to-response map.
-  - `98ad84f` — **Credential redaction** in driver logs (`_redact_proxy`
-    strips userinfo from every proxy URL before it hits stdout or
-    `sweep.log.jsonl`) + **`.gitignore`** patterns for `/config/`,
-    `proxies.txt`, `proxies*.txt`, `*.proxies`.
-  - `6cde257` — **`--throttle-sleep` removed** from `run_sweep.py`
-    CLI. D-data + V-evidence showed retry-403 + cooldowns dominate
-    per-process pacing; proxy rotation addresses the binding
-    constraint. Parameter retained in `iterate_with_guards()` for
-    the PDF sweep (different host, real pacing effect).
-  - `f5497d4` — CliffDetector **WAF-shape fix** + 30 s floor on
-    reactive rotation. Fix narrows the fail-rate signal to records
-    with `wall_s > 15 s` OR `http_status in {403, 429, 5xx}` OR
-    non-empty `retries`. 221/221 unit tests green. The canary gave
-    a divergent result (documented above); live-backfill evidence
-    at 10× scale confirms the fix works on realistic traffic.
-  - `b5cca20` — proxy canary REPORT (both runs).
-  - **Provider**: ScrapeGW, residential Brazilian IPs. Pool now 10
-    **distinct** session tokens after the user updated `proxies.txt`
-    via ScrapeGW's session-duration dashboard setting. Rotation
-    every 270 s, 4 min cooldown. Bandwidth budget tracking is the
-    binding economic constraint for full-backfill scale (~25–30 GB
-    for the 216 k HC backfill plus ~10–20 GB for PDFs).
-- **Full HC backfill is running via proxy rotation (2026-04-18 01:38 UTC).**
-  Old single-IP sweep was SIGTERM'd cleanly at 16 709 records
-  (13 943 ok preserved). Relaunched via updated
-  `scripts/launch_hc_backfill.sh` — added idempotency guard around
-  the state-merge bootstrap (skips if the backfill state already has
-  entries, prevents overwriting accumulated progress on relaunch).
-  Current position: record ~550/273 000, running at ~1.16 rec/sec,
-  deep in the 100 %-fail unallocated-HC zone (HC 273 000..272 000).
-  First OKs expected around record ~2 000 (HC 270 000). Regime stays
-  in `under_utilising` throughout the 100 %-fail traversal — see the
-  lab-notebook observation for full H1 validation at scale.
-- **HC backfill sweeps Z / T / U / V** (2026-04-17 PM, same session). Total **+3,095 ok** this session (+ 510 from V partial = ~3,605 new HCs). All four used the new `--items-dir` flag (per-process JSONs native, no replay needed). Rows appended to `docs/sweep-results/2026-04-17-backfill-log.md`:
-  - **Z** (2025, 258105..259104): 828 ok / 135 fail / 0 err — resumed after early SIGKILL; ~84 min wall.
-  - **T** (2015, 128651..129650): 902 ok / 98 fail / 0 err — 61.7 min, first paper-era cohort, 2 WAF cycles absorbed.
-  - **U** (2014, 123001..124000): 855 ok / 145 fail / 0 err — ~80 min, 3 WAF cycles absorbed (403×14 worst).
-  - **V** (2013, 118201..119200): **partial** — 510 ok / 128 fail / 0 err at 638/1000, SIGTERM'd at ~57 min after persistent WAF pressure. Resumable via `--resume`.
-- **Two-layer WAF model documented.**
-  Sweep V's 15 403 cycles in 638 processes yielded enough data to separate the fast per-request throttle (layer 1, absorbable by retry-403) from the slow per-IP reputation counter (layer 2, only drained by no-request wall-clock time). Full analysis + cooldown parameter estimates + mitigation proposals (including IP rotation) in [`docs/rate-limits.md § Two-layer model (sweep V, 2026-04-17)`](rate-limits.md#two-layer-model-sweep-v-2026-04-17). Headline: **tighter throttle doesn't help, cooldowns between sweeps do**; 60–90 min between paper-era sweeps, overnight for full cold reset.
-- **SSL cert verification bug fix + stranded-PDF recovery (2026-04-17 PM).**
-  `src/utils/pdf_utils.py:88` narrowly whitelisted `sistemas.stf.jus.br` for
-  `verify=False`, so `digital.stf.jus.br` (newer monocratic-decisions API, hit
-  by 2023+ sweeps) silently failed SSL and dropped PDFs to URLs. Sweeps I, J, Z
-  were affected. Broadened to any `*.stf.jus.br` host via `_is_stf_host()` +
-  urlparse. Unit test `tests/unit/test_pdf_utils_ssl_hosts.py`.
-  Separately found **3,700 PDF texts stranded in `data/pdf/<sha1>.txt.gz`**
-  — post-sweep replay ran with `fetch_pdfs=False` so cached text didn't land in
-  the JSONs. New `scripts/replay_sample_jsons.py` does surgical URL→cached-text
-  substitution; healed all 3,700 across 1,484 sample JSONs in 15.6s.
-  Remaining genuinely-missing from cache: 8 sistemas + 15 digital URLs.
-- **Sweep driver writes per-process JSON natively.** New `--items-dir` flag on
-  `scripts/run_sweep.py` eliminates the post-sweep cache-hot replay step
-  (open TODO #1 in `docs/hc-who-wins.md`). On each ok result, atomic-writes
-  `<items-dir>/judex-mini_<CLASSE>_<n>-<n>.json`. Tests in
-  `tests/unit/test_sweep_items_dir.py`. 166/166 tests green.
-- **First HC ground-truth fixture.** `tests/ground_truth/HC_158802.json` —
-  Gilmar Mendes, 2018 vintage, 4 partes, 60 andamentos, non-empty
-  sessao_virtual with votes. `validate_ground_truth.py` now covers 6 classes
-  (ACO / ADI / AI / HC / MI / RE). Matched on first run.
-- **Selenium retirement (phase 1).** 2026-04-17. 19 files moved to `deprecated/`, `main.py` defaults to `--backend http`, `--backend selenium` errors with a deprecation message, `selenium` moved to the `[selenium-legacy]` opt-in extra. 158/158 unit tests green post-move. Spec: `docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
-- **Validation sweeps A–E.** Full writeups under `docs/sweep-results/`. Highlights: C tripped the WAF at process 108 (surfaced the 403-not-429 behavior); D's three pacing probes produced the validated defaults; E ran 429/429 ok with the shipped defaults before being SIGTERM'd to free the WAF for G's density probe.
-- **Robust sweep driver.** Append-only `sweep.log.jsonl` + atomic `sweep.state.json` + derived `sweep.errors.jsonl` + `report.md`. Resume, retry-from, signal-safe shutdown, circuit breaker. Shared primitives in `src/sweeps/shared.py`, reused by `src/sweeps/pdf_driver.py`.
-- **Validated pacing defaults** (commit `2a2833d`). See [`docs/rate-limits.md § Validated defaults`](rate-limits.md#validated-defaults-commit-2a2833d).
-- **HC class-size refresh (2026-04-16 evening).** Ceiling 270,994; ~216k extant. Bimodal density. Full numbers in [`docs/process-space.md`](process-space.md).
-- **HC notebook-strand layout (2026-04-17).** Hub-and-strand pattern across five marimo notebooks. Full layout + findings in [`docs/hc-who-wins.md § Notebook layout`](hc-who-wins.md#notebook-layout--investigation-strands-2026-04-17).
-- **FGV §b outcome rule adopted project-wide (2026-04-17).** Ported the *taxa de sucesso* definition from *IV Relatório Supremo em Números — O Supremo e o Ministério Público* (Falcão, Moraes & Hartmann, FGV DIREITO RIO, 2015, p. 50) into `src/analysis/legal_vocab.py` as `FGV_FAVORABLE_OUTCOMES` / `FGV_UNFAVORABLE_OUTCOMES`, plus a `CLASSE_OUTCOME_MAP` that declares which verdict labels can legitimately terminate each classe (writ / appeal / action families + universal terminators). Two test files pin the invariants: `tests/unit/test_legal_vocab_fgv.py` (exhaustive + disjoint partition), `tests/unit/test_classe_outcome_map.py` (every label is reachable, every classe set is a subset of `OUTCOME_VALUES`). Justification in [`docs/hc-who-wins.md § Research question`](hc-who-wins.md#research-question) — comparability with FGV's MP baselines, defensibility of a peer-reviewed rule, honest framing of `nao_conhecido` as a loss. Lit review updated at [`docs/hc-who-wins-lit-review.md § FGV IV Relatório`](hc-who-wins-lit-review.md). All five marimo notebooks under `analysis/` refreshed: `hc_explorer.py`, `hc_top_volume.py`, `hc_famous_lawyers.py` fully adopt the rule (imports + denominator swap from merits-only to final-only); `hc_admissibility.py`, `hc_minister_archetypes.py` keep their three-bucket decompositions (they're deliberately orthogonal to the FGV collapse) with added framing prose. 190/190 unit tests green. Semantic change readers will notice: `fav_pct` drops for advocates whose cases get heavy procedural rejection — `nao_conhecido` / `prejudicado` / `extinto` now count as losses instead of being excluded from the denominator.
+- **WAF-handling stack + proxy rotation (2026-04-17 → 2026-04-18).**
+  See archived cycle for the full five-commit chain (`b960568` …
+  `b5cca20`). Headline: CliffDetector rolling-window regime
+  classifier + time-based proxy-pool rotation + credential
+  redaction + `--throttle-sleep` removal + WAF-shape fail filter +
+  30 s floor on reactive rotation. 221/221 unit tests green. Live
+  HC backfill relaunched via `--proxy-pool` with 10 distinct
+  ScrapeGW Brazilian residential sessions. Fix validated in
+  production at 900-record scale.
+- **Progress-tracking convention landed** (`bb54e48`). `handoff.md`
+  consolidated into this file; convention documented in
+  `CLAUDE.md § Progress tracking`. Archive format:
+  `docs/progress_archive/YYYY-MM-DD_HHMM_<slug>.md`.
+- **Sharded-sweep primitive (2026-04-18).** New scripts:
+  `scripts/shard_csv.py` (range-partitioning), `scripts/probe_sharded.py`
+  (cross-shard state union), `scripts/launch_hc_backfill_sharded.sh`
+  (idempotent N-shard launcher with per-shard state bootstrap).
+  Enables N concurrent workers against disjoint proxy pools +
+  disjoint CSV slices, sharing the `data/output/`,
+  `data/html/`, and `data/pdf/` caches safely (pdf_cache now
+  writes atomically via tempfile + `os.replace`).
+- **Canary v2 (10 distinct sessions) resolved the
+  canary-vs-backfill divergence.** Report at
+  [`docs/sweep-results/2026-04-17-proxy-canary/REPORT-v2.md`](sweep-results/2026-04-17-proxy-canary/REPORT-v2.md);
+  v1 archived at
+  [`docs/sweep-results/2026-04-17-proxy-canary-v1-1session/`](sweep-results/2026-04-17-proxy-canary-v1-1session/).
+- **Two-axis regime documented** in
+  [`docs/rate-limits.md § The two CliffDetector axes`](rate-limits.md#the-two-cliffdetector-axes).
 
 ## In flight
 
-### HC full backfill via proxy rotation (PRIMARY — 2026-04-18)
+### 4-shard concurrent HC backfill
 
-The proxy-pooled full backfill at `docs/sweep-results/2026-04-17-hc-full-backfill/`
-**subsumes** the individual per-year Track 1 sweeps (T/U/V/W/X/Y)
-below. It descends through the whole 273k-HC space with `--resume`,
-so paper-era cohorts will be covered as the sweep reaches them.
-ETA to reach HC 118 201 (V range): at current ~1.16 rec/sec, the
-155 000 records between here and there = ~37 hours wall time if the
-100 %-fail unallocated zones keep fail rates high, faster as density
-rises. Monitor via the probes in the lab-notebook section above.
+- **Location:** `docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`
+- **Shard PIDs** (at launch): 740399 / 740407 / 740416 / 740422
+- **Proxy pools** (all disjoint): `proxies.txt` (10) / `.b.txt`
+  (10) / `.c.txt` (12) / `.d.txt` (10) = 42 total sessions
+- **HC range per shard:** shard-0 273000..204751, shard-1
+  204750..136501, shard-2 136500..68251, shard-3 68250..1
+- **Launcher:** `scripts/launch_hc_backfill_sharded.sh`
+  (idempotent — re-running leaves already-seeded shards alone;
+  skips labels already in-flight)
+- **State at relaunch:** 13 943 ok records seeded across the 4
+  shards (6 698 / 6 276 / 964 / 5). 2 766 previously-failed
+  HCs re-enter the work queue via `--resume` semantics.
+- **Stop cleanly:**
+  `xargs -a docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shards.pids kill -TERM`
+- **Progress probe:** see [Reference § Live sharded-sweep probe](#live-sharded-sweep-probe)
 
-The older per-year sweep queue is preserved below for reference, but
-W/X/Y probably don't need to run separately unless proxy-pooled
-backfill stalls or corpus sparsity in the paper era warrants a
-tighter-range probe.
+## Next steps — queue
 
-### HC backfill — V resume + W launch (DEFERRED — superseded by proxy backfill)
-
-**Current state after 2026-04-17 PM session**: 12 930 HCs scraped
-across sweeps I–S (from earlier) + Z/T/U (full) + V (partial). Track 1
-queue (pre-2016) is 1 done (T) + 1 done (U) + 1 partial (V) + W/X/Y
-pending. Extension plan at [`docs/hc-backfill-extension-plan.md`](hc-backfill-extension-plan.md).
-
-**Important: respect WAF cooldowns.** See [`docs/rate-limits.md § Two-layer model`](rate-limits.md#two-layer-model-sweep-v-2026-04-17) for the
-full rationale. Short version: wait **≥30 min** before resuming V; wait
-**60–90 min** between paper-era sweeps; prefer **overnight** before
-launching W after V on the same IP. Tightening `--throttle-sleep`
-doesn't help — cooldown is wall-clock time, not request spacing.
-
-**Resume V** (completes HC 118743..119200):
-
-```bash
-PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv tests/sweep/hc_118201_119200.csv \
-    --label hc_118201_119200 \
-    --out docs/sweep-results/2026-04-17-V-hc-118201-119200 \
-    --items-dir data/output/sample/hc_118201_119200 \
-    --resume
-```
-
-**Launch W** (2012 fill, HC 113648..114647) — only after V is done *and* a
-multi-hour cooldown:
-
-```bash
-uv run python -c "import csv; w=csv.writer(open('tests/sweep/hc_113648_114647.csv','w')); w.writerow(['classe','processo']); [w.writerow(['HC',n]) for n in range(113648,114648)]"
-mkdir -p docs/sweep-results/2026-04-18-W-hc-113648-114647 data/output/sample/hc_113648_114647
-
-PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv tests/sweep/hc_113648_114647.csv \
-    --label hc_113648_114647 \
-    --out docs/sweep-results/2026-04-18-W-hc-113648-114647 \
-    --items-dir data/output/sample/hc_113648_114647
-```
-
-### Sweep E close-out (deprioritized)
-
-Sweep E stopped at 429/1000 via SIGTERM (clean) and is resumable. The
-partial is sufficient evidence that the shipped defaults are
-production-viable; a 1000-process ceiling datapoint is nice-to-have
-but not necessary. The HC backfill takes priority over finishing E.
-
-## Next steps, ordered
-
-### 1. Resume V + launch W (Track 1 completion)
-
-See § *In flight* above. Respect the cooldown windows. After V + W,
-Track 1 pre-2016 coverage has 2013/2014/2015 all at ≥500 ok; the
-original plan had X (2011) and Y (2010) as optional low-priority.
-Revisit after V + W land.
-
-### 2. Decide on IP rotation / mitigation
-
-Based on session's two-layer WAF evidence, tighter throttle won't
-shorten the remaining backfill. [`docs/rate-limits.md § Mitigation proposals`](rate-limits.md#mitigation-proposals) lists options ranked by cost:
-
-- **Option 1** (cooldowns + schedule) is sufficient for the remaining
-  queue spread over a few days.
-- **Option 2** (proxy rotation) is the shortest path to reducing
-  wall-clock; integration point is `src/scraping/http_session.new_session()`.
-- **Option 5** (library-only distribution) is the posture-clean
-  answer — keep parser + caching, ship without our IP doing the
-  scraping.
-
-Decision depends on whether the research question needs the full 216k
-backfill or the current ~13k sample is sufficient. Hook back into
-[`docs/hc-who-wins.md`](hc-who-wins.md) for the "does 1k cases answer
-the question?" framing.
-
-### 3. Circuit breaker blind spot for V-style patterns
-
-Even with retry-403 + pacing, the V WAF pattern showed the existing
-circuit breaker has a blind spot: it trips on `status=error`, but
-tenacity-absorbed 403s stay `status=ok` regardless of wall time.
-
-Implementation sketch for a secondary breaker: `collections.deque(maxlen=N)`
-of recent `wall_s` values in `run_sweep.main`; trip if median of the
-last N exceeds threshold (e.g. median wall > 20 s of recent 25 procs
-= WAF engaged, stop). Keeps the `status=error` breaker from
-`src/sweeps/shared.py` for the original failure mode. ~30 min of
-work. Was called out in [`docs/rate-limits.md § Operational implications`](rate-limits.md#operational-implications).
-
-### 4. Circuit breaker for the sweep driver (original note, superseded)
-
-Even with retry-403 + pacing, pathological WAF escalation could
-cascade. Abort the sweep if error rate crosses X % in a rolling
-window of N processes.
-
-Implementation sketch: `collections.deque(maxlen=N)` of recent statuses in
-`run_sweep.main`; after each process, if more than X % of the deque is
-non-ok, write errors, write state, exit 2 with a clear message.
-Tunable via two CLI flags. Minimum viable: N=25, X=50 %. ~15 min of work.
-
-### 5. Scope the HC deep dive
-
-See "In flight" above. Probe HCs 200000..201000 first to measure
-completion + rate before a bigger commitment. Ask the user what the
-deep dive wants to answer — that shapes what data matters.
-
-### 6. Outcome derivation
-
-`StfItem` has no "winner" / "verdict" field. The data is scattered
-and determining the outcome requires:
-
-- Parsing `sessao_virtual[-1].voto_relator` for verdict phrases (`julgo procedente|improcedente|procedente em parte|nego provimento|dou provimento|não conheço`).
-- Checking `sessao_virtual[-1].votes` — if `diverge_relator` is empty AND `pedido_vista` is empty or resolved in a later session, the relator's vote is the outcome.
-- Checking `andamentos` for `TRANSITADO(A) EM JULGADO` and event names like `JULGADO PROCEDENTE`, `EMBARGOS RECEBIDOS EM PARTE` — the `complemento` field often carries the full decision text.
-
-Worth adding as a derived field during parse (`src/scraping/extraction/sessao.py`)
-OR as a post-processing pass. Brazilian legal vocabulary is richer than
-the table above (`prejudicado`, `extinto sem resolução de mérito`,
-`conversão em diligência`, …), so a first pass will have a meaningful
-`unknown` / `pending` tail. Needed by the HC deep dive if it wants
-outcome statistics.
-
-### 7. Retry sweep C's 893 blocked processes
-
-Sweep C's `docs/sweep-results/2026-04-16-C-full-1000.md` predates the
-robust driver — flat markdown file, no `sweep.errors.jsonl`. So
-`--retry-from` can't be pointed at it directly. Two options:
-
-- **Re-run the full range under the new driver** once the posture is chosen. Uses `--resume` to skip the 107 already in cache.
-- **Synthesize an errors.jsonl** from the C report's "status=error" rows (one-off script) to feed `--retry-from`.
-
-First is more honest about wall time; second is faster to start.
-
-### 8. Selenium retirement phase 2
-
-Phase 2 (re-capture ground-truth fixtures under HTTP, audit
-`deprecated/` self-containment) and phase 3 (CI check that no live
-file imports from `src._deprecated`) still pending. Spec in
-`docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
-
-### 9. PDF extraction quality
-
-Currently PDFs go through `pypdf.PdfReader.extract_text(extraction_mode="layout")`.
-You'll see warnings like `Rotated text discovered. Output will be incomplete.`
-— STF stamps signed documents with rotated watermarks and the extractor
-drops content around them.
-
-**Unstructured-API OCR path** (`scripts/reextract_unstructured.py`,
-2026-04-17) walks `pdf_targets` output, re-downloads cache entries
-shorter than `--min-chars`, POSTs to Unstructured's SaaS API with
-`strategy=hi_res`, overwrites `data/pdf/<sha1>.txt.gz` when the new
-extract is longer. First production run:
-`docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/`.
-
-**Known gap**: the script does *not* route through
-`src/sweeps/pdf_driver.run_pdf_sweep` — it runs an inlined loop, so
-no `pdfs.state.json` / `pdfs.log.jsonl` / `requests.db` are produced.
-Migration is a small follow-up (pass a PDF-+-OCR `FetcherFn` to
-`run_pdf_sweep`). See the script's docstring for the full list.
-
-### 10. Pre-existing cleanup (Selenium side)
-
-Surfaced during the dedup review; untouched because Selenium path has
-no automated coverage:
-
-- `deprecated/extraction/extract_peticoes.py:28-30`: `data_match` assigned from `bg-font-info` then immediately overwritten by `processo-detalhes`. First match is dead.
-- `deprecated/extraction/extract_deslocamentos.py:113-152`: `_clean_extracted_data` looks dead — `_clean_data_fields` is the one called from `_extract_single_deslocamento`. Verify with grep.
-- `src/data/types.py:47-78`: commented-out dataclasses. Git remembers; delete.
-
-Not blocking. Safe to defer.
+1. **Active-task follow-ups** (see above).
+2. **Canary divergence investigation** (when spare time).
+3. **Circuit breaker blind spot for V-style patterns.** Secondary
+   breaker on rolling-median `wall_s` — noted in archived cycle's
+   strategic section. Now partially addressed by CliffDetector's
+   p95 axis, but the explicit rolling-median breaker would catch
+   cases the p95 axis misses (e.g. a single 120 s outlier doesn't
+   move p95 but does signal WAF adaptive block).
+4. **Selenium retirement phase 2.** Re-capture ground-truth
+   fixtures under HTTP + audit `deprecated/` self-containment.
+   Spec at `docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
+5. **PDF extraction quality follow-ups.** See archived cycle for
+   the Unstructured OCR pipeline state + known gaps around
+   `scripts/reextract_unstructured.py` not routing through
+   `pdf_driver`.
 
 ## Known limitation — denominator composition and right-censoring
 
-Under FGV's §b rule (now the project default — see the *FGV §b
-outcome rule adopted* entry above), our `fav_pct` denominator is the
-set of cases that have a recognized terminating verdict. Pending
-cases are excluded, same as FGV's "excluindo interlocutórias e
-liminares". This choice has real costs that matter more for us than
-they did for FGV, because our vintage mix is more varied than theirs.
-
-### What we do vs. what FGV did
-
-| Dimension              | FGV IV Relatório (2015)                               | judex-mini                                                                      |
-|------------------------|-------------------------------------------------------|---------------------------------------------------------------------------------|
-| Denominator            | Decisões que encerram; exclui interlocutórias/liminares | Outcomes with a recognized verdict label; excludes `None` (`derive_outcome` returned None) |
-| Pending cases          | Effectively absent — data cutoff Dec 2013 on 1988–2013 | Filtered out of the denominator, same as FGV in spirit                            |
-| Vintage maturity       | Fully retrospective, uniform maturity                    | Mixed: sweep I (2023 HCs, mature) vs sweep H (April 2026 HCs, mostly pending)     |
-| Parser-recall risk     | N/A — analytical DB, labels pre-assigned                 | `None` could mean "still pending" *or* "parser didn't recognize a real verdict"    |
-
-### Pros of the current rule
-
-1. **Interpretation is clean.** A rate computed over finished cases
-   answers "of the cases that have been decided, what fraction went
-   the filer's way?" — well-defined, defensible.
-2. **Comparability with FGV.** Different denominators would force a
-   methodology footnote every time we quote an FGV number next to ours.
-3. **Matches lived experience.** An advocate whose case is still open
-   hasn't lost it; classifying them as a loser penalizes them for
-   STF queue time.
-4. **Incrementally stable.** As pending cases resolve, the reported
-   rate updates smoothly — no retroactive relabeling.
-
-### Cons — why this bites us harder than it bit FGV
-
-1. **Selection bias via processing speed.** This is the big one.
-   STF decision latency is strongly outcome-correlated: `nego
-   seguimento` monocráticas close in weeks, `concedido` on the
-   merits typically requires a turma vote (6–18 months), contested
-   plenary HCs can sit for years. At any snapshot, the finished
-   sub-sample is **enriched in fast-processed outcomes** (denials,
-   procedural rejections) and **depleted in slow-processed
-   outcomes** (wins). Reported `fav_pct` on a fresh vintage
-   systematically underestimates the eventual steady-state rate.
-2. **Right-censoring thrown away.** A pending case is a classic
-   *right-censored observation* — we know it has been open for T
-   days without a terminating event, and T is informative about
-   the hazard. Dropping it throws that information away.
-   Kaplan-Meier on the "win curve" would use these cases properly.
-3. **Denominator shrinkage on fresh data.** Sweep H (100 HCs from
-   April 2026) has a huge `None` rate. Reporting `fav_pct` on
-   that cohort means dividing by a tiny number — Wilson CIs are
-   formally correct but point estimates read as meaningful when
-   they aren't.
-4. **Parser-gap pollution.** `None` conflates two different things:
-   (a) **genuinely pending** (right-censored, real statistical
-   phenomenon) and (b) **parser miss** (bug — a final verdict
-   exists, we just don't recognize it). Improving the parser shifts
-   reported rates without any change in the underlying population.
-5. **Temporal incomparability within our own corpus.** Our 2023
-   slice (mature) and our 2026 slice (fresh) have systematically
-   different "fraction observed" rates. Any time-trend comparison
-   is confounded with decision-latency trends unless (a) we
-   equalize observation windows or (b) use survival methods.
-
-### What FGV didn't have to worry about (and we do)
-
-FGV analyzed a 25-year historical window with a hard cutoff five
-months before publication — their pending fraction was tiny
-relative to the population, and maturity was uniform across the
-window. We run sweeps across vintages with very different
-maturity. FGV's simple rule, ported naively, is **more biased for
-us than it was for them**.
-
-### Recommended mitigations (not yet implemented)
-
-1. **Split `None` into `pending` vs `parser_gap`.** Heuristic: if
-   the case has andamentos but none match VERDICT_PATTERNS *and*
-   the last andamento is within the last 90 days → `pending`; else
-   → flag for parser-gap review. Cleans up con (4) immediately.
-2. **Report %-pending alongside every `fav_pct`.** Transparency:
-   readers see "60 % final, 40 % pending — preliminary."
-   Addresses con (3) without any methodology change.
-3. **Sensitivity analysis via bracketing.** Report two bounds: one
-   assuming all pending resolve favorably (upper), one assuming
-   all unfavorably (lower). Narrow band → rate is stable; wide
-   band → flag as under-determined. Standard in
-   partial-identification work. Addresses cons (1) and (3).
-4. **Kaplan-Meier win curves on mature vintages.** For the 216 k
-   backfill where right-censoring will dominate, adopt a survival
-   framework. Cox PH on andamentos timelines is the natural
-   extension. Lit review §11 already flagged this.
-
-Bottom line: we're doing exactly what FGV does — right choice for
-comparability, wrong choice for rigor on fresh data. The four
-mitigations above are the upgrade path when we publish the 216 k
-backfill numbers.
+Preserved from the archived cycle. Under FGV's §b rule (the
+project default — see [`docs/hc-who-wins.md § Research question`](hc-who-wins.md#research-question)),
+our `fav_pct` denominator is the set of cases with a recognized
+terminating verdict. Pending cases excluded. Real costs for mixed-
+vintage corpora: selection bias via processing speed,
+right-censoring thrown away, denominator shrinkage on fresh data,
+parser-gap pollution, temporal incomparability. Mitigations (not
+yet implemented): split `None` into `pending` vs `parser_gap`,
+report %-pending alongside every `fav_pct`, sensitivity analysis
+via bracketing, Kaplan-Meier win curves on mature vintages. Full
+discussion in
+[`docs/progress_archive/2026-04-18_0152_proxy-rotation-validated.md § Known limitation`](progress_archive/2026-04-18_0152_proxy-rotation-validated.md).
 
 ## Known gaps in the `sessao_virtual` port
 
-Worth knowing if you're debugging:
-
 - **Vote categories are partial** — only codes 7/8/9 land in the final `votes` dict. See [`docs/stf-portal.md § sessao_virtual`](stf-portal.md#sessao_virtual--not-from-abasessao).
-- **`documentos` values are mixed types**: string with extracted text (success) or original URL (fetch failed). Consumers must check `startswith("https://")`. Re-running the scraper picks up where failures left off via the URL-keyed PDF cache.
+- **`documentos` values are mixed types**: string with extracted text (success) or original URL (fetch failed). Consumers must check `startswith("https://")`.
 - **Tema branch has only one fixture test (tema 1020).** If you see drift there, probe another tema + add a fixture.
-- **No Sessão-branch support for "suspended" lists** — if STF ever returns a listaJulgamento mid-suspension with a different JSON shape, `parse_sessao_virtual` will pass through missing fields as empty strings. No known case.
 
 ---
 
 # Reference — how to run things
 
 ```bash
-# Unit tests (48 tests, <3s)
+# Unit tests (221 tests, <4 s)
 uv run pytest tests/unit/
 
-# Ground-truth validation (HTTP parity against 5 fixtures)
+# Ground-truth validation (HTTP parity against 6 fixtures)
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
 uv run python main.py -c ADI -i 2820 -f 2820 -o json -d data/output/test --overwrite
 
-# HTTP scrape without the PDF fetch (faster, documentos stay as URLs)
-uv run python main.py --no-fetch-pdfs -c AI -i 772309 -f 772309 -o json -d data/output/test --overwrite
-
 # Wipe caches
 rm -rf data  # HTML fragments, sessao JSON, PDF text
 ```
-
-## Marimo notebooks under `analysis/`
-
-HC analysis lives in five marimo notebooks — see
-[`docs/hc-who-wins.md § Notebook layout`](hc-who-wins.md#notebook-layout--investigation-strands-2026-04-17).
-
-```bash
-# interactive editor (opens a browser tab, full reactivity):
-uv run marimo edit analysis/hc_famous_lawyers.py
-
-# view-only:
-uv run marimo run analysis/hc_famous_lawyers.py
-
-# view-only, no auto-open browser — useful when running remotely
-# (WSL/SSH/container). Marimo prints a localhost URL; forward the port first.
-uv run marimo run --headless analysis/hc_famous_lawyers.py
-```
-
-Swap `hc_famous_lawyers.py` for any of `hc_explorer.py`,
-`hc_top_volume.py`, `hc_minister_archetypes.py`, `hc_admissibility.py`.
-
-### Exporting notebooks to HTML for sharing
-
-HTML export is the preferred artifact format: plotly charts stay
-**interactive** (hover, zoom, pan) because marimo embeds plotly.js +
-the figure JSON directly in the file. No server needed to open, no
-extra deps (HTML export is built into marimo itself; PDF export was
-tried and rejected — it rasterizes the charts and looks worse).
-
-```bash
-# all five notebooks → exports/html/*.html  (gitignored)
-./scripts/export_notebooks_html.sh
-
-# custom output dir
-OUT_DIR=/tmp/share ./scripts/export_notebooks_html.sh
-
-# one-off, single notebook
-uv run marimo export html --force analysis/hc_explorer.py -o /tmp/x.html
-```
-
-Typical sizes: `hc_explorer.html` ~3.7 MB (hub, heaviest), others
-90–145 KB. Each export runs the notebook from scratch in a headless
-kernel — ~13 s per notebook on this machine, ~1 min for the full
-batch. If you edit a notebook and need to re-share, re-run the
-script; it regenerates in place (`--force`).
-
-Known benign warning during export: `hc_explorer.py:40` emits a
-`FutureWarning` about the deprecated `pd.option_context("mode.use_inf_as_na", True)`
-call. Does not affect output; flagged here because you'll see it
-scroll by.
 
 ## Running sweeps
 
@@ -723,43 +303,101 @@ PYTHONPATH=. uv run python scripts/run_sweep.py \
     --parity-dir tests/ground_truth \
     --out docs/sweep-results/<date>-<label>
 
-# Long sweep with proxy rotation (the WAF lever that actually helps)
+# Long sweep with proxy rotation
 PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv tests/sweep/full_range_adi.csv \
+    --csv tests/sweep/<input>.csv \
     --label long_sweep \
-    --proxy-pool ~/.config/judex-mini/proxies.txt \
-    --parity-csv output/judex-mini_ADI_1-1000.csv \
-    --wipe-cache \
+    --proxy-pool proxies.txt \
     --out docs/sweep-results/<date>-<label>
 
-# Resume a sweep (skip already-ok processes)
+# Resume (skip already-ok processes)
 PYTHONPATH=. uv run python scripts/run_sweep.py \
     --csv <same-csv> --label <same> --out <same-dir> --resume
 
-# Retry only the failures from a prior sweep
+# Retry only previously-failed processes
 PYTHONPATH=. uv run python scripts/run_sweep.py \
     --retry-from docs/sweep-results/<dir>/sweep.errors.jsonl \
     --label <label>_retry \
     --out docs/sweep-results/<date>-<label>-retry
 ```
 
-**Stopping a running sweep cleanly.** The driver installs SIGINT/SIGTERM
-handlers (`scripts/run_sweep.py:517-524`). On signal it finishes the
-in-flight process, breaks the loop, then writes `sweep.errors.jsonl` +
-`report.md` and exits with its normal status code.
+**Stopping a running sweep cleanly.** The driver installs SIGINT/
+SIGTERM handlers. On signal it finishes the in-flight process,
+breaks the loop, then writes `sweep.errors.jsonl` + `report.md`
+and exits with its normal status code.
 
 ```bash
-# find the python process
-ps -ef | grep run_sweep | grep -v grep
-
-# clean stop (preferred) — finishes the in-flight process, writes all files
-kill -TERM <pid>
-
-# or Ctrl-C if the sweep is in the foreground (same SIGINT path)
+ps -ef | grep run_sweep | grep -v grep           # find the pid
+kill -TERM <pid>                                 # clean stop
+# or: pkill -TERM -f "run_sweep.*<label>"
 ```
 
-`SIGKILL` (`kill -9`) is a last resort: per-record writes are atomic so
-`sweep.log.jsonl` + `sweep.state.json` are always consistent and the
-run is resumable via `--resume`, but `sweep.errors.jsonl` and
-`report.md` won't be written. A `--resume` run (even one that skips
-everything) regenerates both at its end.
+`SIGKILL` is last resort: per-record writes are atomic so
+`sweep.log.jsonl` + `sweep.state.json` are always consistent and
+the run is resumable via `--resume`, but `sweep.errors.jsonl` and
+`report.md` won't be written. A `--resume` run regenerates both.
+
+## Live sharded-sweep probe
+
+Check progress across all 4 shards without burning context.
+Returns in <1 s.
+
+```bash
+# union of all 4 shard states + per-shard regime + mtime
+PYTHONPATH=. uv run python scripts/probe_sharded.py \
+    --out-root docs/sweep-results/2026-04-17-hc-full-backfill-sharded
+
+# count rotation events across all shards
+grep -cH "\[rotate\]" \
+    docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-*/driver.log
+
+# confirm all 4 shard workers still alive
+pgrep -af "run_sweep.*hc_full_backfill_shard"
+```
+
+## Launching sharded sweeps
+
+```bash
+# Shard a CSV into N range-partitions
+PYTHONPATH=. uv run python scripts/shard_csv.py \
+    --csv tests/sweep/<input>.csv \
+    --shards 4 --out-dir tests/sweep/shards/
+
+# Launch N concurrent backfill shards (HC-specific launcher,
+# reads 4 pre-staged proxy files at repo root)
+nohup ./scripts/launch_hc_backfill_sharded.sh \
+    > docs/sweep-results/<dir>/launcher-stdout.log 2>&1 & disown
+
+# Stop all shards cleanly
+xargs -a docs/sweep-results/<dir>/shards.pids kill -TERM
+```
+
+## Marimo notebooks under `analysis/`
+
+HC analysis lives in five marimo notebooks — see
+[`docs/hc-who-wins.md § Notebook layout`](hc-who-wins.md#notebook-layout--investigation-strands-2026-04-17).
+
+```bash
+# interactive editor (opens a browser tab, full reactivity)
+uv run marimo edit analysis/hc_famous_lawyers.py
+
+# view-only
+uv run marimo run analysis/hc_famous_lawyers.py
+
+# headless (WSL/SSH/container) — marimo prints a localhost URL; forward the port first
+uv run marimo run --headless analysis/hc_famous_lawyers.py
+```
+
+Swap for `hc_explorer.py`, `hc_top_volume.py`,
+`hc_minister_archetypes.py`, `hc_admissibility.py`.
+
+HTML export (interactive plotly preserved):
+
+```bash
+# all five → exports/html/*.html (gitignored)
+PYTHONPATH=. uv run python scripts/export_notebooks_html.py
+
+# single notebook or custom out-dir
+PYTHONPATH=. uv run python scripts/export_notebooks_html.py --only hc_famous_lawyers
+PYTHONPATH=. uv run python scripts/export_notebooks_html.py --out-dir /tmp/share
+```

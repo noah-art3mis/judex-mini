@@ -24,8 +24,20 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any, Optional
+
+
+def _atomic_write(path: Path, payload: bytes) -> None:
+    # Writes must be atomic because concurrent sharded sweeps can race on
+    # the same sha1(url) key when PDFs are cross-referenced between cases.
+    # tempfile-then-os.replace avoids half-written gzip bytes; the pid
+    # suffix keeps racers from stomping each other's tmp file.
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
+    tmp.write_bytes(payload)
+    os.replace(tmp, path)
 
 CACHE_ROOT: Path = Path("data/pdf")
 
@@ -50,9 +62,7 @@ def read(url: str) -> Optional[str]:
 
 
 def write(url: str, text: str) -> None:
-    p = _text_path(url)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(gzip.compress(text.encode("utf-8")))
+    _atomic_write(_text_path(url), gzip.compress(text.encode("utf-8")))
 
 
 def read_elements(url: str) -> Optional[list[dict[str, Any]]]:
@@ -76,7 +86,5 @@ def write_elements(url: str, elements: list[dict[str, Any]]) -> None:
     keeps downstream consumers free to re-derive flat text, strip
     Header/Footer, group by page, etc.
     """
-    p = _elements_path(url)
-    p.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(elements, ensure_ascii=False).encode("utf-8")
-    p.write_bytes(gzip.compress(payload))
+    _atomic_write(_elements_path(url), gzip.compress(payload))
