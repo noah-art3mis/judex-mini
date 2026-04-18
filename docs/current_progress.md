@@ -164,6 +164,53 @@ _(append-only log. UTC timestamps.)_
   destroyed ~13 k scientific records. Rule confirmed: **always
   verify before deleting gitignored data**; the git safety net
   doesn't cover it.
+- **2026-04-18 UTC (parallel strand) — lawyer-facing reports
+  rewritten + CLI consolidated into `judex` hub.** Independent
+  of the shard monitoring, in parallel:
+  - **5 marimo notebooks** (`hc_famous_lawyers`,
+    `hc_admissibility`, `hc_top_volume`,
+    `hc_minister_archetypes`, `hc_explorer`) rewritten end-to-end
+    in Portuguese juridical idiom — dropped "shrinkage", "IC
+    Wilson", "empirical Bayes", "HC-mill", "arquétipos",
+    "procedural punt" and other data-science terms from visible
+    prose; chart titles and column labels translated
+    (`fav_pct` → `% procedência`, `wins` → `procedência`,
+    `losses on merits` → `denegação de mérito`, etc.);
+    executive conclusion moved to the top of each notebook;
+    caveats compacted as "Nota metodológica" at the bottom.
+    `hc_famous_lawyers` absorbed the case readings from
+    `docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr/READINGS.md`
+    inline (HC 135.027 Lama Asfáltica, HC 135.041 OSCIPs /
+    Lei 9.296, HC 173.047 3-2 detail, HC 188.395 HC-COVID,
+    HC 202.903 Missawa), added a stacked-bar plot of outcomes
+    per advogado. Five HTMLs re-exported and audit-validated
+    (14 banned terms × 5 files = 70 checks, all pass).
+  - **`judex` console script** wired via `[project.scripts]`
+    in `pyproject.toml`; CLI implementation lives in
+    `src/cli.py` (so it's editable-installed by `uv sync`),
+    `main.py` collapsed to a 12-line shim.
+  - **Seven argparse scripts → five native Typer subcommands.**
+    Collapsed `scrape` into `varrer-processos` (range mode
+    auto-synthesises a CSV + auto-defaults `--rotulo` and
+    `--saida`). Collapsed `fetch-pdfs` + `reextract` into
+    `varrer-pdfs` with three modes: default is two-pass pypdf
+    + OCR rescue; `--sem-ocr-resgate` for pypdf only; `--ocr`
+    for OCR only. Graceful fallback when
+    `UNSTRUCTURED_API_KEY` is absent (skips rescue with yellow
+    warning instead of exiting non-zero). Retired
+    `scripts/export_notebooks_html.sh` in favour of
+    `judex exportar`. Retired `--backend selenium` CLI guard
+    (invariant pinned by `test_http_backend_no_selenium.py`).
+    Retired `tests/unit/test_main_backend.py` (was testing the
+    removed flag).
+  - **Portuguese command names + help text** throughout:
+    `varrer-processos / varrer-pdfs / exportar / validar-gabarito
+    / sondar-densidade`. Long flags in Portuguese (`--classe`,
+    `--processo-inicial`, `--saida`, `--rotulo`, `--retomar`,
+    `--simular`, `--ocr-resgate`, `--min-caracteres`), short
+    flags preserved (`-c -i -f -o -d -l -g`).
+  - **Tests: 217 passing** (down from 221 — 4 backend tests
+    retired with the flag). Zero regressions.
 
 ## Decisions
 
@@ -306,6 +353,34 @@ Meta-learnings worth carrying forward to future sessions:
   churn in `git status`. `data/output/sample/` merged into
   `data/cases/HC/` (13 018 distinct HCs preserved; 17 674 total
   now). Full spec at [`docs/data-layout.md`](data-layout.md).
+- **`judex` console script hub (2026-04-18, parallel strand).**
+  Every CLI surface — scrape, sweep, PDF download, OCR
+  re-extract, notebook HTML export, ground-truth diff, density
+  probe — now goes through `uv run judex <cmd>`. Five
+  subcommands, all Typer-native with Portuguese help text:
+  `varrer-processos` (absorbed scrape), `varrer-pdfs`
+  (absorbed fetch-pdfs + reextract under `--ocr-resgate` /
+  `--ocr` flags, with OCR rescue on by default + graceful
+  fallback when `UNSTRUCTURED_API_KEY` is absent), `exportar`,
+  `validar-gabarito`, `sondar-densidade`. Implementation in
+  `src/cli.py`; `main.py` is a thin shim that re-exports
+  `app`. Entry point wired via `[project.scripts] judex =
+  "src.cli:app"`. 217/217 unit tests green. Retired
+  `scripts/export_notebooks_html.sh` and
+  `tests/unit/test_main_backend.py` (both obsolete after the
+  collapse).
+- **Five lawyer-facing HC reports rewritten in Portuguese
+  forensic idiom (2026-04-18).** All five marimo notebooks
+  (`hc_famous_lawyers`, `hc_admissibility`, `hc_top_volume`,
+  `hc_minister_archetypes`, `hc_explorer`) stripped of
+  data-science jargon; executive conclusions moved to the
+  top; chart titles/column labels Portuguese-native;
+  `hc_famous_lawyers` absorbed five case readings inline
+  (HC 135.027, HC 135.041, HC 173.047 3-2 detail, HC 188.395
+  HC-COVID, HC 202.903). Five HTMLs in `exports/html/` audit-
+  pass 14 banned-term checks. Target audience: the lawyer
+  reading the report, not the data scientist who built the
+  pipeline.
 
 ## In flight
 
@@ -378,7 +453,7 @@ uv run pytest tests/unit/
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run judex coletar -c ADI -i 2820 -f 2820 -o json -d data/cases/ADI --sobrescrever
+uv run judex varrer-processos -c ADI -i 2820 -f 2820 --saida runs/coletas/ADI-2820
 
 # Wipe all regenerable caches (safe; HC case JSONs under data/cases/ survive)
 rm -rf data/cache  # HTML fragments, sessao JSON, PDF text, requests.db
@@ -495,7 +570,7 @@ uv run judex exportar --diretorio-saida /tmp/share
 ```
 
 The same hub exposes the scraper and every sweep-adjacent script
-— `coletar / exportar / varredura / pdfs / validar-gabarito /
+— `varrer-processos / varrer-pdfs / exportar / validar-gabarito /
 sondar-densidade`. Run `uv run judex --help` for the list;
 `uv run judex <cmd> --help` shows each subcommand's flags
 (Portuguese-native, with English flags preserved on the underlying

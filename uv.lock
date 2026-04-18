@@ -1091,7 +1091,7 @@ wheels = [
 [[package]]
 name = "judex-mini"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "altair", extra = ["all"] },
     { name = "beautifulsoup4" },

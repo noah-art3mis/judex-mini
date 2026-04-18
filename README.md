@@ -86,10 +86,15 @@ ser feito uma vez (e a cada `git pull` que mexa nas dependências).
 Para conferir que ficou tudo ok:
 
 ```bash
-uv run python main.py --help
+uv run judex --help
 ```
 
-Deve aparecer a tela de ajuda com todas as opções.
+Deve aparecer o menu de subcomandos (`varrer-processos`,
+`varrer-pdfs`, `exportar`, `validar-gabarito`, `sondar-densidade`).
+Para
+ver as opções de cada um: `uv run judex <comando> --help`. (O
+comando longo `uv run python main.py …` também funciona — é
+apenas um atalho para o mesmo hub.)
 
 ---
 
@@ -98,7 +103,7 @@ Deve aparecer a tela de ajuda com todas as opções.
 Comando mínimo para baixar **um único processo** (ex.: `HC 135041`):
 
 ```bash
-uv run python main.py -c HC -i 135041 -f 135041 -o json
+uv run judex varrer-processos -c HC -i 135041 -f 135041
 ```
 
 O que cada pedaço significa:
@@ -113,10 +118,20 @@ O que cada pedaço significa:
 Se tudo deu certo, o arquivo fica em
 `data/output/judex-mini_HC_135041.json`.
 
-> **Sempre use `uv run python main.py ...`**, nunca `python main.py`
-> sozinho. O `uv run` garante que o Python certo e as bibliotecas certas
-> estão sendo usados. Rodar `python main.py` direto vai dar
-> `ModuleNotFoundError` ou pior.
+> **Sempre use `uv run judex ...`** (ou `uv run python main.py ...`),
+> nunca `python main.py` direto. O `uv run` garante que o Python certo
+> e as bibliotecas certas estão sendo usados. Rodar `python main.py`
+> sem `uv run` vai dar `ModuleNotFoundError` ou pior.
+>
+> A partir de 2026-04-18, o scraper virou o subcomando `varrer-processos`
+> (o antigo `coletar` foi absorvido). Raspar um intervalo continua
+> simples — `judex varrer-processos -c HC -i 135041 -f 135041` —, mas agora
+> a mesma varredura escala para 100 mil processos via `--csv`, com
+> retomada, disjuntor, rotação de proxy e relatório. O rótulo e o
+> diretório de saída são auto-inferidos quando você passa só
+> `-c/-i/-f`. Flags longas estão em português (`--classe`,
+> `--processo-inicial`, `--saida`, `--rotulo` etc.); as curtas
+> (`-c -i -f`) permanecem.
 
 ---
 
@@ -125,29 +140,30 @@ Se tudo deu certo, o arquivo fica em
 **Baixar um intervalo de processos** (ex.: HC 135041 a 135050):
 
 ```bash
-uv run python main.py -c HC -i 135041 -f 135050 -o json
+uv run judex varrer-processos -c HC -i 135041 -f 135050
 ```
 
 **Salvar em uma pasta específica**:
 
 ```bash
-uv run python main.py -c HC -i 135041 -f 135041 -o json \
-  -d data/output/meu_teste
+uv run judex varrer-processos -c HC -i 135041 -f 135041 \
+  --saida runs/coletas/meu_teste
 ```
 
-**Sobrescrever arquivos que já existem** (útil para refazer uma
-extração):
+**Refazer uma extração**: cada execução grava em `runs/coletas/<timestamp>-<rótulo>/`,
+então reusos não se atropelam — é só rodar de novo. Para retomar
+uma varredura interrompida, aponte a mesma `--saida` e passe
+`--retomar` (só os processos que ainda não deram `ok` são rerodados).
+
+**Salvar em um diretório específico**:
 
 ```bash
-uv run python main.py -c HC -i 135041 -f 135041 -o json --overwrite
+uv run judex varrer-processos -c HC -i 135041 -f 135041 \
+  --saida /mnt/c/Users/SeuUsuario/Desktop/judex-mini
 ```
 
-**Salvar direto no Desktop do Windows** (rodando no WSL):
-
-```bash
-uv run python main.py -c HC -i 135041 -f 135041 -o json \
-  -d /mnt/c/Users/SeuUsuario/Desktop/judex-mini
-```
+No WSL, essa saída aparece no Desktop do Windows como se tivesse
+sido gerada lá mesmo.
 
 Substitua `SeuUsuario` pelo seu nome de usuário do Windows. Os arquivos
 aparecem no Desktop como se tivessem sido gerados pelo próprio Windows.
@@ -155,7 +171,7 @@ aparecem no Desktop como se tivessem sido gerados pelo próprio Windows.
 **Ver todas as opções**:
 
 ```bash
-uv run python main.py --help
+uv run judex --help
 ```
 
 ---
