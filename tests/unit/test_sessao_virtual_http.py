@@ -64,7 +64,35 @@ def test_parse_sessao_virtual_first_entry_matches_fixture_shape() -> None:
     )
     assert "Relatório" in first["documentos"]
     assert "Voto" in first["documentos"]
-    assert first["documentos"]["Relatório"].startswith("https://")
+    relatorio = first["documentos"]["Relatório"]
+    assert relatorio["url"].startswith("https://")
+    assert relatorio["text"] is None
+
+
+def test_parse_sessao_virtual_strips_html_from_voto_relator() -> None:
+    """STF's `cabecalho` field can be an HTML fragment (<p><span>…) or
+    plain text with entities. Both should become clean text."""
+    payload = json.dumps([
+        {
+            "objetoIncidente": {"identificacao": "HC 158802", "identificacaoCompleta": ""},
+            "listasJulgamento": [
+                {
+                    "nomeLista": "137-2020",
+                    "ministroRelator": {"descricao": "MIN. GILMAR MENDES"},
+                    "sessao": {"colegiado": {"descricao": "Segunda Turma"}},
+                    "cabecalho": (
+                        '<p><span style="font-size: 13pt; font-family: '
+                        '&quot;Palatino Linotype&quot;, serif;">'
+                        'Nega agravo regimental do MPF.&nbsp;</span></p>'
+                    ),
+                    "votos": [],
+                }
+            ],
+        }
+    ])
+
+    entries = parse_sessao_virtual(payload)
+    assert entries[0]["voto_relator"] == "Nega agravo regimental do MPF."
 
 
 def test_parse_sessao_virtual_second_entry_has_voto_vista() -> None:
@@ -135,10 +163,10 @@ def test_tema_number_extracted_from_abasessao_fragment() -> None:
     assert _extract_tema_from_abasessao(html_without_tema) is None
 
 
-def test_resolve_documentos_replaces_urls_with_fetched_text() -> None:
+def test_resolve_documentos_fills_text_without_losing_url() -> None:
     docs = {
-        "Relatório": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1",
-        "Voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2",
+        "Relatório": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None},
+        "Voto":      {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None},
     }
     fake_store = {
         "https://sistemas.stf.jus.br/repgeral/votacao?texto=1": "relator body",
@@ -147,23 +175,25 @@ def test_resolve_documentos_replaces_urls_with_fetched_text() -> None:
 
     result = resolve_documentos(docs, fetcher=lambda url: fake_store[url])
 
-    assert result == {"Relatório": "relator body", "Voto": "voto body"}
+    assert result == {
+        "Relatório": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": "relator body"},
+        "Voto":      {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": "voto body"},
+    }
 
 
-def test_resolve_documentos_keeps_url_when_fetcher_returns_none() -> None:
-    """On fetch failure (network, 429, parse), the URL is preserved so a
-    re-run can try again."""
-    docs = {"Voto": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42"}
+def test_resolve_documentos_keeps_text_none_when_fetcher_returns_none() -> None:
+    """On fetch failure (network, 429, parse), text stays None so a
+    re-run can try again. URL is always preserved."""
+    docs = {"Voto": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42", "text": None}}
 
     result = resolve_documentos(docs, fetcher=lambda url: None)
 
     assert result == docs
 
 
-def test_resolve_documentos_idempotent_on_already_extracted() -> None:
-    """Values that aren't URLs (already-extracted text) pass through
-    untouched, so running enrich twice is free."""
-    docs = {"Voto": "some already-extracted paragraph text"}
+def test_resolve_documentos_idempotent_on_already_enriched() -> None:
+    """Entries with text already filled pass through — enrich is free to re-run."""
+    docs = {"Voto": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9", "text": "already extracted"}}
     called = []
 
     def fetcher(url: str) -> str:
@@ -196,16 +226,17 @@ def test_extract_sessao_virtual_with_pdf_fetcher_resolves_docs() -> None:
     )
 
     assert len(result) == 3
+    # Every doc now has url + non-None text after enrichment.
     assert all(
-        not v.startswith("https://")
+        isinstance(v, dict) and v["url"].startswith("https://") and v["text"] is not None
         for entry in result
         for v in entry["documentos"].values()
     )
     assert len(pdf_calls) >= 3
 
 
-def test_extract_sessao_virtual_without_pdf_fetcher_leaves_urls() -> None:
-    """Baseline: pdf_fetcher=None keeps the URLs as-is (current behavior)."""
+def test_extract_sessao_virtual_without_pdf_fetcher_leaves_text_none() -> None:
+    """Baseline: pdf_fetcher=None means urls are captured and `text` stays None."""
     fake_responses = {
         ("oi", 2083816): _load("oi_2083816.json"),
         ("sessaoVirtual", 2083816): _load("sv_2083816.json"),
@@ -219,8 +250,9 @@ def test_extract_sessao_virtual_without_pdf_fetcher_leaves_urls() -> None:
         pdf_fetcher=None,
     )
 
+    # At least one document per session has a real URL and text=None.
     assert any(
-        v.startswith("https://")
+        isinstance(v, dict) and v["url"].startswith("https://") and v["text"] is None
         for entry in result
         for v in entry["documentos"].values()
     )

@@ -15,19 +15,21 @@ Two endpoints are relevant:
   - ?tema=<N>                  → Tema/Repercussão Geral data
                                   (only for processes carrying a tema)
 
-The `documentos` field only carries the PDF URLs here, not the extracted
-PDF text. The Selenium path used to download and OCR each PDF; skipping
-that keeps this port fast and is acceptable given `sessao_virtual` is a
-skipped field in the validator. Follow-up can add opt-in PDF fetching.
+The `documentos` field holds `{tipo: {"url": <pdf url>, "text": None}}`
+entries out of the box. Pass a `pdf_fetcher` callable to
+`extract_sessao_virtual_from_json` to fill in the `text` values from
+OCR/pypdf; without it, `text` stays None and the entry can be enriched
+later by running `resolve_documentos` separately.
 """
 
 from __future__ import annotations
 
-import html
 import json
 import logging
 import re
 from typing import Any, Callable, Iterable, Optional
+
+from bs4 import BeautifulSoup
 
 # tipoVoto.codigo → vote category in the final `votes` dict.
 # Mirrors what the Selenium extractor ends up collecting from the
@@ -51,6 +53,12 @@ _METADATA_KEYS = (
 
 def _normalize_spaces(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _strip_html(raw: str) -> str:
+    # STF's `cabecalho` can be an HTML fragment or plain text with entities;
+    # BeautifulSoup handles both (parses tags, resolves &nbsp;/&ccedil;/…).
+    return _normalize_spaces(BeautifulSoup(raw, "lxml").get_text(" ", strip=True))
 
 
 def parse_oi_listing(response: str) -> list[dict]:
@@ -112,26 +120,38 @@ def _build_votes(lista: dict) -> dict[str, list[str]]:
     return votes
 
 
-def _build_documentos(lista: dict) -> dict[str, str]:
-    """Collect PDF links from relator, vista, and each voto with textos."""
-    docs: dict[str, str] = {}
+def _build_documentos(lista: dict) -> dict[str, dict[str, Optional[str]]]:
+    """Collect PDF links from relator, vista, and each voto with textos.
+
+    Each entry is `{"url": <pdf url>, "text": None}`. `text` is populated
+    later by `resolve_documentos(fetcher)` once the PDF is OCR'd; leaving
+    it None here means the scraper output is structurally complete without
+    blocking on PDF downloads.
+    """
+    docs: dict[str, dict[str, Optional[str]]] = {}
+
+    def add(key: str, url: Optional[str]) -> None:
+        if url and key not in docs:
+            docs[key] = {"url": url, "text": None}
+
     relatorio = lista.get("relatorioRelator") or {}
-    if isinstance(relatorio, dict) and relatorio.get("link"):
-        docs["Relatório"] = relatorio["link"]
+    if isinstance(relatorio, dict):
+        add("Relatório", relatorio.get("link"))
     voto = lista.get("votoRelator") or {}
-    if isinstance(voto, dict) and voto.get("link"):
-        docs.setdefault(voto.get("descricao") or "Voto", voto["link"])
+    if isinstance(voto, dict):
+        add(voto.get("descricao") or "Voto", voto.get("link"))
 
     vista = lista.get("ministroVista") or {}
-    for texto in (vista.get("textos") or []) if isinstance(vista, dict) else []:
-        if isinstance(texto, dict) and texto.get("link"):
-            docs.setdefault("Voto Vista", texto["link"])
+    if isinstance(vista, dict):
+        for texto in vista.get("textos") or []:
+            if isinstance(texto, dict):
+                add("Voto Vista", texto.get("link"))
 
     for voto_ in lista.get("votos") or []:
         for texto in voto_.get("textos") or []:
-            if isinstance(texto, dict) and texto.get("link"):
+            if isinstance(texto, dict):
                 key = texto.get("descricao") or "Voto"
-                docs.setdefault(key, texto["link"])
+                add(key, texto.get("link"))
 
     return docs
 
@@ -154,7 +174,7 @@ def parse_sessao_virtual(response: str) -> list[dict]:
             out.append(
                 {
                     "metadata": _build_metadata(lista, processo_id),
-                    "voto_relator": _normalize_spaces(html.unescape(cabecalho_raw)),
+                    "voto_relator": _strip_html(cabecalho_raw),
                     "votes": _build_votes(lista),
                     "documentos": _build_documentos(lista),
                     "julgamento_item_titulo": titulo,
@@ -212,22 +232,24 @@ PdfFetcher = Callable[[str], Optional[str]]
 
 
 def resolve_documentos(
-    docs: dict[str, str], *, fetcher: PdfFetcher
-) -> dict[str, str]:
-    """Replace URL values in a documentos dict with text from `fetcher(url)`.
+    docs: dict[str, dict[str, Optional[str]]], *, fetcher: PdfFetcher
+) -> dict[str, dict[str, Optional[str]]]:
+    """Fill the `text` field on each `{url, text}` entry using `fetcher(url)`.
 
-    Values that aren't URLs (already-extracted text, or empty strings)
-    pass through unchanged so re-running enrich on already-enriched
-    output is a no-op. If `fetcher` returns None the URL is preserved
-    so a re-run can retry.
+    The URL is always preserved. Entries whose `text` is already non-None
+    pass through untouched — rerunning enrich on an already-enriched dict
+    is free. If `fetcher` returns None the entry is kept as-is so a
+    future re-run can retry.
     """
-    out: dict[str, str] = {}
-    for key, value in docs.items():
-        if isinstance(value, str) and value.startswith("https://"):
-            text = fetcher(value)
-            out[key] = text if text is not None else value
+    out: dict[str, dict[str, Optional[str]]] = {}
+    for key, entry in docs.items():
+        url = entry.get("url")
+        text = entry.get("text")
+        if text is None and url:
+            fetched = fetcher(url)
+            out[key] = {"url": url, "text": fetched}
         else:
-            out[key] = value
+            out[key] = {"url": url, "text": text}
     return out
 
 
