@@ -324,13 +324,25 @@ errors at these defaults — `docs/sweep-results/2026-04-16-E-full-1k-defaults/`
 - `ScraperConfig.retry_403: True`
 - `ScraperConfig.driver_max_retries: 20` (was 10)
 - `ScraperConfig.driver_backoff_max: 60` (was 30)
-- `run_sweep.py --throttle-sleep`: `2.0` seconds per process (was 0)
 - `run_sweep.py --no-retry-403`: flag renamed to opt-out
 
-Measured pace at these defaults: **3.60 s/process** end-to-end.
-Projection for 1000 processes: ~60 minutes (vs Selenium's 77.6 min on
-the same range — HTTP ~22% faster end-to-end once WAF stalls are
-included).
+**`--throttle-sleep` was removed** from `run_sweep.py` on 2026-04-17.
+The two-layer model (above) showed proactive process-level pacing
+doesn't drain the per-IP reputation counter, and the D-run data
+showed retry-403 alone (R1: 199/200 at zero sleep) dominates pacing
+alone (R3: 175/200 at 2 s). `--proxy-pool` rotation addresses the
+binding layer-2 constraint directly; adding a throttle on top of
+rotation only sacrifices throughput without reducing WAF pressure.
+The parameter is retained in `iterate_with_guards()` for the PDF
+sweep (`scripts/fetch_pdfs.py`), where the empty-body retry rate on
+`sistemas.stf.jus.br` does respond to pacing — different signal,
+different host, different defaults.
+
+Measured pace at the (pre-removal) defaults: **3.60 s/process** end-to-end.
+Without `--throttle-sleep`, expected pace is ~1.6 s/process when WAF
+is cold, with per-cycle stalls absorbed by retry-403. 1000-process
+wall time projection now depends primarily on WAF cycle count; see
+§ *Wall taxonomy and severity timeline* for the regime-indexed view.
 
 ## PDF-sweep datapoints (distinct from process sweeps)
 

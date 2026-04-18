@@ -573,11 +573,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Print running totals every N processes (default: 25).",
     )
     ap.add_argument(
-        "--throttle-sleep", type=float, default=2.0,
-        help="Seconds to sleep between processes (default: 2.0). Used to stay "
-             "under STF's WAF rate threshold on long sweeps. Pass 0 to disable.",
-    )
-    ap.add_argument(
         "--no-retry-403", dest="retry_403", action="store_false", default=True,
         help="Disable the default retry-on-403 behavior. STF's WAF uses 403 "
              "(not 429) as its throttle signal; retry-403 rides out block cycles.",
@@ -842,7 +837,6 @@ def _run_passes(
             trip_noun="processes",
             progress_every=args.progress_every,
             on_progress=on_progress_cold,
-            throttle_sleep=args.throttle_sleep,
         )
 
         if args.warm_pass and not _shared.shutdown_requested():

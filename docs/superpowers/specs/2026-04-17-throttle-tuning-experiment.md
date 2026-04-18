@@ -2,7 +2,36 @@
 
 Date: 2026-04-17
 Owner: Gustavo Costa
-Status: **draft** — awaiting approval before execution.
+Status: **superseded — never executed.**
+
+## Superseded (2026-04-17, later same day)
+
+`--throttle-sleep` was removed from `scripts/run_sweep.py` before this
+experiment ran. The decision was based on:
+
+1. **D-run evidence already pointed here.** R1 (0 s pacing + retry-403)
+   got 199/200; R3 (2 s pacing alone) got 175/200. The experiment
+   would have re-measured an effect the D data already called in one
+   direction.
+2. **Proxy rotation landed in the same session.** With `--proxy-pool`
+   swapping IPs every ~270 s (below STF's layer-1 window), individual
+   per-IP pacing stops having an independent effect — each proxy never
+   accumulates enough requests to trip the throttle regardless of sleep.
+3. **Scope hygiene.** Keeping a CLI flag whose measured benefit is
+   "mostly redundant with retry-403 and proxy rotation" violates the
+   project's no-backcompat-shim convention. Simpler to remove the knob
+   than tune it.
+
+The experiment spec is preserved here as a record of the design
+reasoning; the trial slices (HC 105001..110200) remain available for
+future experiments if a different throttle-related question emerges.
+Historical V-sweep data in `docs/rate-limits.md § Two-layer model`
+stands as the last word on per-process pacing for the portal.
+
+---
+
+## Original spec (retained for reference)
+
 
 ## Context
 

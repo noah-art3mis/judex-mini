@@ -149,7 +149,7 @@ Last gate guards against another calendar-mismatch surprise; if it fires, halt a
 
 ## Decision points (when to stop)
 
-- **Three consecutive sweeps with ok % < 85** → halt, investigate WAF posture (may require lowering `--throttle-sleep` upper bound or extending retry budget).
+- **Three consecutive sweeps with ok % < 85** → halt, investigate WAF posture (may require rotating IPs via `--proxy-pool` or extending retry budget).
 - **Outcome distribution drift across an era < 5 %** → diminishing analytical returns, declare done.
 - **Hard cap**: 20 sweeps total in this extension (currently 1 done = S; budget for 19 more). Forces re-evaluation if scope creeps.
 
