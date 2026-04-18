@@ -20,16 +20,16 @@
 }
 },
 "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309494040&ext=.pdf": {
-"ts": "2026-04-17T17:54:42+00:00",
+"ts": "2026-04-17T18:05:40+00:00",
 "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309494040&ext=.pdf",
-"attempt": 1,
-"wall_s": 0.771,
-"status": "unknown_type",
-"error": "unknown_type",
-"error_type": "unknown_type",
+"attempt": 2,
+"wall_s": 18.956,
+"status": "ok",
+"error": null,
+"error_type": null,
 "http_status": null,
 "extractor": "unstructured_api",
-"chars": null,
+"chars": 9874,
 "processo_id": 134444,
 "classe": "HC",
 "doc_type": "DECISÃO MONOCRÁTICA",
@@ -40,10 +40,10 @@
 }
 },
 "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309867163&ext=.pdf": {
-"ts": "2026-04-17T17:54:45+00:00",
+"ts": "2026-04-17T18:05:47+00:00",
 "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309867163&ext=.pdf",
-"attempt": 1,
-"wall_s": 0.539,
+"attempt": 2,
+"wall_s": 0.737,
 "status": "unknown_type",
 "error": "unknown_type",
 "error_type": "unknown_type",
@@ -140,10 +140,10 @@
 }
 },
 "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309867171&ext=.pdf": {
-"ts": "2026-04-17T17:56:39+00:00",
+"ts": "2026-04-17T18:05:53+00:00",
 "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=309867171&ext=.pdf",
-"attempt": 1,
-"wall_s": 1.335,
+"attempt": 2,
+"wall_s": 0.561,
 "status": "unknown_type",
 "error": "unknown_type",
 "error_type": "unknown_type",
@@ -220,10 +220,10 @@
 }
 },
 "https://portal.stf.jus.br/processos/downloadPeca.asp?id=310925900&ext=.pdf": {
-"ts": "2026-04-17T17:57:37+00:00",
+"ts": "2026-04-17T18:06:00+00:00",
 "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=310925900&ext=.pdf",
-"attempt": 1,
-"wall_s": 1.21,
+"attempt": 2,
+"wall_s": 0.35,
 "status": "unknown_type",
 "error": "unknown_type",
 "error_type": "unknown_type",
@@ -320,17 +320,57 @@
 }
 },
 "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312986635&ext=.pdf": {
-"ts": "2026-04-17T17:59:03+00:00",
+"ts": "2026-04-17T18:06:17+00:00",
 "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312986635&ext=.pdf",
-"attempt": 1,
-"wall_s": 1.368,
-"status": "unknown_type",
-"error": "unknown_type",
-"error_type": "unknown_type",
+"attempt": 2,
+"wall_s": 11.445,
+"status": "ok",
+"error": null,
+"error_type": null,
 "http_status": null,
 "extractor": "unstructured_api",
-"chars": null,
+"chars": 4653,
 "processo_id": 148651,
+"classe": "HC",
+"doc_type": "DECISÃO MONOCRÁTICA",
+"context": {
+"impte_hits": [
+"VICTOR HUGO ANUVALE RODRIGUES"
+]
+}
+},
+"https://portal.stf.jus.br/processos/downloadPeca.asp?id=314742856&ext=.pdf": {
+"ts": "2026-04-17T18:06:33+00:00",
+"url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=314742856&ext=.pdf",
+"attempt": 2,
+"wall_s": 10.05,
+"status": "ok",
+"error": null,
+"error_type": null,
+"http_status": null,
+"extractor": "unstructured_api",
+"chars": 3884,
+"processo_id": 158866,
+"classe": "HC",
+"doc_type": "DECISÃO MONOCRÁTICA",
+"context": {
+"impte_hits": [
+"MAURO ATUI NETO"
+]
+}
+},
+"https://portal.stf.jus.br/processos/downloadPeca.asp?id=15340728182&ext=.pdf": {
+"ts": "2026-04-17T18:04:39+00:00",
+"url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15340728182&ext=.pdf",
+"attempt": 1,
+"wall_s": 28.475,
+"status": "ok",
+"error": null,
+"error_type": null,
+"http_status": null,
+"extractor": "unstructured_api",
+"chars": 19434,
+"processo_id": 173170,
 "classe": "HC",
 "doc_type": "DECISÃO MONOCRÁTICA",
 "context": {

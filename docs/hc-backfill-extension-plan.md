@@ -161,6 +161,6 @@ Last gate guards against another calendar-mismatch surprise; if it fires, halt a
 
 ## Files to update when this plan is done
 
-- `docs/handoff.md` § "Next major goal" — mark the HC backfill as completed across the planned eras.
+- `docs/current_progress.md` § "Next major goal" — mark the HC backfill as completed across the planned eras.
 - `docs/hc-who-wins.md` — incorporate era-drift findings (or note their absence) in the writeup.
 - ~~`analysis/hc_backfill_plan.md` — supersede with a one-line pointer to this file.~~ Done 2026-04-17: file deleted; this doc is the canonical successor.

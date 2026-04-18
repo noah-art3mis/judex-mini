@@ -16,7 +16,7 @@ escalated to `approaching_collapse`, and fired **7 panic rotations
 at 4–5 s intervals** at the end of the run before tripping
 `collapse`.
 
-Post-mortem findings (`docs/handoff.md § WAF-detection + proxy-rotation`):
+Post-mortem findings (`docs/current_progress.md § WAF-detection + proxy-rotation`):
 
 - **Proxy path was healthy:** 34 successful scrapes via ScrapeGW,
   real parsed STF responses at p50 = 4.5 s.

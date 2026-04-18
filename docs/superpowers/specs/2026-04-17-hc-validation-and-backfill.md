@@ -103,7 +103,7 @@ parser bug in one of them.
 
 ### L2 — Probe sweeps + structural QA
 
-Run the two probe sweeps from `docs/handoff.md`, then compute
+Run the two probe sweeps from `docs/current_progress.md`, then compute
 per-field populated-rate tables by vintage.
 
 - HC 1..1000 (`hc_probe_1_1000.csv`) → ~50 min wall.
@@ -192,4 +192,4 @@ After L1–L4 pass:
 - `tests/ground_truth/HC_*.json` (L3, pending user confirmation)
 - Sweep driver changes (L4)
 - `docs/sweep-results/2026-04-17-G-hc-stratified-5k/` (L5)
-- Final summary update to `docs/handoff.md`.
+- Final summary update to `docs/current_progress.md`.

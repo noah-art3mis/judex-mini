@@ -55,7 +55,7 @@ _No field diffs in ≥2 processes._
   is how the portal signals "no such process"). Design doc noted this
   risk; substitution logged here.
 - **ACO 2652 diffs are the pre-existing baseline**, documented in
-  `docs/handoff.md` as "assuntos drift on the live site" and
+  `docs/current_progress.md` as "assuntos drift on the live site" and
   "pautas: null vs []". Not introduced by this sweep.
 - **PDF rotated-text warnings** appeared for MI 943 / HC 82959 /
   HC 126292 — pypdf's layout-mode extractor drops some content when

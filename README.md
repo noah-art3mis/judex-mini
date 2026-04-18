@@ -253,7 +253,7 @@ as pastas.
   ferramentas de *sweep* em larga escala.
 - [`docs/data-layout.md`](docs/data-layout.md) — mapa detalhado de onde
   cada arquivo mora e como se referenciam.
-- [`docs/handoff.md`](docs/handoff.md) — estado atual do trabalho em
+- [`docs/current_progress.md`](docs/current_progress.md) — estado atual do trabalho em
   andamento.
 - [`docs/sweep-results/`](docs/sweep-results/) — relatórios de extrações
   em larga escala (centenas/milhares de processos).

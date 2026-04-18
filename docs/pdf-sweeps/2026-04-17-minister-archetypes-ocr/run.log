@@ -1,0 +1,42 @@
+targets: 45921 PDF URLs across 13359 processes
+=== pdf sweep · 19 targets · out=docs/pdf-sweeps/2026-04-17-minister-archetypes-ocr ===
+[1/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=161249025&ext=.pdf: ok (2177 chars)
+[2/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=152366857&ext=.pdf: ok (4859 chars)
+[3/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=314383799&ext=.pdf: ok (1110 chars)
+[4/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=4003411&ext=.pdf: ok (10923 chars)
+[5/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=220006792&ext=.pdf: ok (800 chars)
+[6/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=4041784&ext=.pdf: ok (10124 chars)
+[7/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=314824318&ext=.pdf: ok (2680 chars)
+[8/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=313911909&ext=.pdf: ok (2143 chars)
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+[9/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=310049981&ext=.pdf: ok (14826 chars)
+[10/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=309860497&ext=.pdf: ok (1339 chars)
+Rotated text discovered. Output will be incomplete.
+[11/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=314989877&ext=.pdf: ok (213 chars)
+Rotated text discovered. Output will be incomplete.
+[13/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=15341941914&ext=.pdf: ok (2305 chars)
+Rotated text discovered. Output will be incomplete.
+[14/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=15342287340&ext=.pdf: ok (3434 chars)
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+[15/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=15340868425&ext=.pdf: ok (11359 chars)
+Rotated text discovered. Output will be incomplete.
+[16/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=15342287342&ext=.pdf: ok (3482 chars)
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+Rotated text discovered. Output will be incomplete.
+[17/19] https://portal.stf.jus.br/processos/downloadPeca.asp?id=15341056155&ext=.pdf: ok (15951 chars)
+
+summary: fetched=16 cached=3 failed=0
+  state:  docs/pdf-sweeps/2026-04-17-minister-archetypes-ocr/pdfs.state.json
+  log:    docs/pdf-sweeps/2026-04-17-minister-archetypes-ocr/pdfs.log.jsonl
+  errors: docs/pdf-sweeps/2026-04-17-minister-archetypes-ocr/pdfs.errors.jsonl
+  report: docs/pdf-sweeps/2026-04-17-minister-archetypes-ocr/report.md

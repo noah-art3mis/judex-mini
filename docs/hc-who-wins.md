@@ -2,21 +2,48 @@
 
 Scope note for the Habeas Corpus analysis. Drafted 2026-04-17 while
 sweep I (HC 230000..230999, 2023 vintage) is in flight. Ties into
-`docs/handoff.md` § "Next major goal — Habeas Corpus deep dive" and
+`docs/current_progress.md` § "Next major goal — Habeas Corpus deep dive" and
 `docs/sweep-results/2026-04-16-H-hc-last-100/` for the smoke result.
 
 ## Research question
 
 Who, in the STF Habeas Corpus caseload, consistently obtains favourable
-decisions? "Favourable" means the outcome label produced by
-`src.extraction_http.derive_outcome`, specifically:
+decisions? "Favourable" follows the **FGV IV Relatório Supremo em
+Números §b rule** (Falcão, Moraes & Hartmann, FGV DIREITO RIO, 2015,
+p. 50): every final decision that terminates a process is either
+*favorável* (procedência parcial ou total) or *desfavorável* (all else,
+explicitly including "negativa de admissão"); intermediate orders
+(liminares / interlocutórias) are excluded entirely.
 
-- **win**:   `concedido`, `concedido_parcial`
-- **loss**:  `denegado`
-- **procedural (neither)**: `nao_conhecido`, `prejudicado`, `extinto`
-- **pending**: `None`
+Mapped onto `src.extraction_http.derive_outcome` labels via
+`src.analysis.legal_vocab.FGV_FAVORABLE_OUTCOMES`:
 
-Ranking units must have enough mass in the "win" column to be
+- **favorável**:    `concedido`, `concedido_parcial`
+- **desfavorável**: `denegado`, `nao_conhecido`, `prejudicado`, `extinto`
+- **excluded**:     `None` (liminar / interlocutória — not a final ruling; `derive_outcome` emits None for these because they match no VERDICT_PATTERN)
+
+### Why adopt FGV's definition rather than defining our own
+
+1. **Comparability.** FGV's published numbers (PGR 50 % vs STF-wide
+   24 % in 2013; MP-SC 38.5 %; MP-Paraíba 1.8 %) are the most-cited
+   baselines in Brazilian STF empirical work. Using their rule lets
+   our HC numbers sit next to theirs without a methodology footnote —
+   a reviewer can ask "how does HC grant rate compare to MP success
+   rate?" and the answer is one subtraction, not a re-derivation.
+2. **Defensibility.** Their rule is explicit in print, peer-reviewed
+   (FGV DIREITO RIO imprint, ISBN 978-85-63265-50-0), and has
+   survived a decade of citation. Any bespoke partition we invented
+   would invite the question "why not FGV's?".
+3. **Honest downside framing.** Lumping `nao_conhecido` into
+   *desfavorável* is not methodologically neutral — it counts "court
+   refused to hear it" as a loss. That is exactly what FGV does, and
+   it matches the filer's lived experience: they went to court, they
+   did not get what they asked for. The alternative ("neither win
+   nor loss") hides a real loss inside a procedural bucket and makes
+   the denominator shrink in ways that inflate apparent win rates
+   for lawyers whose cases tend to be refused at the gate.
+
+Ranking units must have enough mass in the *favorável* column to be
 statistically meaningful — see base rate below.
 
 ## Three lenses

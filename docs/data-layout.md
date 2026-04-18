@@ -92,7 +92,7 @@ is a small follow-up (see the script's "Known gaps" docstring).
 `analysis/` is **git-ignored scratch** (`.gitignore`). Marimo
 notebooks, ad-hoc markdown profiles, one-off JSON dumps, hand-curated
 text extracts all live here. Contents won't be on a fresh checkout;
-see `docs/handoff.md` § "HC who-wins — investigation-strand layout"
+see `docs/current_progress.md` § "HC who-wins — investigation-strand layout"
 for the canonical list of notebooks that currently populate this
 directory.
 
@@ -134,4 +134,4 @@ shared artifact.
   - [`docs/rate-limits.md`](rate-limits.md) — WAF behavior, validated sweep defaults, the robots.txt posture question.
   - [`docs/process-space.md`](process-space.md) — class sizes (HC / ADI / RE), density probes, ceiling refresh.
   - [`docs/performance.md`](performance.md) — HTTP vs Selenium numbers and why caching is the real lever.
-  - [`docs/handoff.md`](handoff.md) — temporal view: what's in flight, blocked, next. Read this one first, handoff for what's current.
+  - [`docs/current_progress.md`](current_progress.md) — temporal view: what's in flight, blocked, next. Read this one first, handoff for what's current.

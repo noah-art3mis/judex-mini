@@ -27,7 +27,7 @@ The pure-soup extractors that the HTTP backend reuses
 The DOM-walking extractors capture exactly what STF emits at the HTML
 level for each tab — useful as living documentation of the page
 structure if the HTTP backend ever has to re-derive a field. The bug
-list under `docs/handoff.md § 5. Pre-existing bugs in the Selenium side`
+list under `docs/current_progress.md § 5. Pre-existing bugs in the Selenium side`
 is also frozen here as-is; we don't maintain this code, we just
 preserve it.
 

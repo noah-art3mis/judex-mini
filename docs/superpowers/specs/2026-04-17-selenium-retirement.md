@@ -10,7 +10,7 @@ flip `main.py`'s default backend to `http`, and shrink the runtime
 import graph (and the wheel) by dropping `selenium` from the default
 dependency set.
 
-This is the **move-and-freeze** version of `docs/handoff.md § Next
+This is the **move-and-freeze** version of `docs/current_progress.md § Next
 steps: 4. Retire the Selenium path`. That section proposed straight
 deletion; the user prefers a deprecated folder so the legacy
 extractors remain greppable as living documentation of what STF
@@ -24,7 +24,7 @@ actually emits at the DOM level.
   `from src.scraper import run_scraper` re-export at the old path.
 - **No partial backend.** Either the run is HTTP or it errors. We do
   not silently fall back to Selenium when HTTP fails.
-- **No edits to legacy code.** Bugs noted in `handoff.md § 5` (e.g.
+- **No edits to legacy code.** Bugs noted in `current_progress.md § 5` (e.g.
   `extract_peticoes:28-30` dead assignment, `extract_deslocamentos:113`
   dead helper) stay as-is in the deprecated copy. Fixing them would
   imply we're still maintaining them.
@@ -194,7 +194,7 @@ Single commit: `refactor: deprecate Selenium backend, default to HTTP`.
      imported.)
    - Update `# Don't break these` if needed.
 
-8. **Update `docs/handoff.md`:** mark Step 4 (Retire the Selenium
+8. **Update `docs/current_progress.md`:** mark Step 4 (Retire the Selenium
    path) as Phase 1 done; promote remaining cleanup to Phase 2 below.
 
 **Test gates for Phase 1:**
@@ -259,7 +259,7 @@ tree. Pins the architectural boundary.
 ## Estimated effort
 
 - **Phase 1:** ~45 min total. ~10 min for the moves, ~10 min for the
-  main.py flip + test updates, ~15 min for CLAUDE.md + handoff.md
+  main.py flip + test updates, ~15 min for CLAUDE.md + current_progress.md
   updates, ~10 min running the test gates.
 - **Phase 2:** ~30 min (ground-truth re-capture is the longest piece;
   one process per fixture under HTTP).

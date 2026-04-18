@@ -59,6 +59,33 @@ never has to talk to STF.
 This is why CLAUDE.md insists the cache contracts are load-bearing
 and why sweeps wipe-cache explicitly rather than by default.
 
+## OCR pass (Unstructured hi_res)
+
+Image-only scans in the andamentos PDFs (older decisões monocráticas
+and acórdãos pre-2020 are frequently stamped scans, not text-born
+PDFs) need OCR to be usable. `scripts/reextract_unstructured.py`
+posts the PDF bytes to the Unstructured SaaS API at
+`strategy=hi_res` with `languages=por`.
+
+Measured wall cost from two runs:
+
+| Run                                      | Docs | Wall/doc | API timeouts | Notes |
+|------------------------------------------|-----:|---------:|-------------:|-------|
+| `2026-04-17-famous-lawyers-ocr`           | 55 | ~23 s    | 0            | 34/55 improved (6.6× aggregate gain on improved) |
+| `2026-04-17-top-volume-ocr` (narrow)      | 19 | ~18 s    | 1 (300 s)    | 13/19 improved on first pass; transients retried |
+
+The 300 s `ReadTimeout` is the Unstructured API default and
+documents the tail — occasional stuck OCR jobs that the generic
+`http_error` classification catches. Not worth a specific retry
+path; it'll clear if the same URL is attempted in a later run.
+
+The **improvement signature** is consistent: pypdf returns
+~2 000–5 000 chars (headers + stamps + stray running text) for a
+scanned PDF; OCR at `hi_res` returns ~10 000–40 000 chars of body
+text, a 4–10× per-doc gain. PGR manifestações tend to be text-born
+and pypdf reads them cleanly — they don't benefit from OCR (and one
+verify-pass showed OCR strictly shorter than pypdf on such a doc).
+
 ## Field coverage on the HTTP path
 
 All ~27 fields the Selenium scraper emitted are reachable from the

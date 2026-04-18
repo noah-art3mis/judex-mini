@@ -1,0 +1,822 @@
+=== sweep: hc_118201_119200 · 1000 processes · input: csv `tests/sweep/hc_118201_119200.csv` (1000 rows) · parity: none ===
+  [   1/1000] HC   118201   185.42s  status=ok     retries=403×8  diffs=0  anomalies=0
+  [   2/1000] HC   118202     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [   3/1000] HC   118203     1.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [   4/1000] HC   118204     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [   5/1000] HC   118205     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [   6/1000] HC   118206     1.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [   7/1000] HC   118207     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [   8/1000] HC   118208     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [   9/1000] HC   118209     2.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [  10/1000] HC   118210     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [  11/1000] HC   118211     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [  12/1000] HC   118212     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  13/1000] HC   118213     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  14/1000] HC   118214     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  15/1000] HC   118215     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [  16/1000] HC   118216     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [  17/1000] HC   118217     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [  18/1000] HC   118218     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [  19/1000] HC   118219     1.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [  20/1000] HC   118220     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  21/1000] HC   118221     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [  22/1000] HC   118222     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [  23/1000] HC   118223     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  24/1000] HC   118224     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  25/1000] HC   118225     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=25 fail=0 error=0 skipped=0 429×0 5xx×0 · 0.10 proc/s · eta 167.6 min
+  [  26/1000] HC   118226     1.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [  27/1000] HC   118227     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [  28/1000] HC   118228     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  29/1000] HC   118229     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [  30/1000] HC   118230     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  31/1000] HC   118231     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [  32/1000] HC   118232     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [  33/1000] HC   118233     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  34/1000] HC   118234     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  35/1000] HC   118235     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [  36/1000] HC   118236     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [  37/1000] HC   118237     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [  38/1000] HC   118238     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [  39/1000] HC   118239     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  40/1000] HC   118240     1.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [  41/1000] HC   118241     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [  42/1000] HC   118242     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  43/1000] HC   118243     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118244: no incidente in redirect (200 '')
+  [  44/1000] HC   118244     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118245: no incidente in redirect (200 '')
+  [  45/1000] HC   118245     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118246: no incidente in redirect (200 '')
+  [  46/1000] HC   118246     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118247: no incidente in redirect (200 '')
+  [  47/1000] HC   118247     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118248: no incidente in redirect (200 '')
+  [  48/1000] HC   118248     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118249: no incidente in redirect (200 '')
+  [  49/1000] HC   118249     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118250: no incidente in redirect (200 '')
+  [  50/1000] HC   118250     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=43 fail=7 error=0 skipped=0 429×0 5xx×0 · 0.15 proc/s · eta 102.7 min
+WARNING:root:HC 118251: no incidente in redirect (200 '')
+  [  51/1000] HC   118251     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  52/1000] HC   118252     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  53/1000] HC   118253     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [  54/1000] HC   118254     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [  55/1000] HC   118255     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [  56/1000] HC   118256     2.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [  57/1000] HC   118257     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [  58/1000] HC   118258     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [  59/1000] HC   118259     2.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [  60/1000] HC   118260     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  61/1000] HC   118261     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  62/1000] HC   118262     2.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [  63/1000] HC   118263   184.45s  status=ok     retries=403×8  diffs=0  anomalies=0
+  [  64/1000] HC   118264     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [  65/1000] HC   118265     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [  66/1000] HC   118266     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  67/1000] HC   118267     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118268: no incidente in redirect (200 '')
+  [  68/1000] HC   118268     0.28s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118269: no incidente in redirect (200 '')
+  [  69/1000] HC   118269     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118270: no incidente in redirect (200 '')
+  [  70/1000] HC   118270     0.23s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118271: no incidente in redirect (200 '')
+  [  71/1000] HC   118271     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118272: no incidente in redirect (200 '')
+  [  72/1000] HC   118272     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118273: no incidente in redirect (200 '')
+  [  73/1000] HC   118273     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118274: no incidente in redirect (200 '')
+  [  74/1000] HC   118274     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118275: no incidente in redirect (200 '')
+  [  75/1000] HC   118275     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=59 fail=16 error=0 skipped=0 429×0 5xx×0 · 0.13 proc/s · eta 119.1 min
+  [  76/1000] HC   118276     1.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [  77/1000] HC   118277     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [  78/1000] HC   118278     2.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  79/1000] HC   118279     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [  80/1000] HC   118280     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [  81/1000] HC   118281     4.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [  82/1000] HC   118282     1.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [  83/1000] HC   118283     3.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  84/1000] HC   118284     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [  85/1000] HC   118285     1.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [  86/1000] HC   118286     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [  87/1000] HC   118287     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  88/1000] HC   118288     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  89/1000] HC   118289     1.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [  90/1000] HC   118290     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  91/1000] HC   118291     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [  92/1000] HC   118292     6.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [  93/1000] HC   118293     1.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [  94/1000] HC   118294     3.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [  95/1000] HC   118295     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  96/1000] HC   118296     4.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [  97/1000] HC   118297     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [  98/1000] HC   118298     4.23s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118299: no incidente in redirect (200 '')
+  [  99/1000] HC   118299     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118300: no incidente in redirect (200 '')
+  [ 100/1000] HC   118300     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=82 fail=18 error=0 skipped=0 429×0 5xx×0 · 0.15 proc/s · eta 101.7 min
+WARNING:root:HC 118301: no incidente in redirect (200 '')
+  [ 101/1000] HC   118301     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118302: no incidente in redirect (200 '')
+  [ 102/1000] HC   118302     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118303: no incidente in redirect (200 '')
+  [ 103/1000] HC   118303     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118304: no incidente in redirect (200 '')
+  [ 104/1000] HC   118304     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118305: no incidente in redirect (200 '')
+  [ 105/1000] HC   118305     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118306: no incidente in redirect (200 '')
+  [ 106/1000] HC   118306     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118307: no incidente in redirect (200 '')
+  [ 107/1000] HC   118307     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118308: no incidente in redirect (200 '')
+  [ 108/1000] HC   118308     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 109/1000] HC   118309     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 110/1000] HC   118310     2.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 111/1000] HC   118311     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 112/1000] HC   118312     4.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 113/1000] HC   118313     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 114/1000] HC   118314     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 115/1000] HC   118315     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 116/1000] HC   118316     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 117/1000] HC   118317     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 118/1000] HC   118318     2.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 119/1000] HC   118319     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 120/1000] HC   118320     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 121/1000] HC   118321     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 122/1000] HC   118322     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 123/1000] HC   118323     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 124/1000] HC   118324     2.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 125/1000] HC   118325     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=99 fail=26 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 87.9 min
+  [ 126/1000] HC   118326     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 127/1000] HC   118327     3.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 128/1000] HC   118328     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 129/1000] HC   118329     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 130/1000] HC   118330     1.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 131/1000] HC   118331   124.34s  status=ok     retries=403×7  diffs=0  anomalies=0
+  [ 132/1000] HC   118332     1.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 133/1000] HC   118333     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 134/1000] HC   118334     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 135/1000] HC   118335     2.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 136/1000] HC   118336     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 137/1000] HC   118337     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 138/1000] HC   118338     2.01s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118339: no incidente in redirect (200 '')
+  [ 139/1000] HC   118339     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 140/1000] HC   118340     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 141/1000] HC   118341     1.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 142/1000] HC   118342     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 143/1000] HC   118343     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 144/1000] HC   118344     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 145/1000] HC   118345     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 146/1000] HC   118346     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 147/1000] HC   118347     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 148/1000] HC   118348     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 149/1000] HC   118349     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 150/1000] HC   118350     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=123 fail=27 error=0 skipped=0 429×0 5xx×0 · 0.16 proc/s · eta 90.5 min
+  [ 151/1000] HC   118351     2.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 152/1000] HC   118352     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 153/1000] HC   118353     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118354: no incidente in redirect (200 '')
+  [ 154/1000] HC   118354     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118355: no incidente in redirect (200 '')
+  [ 155/1000] HC   118355     0.23s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118356: no incidente in redirect (200 '')
+  [ 156/1000] HC   118356     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 157/1000] HC   118357     3.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 158/1000] HC   118358     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 159/1000] HC   118359     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 160/1000] HC   118360     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 161/1000] HC   118361     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 162/1000] HC   118362     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 163/1000] HC   118363     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 164/1000] HC   118364     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118365: no incidente in redirect (200 '')
+  [ 165/1000] HC   118365     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118366: no incidente in redirect (200 '')
+  [ 166/1000] HC   118366     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118367: no incidente in redirect (200 '')
+  [ 167/1000] HC   118367     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118368: no incidente in redirect (200 '')
+  [ 168/1000] HC   118368     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 169/1000] HC   118369     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 170/1000] HC   118370     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 171/1000] HC   118371     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 172/1000] HC   118372     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 173/1000] HC   118373     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 174/1000] HC   118374     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 175/1000] HC   118375     2.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=141 fail=34 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 81.0 min
+  [ 176/1000] HC   118376     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 177/1000] HC   118377     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118378: no incidente in redirect (200 '')
+  [ 178/1000] HC   118378     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118379: no incidente in redirect (200 '')
+  [ 179/1000] HC   118379     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118380: no incidente in redirect (200 '')
+  [ 180/1000] HC   118380     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118381: no incidente in redirect (200 '')
+  [ 181/1000] HC   118381     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118382: no incidente in redirect (200 '')
+  [ 182/1000] HC   118382     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118383: no incidente in redirect (200 '')
+  [ 183/1000] HC   118383     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118384: no incidente in redirect (200 '')
+  [ 184/1000] HC   118384     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 185/1000] HC   118385     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 186/1000] HC   118386     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 187/1000] HC   118387     2.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 188/1000] HC   118388     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 189/1000] HC   118389     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 190/1000] HC   118390     2.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 191/1000] HC   118391     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 192/1000] HC   118392     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 193/1000] HC   118393   125.37s  status=ok     retries=403×7  diffs=0  anomalies=0
+  [ 194/1000] HC   118394     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 195/1000] HC   118395     1.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 196/1000] HC   118396     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 197/1000] HC   118397     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 198/1000] HC   118398     3.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 199/1000] HC   118399     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 200/1000] HC   118400     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=159 fail=41 error=0 skipped=0 429×0 5xx×0 · 0.16 proc/s · eta 81.9 min
+  [ 201/1000] HC   118401     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 202/1000] HC   118402     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 203/1000] HC   118403     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118404: no incidente in redirect (200 '')
+  [ 204/1000] HC   118404     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118405: no incidente in redirect (200 '')
+  [ 205/1000] HC   118405     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118406: no incidente in redirect (200 '')
+  [ 206/1000] HC   118406     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118407: no incidente in redirect (200 '')
+  [ 207/1000] HC   118407     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118408: no incidente in redirect (200 '')
+  [ 208/1000] HC   118408     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118409: no incidente in redirect (200 '')
+  [ 209/1000] HC   118409     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 210/1000] HC   118410     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 211/1000] HC   118411     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118412: no incidente in redirect (200 '')
+  [ 212/1000] HC   118412     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 213/1000] HC   118413     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118414: no incidente in redirect (200 '')
+  [ 214/1000] HC   118414     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 215/1000] HC   118415     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 216/1000] HC   118416     3.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 217/1000] HC   118417     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 218/1000] HC   118418     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 219/1000] HC   118419     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 220/1000] HC   118420     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 221/1000] HC   118421     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 222/1000] HC   118422     2.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 223/1000] HC   118423     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 224/1000] HC   118424     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 225/1000] HC   118425     1.39s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=176 fail=49 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 74.7 min
+  [ 226/1000] HC   118426     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 227/1000] HC   118427     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 228/1000] HC   118428     3.24s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 229/1000] HC   118429     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 230/1000] HC   118430     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 231/1000] HC   118431     3.04s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118432: no incidente in redirect (200 '')
+  [ 232/1000] HC   118432     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118433: no incidente in redirect (200 '')
+  [ 233/1000] HC   118433     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118434: no incidente in redirect (200 '')
+  [ 234/1000] HC   118434     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118435: no incidente in redirect (200 '')
+  [ 235/1000] HC   118435     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 236/1000] HC   118436     1.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 237/1000] HC   118437     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 238/1000] HC   118438     2.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 239/1000] HC   118439     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 240/1000] HC   118440     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 241/1000] HC   118441     1.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 242/1000] HC   118442     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 243/1000] HC   118443     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 244/1000] HC   118444     1.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 245/1000] HC   118445    64.10s  status=ok     retries=403×6  diffs=0  anomalies=0
+WARNING:root:HC 118446: no incidente in redirect (200 '')
+  [ 246/1000] HC   118446     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 247/1000] HC   118447     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 248/1000] HC   118448     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 249/1000] HC   118449     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 250/1000] HC   118450     2.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=196 fail=54 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 72.1 min
+  [ 251/1000] HC   118451     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 252/1000] HC   118452     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 253/1000] HC   118453     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118454: no incidente in redirect (200 '')
+  [ 254/1000] HC   118454     0.22s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118455: no incidente in redirect (200 '')
+  [ 255/1000] HC   118455     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118456: no incidente in redirect (200 '')
+  [ 256/1000] HC   118456     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 257/1000] HC   118457     2.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 258/1000] HC   118458     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 259/1000] HC   118459     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118460: no incidente in redirect (200 '')
+  [ 260/1000] HC   118460     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118461: no incidente in redirect (200 '')
+  [ 261/1000] HC   118461   123.60s  status=fail   retries=403×7  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 262/1000] HC   118462     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118463: no incidente in redirect (200 '')
+  [ 263/1000] HC   118463     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 264/1000] HC   118464     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 265/1000] HC   118465     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118466: no incidente in redirect (200 '')
+  [ 266/1000] HC   118466     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118467: no incidente in redirect (200 '')
+  [ 267/1000] HC   118467     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118468: no incidente in redirect (200 '')
+  [ 268/1000] HC   118468     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118469: no incidente in redirect (200 '')
+  [ 269/1000] HC   118469     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 270/1000] HC   118470     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 271/1000] HC   118471     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 272/1000] HC   118472     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 273/1000] HC   118473     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 274/1000] HC   118474     2.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 275/1000] HC   118475     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=211 fail=64 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 71.8 min
+  [ 276/1000] HC   118476     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 277/1000] HC   118477     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 278/1000] HC   118478     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118479: no incidente in redirect (200 '')
+  [ 279/1000] HC   118479     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118480: no incidente in redirect (200 '')
+  [ 280/1000] HC   118480     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 281/1000] HC   118481     2.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 282/1000] HC   118482     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 283/1000] HC   118483     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 284/1000] HC   118484     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 285/1000] HC   118485     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118486: no incidente in redirect (200 '')
+  [ 286/1000] HC   118486     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118487: no incidente in redirect (200 '')
+  [ 287/1000] HC   118487     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 288/1000] HC   118488     1.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 289/1000] HC   118489     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 290/1000] HC   118490     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 291/1000] HC   118491     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 292/1000] HC   118492     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 293/1000] HC   118493     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 294/1000] HC   118494     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 295/1000] HC   118495     1.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 296/1000] HC   118496     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 297/1000] HC   118497     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 298/1000] HC   118498     3.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 299/1000] HC   118499     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 300/1000] HC   118500     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=232 fail=68 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 66.4 min
+  [ 301/1000] HC   118501     1.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 302/1000] HC   118502     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 303/1000] HC   118503     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 304/1000] HC   118504     1.97s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118505: no incidente in redirect (200 '')
+  [ 305/1000] HC   118505     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 306/1000] HC   118506     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 307/1000] HC   118507     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 308/1000] HC   118508     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 309/1000] HC   118509     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 310/1000] HC   118510     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 311/1000] HC   118511     1.67s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118512: no incidente in redirect (200 '')
+  [ 312/1000] HC   118512     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 313/1000] HC   118513     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 314/1000] HC   118514     2.04s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118515: no incidente in redirect (200 '')
+  [ 315/1000] HC   118515     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118516: no incidente in redirect (200 '')
+  [ 316/1000] HC   118516     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118517: no incidente in redirect (200 '')
+  [ 317/1000] HC   118517     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118518: no incidente in redirect (200 '')
+  [ 318/1000] HC   118518     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118519: no incidente in redirect (200 '')
+  [ 319/1000] HC   118519     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118520: no incidente in redirect (200 '')
+  [ 320/1000] HC   118520     0.08s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 321/1000] HC   118521     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 322/1000] HC   118522     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 323/1000] HC   118523     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 324/1000] HC   118524     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 325/1000] HC   118525     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=249 fail=76 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 61.6 min
+  [ 326/1000] HC   118526     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 327/1000] HC   118527     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 328/1000] HC   118528     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 329/1000] HC   118529     2.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118530: no incidente in redirect (200 '')
+  [ 330/1000] HC   118530     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118531: no incidente in redirect (200 '')
+  [ 331/1000] HC   118531     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 332/1000] HC   118532     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 333/1000] HC   118533   186.18s  status=ok     retries=403×8  diffs=0  anomalies=0
+  [ 334/1000] HC   118534     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 335/1000] HC   118535     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 336/1000] HC   118536     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 337/1000] HC   118537     1.24s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 338/1000] HC   118538     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 339/1000] HC   118539     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 340/1000] HC   118540     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 341/1000] HC   118541     0.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 342/1000] HC   118542     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 343/1000] HC   118543     0.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 344/1000] HC   118544     3.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 345/1000] HC   118545     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 346/1000] HC   118546     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118547: no incidente in redirect (200 '')
+  [ 347/1000] HC   118547     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118548: no incidente in redirect (200 '')
+  [ 348/1000] HC   118548     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118549: no incidente in redirect (200 '')
+  [ 349/1000] HC   118549     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118550: no incidente in redirect (200 '')
+  [ 350/1000] HC   118550     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=268 fail=82 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 63.0 min
+  [ 351/1000] HC   118551     3.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 352/1000] HC   118552     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 353/1000] HC   118553     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 354/1000] HC   118554     1.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 355/1000] HC   118555     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 356/1000] HC   118556     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 357/1000] HC   118557     2.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 358/1000] HC   118558     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 359/1000] HC   118559     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 360/1000] HC   118560     1.88s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118561: no incidente in redirect (200 '')
+  [ 361/1000] HC   118561     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 362/1000] HC   118562     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118563: no incidente in redirect (200 '')
+  [ 363/1000] HC   118563     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 364/1000] HC   118564     1.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 365/1000] HC   118565     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 366/1000] HC   118566     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 367/1000] HC   118567     3.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 368/1000] HC   118568     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 369/1000] HC   118569     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 370/1000] HC   118570     1.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 371/1000] HC   118571     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 372/1000] HC   118572     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 373/1000] HC   118573     1.54s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118574: no incidente in redirect (200 '')
+  [ 374/1000] HC   118574     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 375/1000] HC   118575     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=290 fail=85 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 58.8 min
+  [ 376/1000] HC   118576     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 377/1000] HC   118577     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 378/1000] HC   118578     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 379/1000] HC   118579     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 380/1000] HC   118580     1.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 381/1000] HC   118581     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 382/1000] HC   118582     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 383/1000] HC   118583     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 384/1000] HC   118584     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 385/1000] HC   118585     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 386/1000] HC   118586     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 387/1000] HC   118587     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 388/1000] HC   118588     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 389/1000] HC   118589     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 390/1000] HC   118590     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 391/1000] HC   118591     1.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 392/1000] HC   118592     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 393/1000] HC   118593   185.08s  status=ok     retries=403×32  diffs=0  anomalies=0
+  [ 394/1000] HC   118594     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118595: no incidente in redirect (200 '')
+  [ 395/1000] HC   118595     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 396/1000] HC   118596     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 397/1000] HC   118597     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 398/1000] HC   118598     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 399/1000] HC   118599     1.36s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 400/1000] HC   118600     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=314 fail=86 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 59.4 min
+  [ 401/1000] HC   118601     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 402/1000] HC   118602     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 403/1000] HC   118603     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 404/1000] HC   118604     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 405/1000] HC   118605     2.55s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118606: no incidente in redirect (200 '')
+  [ 406/1000] HC   118606     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118607: no incidente in redirect (200 '')
+  [ 407/1000] HC   118607     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118608: no incidente in redirect (200 '')
+  [ 408/1000] HC   118608     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118609: no incidente in redirect (200 '')
+  [ 409/1000] HC   118609     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 410/1000] HC   118610     1.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 411/1000] HC   118611     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 412/1000] HC   118612     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 413/1000] HC   118613     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 414/1000] HC   118614     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118615: no incidente in redirect (200 '')
+  [ 415/1000] HC   118615     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118616: no incidente in redirect (200 '')
+  [ 416/1000] HC   118616     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118617: no incidente in redirect (200 '')
+  [ 417/1000] HC   118617     0.27s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118618: no incidente in redirect (200 '')
+  [ 418/1000] HC   118618     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118619: no incidente in redirect (200 '')
+  [ 419/1000] HC   118619     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118620: no incidente in redirect (200 '')
+  [ 420/1000] HC   118620     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118621: no incidente in redirect (200 '')
+  [ 421/1000] HC   118621     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118622: no incidente in redirect (200 '')
+  [ 422/1000] HC   118622     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118623: no incidente in redirect (200 '')
+  [ 423/1000] HC   118623     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118624: no incidente in redirect (200 '')
+  [ 424/1000] HC   118624     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118625: no incidente in redirect (200 '')
+  [ 425/1000] HC   118625     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=324 fail=101 error=0 skipped=0 429×0 5xx×0 · 0.17 proc/s · eta 55.0 min
+WARNING:root:HC 118626: no incidente in redirect (200 '')
+  [ 426/1000] HC   118626     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118627: no incidente in redirect (200 '')
+  [ 427/1000] HC   118627     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118628: no incidente in redirect (200 '')
+  [ 428/1000] HC   118628     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118629: no incidente in redirect (200 '')
+  [ 429/1000] HC   118629     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118630: no incidente in redirect (200 '')
+  [ 430/1000] HC   118630     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118631: no incidente in redirect (200 '')
+  [ 431/1000] HC   118631     0.22s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118632: no incidente in redirect (200 '')
+  [ 432/1000] HC   118632     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 433/1000] HC   118633     1.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 434/1000] HC   118634     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 435/1000] HC   118635     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118636: no incidente in redirect (200 '')
+  [ 436/1000] HC   118636     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 437/1000] HC   118637     2.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 438/1000] HC   118638     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 439/1000] HC   118639     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 440/1000] HC   118640     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 441/1000] HC   118641     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 442/1000] HC   118642     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 443/1000] HC   118643     3.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 444/1000] HC   118644     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 445/1000] HC   118645     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118646: no incidente in redirect (200 '')
+  [ 446/1000] HC   118646     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118647: no incidente in redirect (200 '')
+  [ 447/1000] HC   118647     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118648: no incidente in redirect (200 '')
+  [ 448/1000] HC   118648     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118649: no incidente in redirect (200 '')
+  [ 449/1000] HC   118649     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118650: no incidente in redirect (200 '')
+  [ 450/1000] HC   118650     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=336 fail=114 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 51.1 min
+WARNING:root:HC 118651: no incidente in redirect (200 '')
+  [ 451/1000] HC   118651     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118652: no incidente in redirect (200 '')
+  [ 452/1000] HC   118652     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118653: no incidente in redirect (200 '')
+  [ 453/1000] HC   118653     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118654: no incidente in redirect (200 '')
+  [ 454/1000] HC   118654     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118655: no incidente in redirect (200 '')
+  [ 455/1000] HC   118655     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118656: no incidente in redirect (200 '')
+  [ 456/1000] HC   118656     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118657: no incidente in redirect (200 '')
+  [ 457/1000] HC   118657     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118658: no incidente in redirect (200 '')
+  [ 458/1000] HC   118658     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118659: no incidente in redirect (200 '')
+  [ 459/1000] HC   118659     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 118660: no incidente in redirect (200 '')
+  [ 460/1000] HC   118660     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 461/1000] HC   118661     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 462/1000] HC   118662     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 463/1000] HC   118663     2.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 464/1000] HC   118664     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 465/1000] HC   118665     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 466/1000] HC   118666     1.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 467/1000] HC   118667     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 468/1000] HC   118668     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 469/1000] HC   118669     2.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 470/1000] HC   118670     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 471/1000] HC   118671     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 472/1000] HC   118672     1.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 473/1000] HC   118673     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 474/1000] HC   118674     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 475/1000] HC   118675     2.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=351 fail=124 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 47.6 min
+  [ 476/1000] HC   118676   124.15s  status=ok     retries=403×7  diffs=0  anomalies=0
+  [ 477/1000] HC   118677     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 478/1000] HC   118678     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 479/1000] HC   118679     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 480/1000] HC   118680     1.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 481/1000] HC   118681     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 482/1000] HC   118682     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 483/1000] HC   118683     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 484/1000] HC   118684     1.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 485/1000] HC   118685     1.19s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 486/1000] HC   118686     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 487/1000] HC   118687     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 488/1000] HC   118688     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 489/1000] HC   118689     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 490/1000] HC   118690     1.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 491/1000] HC   118691     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 492/1000] HC   118692     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 493/1000] HC   118693     1.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 494/1000] HC   118694     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 495/1000] HC   118695     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 496/1000] HC   118696     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 497/1000] HC   118697     1.11s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 498/1000] HC   118698     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 499/1000] HC   118699     1.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 500/1000] HC   118700     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=376 fail=124 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 46.4 min
+  [ 501/1000] HC   118701     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 502/1000] HC   118702     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 503/1000] HC   118703     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 504/1000] HC   118704     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 505/1000] HC   118705     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 506/1000] HC   118706     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 507/1000] HC   118707    31.98s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [ 508/1000] HC   118708     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 509/1000] HC   118709     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 510/1000] HC   118710     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 511/1000] HC   118711     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 512/1000] HC   118712     3.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 513/1000] HC   118713     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 514/1000] HC   118714     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 515/1000] HC   118715     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 516/1000] HC   118716     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 517/1000] HC   118717     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 518/1000] HC   118718     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 519/1000] HC   118719     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 520/1000] HC   118720     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 521/1000] HC   118721     3.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 522/1000] HC   118722     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 523/1000] HC   118723     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 524/1000] HC   118724     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 525/1000] HC   118725     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=401 fail=124 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 43.6 min
+  [ 526/1000] HC   118726     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 527/1000] HC   118727     3.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 528/1000] HC   118728     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 529/1000] HC   118729     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 530/1000] HC   118730     1.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 531/1000] HC   118731     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 532/1000] HC   118732     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 533/1000] HC   118733     3.11s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 534/1000] HC   118734     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 535/1000] HC   118735     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 536/1000] HC   118736     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 537/1000] HC   118737   124.50s  status=ok     retries=403×7  diffs=0  anomalies=0
+  [ 538/1000] HC   118738     3.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 539/1000] HC   118739     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 540/1000] HC   118740     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 541/1000] HC   118741     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 542/1000] HC   118742     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 543/1000] HC   118743     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 544/1000] HC   118744     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 545/1000] HC   118745     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 546/1000] HC   118746     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 547/1000] HC   118747     2.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 548/1000] HC   118748     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 549/1000] HC   118749     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 550/1000] HC   118750     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=426 fail=124 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 42.3 min
+  [ 551/1000] HC   118751     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 552/1000] HC   118752     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 553/1000] HC   118753     2.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 554/1000] HC   118754     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 555/1000] HC   118755     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 556/1000] HC   118756     4.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 557/1000] HC   118757     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 558/1000] HC   118758     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 559/1000] HC   118759     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 560/1000] HC   118760     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 561/1000] HC   118761     1.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 562/1000] HC   118762     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 563/1000] HC   118763     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 564/1000] HC   118764     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118765: no incidente in redirect (200 '')
+  [ 565/1000] HC   118765     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 566/1000] HC   118766    32.26s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [ 567/1000] HC   118767     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 568/1000] HC   118768     3.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 569/1000] HC   118769     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 570/1000] HC   118770     3.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 571/1000] HC   118771     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 572/1000] HC   118772     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 573/1000] HC   118773     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 574/1000] HC   118774     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 575/1000] HC   118775     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=450 fail=125 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 39.6 min
+  [ 576/1000] HC   118776     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 577/1000] HC   118777     2.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 578/1000] HC   118778     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 579/1000] HC   118779     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 580/1000] HC   118780     1.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 581/1000] HC   118781     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 582/1000] HC   118782     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 583/1000] HC   118783     1.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 584/1000] HC   118784   124.43s  status=ok     retries=403×7  diffs=0  anomalies=0
+  [ 585/1000] HC   118785     3.35s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118786: no incidente in redirect (200 '')
+  [ 586/1000] HC   118786     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 587/1000] HC   118787     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 588/1000] HC   118788     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 589/1000] HC   118789     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 590/1000] HC   118790     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 591/1000] HC   118791     1.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 592/1000] HC   118792     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 593/1000] HC   118793     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 594/1000] HC   118794     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 595/1000] HC   118795     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 596/1000] HC   118796     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 597/1000] HC   118797     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 598/1000] HC   118798     1.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 599/1000] HC   118799     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 600/1000] HC   118800     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=474 fail=126 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 38.0 min
+  [ 601/1000] HC   118801     2.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 602/1000] HC   118802     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 603/1000] HC   118803     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 604/1000] HC   118804     2.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 605/1000] HC   118805     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 606/1000] HC   118806     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 607/1000] HC   118807     2.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 608/1000] HC   118808     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118809: no incidente in redirect (200 '')
+  [ 609/1000] HC   118809     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 610/1000] HC   118810     2.34s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 611/1000] HC   118811     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 612/1000] HC   118812     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 613/1000] HC   118813     2.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 614/1000] HC   118814     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 615/1000] HC   118815     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 616/1000] HC   118816     1.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 617/1000] HC   118817     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 618/1000] HC   118818     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 619/1000] HC   118819     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 620/1000] HC   118820     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 621/1000] HC   118821     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 622/1000] HC   118822     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 623/1000] HC   118823     1.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 624/1000] HC   118824    64.09s  status=ok     retries=403×6  diffs=0  anomalies=0
+  [ 625/1000] HC   118825     1.34s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=498 fail=127 error=0 skipped=0 429×0 5xx×0 · 0.18 proc/s · eta 35.6 min
+  [ 626/1000] HC   118826     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 627/1000] HC   118827     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 628/1000] HC   118828     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 629/1000] HC   118829     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 630/1000] HC   118830     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 631/1000] HC   118831     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 118832: no incidente in redirect (200 '')
+  [ 632/1000] HC   118832     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 633/1000] HC   118833     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 634/1000] HC   118834     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 635/1000] HC   118835     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 636/1000] HC   118836     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 637/1000] HC   118837     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 638/1000] HC   118838     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+
+!! received signal 15; finishing current item and stopping
+
+!! received signal 15; finishing current item and stopping
+
+!! received signal 15; finishing current item and stopping
+
+!! received signal 15; finishing current item and stopping
+  [ 639/1000] HC   118839   126.48s  status=ok     retries=403×14  diffs=0  anomalies=0
+  stopping before item 640/1000
+
+summary: ok=511 fail=128 error=0 skipped=0 429×0 5xx×0
+  state:  docs/sweep-results/2026-04-17-V-hc-118201-119200/sweep.state.json
+  log:    docs/sweep-results/2026-04-17-V-hc-118201-119200/sweep.log.jsonl
+  errors: docs/sweep-results/2026-04-17-V-hc-118201-119200/sweep.errors.jsonl
+  report: docs/sweep-results/2026-04-17-V-hc-118201-119200/report.md

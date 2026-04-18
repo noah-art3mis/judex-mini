@@ -24,6 +24,33 @@ Brazil-specific work is thinner but exists. FGV's **Supremo em Números** projec
 
 Recommendation: explicitly cite Galanter, Kritzer-Silbey, and Bottino/Hartmann, and note your 2023 slice's grant rate against the 8 % historical baseline as a sanity check.
 
+### FGV *IV Relatório Supremo em Números — O Supremo e o Ministério Público* (2015)
+
+Falcão, Moraes & Hartmann, FGV DIREITO RIO, ISBN 978-85-63265-50-0. 102 pp., CC-BY-NC-ND. Archived locally at `docs/IV Relatório Supremo em Números - O Supremo e o Ministério Público.pdf`. Three things it gives us, none of which substitute the analysis but all of which are worth wiring in:
+
+**Operational outcome rule (§b, p. 50) — adopted as project standard 2026-04-17.** FGV's exact definition of *taxa de sucesso*: exclude interlocutórias e liminares, count every decision that terminates a process as favorável (procedência parcial ou total) or desfavorável (all else, explicitly including "negativa de admissão"). Ported into `src/analysis/legal_vocab.py` as `FGV_FAVORABLE_OUTCOMES` / `FGV_UNFAVORABLE_OUTCOMES` with the partition pinned by `tests/unit/test_legal_vocab_fgv.py`. Now the project-wide win/loss definition — see `docs/hc-who-wins.md` § "Research question" for the three-point justification (comparability with FGV's published MP baselines; defensibility of a peer-reviewed definition over a bespoke one; honest framing of *nao_conhecido* as a loss rather than a procedural limbo). Supersedes the prior ad-hoc "win / loss / procedural" partition; the main behavioural change is that `nao_conhecido`, `prejudicado`, and `extinto` now count as losses rather than being dropped from the denominator.
+
+**Litigant-grouping precedent (§a).** FGV clusters MP by geographic origin — MPE by Tribunal de Justiça estadual, MPF by Tribunal Regional Federal (1ª–5ª Região). Direct analytical template for the repeat-player lens: impetrante → escritório → OAB-state tier. Cite for methodological lineage; it lowers reviewer friction on "why aggregate at that level."
+
+**Baseline numbers to anchor against (§b + §f, 2009–2013 aggregate + 2013 snapshot).** Use these as sanity checks, not as targets — they are MP-centric and pre-Lava-Jato:
+
+| Actor / slice | Success rate | Source |
+|---|---|---|
+| STF overall (2013)               | 24 %   | §f.7 |
+| PGR (2013)                       | 50 %   | §f.7 |
+| MP geral (parte, 2009–2013)      | 5.8 %  | §b.1 |
+| MP como parte ativa (2009–2013)  | 16.1 % | §b.4 |
+| MPF reversion rate (2009–2013)   | 5.1 %  | §b.2 |
+| MP-SC (2009–2013, best MPE)      | 38.5 % | §b.4 |
+| MPF 1ª Região (2009–2013, best)  | 20.6 % | §b.4 |
+| MP-Paraíba (worst MPE)           | 1.8 %  | §b.1 |
+
+Key framing that transfers: the PGR-to-STF-average gap (50 % vs 24 % in 2013, up to 70 points in 2000) is FGV's headline evidence that repeat-player identity at the STF moves win rates by tens of percentage points — exactly the effect size the HC deep-dive is sized to detect. The MPE spread (1.8 %–38.5 %) is the within-category variance a rigorous analysis should expect to find among impetrantes once case mix is controlled.
+
+**What FGV did not do**: no shrinkage, no CIs, no causal identification — raw percentages only; no lawyer-level dedup (they group by institutional actor, which skips the hardest problem); no HC breakdown (data is 1988–2013 from an internal Oracle DB of 1.48M processes, not HC-specific); internal DB not distributable, so quote conclusions but don't merge.
+
+**Action item**: the 2024 Rosevear/Hartmann/Arguelhes dissent dataset (§ open questions below) and this report share an author — Ivar Hartmann, FGV. One email, two asks.
+
 ## 2. Name entity resolution for Portuguese lawyer data
 
 The mature tooling:

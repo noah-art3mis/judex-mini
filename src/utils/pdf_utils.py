@@ -1,10 +1,23 @@
 import logging
 from io import BytesIO
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 import striprtf  # type: ignore
 import urllib3
+
+
+def _is_stf_host(url: str) -> bool:
+    # WSL sandboxes lack a full CA bundle; *.stf.jus.br content is public,
+    # so verify=False is safe. Previously this list was hard-coded to
+    # "sistemas.stf.jus.br" only, which left digital.stf.jus.br (newer
+    # monocratic-decisions API) failing SSL on 2023+ sweeps.
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host == "stf.jus.br" or host.endswith(".stf.jus.br")
 
 # Suppress urllib3 warnings for STF URLs
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -85,7 +98,7 @@ def extract_document_text(url: str, timeout: int = 30) -> Optional[str]:
 
     try:
         # Download the document with SSL verification disabled for STF URLs
-        verify_ssl = not url.startswith("https://sistemas.stf.jus.br")
+        verify_ssl = not _is_stf_host(url)
         response = requests.get(url, timeout=timeout, verify=verify_ssl)
         response.raise_for_status()
 

@@ -2,7 +2,7 @@
 
 Date: 2026-04-16
 Branch: `experiment/perf-bulk-data`
-Context: `docs/handoff.md` § "Next steps, ordered" #1.
+Context: `docs/current_progress.md` § "Next steps, ordered" #1.
 
 ## Goal
 

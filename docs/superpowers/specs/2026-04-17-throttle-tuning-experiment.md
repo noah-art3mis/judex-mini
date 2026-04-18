@@ -282,7 +282,7 @@ existing `--throttle-sleep` CLI flag and state-file format.
    with the new numbers. ~15 min.
 2. Regardless of outcome, a **rolling-median circuit breaker** on
    recent `wall_s` values is still needed — see
-   `docs/handoff.md §3`. Orthogonal to this experiment; the data
+   `docs/current_progress.md §3`. Orthogonal to this experiment; the data
    collected here will inform the threshold.
 3. **Proxy rotation experiment** — separate spec, layered on top of
    whatever throttle default this experiment picks.

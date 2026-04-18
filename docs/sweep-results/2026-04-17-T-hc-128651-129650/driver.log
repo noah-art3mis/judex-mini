@@ -1,0 +1,1265 @@
+=== sweep: hc_128651_129650 · 1000 processes · input: csv `tests/sweep/hc_128651_129650.csv` (1000 rows) · parity: none ===
+  [   1/1000] HC   128651    16.51s  status=ok     retries=403×4  diffs=0  anomalies=0
+  [   2/1000] HC   128652     1.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [   3/1000] HC   128653     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [   4/1000] HC   128654     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [   5/1000] HC   128655     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [   6/1000] HC   128656     2.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [   7/1000] HC   128657     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [   8/1000] HC   128658     1.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [   9/1000] HC   128659     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  10/1000] HC   128660     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [  11/1000] HC   128661     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [  12/1000] HC   128662     2.37s  status=ok     retries=0  diffs=0  anomalies=0
+  [  13/1000] HC   128663     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [  14/1000] HC   128664     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [  15/1000] HC   128665     2.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [  16/1000] HC   128666     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [  17/1000] HC   128667     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [  18/1000] HC   128668     2.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [  19/1000] HC   128669     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  20/1000] HC   128670     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [  21/1000] HC   128671     1.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  22/1000] HC   128672     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128673: no incidente in redirect (200 '')
+  [  23/1000] HC   128673     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  24/1000] HC   128674     5.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [  25/1000] HC   128675     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=24 fail=1 error=0 skipped=0 429×0 5xx×0 · 0.25 proc/s · eta 65.2 min
+  [  26/1000] HC   128676     4.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [  27/1000] HC   128677     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128678: no incidente in redirect (200 '')
+  [  28/1000] HC   128678     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  29/1000] HC   128679     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [  30/1000] HC   128680     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [  31/1000] HC   128681     4.26s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128682: no incidente in redirect (200 '')
+  [  32/1000] HC   128682     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  33/1000] HC   128683     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  34/1000] HC   128684     7.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [  35/1000] HC   128685     2.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [  36/1000] HC   128686     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [  37/1000] HC   128687     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [  38/1000] HC   128688     1.95s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128689: no incidente in redirect (200 '')
+  [  39/1000] HC   128689     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  40/1000] HC   128690     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [  41/1000] HC   128691     3.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [  42/1000] HC   128692     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [  43/1000] HC   128693     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [  44/1000] HC   128694     1.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [  45/1000] HC   128695     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [  46/1000] HC   128696     1.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [  47/1000] HC   128697     1.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [  48/1000] HC   128698     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  49/1000] HC   128699     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [  50/1000] HC   128700     1.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=46 fail=4 error=0 skipped=0 429×0 5xx×0 · 0.26 proc/s · eta 61.5 min
+  [  51/1000] HC   128701     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [  52/1000] HC   128702     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [  53/1000] HC   128703     1.37s  status=ok     retries=0  diffs=0  anomalies=0
+  [  54/1000] HC   128704     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [  55/1000] HC   128705     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  56/1000] HC   128706     3.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [  57/1000] HC   128707     1.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  58/1000] HC   128708     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [  59/1000] HC   128709     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  60/1000] HC   128710     3.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  61/1000] HC   128711     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [  62/1000] HC   128712     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [  63/1000] HC   128713     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [  64/1000] HC   128714     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [  65/1000] HC   128715     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128716: no incidente in redirect (200 '')
+  [  66/1000] HC   128716     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  67/1000] HC   128717     1.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  68/1000] HC   128718     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128719: no incidente in redirect (200 '')
+  [  69/1000] HC   128719     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128720: no incidente in redirect (200 '')
+  [  70/1000] HC   128720     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128721: no incidente in redirect (200 '')
+  [  71/1000] HC   128721     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128722: no incidente in redirect (200 '')
+  [  72/1000] HC   128722     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128723: no incidente in redirect (200 '')
+  [  73/1000] HC   128723     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128724: no incidente in redirect (200 '')
+  [  74/1000] HC   128724     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128725: no incidente in redirect (200 '')
+  [  75/1000] HC   128725     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=63 fail=12 error=0 skipped=0 429×0 5xx×0 · 0.28 proc/s · eta 55.9 min
+WARNING:root:HC 128726: no incidente in redirect (200 '')
+  [  76/1000] HC   128726     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128727: no incidente in redirect (200 '')
+  [  77/1000] HC   128727     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  78/1000] HC   128728     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [  79/1000] HC   128729     2.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [  80/1000] HC   128730     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [  81/1000] HC   128731     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [  82/1000] HC   128732     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [  83/1000] HC   128733     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [  84/1000] HC   128734     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [  85/1000] HC   128735     2.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [  86/1000] HC   128736     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  87/1000] HC   128737     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [  88/1000] HC   128738     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [  89/1000] HC   128739     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [  90/1000] HC   128740     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [  91/1000] HC   128741     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [  92/1000] HC   128742     1.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [  93/1000] HC   128743     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [  94/1000] HC   128744     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [  95/1000] HC   128745     2.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [  96/1000] HC   128746     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [  97/1000] HC   128747     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128748: no incidente in redirect (200 '')
+  [  98/1000] HC   128748     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  99/1000] HC   128749     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 100/1000] HC   128750     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=85 fail=15 error=0 skipped=0 429×0 5xx×0 · 0.29 proc/s · eta 52.3 min
+  [ 101/1000] HC   128751     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 102/1000] HC   128752     1.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 103/1000] HC   128753     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 104/1000] HC   128754     1.58s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 105/1000] HC   128755     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 106/1000] HC   128756     1.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 107/1000] HC   128757     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 108/1000] HC   128758     2.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 109/1000] HC   128759     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 110/1000] HC   128760     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 111/1000] HC   128761     2.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 112/1000] HC   128762     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 113/1000] HC   128763     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 114/1000] HC   128764     2.54s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128765: no incidente in redirect (200 '')
+  [ 115/1000] HC   128765     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128766: no incidente in redirect (200 '')
+  [ 116/1000] HC   128766     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 117/1000] HC   128767     2.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 118/1000] HC   128768     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 119/1000] HC   128769     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 120/1000] HC   128770     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 121/1000] HC   128771     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 122/1000] HC   128772     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 123/1000] HC   128773     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 124/1000] HC   128774     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128775: no incidente in redirect (200 '')
+  [ 125/1000] HC   128775     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=107 fail=18 error=0 skipped=0 429×0 5xx×0 · 0.29 proc/s · eta 50.1 min
+WARNING:root:HC 128776: no incidente in redirect (200 '')
+  [ 126/1000] HC   128776     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128777: no incidente in redirect (200 '')
+  [ 127/1000] HC   128777     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128778: no incidente in redirect (200 '')
+  [ 128/1000] HC   128778     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 129/1000] HC   128779     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 130/1000] HC   128780     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 131/1000] HC   128781     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 132/1000] HC   128782     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 133/1000] HC   128783     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 134/1000] HC   128784     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 135/1000] HC   128785     1.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 136/1000] HC   128786     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 137/1000] HC   128787     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 138/1000] HC   128788     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128789: no incidente in redirect (200 '')
+  [ 139/1000] HC   128789     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128790: no incidente in redirect (200 '')
+  [ 140/1000] HC   128790     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128791: no incidente in redirect (200 '')
+  [ 141/1000] HC   128791     0.22s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 142/1000] HC   128792     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128793: no incidente in redirect (200 '')
+  [ 143/1000] HC   128793     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128794: no incidente in redirect (200 '')
+  [ 144/1000] HC   128794     0.25s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128795: no incidente in redirect (200 '')
+  [ 145/1000] HC   128795     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128796: no incidente in redirect (200 '')
+  [ 146/1000] HC   128796     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128797: no incidente in redirect (200 '')
+  [ 147/1000] HC   128797     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128798: no incidente in redirect (200 '')
+  [ 148/1000] HC   128798     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128799: no incidente in redirect (200 '')
+  [ 149/1000] HC   128799     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128800: no incidente in redirect (200 '')
+  [ 150/1000] HC   128800     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=118 fail=32 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 46.6 min
+  [ 151/1000] HC   128801     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 152/1000] HC   128802     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 153/1000] HC   128803     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 154/1000] HC   128804     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 155/1000] HC   128805     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 156/1000] HC   128806     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 157/1000] HC   128807     1.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 158/1000] HC   128808     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 159/1000] HC   128809     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 160/1000] HC   128810     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 161/1000] HC   128811     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 162/1000] HC   128812     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 163/1000] HC   128813     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 164/1000] HC   128814     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 165/1000] HC   128815     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 166/1000] HC   128816     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 167/1000] HC   128817     1.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128818: no incidente in redirect (200 '')
+  [ 168/1000] HC   128818     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 169/1000] HC   128819     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 170/1000] HC   128820     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 171/1000] HC   128821     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 172/1000] HC   128822     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 173/1000] HC   128823     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 174/1000] HC   128824     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 175/1000] HC   128825     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=142 fail=33 error=0 skipped=0 429×0 5xx×0 · 0.31 proc/s · eta 44.6 min
+  [ 176/1000] HC   128826     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128827: no incidente in redirect (200 '')
+  [ 177/1000] HC   128827     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128828: no incidente in redirect (200 '')
+  [ 178/1000] HC   128828    15.29s  status=fail   retries=403×4  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128829: no incidente in redirect (200 '')
+  [ 179/1000] HC   128829     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128830: no incidente in redirect (200 '')
+  [ 180/1000] HC   128830     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 181/1000] HC   128831     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 182/1000] HC   128832     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 183/1000] HC   128833     2.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 184/1000] HC   128834     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 185/1000] HC   128835     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 186/1000] HC   128836     1.50s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 187/1000] HC   128837     1.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 188/1000] HC   128838     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 189/1000] HC   128839     1.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 190/1000] HC   128840     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 191/1000] HC   128841     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 192/1000] HC   128842     2.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 193/1000] HC   128843     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 194/1000] HC   128844     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 195/1000] HC   128845     2.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 196/1000] HC   128846     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 197/1000] HC   128847     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 198/1000] HC   128848     2.47s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 199/1000] HC   128849     3.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 200/1000] HC   128850     1.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=163 fail=37 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 44.3 min
+  [ 201/1000] HC   128851     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 202/1000] HC   128852     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 203/1000] HC   128853     1.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 204/1000] HC   128854     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 205/1000] HC   128855     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 206/1000] HC   128856     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 207/1000] HC   128857     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 208/1000] HC   128858     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 209/1000] HC   128859     2.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 210/1000] HC   128860     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 211/1000] HC   128861     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 212/1000] HC   128862     1.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 213/1000] HC   128863     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 214/1000] HC   128864     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 215/1000] HC   128865     3.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 216/1000] HC   128866     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 217/1000] HC   128867     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 218/1000] HC   128868     1.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 219/1000] HC   128869     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 220/1000] HC   128870     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 221/1000] HC   128871     1.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 222/1000] HC   128872     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 223/1000] HC   128873     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128874: no incidente in redirect (200 '')
+  [ 224/1000] HC   128874     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 225/1000] HC   128875     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=187 fail=38 error=0 skipped=0 429×0 5xx×0 · 0.30 proc/s · eta 42.8 min
+  [ 226/1000] HC   128876     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 227/1000] HC   128877     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 228/1000] HC   128878     1.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 229/1000] HC   128879     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 230/1000] HC   128880     1.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 231/1000] HC   128881     3.95s  status=ok     retries=5xx×1  diffs=0  anomalies=0
+WARNING:root:HC 128882: no incidente in redirect (200 '')
+  [ 232/1000] HC   128882     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 233/1000] HC   128883     2.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 234/1000] HC   128884     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 235/1000] HC   128885     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 236/1000] HC   128886     1.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 237/1000] HC   128887     1.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 238/1000] HC   128888     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 239/1000] HC   128889     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 240/1000] HC   128890     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 241/1000] HC   128891     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 242/1000] HC   128892     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 243/1000] HC   128893     4.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 244/1000] HC   128894     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 245/1000] HC   128895     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 246/1000] HC   128896     1.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 247/1000] HC   128897     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 248/1000] HC   128898     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 249/1000] HC   128899     3.56s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128900: no incidente in redirect (200 '')
+  [ 250/1000] HC   128900     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=210 fail=40 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 41.5 min
+  [ 251/1000] HC   128901     1.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 252/1000] HC   128902     2.11s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128903: no incidente in redirect (200 '')
+  [ 253/1000] HC   128903     0.20s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 254/1000] HC   128904     1.74s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128905: no incidente in redirect (200 '')
+  [ 255/1000] HC   128905     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128906: no incidente in redirect (200 '')
+  [ 256/1000] HC   128906     0.21s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128907: no incidente in redirect (200 '')
+  [ 257/1000] HC   128907     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128908: no incidente in redirect (200 '')
+  [ 258/1000] HC   128908     0.23s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128909: no incidente in redirect (200 '')
+  [ 259/1000] HC   128909     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128910: no incidente in redirect (200 '')
+  [ 260/1000] HC   128910     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128911: no incidente in redirect (200 '')
+  [ 261/1000] HC   128911     0.24s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128912: no incidente in redirect (200 '')
+  [ 262/1000] HC   128912     0.26s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128913: no incidente in redirect (200 '')
+  [ 263/1000] HC   128913     0.24s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128914: no incidente in redirect (200 '')
+  [ 264/1000] HC   128914     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 265/1000] HC   128915     3.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 266/1000] HC   128916     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 267/1000] HC   128917     2.35s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 268/1000] HC   128918     2.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 269/1000] HC   128919     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 270/1000] HC   128920     1.39s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 271/1000] HC   128921     2.32s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128922: no incidente in redirect (200 '')
+  [ 272/1000] HC   128922     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 273/1000] HC   128923     1.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 274/1000] HC   128924     2.04s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128925: no incidente in redirect (200 '')
+  [ 275/1000] HC   128925     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=222 fail=53 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 39.8 min
+  [ 276/1000] HC   128926     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 277/1000] HC   128927     2.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 278/1000] HC   128928     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 279/1000] HC   128929     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 280/1000] HC   128930     1.54s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128931: no incidente in redirect (200 '')
+  [ 281/1000] HC   128931     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 282/1000] HC   128932     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 283/1000] HC   128933     3.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 284/1000] HC   128934     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 285/1000] HC   128935     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 286/1000] HC   128936     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128937: no incidente in redirect (200 '')
+  [ 287/1000] HC   128937     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 128938: no incidente in redirect (200 '')
+  [ 288/1000] HC   128938     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 289/1000] HC   128939     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128940: no incidente in redirect (200 '')
+  [ 290/1000] HC   128940     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 291/1000] HC   128941     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 292/1000] HC   128942     1.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 293/1000] HC   128943     2.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 294/1000] HC   128944     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 295/1000] HC   128945     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 296/1000] HC   128946     2.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 297/1000] HC   128947     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 298/1000] HC   128948     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 299/1000] HC   128949     2.19s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 300/1000] HC   128950     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=243 fail=57 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 38.4 min
+  [ 301/1000] HC   128951     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 302/1000] HC   128952     3.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 303/1000] HC   128953     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 304/1000] HC   128954     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 305/1000] HC   128955     3.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 306/1000] HC   128956     1.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 307/1000] HC   128957     4.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 308/1000] HC   128958     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 309/1000] HC   128959     2.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 310/1000] HC   128960     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 311/1000] HC   128961     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 312/1000] HC   128962     3.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 313/1000] HC   128963     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 314/1000] HC   128964     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 315/1000] HC   128965     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 316/1000] HC   128966     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128967: no incidente in redirect (200 '')
+  [ 317/1000] HC   128967     0.21s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 318/1000] HC   128968     1.34s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 319/1000] HC   128969     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 320/1000] HC   128970     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 321/1000] HC   128971     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 322/1000] HC   128972     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 323/1000] HC   128973     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 324/1000] HC   128974     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 325/1000] HC   128975     2.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=267 fail=58 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 37.2 min
+  [ 326/1000] HC   128976     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 327/1000] HC   128977     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 328/1000] HC   128978     2.29s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 329/1000] HC   128979     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 330/1000] HC   128980     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 331/1000] HC   128981     1.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 332/1000] HC   128982     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 333/1000] HC   128983     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 334/1000] HC   128984     2.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 335/1000] HC   128985     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 336/1000] HC   128986     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 337/1000] HC   128987     3.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 338/1000] HC   128988     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 339/1000] HC   128989     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 340/1000] HC   128990     2.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 341/1000] HC   128991     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 342/1000] HC   128992     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 343/1000] HC   128993     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 344/1000] HC   128994     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 345/1000] HC   128995     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 346/1000] HC   128996     2.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 347/1000] HC   128997     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 128998: no incidente in redirect (200 '')
+  [ 348/1000] HC   128998     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 349/1000] HC   128999     3.58s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 350/1000] HC   129000     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=291 fail=59 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 35.9 min
+  [ 351/1000] HC   129001     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 352/1000] HC   129002     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 353/1000] HC   129003     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 354/1000] HC   129004     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 355/1000] HC   129005     2.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 356/1000] HC   129006     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 357/1000] HC   129007     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 358/1000] HC   129008     1.50s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 359/1000] HC   129009     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 360/1000] HC   129010     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 361/1000] HC   129011     2.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 362/1000] HC   129012     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 363/1000] HC   129013     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 364/1000] HC   129014     2.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 365/1000] HC   129015     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 366/1000] HC   129016     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 367/1000] HC   129017     1.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 368/1000] HC   129018     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 369/1000] HC   129019     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 370/1000] HC   129020     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 371/1000] HC   129021     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 372/1000] HC   129022     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 373/1000] HC   129023     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 374/1000] HC   129024     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 375/1000] HC   129025    32.07s  status=ok     retries=403×5  diffs=0  anomalies=0
+  [progress] ok=316 fail=59 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 35.2 min
+  [ 376/1000] HC   129026     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 377/1000] HC   129027     1.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 378/1000] HC   129028     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 379/1000] HC   129029     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129030: no incidente in redirect (200 '')
+  [ 380/1000] HC   129030     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 381/1000] HC   129031     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 382/1000] HC   129032     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 383/1000] HC   129033     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 384/1000] HC   129034     1.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 385/1000] HC   129035     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 386/1000] HC   129036     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 387/1000] HC   129037     2.37s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 388/1000] HC   129038     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 389/1000] HC   129039     1.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 390/1000] HC   129040     1.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 391/1000] HC   129041     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 392/1000] HC   129042     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129043: no incidente in redirect (200 '')
+  [ 393/1000] HC   129043     0.26s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129044: no incidente in redirect (200 '')
+  [ 394/1000] HC   129044     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129045: no incidente in redirect (200 '')
+  [ 395/1000] HC   129045     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129046: no incidente in redirect (200 '')
+  [ 396/1000] HC   129046     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129047: no incidente in redirect (200 '')
+  [ 397/1000] HC   129047     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129048: no incidente in redirect (200 '')
+  [ 398/1000] HC   129048     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 399/1000] HC   129049     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 400/1000] HC   129050     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=334 fail=66 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 33.5 min
+  [ 401/1000] HC   129051     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 402/1000] HC   129052     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 403/1000] HC   129053     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129054: no incidente in redirect (200 '')
+  [ 404/1000] HC   129054     0.56s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 405/1000] HC   129055     2.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 406/1000] HC   129056     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 407/1000] HC   129057     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 408/1000] HC   129058     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129059: no incidente in redirect (200 '')
+  [ 409/1000] HC   129059     0.13s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 410/1000] HC   129060     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 411/1000] HC   129061     3.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 412/1000] HC   129062     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 413/1000] HC   129063     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 414/1000] HC   129064     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 415/1000] HC   129065     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 416/1000] HC   129066     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 417/1000] HC   129067     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 418/1000] HC   129068     1.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 419/1000] HC   129069     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 420/1000] HC   129070     2.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 421/1000] HC   129071     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 422/1000] HC   129072     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 423/1000] HC   129073     2.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 424/1000] HC   129074     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 425/1000] HC   129075     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=357 fail=68 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 32.0 min
+  [ 426/1000] HC   129076     2.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 427/1000] HC   129077     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 428/1000] HC   129078     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 429/1000] HC   129079     1.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 430/1000] HC   129080     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 431/1000] HC   129081     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 432/1000] HC   129082     2.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 433/1000] HC   129083     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 434/1000] HC   129084     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 435/1000] HC   129085     2.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 436/1000] HC   129086     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 437/1000] HC   129087     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 438/1000] HC   129088     2.26s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 439/1000] HC   129089     0.57s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 440/1000] HC   129090     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 441/1000] HC   129091     2.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 442/1000] HC   129092     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 443/1000] HC   129093     1.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 444/1000] HC   129094     1.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 445/1000] HC   129095     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 446/1000] HC   129096     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 447/1000] HC   129097     2.45s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 448/1000] HC   129098     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 449/1000] HC   129099     1.06s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 450/1000] HC   129100     2.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=382 fail=68 error=0 skipped=0 429×0 5xx×1 · 0.30 proc/s · eta 30.6 min
+  [ 451/1000] HC   129101     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 452/1000] HC   129102     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 453/1000] HC   129103     1.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 454/1000] HC   129104     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 455/1000] HC   129105     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 456/1000] HC   129106     2.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 457/1000] HC   129107     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 458/1000] HC   129108     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 459/1000] HC   129109     1.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 460/1000] HC   129110     1.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 461/1000] HC   129111     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 462/1000] HC   129112     1.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 463/1000] HC   129113     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 464/1000] HC   129114     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 465/1000] HC   129115    66.87s  status=ok     retries=403×12  diffs=0  anomalies=0
+  [ 466/1000] HC   129116     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 467/1000] HC   129117     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 468/1000] HC   129118     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 469/1000] HC   129119     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 470/1000] HC   129120     4.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 471/1000] HC   129121     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 472/1000] HC   129122     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 473/1000] HC   129123     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 474/1000] HC   129124     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 475/1000] HC   129125     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=407 fail=68 error=0 skipped=0 429×0 5xx×1 · 0.29 proc/s · eta 30.4 min
+  [ 476/1000] HC   129126     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 477/1000] HC   129127     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 478/1000] HC   129128     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 479/1000] HC   129129     6.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 480/1000] HC   129130     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 481/1000] HC   129131     2.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 482/1000] HC   129132     1.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 483/1000] HC   129133     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 484/1000] HC   129134     2.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 485/1000] HC   129135     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 486/1000] HC   129136     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 487/1000] HC   129137     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 488/1000] HC   129138     1.24s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 489/1000] HC   129139     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 490/1000] HC   129140     2.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 491/1000] HC   129141     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 492/1000] HC   129142     2.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 493/1000] HC   129143     2.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 494/1000] HC   129144     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 495/1000] HC   129145     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 496/1000] HC   129146     2.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 497/1000] HC   129147     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 498/1000] HC   129148     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 499/1000] HC   129149     4.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 500/1000] HC   129150     1.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=432 fail=68 error=0 skipped=0 429×0 5xx×1 · 0.29 proc/s · eta 29.0 min
+  [ 501/1000] HC   129151     1.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 502/1000] HC   129152     1.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 503/1000] HC   129153     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 504/1000] HC   129154     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 505/1000] HC   129155     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 506/1000] HC   129156     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 507/1000] HC   129157     2.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 508/1000] HC   129158     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 509/1000] HC   129159     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 510/1000] HC   129160     2.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 511/1000] HC   129161     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 512/1000] HC   129162     2.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 513/1000] HC   129163     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 514/1000] HC   129164     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 515/1000] HC   129165     3.21s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129166: no incidente in redirect (200 '')
+  [ 516/1000] HC   129166     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 517/1000] HC   129167     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 518/1000] HC   129168     3.40s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 519/1000] HC   129169     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 520/1000] HC   129170     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 521/1000] HC   129171     1.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 522/1000] HC   129172     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 523/1000] HC   129173     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 524/1000] HC   129174     2.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 525/1000] HC   129175     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=456 fail=69 error=0 skipped=0 429×0 5xx×1 · 0.29 proc/s · eta 27.6 min
+  [ 526/1000] HC   129176     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 527/1000] HC   129177     4.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 528/1000] HC   129178     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 529/1000] HC   129179     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 530/1000] HC   129180     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 531/1000] HC   129181     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 532/1000] HC   129182     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 533/1000] HC   129183     2.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 534/1000] HC   129184     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 535/1000] HC   129185     4.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 536/1000] HC   129186     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 537/1000] HC   129187     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 538/1000] HC   129188     3.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 539/1000] HC   129189     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 540/1000] HC   129190     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 541/1000] HC   129191     1.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 542/1000] HC   129192     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 543/1000] HC   129193     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 544/1000] HC   129194     3.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 545/1000] HC   129195     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 546/1000] HC   129196     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 547/1000] HC   129197     4.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 548/1000] HC   129198     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 549/1000] HC   129199     4.64s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129200: no incidente in redirect (200 '')
+  [ 550/1000] HC   129200     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=480 fail=70 error=0 skipped=0 429×0 5xx×1 · 0.29 proc/s · eta 26.2 min
+  [ 551/1000] HC   129201     3.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 552/1000] HC   129202     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 553/1000] HC   129203     1.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 554/1000] HC   129204     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 555/1000] HC   129205     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 556/1000] HC   129206     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 557/1000] HC   129207     2.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 558/1000] HC   129208     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 559/1000] HC   129209     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 560/1000] HC   129210     4.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 561/1000] HC   129211     1.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 562/1000] HC   129212     7.16s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 563/1000] HC   129213    19.44s  status=ok     retries=403×16  diffs=0  anomalies=0
+  [ 564/1000] HC   129214     2.15s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 565/1000] HC   129215     2.33s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 566/1000] HC   129216     2.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 567/1000] HC   129217     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129218: no incidente in redirect (200 '')
+  [ 568/1000] HC   129218     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 569/1000] HC   129219     6.11s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 570/1000] HC   129220     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 571/1000] HC   129221     3.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 572/1000] HC   129222     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 573/1000] HC   129223     5.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 574/1000] HC   129224     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 575/1000] HC   129225     2.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=504 fail=71 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 25.2 min
+  [ 576/1000] HC   129226     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 577/1000] HC   129227     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 578/1000] HC   129228     2.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 579/1000] HC   129229     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129230: no incidente in redirect (200 '')
+  [ 580/1000] HC   129230     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 581/1000] HC   129231     2.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 582/1000] HC   129232     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 583/1000] HC   129233     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 584/1000] HC   129234     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 585/1000] HC   129235     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 586/1000] HC   129236     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 587/1000] HC   129237     3.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 588/1000] HC   129238     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 589/1000] HC   129239     3.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 590/1000] HC   129240     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 591/1000] HC   129241     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 592/1000] HC   129242     3.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 593/1000] HC   129243     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 594/1000] HC   129244     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 595/1000] HC   129245     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 596/1000] HC   129246     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 597/1000] HC   129247     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 598/1000] HC   129248     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 599/1000] HC   129249     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 600/1000] HC   129250     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=528 fail=72 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 23.7 min
+  [ 601/1000] HC   129251     1.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 602/1000] HC   129252     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 603/1000] HC   129253     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 604/1000] HC   129254     2.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 605/1000] HC   129255     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 606/1000] HC   129256     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 607/1000] HC   129257     1.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 608/1000] HC   129258     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 609/1000] HC   129259     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 610/1000] HC   129260     1.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 611/1000] HC   129261     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 612/1000] HC   129262     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 613/1000] HC   129263     3.56s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 614/1000] HC   129264     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 615/1000] HC   129265     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 616/1000] HC   129266     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 617/1000] HC   129267     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 618/1000] HC   129268     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 619/1000] HC   129269     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 620/1000] HC   129270     1.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 621/1000] HC   129271     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 622/1000] HC   129272     3.54s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 623/1000] HC   129273     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 624/1000] HC   129274     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 625/1000] HC   129275     1.28s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=553 fail=72 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 22.2 min
+  [ 626/1000] HC   129276     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 627/1000] HC   129277     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 628/1000] HC   129278     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 629/1000] HC   129279     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 630/1000] HC   129280     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 631/1000] HC   129281     2.50s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 632/1000] HC   129282     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 633/1000] HC   129283     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 634/1000] HC   129284     2.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 635/1000] HC   129285     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 636/1000] HC   129286     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 637/1000] HC   129287     2.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 638/1000] HC   129288     1.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 639/1000] HC   129289     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 640/1000] HC   129290     1.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 641/1000] HC   129291     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 642/1000] HC   129292     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 643/1000] HC   129293     1.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 644/1000] HC   129294     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 645/1000] HC   129295     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 646/1000] HC   129296     2.02s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 647/1000] HC   129297     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 648/1000] HC   129298     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 649/1000] HC   129299     1.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 650/1000] HC   129300     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=578 fail=72 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 20.6 min
+  [ 651/1000] HC   129301     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 652/1000] HC   129302     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 653/1000] HC   129303    64.29s  status=ok     retries=403×24  diffs=0  anomalies=0
+  [ 654/1000] HC   129304     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 655/1000] HC   129305     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 656/1000] HC   129306     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 657/1000] HC   129307     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 658/1000] HC   129308     1.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 659/1000] HC   129309     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 660/1000] HC   129310     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129311: no incidente in redirect (200 '')
+  [ 661/1000] HC   129311     0.25s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 662/1000] HC   129312     2.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 663/1000] HC   129313     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 664/1000] HC   129314     1.10s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 665/1000] HC   129315     5.43s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 666/1000] HC   129316     1.18s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 667/1000] HC   129317     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 668/1000] HC   129318     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 669/1000] HC   129319     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 670/1000] HC   129320     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 671/1000] HC   129321     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 672/1000] HC   129322     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 673/1000] HC   129323     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 674/1000] HC   129324     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 675/1000] HC   129325     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=602 fail=73 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 19.6 min
+  [ 676/1000] HC   129326     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 677/1000] HC   129327     2.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 678/1000] HC   129328     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 679/1000] HC   129329     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 680/1000] HC   129330     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 681/1000] HC   129331     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 682/1000] HC   129332     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 683/1000] HC   129333     2.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 684/1000] HC   129334     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 685/1000] HC   129335     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 686/1000] HC   129336     1.27s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 687/1000] HC   129337     1.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 688/1000] HC   129338     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 689/1000] HC   129339     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129340: no incidente in redirect (200 '')
+  [ 690/1000] HC   129340     0.12s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 691/1000] HC   129341     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 692/1000] HC   129342     1.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 693/1000] HC   129343     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129344: no incidente in redirect (200 '')
+  [ 694/1000] HC   129344     0.09s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 695/1000] HC   129345     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 696/1000] HC   129346     2.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 697/1000] HC   129347     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 698/1000] HC   129348     1.07s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 699/1000] HC   129349     2.26s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 700/1000] HC   129350     1.48s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=625 fail=75 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 18.0 min
+  [ 701/1000] HC   129351     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 702/1000] HC   129352     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 703/1000] HC   129353     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 704/1000] HC   129354     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129355: no incidente in redirect (200 '')
+  [ 705/1000] HC   129355     0.25s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129356: no incidente in redirect (200 '')
+  [ 706/1000] HC   129356     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129357: no incidente in redirect (200 '')
+  [ 707/1000] HC   129357     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129358: no incidente in redirect (200 '')
+  [ 708/1000] HC   129358     0.17s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129359: no incidente in redirect (200 '')
+  [ 709/1000] HC   129359     0.27s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 710/1000] HC   129360     1.38s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 711/1000] HC   129361     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 712/1000] HC   129362     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129363: no incidente in redirect (200 '')
+  [ 713/1000] HC   129363     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129364: no incidente in redirect (200 '')
+  [ 714/1000] HC   129364     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129365: no incidente in redirect (200 '')
+  [ 715/1000] HC   129365     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129366: no incidente in redirect (200 '')
+  [ 716/1000] HC   129366     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 717/1000] HC   129367     4.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 718/1000] HC   129368     1.02s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 719/1000] HC   129369     5.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 720/1000] HC   129370     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 721/1000] HC   129371     3.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 722/1000] HC   129372     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 723/1000] HC   129373     1.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 724/1000] HC   129374     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129375: no incidente in redirect (200 '')
+  [ 725/1000] HC   129375     0.14s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=640 fail=85 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 16.4 min
+  [ 726/1000] HC   129376     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 727/1000] HC   129377     2.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 728/1000] HC   129378     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 729/1000] HC   129379     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 730/1000] HC   129380     4.60s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 731/1000] HC   129381     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 732/1000] HC   129382     3.46s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 733/1000] HC   129383     1.13s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 734/1000] HC   129384     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 735/1000] HC   129385     2.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 736/1000] HC   129386     1.00s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 737/1000] HC   129387     2.17s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129388: no incidente in redirect (200 '')
+  [ 738/1000] HC   129388     0.21s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 739/1000] HC   129389     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 740/1000] HC   129390     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 741/1000] HC   129391     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 742/1000] HC   129392    31.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 743/1000] HC   129393     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 744/1000] HC   129394     1.53s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 745/1000] HC   129395     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 746/1000] HC   129396     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 747/1000] HC   129397     1.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 748/1000] HC   129398     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129399: no incidente in redirect (200 '')
+  [ 749/1000] HC   129399     0.59s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 750/1000] HC   129400     1.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=663 fail=87 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 15.1 min
+  [ 751/1000] HC   129401     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 752/1000] HC   129402     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 753/1000] HC   129403     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 754/1000] HC   129404     1.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 755/1000] HC   129405     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 756/1000] HC   129406     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 757/1000] HC   129407     1.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 758/1000] HC   129408     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 759/1000] HC   129409     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 760/1000] HC   129410     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 761/1000] HC   129411     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 762/1000] HC   129412     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 763/1000] HC   129413     2.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 764/1000] HC   129414     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 765/1000] HC   129415     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 766/1000] HC   129416     1.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 767/1000] HC   129417     1.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 768/1000] HC   129418     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 769/1000] HC   129419     1.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 770/1000] HC   129420     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 771/1000] HC   129421     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 772/1000] HC   129422     3.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 773/1000] HC   129423     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 774/1000] HC   129424     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 775/1000] HC   129425     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=688 fail=87 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 13.5 min
+  [ 776/1000] HC   129426     1.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 777/1000] HC   129427     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 778/1000] HC   129428     2.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 779/1000] HC   129429     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 780/1000] HC   129430     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 781/1000] HC   129431     3.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 782/1000] HC   129432     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 783/1000] HC   129433     2.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 784/1000] HC   129434     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 785/1000] HC   129435     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 786/1000] HC   129436     1.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 787/1000] HC   129437     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 788/1000] HC   129438    32.14s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 789/1000] HC   129439     2.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 790/1000] HC   129440     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 791/1000] HC   129441     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 792/1000] HC   129442     1.80s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129443: no incidente in redirect (200 '')
+  [ 793/1000] HC   129443     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129444: no incidente in redirect (200 '')
+  [ 794/1000] HC   129444     0.10s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 795/1000] HC   129445     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 796/1000] HC   129446     1.49s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 797/1000] HC   129447     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 798/1000] HC   129448     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 799/1000] HC   129449    33.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 800/1000] HC   129450     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=711 fail=89 error=0 skipped=0 429×0 5xx×1 · 0.27 proc/s · eta 12.2 min
+  [ 801/1000] HC   129451     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 802/1000] HC   129452     2.21s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 803/1000] HC   129453     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 804/1000] HC   129454     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 805/1000] HC   129455     1.73s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129456: no incidente in redirect (200 '')
+  [ 806/1000] HC   129456     0.23s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 129457: no incidente in redirect (200 '')
+  [ 807/1000] HC   129457     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 808/1000] HC   129458     1.31s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 809/1000] HC   129459     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129460: no incidente in redirect (200 '')
+  [ 810/1000] HC   129460     0.11s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 811/1000] HC   129461     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 812/1000] HC   129462     1.41s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 813/1000] HC   129463     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 814/1000] HC   129464     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 815/1000] HC   129465     1.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 816/1000] HC   129466     0.87s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 817/1000] HC   129467     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 818/1000] HC   129468     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129469: no incidente in redirect (200 '')
+  [ 819/1000] HC   129469     0.18s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 820/1000] HC   129470     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129471: no incidente in redirect (200 '')
+  [ 821/1000] HC   129471     0.19s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 822/1000] HC   129472     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 823/1000] HC   129473     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 824/1000] HC   129474     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 825/1000] HC   129475     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=731 fail=94 error=0 skipped=0 429×0 5xx×1 · 0.27 proc/s · eta 10.6 min
+  [ 826/1000] HC   129476     2.42s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 827/1000] HC   129477     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129478: no incidente in redirect (200 '')
+  [ 828/1000] HC   129478     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 829/1000] HC   129479     2.10s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 830/1000] HC   129480     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 831/1000] HC   129481     0.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 832/1000] HC   129482     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 833/1000] HC   129483     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 834/1000] HC   129484     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 835/1000] HC   129485     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 836/1000] HC   129486     1.61s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 837/1000] HC   129487     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 838/1000] HC   129488     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 839/1000] HC   129489     1.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 840/1000] HC   129490     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 841/1000] HC   129491     0.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 842/1000] HC   129492     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 843/1000] HC   129493     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 844/1000] HC   129494     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 845/1000] HC   129495     0.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 846/1000] HC   129496     2.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 847/1000] HC   129497     1.01s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 848/1000] HC   129498     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 849/1000] HC   129499     1.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 850/1000] HC   129500     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=755 fail=95 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 9.1 min
+  [ 851/1000] HC   129501     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 852/1000] HC   129502     1.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 853/1000] HC   129503     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 854/1000] HC   129504     2.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 855/1000] HC   129505     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 856/1000] HC   129506     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 857/1000] HC   129507     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 858/1000] HC   129508     2.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 859/1000] HC   129509     1.08s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 860/1000] HC   129510     1.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 861/1000] HC   129511     2.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 862/1000] HC   129512     0.63s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 863/1000] HC   129513     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 864/1000] HC   129514     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 865/1000] HC   129515     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 866/1000] HC   129516     1.04s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 867/1000] HC   129517     1.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 868/1000] HC   129518     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 869/1000] HC   129519     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 870/1000] HC   129520     2.59s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 871/1000] HC   129521     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 872/1000] HC   129522     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 873/1000] HC   129523     2.17s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 874/1000] HC   129524     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 875/1000] HC   129525     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=780 fail=95 error=0 skipped=0 429×0 5xx×1 · 0.28 proc/s · eta 7.5 min
+  [ 876/1000] HC   129526     3.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 877/1000] HC   129527     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 878/1000] HC   129528     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 879/1000] HC   129529     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 880/1000] HC   129530     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 881/1000] HC   129531     0.62s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 882/1000] HC   129532     1.32s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 883/1000] HC   129533     0.64s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 884/1000] HC   129534     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 885/1000] HC   129535     1.89s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 886/1000] HC   129536    64.05s  status=ok     retries=403×6  diffs=0  anomalies=0
+  [ 887/1000] HC   129537     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 888/1000] HC   129538     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 889/1000] HC   129539     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 890/1000] HC   129540     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 891/1000] HC   129541     2.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 892/1000] HC   129542     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 893/1000] HC   129543     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 894/1000] HC   129544     0.85s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 895/1000] HC   129545     0.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 896/1000] HC   129546     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 897/1000] HC   129547     1.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 898/1000] HC   129548     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 899/1000] HC   129549     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 900/1000] HC   129550     1.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=805 fail=95 error=0 skipped=0 429×0 5xx×1 · 0.27 proc/s · eta 6.1 min
+  [ 901/1000] HC   129551     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 902/1000] HC   129552     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 903/1000] HC   129553     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 904/1000] HC   129554     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 905/1000] HC   129555     3.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 906/1000] HC   129556     2.37s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 907/1000] HC   129557     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 908/1000] HC   129558     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 909/1000] HC   129559     2.52s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 910/1000] HC   129560     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 911/1000] HC   129561     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 912/1000] HC   129562     1.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 913/1000] HC   129563     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 914/1000] HC   129564     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 915/1000] HC   129565     2.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 916/1000] HC   129566     0.90s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 917/1000] HC   129567     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 918/1000] HC   129568     1.95s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 919/1000] HC   129569     0.69s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 920/1000] HC   129570     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 921/1000] HC   129571     2.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 922/1000] HC   129572     0.88s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 923/1000] HC   129573     0.79s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 924/1000] HC   129574     1.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 925/1000] HC   129575     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=830 fail=95 error=0 skipped=0 429×0 5xx×1 · 0.27 proc/s · eta 4.6 min
+  [ 926/1000] HC   129576     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 927/1000] HC   129577     2.56s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 928/1000] HC   129578     1.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 929/1000] HC   129579     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 930/1000] HC   129580     4.64s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129581: no incidente in redirect (200 '')
+  [ 931/1000] HC   129581     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 932/1000] HC   129582     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 933/1000] HC   129583     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 934/1000] HC   129584     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 935/1000] HC   129585     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 936/1000] HC   129586     1.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 937/1000] HC   129587     0.91s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 938/1000] HC   129588     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 939/1000] HC   129589     4.06s  status=ok     retries=5xx×1  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 940/1000] HC   129590     3.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 941/1000] HC   129591     1.05s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 942/1000] HC   129592     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 943/1000] HC   129593     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 944/1000] HC   129594     2.12s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 945/1000] HC   129595     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 946/1000] HC   129596     0.75s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 947/1000] HC   129597     1.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 948/1000] HC   129598     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 949/1000] HC   129599     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 950/1000] HC   129600     2.30s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=854 fail=96 error=0 skipped=0 429×0 5xx×2 · 0.27 proc/s · eta 3.1 min
+WARNING:root:HC 129601: no incidente in redirect (200 '')
+  [ 951/1000] HC   129601     0.15s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [ 952/1000] HC   129602     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 953/1000] HC   129603     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 954/1000] HC   129604     0.70s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 955/1000] HC   129605     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 956/1000] HC   129606     0.68s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 957/1000] HC   129607     1.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 958/1000] HC   129608     0.73s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 959/1000] HC   129609     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 960/1000] HC   129610     0.92s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 961/1000] HC   129611     0.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 962/1000] HC   129612     0.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 963/1000] HC   129613     0.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 964/1000] HC   129614     1.55s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 965/1000] HC   129615     0.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 966/1000] HC   129616     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 967/1000] HC   129617     3.76s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 968/1000] HC   129618     0.78s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 969/1000] HC   129619     0.71s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 970/1000] HC   129620     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 971/1000] HC   129621     0.74s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 972/1000] HC   129622     0.81s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 973/1000] HC   129623     2.51s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 974/1000] HC   129624     0.99s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 129625: no incidente in redirect (200 '')
+  [ 975/1000] HC   129625     0.16s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=877 fail=98 error=0 skipped=0 429×0 5xx×2 · 0.27 proc/s · eta 1.5 min
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 976/1000] HC   129626     5.58s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 977/1000] HC   129627    64.38s  status=ok     retries=403×6  diffs=0  anomalies=0
+  [ 978/1000] HC   129628     0.84s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 979/1000] HC   129629     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 980/1000] HC   129630     3.66s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 981/1000] HC   129631     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 982/1000] HC   129632     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 983/1000] HC   129633     2.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 984/1000] HC   129634     0.77s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 985/1000] HC   129635     1.03s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 986/1000] HC   129636     0.93s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 987/1000] HC   129637     0.80s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 988/1000] HC   129638     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 989/1000] HC   129639     2.67s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 990/1000] HC   129640     0.96s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 991/1000] HC   129641     0.83s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 992/1000] HC   129642     1.65s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 993/1000] HC   129643     0.72s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 994/1000] HC   129644     0.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 995/1000] HC   129645     2.89s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [ 996/1000] HC   129646     7.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 997/1000] HC   129647     0.97s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 998/1000] HC   129648     1.09s  status=ok     retries=0  diffs=0  anomalies=0
+  [ 999/1000] HC   129649     2.44s  status=ok     retries=0  diffs=0  anomalies=0
+  [1000/1000] HC   129650     0.82s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=902 fail=98 error=0 skipped=0 429×0 5xx×2 · 0.27 proc/s · eta 0.0 min
+
+summary: ok=902 fail=98 error=0 skipped=0 429×0 5xx×2
+  state:  docs/sweep-results/2026-04-17-T-hc-128651-129650/sweep.state.json
+  log:    docs/sweep-results/2026-04-17-T-hc-128651-129650/sweep.log.jsonl
+  errors: docs/sweep-results/2026-04-17-T-hc-128651-129650/sweep.errors.jsonl
+  report: docs/sweep-results/2026-04-17-T-hc-128651-129650/report.md

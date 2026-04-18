@@ -1,0 +1,104 @@
+=== sweep: proxy_canary · 50 processes · input: csv `tests/sweep/canary_50.csv` (50 rows) · parity: none ===
+  proxy pool: 10 proxies · rotate=60s · cooldown=2.0min · initial=http://rp.scrapegw.com:6060
+WARNING:root:HC 193000: no incidente in redirect (200 '')
+  [   1/50] HC   193000     2.46s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192999: no incidente in redirect (200 '')
+  [   2/50] HC   192999     0.64s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192998: no incidente in redirect (200 '')
+  [   3/50] HC   192998     0.65s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192997: no incidente in redirect (200 '')
+  [   4/50] HC   192997     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [   5/50] HC   192996     6.47s  status=ok     retries=0  diffs=0  anomalies=0
+  [   6/50] HC   192995     3.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [   7/50] HC   192994     3.88s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:root:HC 192993: no incidente in redirect (200 '')
+  [   8/50] HC   192993     0.59s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192992: no incidente in redirect (200 '')
+  [   9/50] HC   192992     0.81s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192991: no incidente in redirect (200 '')
+  [  10/50] HC   192991     0.62s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192990: no incidente in redirect (200 '')
+  [  11/50] HC   192990     0.60s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192989: no incidente in redirect (200 '')
+  [  12/50] HC   192989     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192988: no incidente in redirect (200 '')
+  [  13/50] HC   192988     0.59s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192987: no incidente in redirect (200 '')
+  [  14/50] HC   192987     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192986: no incidente in redirect (200 '')
+  [  15/50] HC   192986     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192985: no incidente in redirect (200 '')
+  [  16/50] HC   192985     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192984: no incidente in redirect (200 '')
+  [  17/50] HC   192984     0.96s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192983: no incidente in redirect (200 '')
+  [  18/50] HC   192983     0.61s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192982: no incidente in redirect (200 '')
+  [  19/50] HC   192982     0.59s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192981: no incidente in redirect (200 '')
+  [  20/50] HC   192981     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [regime] warming → under_utilising  (see docs/rate-limits.md § Wall taxonomy)
+WARNING:root:HC 192980: no incidente in redirect (200 '')
+  [  21/50] HC   192980     0.60s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192979: no incidente in redirect (200 '')
+  [  22/50] HC   192979     0.62s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192978: no incidente in redirect (200 '')
+  [  23/50] HC   192978     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192977: no incidente in redirect (200 '')
+  [  24/50] HC   192977     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192976: no incidente in redirect (200 '')
+  [  25/50] HC   192976     0.47s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [progress] ok=3 fail=22 error=0 skipped=0 429×0 5xx×0 · 0.86 proc/s · eta 0.5 min
+WARNING:root:HC 192975: no incidente in redirect (200 '')
+  [  26/50] HC   192975     0.47s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192974: no incidente in redirect (200 '')
+  [  27/50] HC   192974     0.62s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192973: no incidente in redirect (200 '')
+  [  28/50] HC   192973     0.65s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192972: no incidente in redirect (200 '')
+  [  29/50] HC   192972     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192971: no incidente in redirect (200 '')
+  [  30/50] HC   192971     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192970: no incidente in redirect (200 '')
+  [  31/50] HC   192970     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192969: no incidente in redirect (200 '')
+  [  32/50] HC   192969     0.79s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192968: no incidente in redirect (200 '')
+  [  33/50] HC   192968     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192967: no incidente in redirect (200 '')
+  [  34/50] HC   192967     0.58s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192966: no incidente in redirect (200 '')
+  [  35/50] HC   192966     0.67s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192965: no incidente in redirect (200 '')
+  [  36/50] HC   192965     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192964: no incidente in redirect (200 '')
+  [  37/50] HC   192964     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192963: no incidente in redirect (200 '')
+  [  38/50] HC   192963     0.57s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192962: no incidente in redirect (200 '')
+  [  39/50] HC   192962     0.81s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192961: no incidente in redirect (200 '')
+  [  40/50] HC   192961     0.56s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192960: no incidente in redirect (200 '')
+  [  41/50] HC   192960     0.60s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+WARNING:root:HC 192959: no incidente in redirect (200 '')
+  [  42/50] HC   192959     0.56s  status=fail   retries=0  diffs=0  anomalies=0  ERR: scrape returned None (incidente not resolved)
+  [  43/50] HC   192958     2.98s  status=ok     retries=0  diffs=0  anomalies=0
+  [  44/50] HC   192957     3.22s  status=ok     retries=0  diffs=0  anomalies=0
+  [  45/50] HC   192956     3.86s  status=ok     retries=0  diffs=0  anomalies=0
+  [  46/50] HC   192955     3.25s  status=ok     retries=0  diffs=0  anomalies=0
+  [  47/50] HC   192954     3.20s  status=ok     retries=0  diffs=0  anomalies=0
+  [  48/50] HC   192953     3.94s  status=ok     retries=0  diffs=0  anomalies=0
+  [rotate] http://rp.scrapegw.com:6060 → http://rp.scrapegw.com:6060 (elapsed=60s reason=time>60s)
+  [  49/50] HC   192952    12.35s  status=ok     retries=0  diffs=0  anomalies=0
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+WARNING:pypdf._text_extraction._layout_mode._fixed_width_page:Rotated text discovered. Output will be incomplete.
+  [  50/50] HC   192951     6.15s  status=ok     retries=0  diffs=0  anomalies=0
+  [progress] ok=11 fail=39 error=0 skipped=0 429×0 5xx×0 · 0.64 proc/s · eta 0.0 min
+  proxy rotations during sweep: 1
+
+summary: ok=11 fail=39 error=0 skipped=0 429×0 5xx×0
+  state:  docs/sweep-results/2026-04-17-proxy-canary/sweep.state.json
+  log:    docs/sweep-results/2026-04-17-proxy-canary/sweep.log.jsonl
+  errors: docs/sweep-results/2026-04-17-proxy-canary/sweep.errors.jsonl
+  report: docs/sweep-results/2026-04-17-proxy-canary/report.md

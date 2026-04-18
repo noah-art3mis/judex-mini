@@ -11,6 +11,7 @@ wheels/
 /notes/
 /data/
 /analysis/
+/exports/
 .claude/
 
 # Local-only config — proxy pool, any other credentials / secrets.

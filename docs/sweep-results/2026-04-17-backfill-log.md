@@ -36,6 +36,10 @@ numbering, not parser bugs.
 | Q | 2016 | 143298..144297 |   936 |    64 |   9 | 57.0 min | clean |
 | R | 2015 | 138706..139705 |   881 |   119 |   6 | 54.2 min | actually 2016 vintage |
 | S | 2014 | 134119..135118 |   935 |    65 |   2 | 57.2 min | actually 2016 vintage |
+| Z | 2025 | 258105..259104 |   828 |   135 |   0 | ~84 min  | resumed after early SIGKILL; first HC-ceiling-era sweep |
+| T | 2015 | 128651..129650 |   902 |    98 |   2 | 61.7 min | first paper-era cohort; 2 WAF cycles absorbed; items-dir persisted natively |
+| U | 2014 | 123001..124000 |   855 |   145 |   3 | ~80 min  | paper era; initial 15-ID 404 streak; 3 WAF cycles (14+7+8 retries) all absorbed |
+| V | 2013 | 118201..119200 |   510*|   128 |   4 | ~57 min  | **partial** (SIGTERM'd at 638/1000 after persistent WAF pressure); resumable via `--resume`; 4+ WAF cycles (403×8 on HC 118201, 403×8 on 118263, 403×7 on 118331, 403×7 on 118393, 403×6 on 118445) |
 
 Every completed sweep cleared all health gates. Zero hard errors
 across all nine sweeps totalling ~8k HCs — `status=error` count is 0

@@ -28,6 +28,37 @@ from pathlib import Path
 from typing import Callable, Optional
 
 
+def _normalize_proxy_url(raw: str) -> str:
+    """Accept the handful of proxy-dump formats provider dashboards emit.
+
+    Residential providers vary: Bright Data hands out
+    ``http://user:pass@host:port`` URLs directly, ScrapeGW / Webshare
+    dump ``host:port:user:pass`` (one per line), some copy-paste flows
+    end up as ``user:pass@host:port`` without scheme. Rather than fail
+    on any of them, coerce to a full ``http://`` URL that requests can
+    pass into ``session.proxies``.
+
+    Unschemed input is assumed to be HTTP (not SOCKS5) — the most
+    common residential case. Pass a full ``socks5://`` URL to override.
+    """
+    s = raw.strip()
+    if s.startswith("http://") or s.startswith("https://") or s.startswith("socks5://") or s.startswith("socks4://"):
+        return s
+    if "@" in s:
+        # e.g. "user:pass@host:port" — just needs a scheme
+        return f"http://{s}"
+    parts = s.split(":")
+    if len(parts) == 4:
+        # "host:port:user:pass" dump format
+        host, port, user, password = parts
+        return f"http://{user}:{password}@{host}:{port}"
+    if len(parts) == 2:
+        # bare "host:port" — no auth
+        return f"http://{s}"
+    # Leave as-is; downstream will surface the bad URL.
+    return s
+
+
 class ProxyPool:
     def __init__(
         self,
@@ -72,7 +103,14 @@ class ProxyPool:
             return cls([])
         lines = path.read_text(encoding="utf-8").splitlines()
         proxies = [
-            s.strip() for s in lines
+            _normalize_proxy_url(s) for s in lines
             if s.strip() and not s.strip().startswith("#")
         ]
-        return cls(proxies)
+        # Deduplicate while preserving order — providers sometimes
+        # emit the same line repeatedly; dict/string keys in the pool
+        # collapse duplicates anyway, but warn visibly so the user
+        # knows they don't have the IP diversity they think they do.
+        seen: dict[str, None] = {}
+        for p in proxies:
+            seen.setdefault(p, None)
+        return cls(list(seen.keys()))

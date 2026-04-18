@@ -1,0 +1,12 @@
+[2026-04-17T15:24:49-03:00] launcher starting; pid 264604
+[2026-04-17T15:24:49-03:00] waiting for Z sweep to finish (label: hc_258105_259104)
+[2026-04-17T16:26:22-03:00] Z ended; WAF cool-down 120s
+[2026-04-17T16:28:22-03:00] re-merging HC state from all prior sweeps
+merged 10777 ok HC entries into docs/sweep-results/2026-04-17-hc-full-backfill/sweep.state.json
+[2026-04-17T16:28:22-03:00] launching backfill (exec — driver replaces this shell)
+[2026-04-17T22:33:46-03:00] launcher starting; pid 678161
+[2026-04-17T22:33:46-03:00] waiting for Z sweep to finish (label: hc_258105_259104)
+[2026-04-17T22:33:46-03:00] Z ended; WAF cool-down 120s
+[2026-04-17T22:35:46-03:00] checking whether state merge is needed (idempotency guard)
+state already has 16709 records — skipping merge (idempotent relaunch)
+[2026-04-17T22:35:46-03:00] launching backfill (exec — driver replaces this shell)

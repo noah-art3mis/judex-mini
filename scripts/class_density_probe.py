@@ -10,7 +10,7 @@ Usage:
     PYTHONPATH=. uv run python scripts/class_density_probe.py --classe ADI --samples 20
     PYTHONPATH=. uv run python scripts/class_density_probe.py --classe RE --pacing 2.0
 
-Known ceilings (binary-searched 2026-04-16, see docs/handoff.md):
+Known ceilings (binary-searched 2026-04-16, see docs/current_progress.md):
     HC:  270,071
     ADI:   7,956
     RE:  640,321

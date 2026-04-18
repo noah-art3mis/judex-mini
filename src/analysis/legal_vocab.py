@@ -91,3 +91,83 @@ VERDICT_PATTERNS: list[tuple[Pattern[str], str]] = [
 OUTCOME_VALUES: frozenset[str] = frozenset(
     label for _, label in VERDICT_PATTERNS
 )
+
+
+# ----- FGV IV Relatório Supremo em Números (2015) §b rule ------------
+#
+# Success-rate partition adopted by Falcão, Moraes & Hartmann in the
+# IV Relatório Supremo em Números — O Supremo e o Ministério Público
+# (FGV DIREITO RIO, 2015), §b "A Taxa de Sucesso do MP", p. 50:
+#
+#   "o levantamento é feito excluindo decisões interlocutórias e
+#    liminares, e computando decisões que encerram um processo —
+#    favoráveis ou desfavoráveis. São consideradas favoráveis decisões
+#    de procedência parcial ou total, enquanto que todas as demais —
+#    como improcedência ou negativa de admissão — são consideradas
+#    desfavoráveis."
+#
+# `derive_outcome` already emits None for liminares / interlocutórias
+# (they match no VERDICT_PATTERN), so the exclusion is handled upstream.
+# At this layer the two sets exhaustively partition OUTCOME_VALUES.
+#
+# Adopted as the project-wide win/loss definition 2026-04-17 — see
+# `docs/hc-who-wins.md` § "Research question" for the justification
+# (comparability with FGV's published MP baselines; defensibility of a
+# peer-reviewed rule; honest framing of *nao_conhecido* as a loss).
+# Pass FGV_FAVORABLE_OUTCOMES to `grant_rate_table(..., win_labels=)`
+# whenever the analysis reports a success rate.
+
+FGV_FAVORABLE_OUTCOMES: frozenset[str] = frozenset({
+    "concedido", "concedido_parcial",
+    "provido", "provido_parcial",
+    "procedente", "procedente_parcial",
+})
+
+FGV_UNFAVORABLE_OUTCOMES: frozenset[str] = OUTCOME_VALUES - FGV_FAVORABLE_OUTCOMES
+
+
+# ----- Per-classe outcome universe ----------------------------------
+#
+# Which verdict labels can legitimately terminate a process of each
+# STF classe. Three families (writ / appeal / action) plus the
+# universal terminators every classe can end with:
+#
+#   writ    (HC/MS/MI/HD/Ext)              → concedido-family
+#   appeal  (RE/ARE/AI/RHC/RMS/AgR/ED/EDv) → provido-family
+#   action  (ADI/ADC/ADO/ADPF/ACO/AO/Rcl/
+#            AP/Inq)                       → procedente-family
+#
+# Universal terminators: `nao_conhecido` (court refused to hear it),
+# `prejudicado` (case became moot), `extinto` (procedural dismissal).
+# These can end any classe regardless of family.
+#
+# Cross-reference: `docs/stf-taxonomy.md` §12. Invariants pinned by
+# `tests/unit/test_classe_outcome_map.py`: every label in
+# VERDICT_PATTERNS must appear in at least one classe (reachability),
+# and every classe set must be ⊆ OUTCOME_VALUES.
+
+_UNIVERSAL_TERMINATORS: frozenset[str] = frozenset({
+    "nao_conhecido", "prejudicado", "extinto",
+})
+
+_WRIT_MERITS: frozenset[str] = frozenset({
+    "concedido", "concedido_parcial", "denegado",
+})
+
+_APPEAL_MERITS: frozenset[str] = frozenset({
+    "provido", "provido_parcial", "nao_provido",
+})
+
+_ACTION_MERITS: frozenset[str] = frozenset({
+    "procedente", "procedente_parcial", "improcedente",
+})
+
+_WRIT_CLASSES: tuple[str, ...] = ("HC", "MS", "MI", "HD", "Ext")
+_APPEAL_CLASSES: tuple[str, ...] = ("RE", "ARE", "AI", "RHC", "RMS", "AgR", "ED", "EDv")
+_ACTION_CLASSES: tuple[str, ...] = ("ADI", "ADC", "ADO", "ADPF", "ACO", "AO", "Rcl", "AP", "Inq")
+
+CLASSE_OUTCOME_MAP: dict[str, frozenset[str]] = {
+    **{c: _WRIT_MERITS   | _UNIVERSAL_TERMINATORS for c in _WRIT_CLASSES},
+    **{c: _APPEAL_MERITS | _UNIVERSAL_TERMINATORS for c in _APPEAL_CLASSES},
+    **{c: _ACTION_MERITS | _UNIVERSAL_TERMINATORS for c in _ACTION_CLASSES},
+}

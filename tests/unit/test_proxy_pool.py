@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.scraping.proxy_pool import ProxyPool
+from src.scraping.proxy_pool import ProxyPool, _normalize_proxy_url
 
 
 def test_empty_pool_returns_none():
@@ -119,3 +119,43 @@ def test_mark_hot_unknown_proxy_is_noop():
     pool = ProxyPool(["p1"])
     pool.mark_hot("never-added", minutes=5)
     assert pool.pick() == "p1"
+
+
+# ----- _normalize_proxy_url --------------------------------------------------
+
+
+def test_normalize_passes_http_url_unchanged():
+    assert _normalize_proxy_url("http://user:pass@host:3128") == \
+        "http://user:pass@host:3128"
+
+
+def test_normalize_passes_socks5_url_unchanged():
+    assert _normalize_proxy_url("socks5://user:pass@host:1080") == \
+        "socks5://user:pass@host:1080"
+
+
+def test_normalize_converts_host_port_user_pass_dump():
+    # ScrapeGW / many residential providers dump in this format.
+    assert _normalize_proxy_url("rp.example.com:6060:user-country-br:secret") == \
+        "http://user-country-br:secret@rp.example.com:6060"
+
+
+def test_normalize_prepends_scheme_for_userinfo_host_port():
+    assert _normalize_proxy_url("user:pass@host:3128") == \
+        "http://user:pass@host:3128"
+
+
+def test_normalize_handles_bare_host_port():
+    assert _normalize_proxy_url("host:3128") == "http://host:3128"
+
+
+def test_from_file_parses_dump_format(tmp_path):
+    p = tmp_path / "proxies.txt"
+    p.write_text(
+        "rp.example.com:6060:user-country-br:secret\n"
+        "http://already-a-url:port\n"
+    )
+    pool = ProxyPool.from_file(p)
+    assert pool.size() == 2
+    assert "http://user-country-br:secret@rp.example.com:6060" in pool._not_before
+    assert "http://already-a-url:port" in pool._not_before
