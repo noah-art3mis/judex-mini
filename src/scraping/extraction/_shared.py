@@ -55,18 +55,3 @@ def iter_lista_dados(html: str) -> Iterable[tuple[int, Tag]]:
         yield total - i, row
 
 
-def extract_partes_from_soup(soup: BeautifulSoup) -> list[dict]:
-    """
-    Pair alternating div[class*='processo-partes'] cells into
-    {index, tipo, nome}. Works on either #partes-resumidas (abaPartes
-    fragment) or the assembled #resumo-partes container (detalhe.asp
-    after jQuery has populated it).
-    """
-    cells = soup.select("div[class*='processo-partes']")
-    out: list[dict] = []
-    for i in range(0, len(cells) - 1, 2):
-        tipo = normalize_spaces(cells[i].get_text(strip=True))
-        nome = normalize_spaces(cells[i + 1].get_text(strip=True))
-        if tipo and nome:
-            out.append({"index": len(out) + 1, "tipo": tipo, "nome": nome})
-    return out

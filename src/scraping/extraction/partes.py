@@ -1,7 +1,9 @@
 """Extractors for `abaPartes` — party list + derived `primeiro_autor`.
 
-Reads from `#partes-resumidas` (mirroring Selenium's `#resumo-partes`,
-which is populated from it), 4 entries on ADI 2820.
+Reads from `#todas-partes` (every named party, each IMPTE lawyer listed
+separately, PROC.(A/S)(ES) preserved). The sibling `#partes-resumidas`
+container on the same fragment collapses multi-lawyer groups into
+"E OUTRO(A/S)" and drops PROC entries on HC — we don't want that.
 """
 
 from __future__ import annotations
@@ -11,14 +13,26 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from src.analysis.legal_vocab import AUTHOR_PARTY_TIPOS
-from src.scraping.extraction._shared import extract_partes_from_soup
+from src.utils.text_utils import normalize_spaces
 
 
 def extract_partes(partes_html: str) -> list[dict]:
-    """Mirrors Selenium which reads from #resumo-partes (populated with #partes-resumidas)."""
     soup = BeautifulSoup(partes_html, "lxml")
-    container = soup.find(id="partes-resumidas") or soup
-    return extract_partes_from_soup(container)
+    container = soup.find(id="todas-partes")
+    if container is None:
+        return []
+    # Inside #todas-partes, each .processo-partes row holds one-or-more
+    # (label, name) pairs stored as sibling .detalhe-parte + .nome-parte
+    # divs. Iterating both lists in parallel reconstructs the pairs.
+    labels = container.select(".detalhe-parte")
+    names = container.select(".nome-parte")
+    out: list[dict] = []
+    for label, name in zip(labels, names):
+        tipo = normalize_spaces(label.get_text(" ", strip=True))
+        nome = normalize_spaces(name.get_text(" ", strip=True))
+        if tipo and nome:
+            out.append({"index": len(out) + 1, "tipo": tipo, "nome": nome})
+    return out
 
 
 def extract_primeiro_autor(partes: list[dict]) -> Optional[str]:
