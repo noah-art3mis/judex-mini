@@ -99,33 +99,53 @@ REGIMES = (
 class CliffDetector:
     """Rolling-window detector for WAF layer-2 engagement.
 
-    Observes per-process ``(status, wall_s)`` pairs and classifies the
-    sweep's current operating regime via two composite axes:
-    fail-rate in the window, and p95 wall_s in the window. Either
-    axis alone can promote the regime — the adaptive-block signature
-    (long stalls with still-ok statuses) is caught by the p95 axis,
-    while V-style collapse (many fails, not all long) is caught by
-    the fail-rate axis.
+    Classifies the sweep's current operating regime via two composite
+    axes: **WAF-shaped** fail-rate and p95 wall_s. Either axis alone
+    can promote the regime — the adaptive-block signature (long stalls
+    with still-ok statuses) is caught by the p95 axis, while V-style
+    collapse (many retry-403 fails) is caught by the fail-rate axis.
 
-    Thresholds match docs/rate-limits.md § Wall taxonomy so the live
-    regime matches the operating-regime table.
+    A fail is **WAF-shaped** if any of:
+
+    - ``wall_s > 15`` — retry-403 exhausted after tenacity backoff
+    - ``http_status in {403, 429}`` or 5xx — explicit WAF / server signal
+    - ``retries`` non-empty — tenacity fired, even if the call succeeded
+
+    Fast fails with no HTTP error and no retries (``NoIncidente`` —
+    HC doesn't exist in STF) do **not** count toward the fail-rate
+    axis. This is the 2026-04-17 calibration fix: the first proxy
+    canary tripped false collapse because corpus sparsity was read as
+    WAF pressure. Thresholds still match
+    docs/rate-limits.md § Wall taxonomy.
     """
 
     MIN_OBS = 20
 
     def __init__(self, window: int = 50) -> None:
-        self._statuses: deque[str] = deque(maxlen=window)
+        self._waf_bad: deque[bool] = deque(maxlen=window)
         self._walls: deque[float] = deque(maxlen=window)
+        # Kept for backwards compatibility with any caller that reads
+        # ``_statuses`` directly; the regime logic does not use it.
+        self._statuses: deque[str] = deque(maxlen=window)
 
-    def observe(self, status: str, wall_s: float) -> None:
-        self._statuses.append(status)
+    def observe(
+        self,
+        status: str,
+        wall_s: float,
+        *,
+        http_status: Optional[int] = None,
+        retries: Optional[dict[str, int]] = None,
+    ) -> None:
+        is_bad = status != "ok" and _is_waf_shape(wall_s, http_status, retries)
+        self._waf_bad.append(is_bad)
         self._walls.append(wall_s)
+        self._statuses.append(status)
 
     def regime(self) -> str:
-        n = len(self._statuses)
+        n = len(self._waf_bad)
         if n < self.MIN_OBS:
             return "warming"
-        fails = sum(1 for s in self._statuses if s != "ok")
+        fails = sum(self._waf_bad)
         fail_rate = fails / n
         walls_sorted = sorted(self._walls)
         p95 = walls_sorted[min(int(0.95 * n), n - 1)]
@@ -138,6 +158,23 @@ class CliffDetector:
         if fail_rate > 0.05:
             return "healthy"
         return "under_utilising"
+
+
+def _is_waf_shape(
+    wall_s: float,
+    http_status: Optional[int],
+    retries: Optional[dict[str, int]],
+) -> bool:
+    if wall_s > 15.0:
+        return True
+    if http_status is not None:
+        if http_status in (403, 429):
+            return True
+        if 500 <= http_status < 600:
+            return True
+    if retries:
+        return True
+    return False
 
 
 def classify_exception(e: BaseException) -> tuple[str, Optional[int], Optional[str]]:

@@ -35,17 +35,23 @@ def test_regime_under_utilising_all_ok_fast():
 
 
 def test_regime_healthy_small_fail_tail():
+    # 2 WAF-shaped fails in 30 records → 6.7 % fail_rate → healthy band
     det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 28 + ["fail"] * 2, wall_s=1.0)  # 2/30 ≈ 6.7%
+    for _ in range(28):
+        det.observe("ok", 1.0)
+    for _ in range(2):
+        det.observe("fail", 1.0, http_status=403)
     assert det.regime() == "healthy"
 
 
 def test_regime_l2_engaged_from_fail_rate():
+    # Fails must look WAF-shaped (slow OR http 403/429/5xx OR retries fired)
+    # to count toward the fail-rate regime. Fast NoIncidente fails do not.
     det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 45 + ["fail"] * 5, wall_s=1.0)  # 10% → just over threshold
-    # 5/50 = 0.10, we want > 0.10 to go l2_engaged — use 6 fails
-    det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 44 + ["fail"] * 6, wall_s=1.0)  # 12% → l2_engaged
+    for _ in range(44):
+        det.observe("ok", 1.0)
+    for _ in range(6):  # 12% WAF-shaped fails
+        det.observe("fail", 1.0, http_status=403)
     assert det.regime() == "l2_engaged"
 
 
@@ -60,7 +66,10 @@ def test_regime_l2_engaged_from_p95_latency_alone():
 
 def test_regime_approaching_collapse_from_fail_rate():
     det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 38 + ["fail"] * 12, wall_s=1.0)  # 24%
+    for _ in range(38):
+        det.observe("ok", 1.0)
+    for _ in range(12):
+        det.observe("fail", 1.0, http_status=403)  # 24% WAF-shaped
     assert det.regime() == "approaching_collapse"
 
 
@@ -74,7 +83,10 @@ def test_regime_approaching_collapse_from_p95():
 
 def test_regime_collapse_from_fail_rate():
     det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 30 + ["fail"] * 20, wall_s=1.0)  # 40%
+    for _ in range(30):
+        det.observe("ok", 1.0)
+    for _ in range(20):
+        det.observe("fail", 1.0, http_status=403)  # 40% WAF-shaped
     assert det.regime() == "collapse"
 
 
@@ -88,25 +100,90 @@ def test_regime_collapse_from_p95_adaptive_block_signature():
 
 
 def test_regime_either_axis_can_trip_collapse():
-    # Verify fail_rate alone suffices even at low latency.
+    # Verify fail_rate axis can trip collapse given WAF-shaped fails.
     det = CliffDetector(window=50)
-    _feed(det, ["fail"] * 20 + ["ok"] * 10, wall_s=0.5)  # 66% fails, fast
+    for _ in range(20):
+        det.observe("fail", 0.5, http_status=403)  # 66% WAF fails, fast
+    for _ in range(10):
+        det.observe("ok", 0.5)
     assert det.regime() == "collapse"
 
 
 def test_window_slides_old_observations_drop():
     det = CliffDetector(window=20)
-    # First fill with bad data, then flush with good data
-    _feed(det, ["fail"] * 20, wall_s=1.0)
+    for _ in range(20):
+        det.observe("fail", 1.0, http_status=403)
     assert det.regime() == "collapse"
-    _feed(det, ["ok"] * 20, wall_s=1.0)
+    # Flush with good data
+    for _ in range(20):
+        det.observe("ok", 1.0)
     assert det.regime() == "under_utilising"
 
 
-def test_error_status_counts_as_fail():
-    # "error" and "fail" both count as non-ok for the detector
+def test_error_status_counts_as_fail_when_waf_shaped():
+    # "error" with a 403 HTTP status is a WAF signal
     det = CliffDetector(window=50)
-    _feed(det, ["ok"] * 30 + ["error"] * 20, wall_s=1.0)
+    for _ in range(30):
+        det.observe("ok", 1.0)
+    for _ in range(20):
+        det.observe("error", 1.0, http_status=403)
+    assert det.regime() == "collapse"
+
+
+# ----- Data sparsity does NOT trip the detector ------------------------------
+# The canary bug: HCs that don't exist in STF return fast NoIncidente fails
+# (status=fail, wall_s < 2s, http_status=None, retries={}). These aren't WAF
+# signals — they're corpus gaps. The detector must ignore them in fail_rate.
+
+
+def test_fast_fail_without_waf_signal_does_not_count():
+    # 31 % fast NoIncidente-style fails — would trip collapse under the
+    # naive rule. Under WAF-shape rule, stays under_utilising.
+    det = CliffDetector(window=50)
+    for _ in range(34):
+        det.observe("ok", 1.8)
+    for _ in range(16):
+        det.observe("fail", 1.8)  # no http_status, no retries, fast
+    assert det.regime() == "under_utilising"
+
+
+def test_fail_with_retries_counts_as_waf_shape():
+    # Retry-403 fired (success absorbed via tenacity) — still WAF pressure.
+    det = CliffDetector(window=50)
+    for _ in range(38):
+        det.observe("ok", 1.0)
+    for _ in range(12):
+        det.observe("fail", 2.0, retries={"403": 5})
+    assert det.regime() == "approaching_collapse"
+
+
+def test_fail_with_slow_wall_counts_as_waf_shape():
+    # Slow fail (retry-403 exhausted after 60+ s of tenacity) = WAF.
+    det = CliffDetector(window=50)
+    for _ in range(38):
+        det.observe("ok", 1.0)
+    for _ in range(12):
+        det.observe("fail", 20.0)  # slow — must count
+    assert det.regime() == "approaching_collapse"
+
+
+def test_fail_with_http_429_counts_as_waf_shape():
+    det = CliffDetector(window=50)
+    for _ in range(30):
+        det.observe("ok", 1.0)
+    for _ in range(20):
+        det.observe("fail", 1.0, http_status=429)
+    assert det.regime() == "collapse"
+
+
+def test_slow_ok_counts_via_p95_axis():
+    # Successful-but-slow records (retry-403 absorbed) still signal WAF
+    # pressure through the p95 wall_s axis — no status change needed.
+    det = CliffDetector(window=50)
+    for _ in range(45):
+        det.observe("ok", 1.0)
+    for _ in range(5):
+        det.observe("ok", 70.0)  # p95 > 60 → collapse
     assert det.regime() == "collapse"
 
 

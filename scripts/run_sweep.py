@@ -757,7 +757,12 @@ def _run_passes(
             items_dir=args.items_dir,
         )
         cold_results.append(res)
-        detector.observe(res.status, res.wall_s)
+        detector.observe(
+            res.status,
+            res.wall_s,
+            http_status=res.http_status,
+            retries=res.retries or None,
+        )
         regime = detector.regime()
         store.record(
             _to_attempt_record(
@@ -779,18 +784,20 @@ def _run_passes(
             last_regime["value"] = regime
         # Proactive rotation: swap IP before L1 fires at all. Reactive
         # fallback covers the case where a proxy arrived pre-warmed.
+        # Reactive rotation has a 30 s floor to prevent panic-rotation
+        # cascades (the regime stays in approaching_collapse for a full
+        # window until the rolling buffer flushes; without the floor,
+        # every subsequent record triggers another rotation and the
+        # pool drains in ~30 seconds).
         if pool_active:
             elapsed_on_proxy = time.monotonic() - session_holder["started_at"]
-            should_rotate = (
-                elapsed_on_proxy > args.proxy_rotate_seconds
-                or regime == "approaching_collapse"
-            )
-            if should_rotate:
-                rotate_session(
-                    reason=f"time>{args.proxy_rotate_seconds}s"
-                    if elapsed_on_proxy > args.proxy_rotate_seconds
-                    else "approaching_collapse"
-                )
+            rotate_reason: Optional[str] = None
+            if elapsed_on_proxy > args.proxy_rotate_seconds:
+                rotate_reason = f"time>{args.proxy_rotate_seconds:.0f}s"
+            elif regime == "approaching_collapse" and elapsed_on_proxy > 30.0:
+                rotate_reason = "approaching_collapse"
+            if rotate_reason is not None:
+                rotate_session(reason=rotate_reason)
         if regime == "collapse" and not args.no_stop_on_collapse:
             print(
                 f"\n!! cliff detector: regime=collapse at {i}/{n}. "
