@@ -115,24 +115,35 @@ Run yourself: `PYTHONPATH=. uv run python scripts/validate_ground_truth.py`.
 Small = AI 772309–shaped (2 andamentos, 4 partes). Heavy = a case
 with full docket depth.
 
-| Approach                       | Per process (small) | Per process (heavy) | 100 processes | 1000 processes |
-|--------------------------------|-------------:|-------------:|--------------:|---------------:|
-| Selenium (measured baseline)   | 5 s          | ~20 s        | ~33 min       | ~5.5 h         |
-| HTTP serial                    | ~2.5 s       | ~5 s         | ~8 min        | ~1.4 h         |
-| HTTP, tabs parallel            | ~1.5 s       | ~2 s         | ~3 min        | ~33 min        |
-| HTTP, tabs + processes ‖8      | ~0.2 s amort.| ~0.3 s amort.| ~25 s         | ~4 min         |
+| Approach                                  | Per process (small) | Per process (heavy) | 100 processes | 1000 processes |
+|-------------------------------------------|-------------:|-------------:|--------------:|---------------:|
+| Selenium (measured baseline)              | 5 s          | ~20 s        | ~33 min       | ~5.5 h         |
+| HTTP serial                               | ~2.5 s       | ~5 s         | ~8 min        | ~1.4 h         |
+| HTTP, tabs parallel                       | ~1.5 s       | ~2 s         | ~3 min        | ~33 min        |
+| HTTP, 1 worker + retry-403 (sweep E)      | ~3.6 s       | ~3.6 s       | ~6 min        | ~60 min        |
+| **HTTP, 4-shard + proxy rotation** (measured, 2026-04-18) | ~0.98 s aggregate | ~0.98 s aggregate | ~1.5 min | ~16 min |
+| HTTP, tabs + processes ‖8 (aspirational)  | ~0.2 s amort.| ~0.3 s amort.| ~25 s         | ~4 min         |
 
 The **per-process speedup is larger on heavier cases**. Click-gated
 tabs (`andamentos`, `peticoes`, `recursos`) are where Selenium pays
 the `button_wait` penalty and where HTTP pays nothing. Small
 processes show 2–3×; processes with full docket depth show 5–10×.
 
-**These are upper bounds** — the WAF ceiling in
-[`rate-limits.md`](rate-limits.md) means the "processes ‖8" row is
-aspirational at sweep scale. Measured sweep pace at the validated
-defaults (2 s throttle + retry-403) is **3.60 s/process**, which is
-the "HTTP serial (small)" row — the parallelism has to be traded
-off against block risk.
+**The 4-shard row is empirically validated** at full-sweep scale
+(HC backfill, 8.5 h continuous, zero HTTP 403/429/5xx — see
+`rate-limits.md § 4-shard proxy-rotation validation`). Aggregate
+throughput is 1.02 rec/s across 4 workers running on disjoint
+ScrapeGW proxy pools; per-worker rate is ~0.19 ok/s, essentially
+unchanged from single-worker sweep E. **Rotation doesn't make
+individual workers faster — it lets them run in parallel without
+cross-blocking on a shared WAF counter.** Scaling is linear in
+shard count so long as each shard has its own proxy pool.
+
+The "processes ‖8" row remains aspirational because it assumed
+no WAF ceiling at all; we'd need to verify that 8-way concurrency
+on 80+ proxy sessions still holds the 0 × 403 invariant. At
+4× validated, the pace is ~3.6× the single-worker rate — a
+linear speedup worth taking.
 
 ## What this does NOT fix
 
@@ -143,5 +154,6 @@ off against block risk.
 ## What we intentionally didn't do
 
 - **Playwright instead of Selenium.** Both drive a real browser; the floor cost (startup + full page render) is the same. Playwright buys maybe 1.5–2×, not the 10× we see from HTTP. If a browser fallback is ever needed, either works, and Selenium is already frozen in `deprecated/`.
-- **IP rotation / UA spoofing.** Gray-area legally, brittle technically, and single-IP throughput at the validated defaults is already sufficient. See [`rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt).
+- **UA spoofing.** Gray-area legally, brittle technically, and the Chrome UA plus residential-proxy session already presents as a normal user.
+- ~~**IP rotation**~~ *is now the canonical approach* — `--proxy-pool` with ScrapeGW residential sessions, validated at 4-shard concurrency over 8.5 h continuous load with zero HTTP 403/429/5xx. See [`rate-limits.md § 4-shard proxy-rotation validation`](rate-limits.md#4-shard-proxy-rotation-validation-2026-04-18). The `robots.txt` posture question in [`rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt) still applies.
 - **Chase a bulk dataset.** STF is not on DataJud; Corte Aberta is aggregates-only; commercial aggregators are paid and inappropriate for research. Scraping the portal is the only path.

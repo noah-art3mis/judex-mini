@@ -200,12 +200,14 @@ in criminal appeals than in HCs).
   still on the table. If the 2023 slice shows meaningful era drift
   against the sweep H parser sanity check, B becomes more valuable.
   Ranges are in `src/utils/hc_calendar.py::year_to_id_range`.
-- **Full HC backfill** (~216 k extant cases, ~215 h wall time — see
-  [`docs/process-space.md`](process-space.md) and
-  [`docs/rate-limits.md § Wall-time math at scale`](rate-limits.md#wall-time-math-at-scale))
-  is the long-term ask but not blocked on this analysis. The who-wins
-  plot quality at 1000 cases will tell us whether the ceiling analysis
-  needs 10 k or 100 k.
+- **Full HC backfill** (~216 k extant cases — see
+  [`docs/process-space.md`](process-space.md)). Wall-time depends on
+  shard count: **~2.5 days at 4-shard proxy rotation**, ~9 days
+  single-IP (see
+  [`docs/rate-limits.md § Wall-time math at scale`](rate-limits.md#wall-time-math-at-scale)).
+  Bandwidth cost ~208 BRL regardless of shard count. Not blocked on
+  this analysis; the who-wins plot quality at 1000 cases will tell
+  us whether the ceiling analysis needs 10 k or 100 k.
 - **Robots.txt posture.** See
   [`docs/rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt).
   Not blocking; shapes whether we publish raw aggregate numbers vs.

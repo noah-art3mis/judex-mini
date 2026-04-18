@@ -164,12 +164,73 @@ should get tightened the next time anyone has an opportunity to
 measure drain explicitly (e.g. resume V after exactly 30 min and
 compare first-cycle gap to the prior 15).
 
+## 4-shard proxy-rotation validation (2026-04-18)
+
+**Empirical datapoint that collapses the "9-day single-IP" wall.**
+An 8.5-hour continuous HC backfill run under the following
+configuration held **zero HTTP 403 / 429 / 5xx** across all four
+shards:
+
+| axis                         | value                                      |
+|------------------------------|--------------------------------------------|
+| concurrent workers           | 4 shards                                    |
+| proxy sessions total         | 42 (10 + 10 + 12 + 10) across 4 disjoint pools |
+| rotation cadence             | 270 s time-based + reactive on `approaching_collapse`, 30 s floor |
+| HC range covered             | 273 000..1 descending, sharded into 4 contiguous ranges of ~68 k each |
+| continuous wall-clock        | 8.5 h (11:55 → 20:23 UTC 2026-04-18)       |
+| aggregate throughput         | ~1.02 rec/s (0.75 ok/s + 0.27 fail/s)      |
+| per-worker throughput        | ~0.26 proc/s (unchanged from sweep E)       |
+| global ok captured           | 46 773                                      |
+| global fail                  | 15 049 (all `filter_skip=True` NoIncidente) |
+| **permanent errors**         | **0** (HTTP 403 / 429 / 5xx)                |
+| `approaching_collapse` trips | 4 (all benign p95-outlier or dead-zone fail_rate; rotator self-corrected within 1 tick each) |
+
+**Interpretation.** Layer 2 is still real — every individual worker
+would trip it on its own in ~25 min. But layer 2 is **per-IP**, and
+the 42 disjoint ScrapeGW sessions each carry their own reputation
+counter. The rotator moves each shard off any given session before
+its counter engages. Aggregate effect: **the backfill sustains
+~1 rec/s indefinitely** as long as at least ~10 distinct sessions
+per shard are available and rotation cadence stays under layer 2's
+fill time (~25 min).
+
+**Per-worker rate is essentially unchanged** (0.26 proc/s now vs
+0.28 proc/s in sweep E's single-worker validation). Rotation
+doesn't speed up individual workers; it makes parallelism
+**cooldown-free**. The full-HC backfill math is no longer
+"9 days from a single IP" — it's wall-clock-divided by shard
+count, at the same bandwidth cost:
+
+| shards | wall-clock, remaining ~170 k HCs | bandwidth cost (~47 KB/record blended) |
+|--------|----------------------------------|----------------------------------------|
+| 1      | ~253 h (~11 days)                 | ~208 BRL                               |
+| 4      | ~63 h (~2.5 days)                 | ~208 BRL                               |
+| 16     | ~16 h                             | ~208 BRL                               |
+| 32     | ~8 h                              | ~208 BRL                               |
+
+**Untested above 4× concurrency.** The arithmetic says 8× or 16×
+works (per-shard WAF counter is independent), but the WAF may have
+a higher-level aggregate signal across *all* proxy IPs that hasn't
+surfaced at 4×. Worth validating before committing to 16× on a
+paid pool.
+
+**What this changes.** The "Mitigation proposals" section below
+was written before proxy rotation was validated. Option 2 (proxy
+rotation) has now moved from "worth the setup cost" to **the
+default posture for any sweep ≥ 1000 processes**; Option 1
+(cooldowns alone) only applies if running without a proxy pool.
+Option 4 (distributed scraping across multiple machines) is
+functionally equivalent to running more shards on one machine
+with a larger proxy pool — simpler to do the latter.
+
 ### Mitigation proposals
 
 The two-layer model changes what "fixing" the WAF problem means.
 Layer 1 is already tolerable (retry-403 absorbs it transparently).
-Layer 2 is the structural limit — it's what makes a 9-day full HC
-backfill a 9-day wall-clock commitment from a single IP.
+Layer 2 was the structural wall on a single IP — **proxy rotation
+resets it for free** (§ *4-shard proxy-rotation validation* above).
+The remaining single-IP wall-clock math is preserved here for
+reference and for environments without a proxy pool.
 
 **In rough order of operational cost:**
 
@@ -223,20 +284,21 @@ backfill a 9-day wall-clock commitment from a single IP.
 
 ### Recommended short-term path
 
-Given the research scope — **a few more 1000-HC sweeps, not a full
-216k backfill** — options 1 + 2 are the practical sweet spot:
+Superseded by the 4-shard proxy-rotation validation above. The
+**current canonical posture for any sweep ≥ 1000 processes** is:
 
-- **Option 1 (cooldowns) alone** suffices for the immediate queue (W,
-  resume V, maybe X/Y/densification sweeps) if we spread them across
-  a few days.
-- **Option 2 (proxy rotation)** is worth the setup cost if the
-  research question grows to need the full backfill, or if we want to
-  shorten the remaining Track 1 queue from ~2 weeks (with cooldowns)
-  to a few days.
-- **Option 5 (library-only distribution)** is the honest answer for
-  *anyone downstream* of this project — it's a posture decision the
-  current research author hasn't made yet but should before any
-  public release.
+- **Proxy pool** — at minimum 10 sessions per shard; ScrapeGW
+  residential is the measured provider.
+- **`--proxy-pool config/proxies.<shard>.txt`** with the sharded
+  launcher (`scripts/launch_hc_backfill_sharded.sh`).
+- **No `--throttle-sleep`** — removed in `run_sweep.py` 2026-04-17.
+- **Shard count = 4 (validated) or lower** until the WAF-headroom
+  test is run at 8× / 16×.
+- **Cooldowns between sweeps** — still a good idea if running
+  without a proxy pool; moot with one.
+- **Option 5 (library-only distribution)** remains the honest
+  answer for *anyone downstream* of this project — a posture
+  decision the current research author hasn't made yet.
 
 Not recommended: tightening `--throttle-sleep` further. The V data
 shows throttle doesn't drain layer 2, so the only pacing knob we have
@@ -447,8 +509,11 @@ in a `NOTICE.md` at the repo root before a large backfill runs.
 
 ## Wall-time math at scale
 
-Back-of-envelope budget at the validated defaults (3.6 s/process
-measured on ADIs; HCs slightly heavier, assume ~3.6 s too):
+Two regimes now. **Single-IP math** (original, preserved for
+environments without a proxy pool) and **4-shard proxy-rotation
+math** (validated 2026-04-18).
+
+### Single-IP (3.6 s/process, sweep E defaults)
 
 | Run size       | Wall time        |
 |---------------:|-----------------:|
@@ -458,12 +523,30 @@ measured on ADIs; HCs slightly heavier, assume ~3.6 s too):
 | 100 000        | ~100 h (~4 days) |
 | 216 000 (full HC backfill — see `process-space.md`) | ~215 h (~9 days) |
 
-These assume the WAF stays tolerant at 2 s pacing + retry-403. We've
-validated 1000 (sweep E) and partial 429 of that. **We have not
-validated 10k or above.** The block threshold drifted between sweep C
-and D1; a multi-day run may hit escalating thresholds we haven't
-measured.
+Original assumption: WAF stays tolerant at retry-403 alone. Sweep E
+validated 1000 processes. Threshold drift across sweeps means
+multi-day single-IP runs hit escalating layer-2 pressure.
 
-Practical implication: runs above ~10k should be chunked with a
-cool-down window between chunks, or split across IPs by shipping the
-cache-first distribution path (posture 3 above).
+### 4-shard + proxy rotation (0.98 s/case aggregate, 1.02 rec/s)
+
+| Run size       | Wall time        | Bandwidth @ ~47 KB/record blended |
+|---------------:|-----------------:|----------------------------------:|
+| 100            | ~1.5 min         | ~5 MB                              |
+| 1 000          | ~16 min          | ~47 MB                             |
+| 10 000         | ~2.7 h           | ~470 MB (~10 BRL)                  |
+| 100 000        | ~27 h (~1.1 days)| ~4.7 GB (~94 BRL)                  |
+| 216 000 (full HC backfill)  | ~60 h (~2.5 days) | ~10.5 GB (~208 BRL) |
+
+The 4-shard numbers are **linearly shardable** — 16× concurrency
+would cut wall-clock by 4× again (to ~16 h for full HC) at the same
+bandwidth cost, assuming the WAF-headroom test at 16× holds. Not yet
+validated. **Bandwidth cost is per-record, not per-shard** — total
+cost to scrape the universe is the same at any shard count.
+
+### Practical implication
+
+Runs above 10k that have a proxy pool: **default to 4-shard.** Runs
+without one: the single-IP regime above applies, and chunk-with-
+cooldown is still the posture. Library-only distribution (posture 3)
+is still the clean answer for downstream users who don't want to
+inherit our proxy setup.
