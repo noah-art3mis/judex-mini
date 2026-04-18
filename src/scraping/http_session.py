@@ -50,10 +50,21 @@ DEFAULT_UA = (
 )
 
 
-def new_session() -> requests.Session:
+def new_session(proxy: Optional[str] = None) -> requests.Session:
+    """Build a `requests.Session` preconfigured for STF.
+
+    ``proxy`` is any URL requests accepts (``socks5://host:port``,
+    ``http://user:pass@host:port``). When set, both http and https
+    traffic routes through it — used by the sweep driver's
+    proxy-rotation loop to cycle IPs before L1 fires. See
+    ``src/scraping/proxy_pool.py`` and docs/rate-limits.md §
+    Wall taxonomy.
+    """
     s = requests.Session()
     s.headers.update({"User-Agent": DEFAULT_UA})
     s.verify = False  # WSL sandbox lacks full CA bundle; site is public anyway
+    if proxy:
+        s.proxies.update({"http": proxy, "https": proxy})
     return s
 
 

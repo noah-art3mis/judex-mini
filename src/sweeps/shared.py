@@ -47,6 +47,14 @@ def shutdown_requested() -> bool:
     return _SHUTDOWN
 
 
+def request_shutdown() -> None:
+    """Programmatically set the shutdown flag — used by CliffDetector's
+    collapse handler to stop the sweep the same way SIGTERM does.
+    """
+    global _SHUTDOWN
+    _SHUTDOWN = True
+
+
 def _reset_shutdown_for_tests() -> None:
     """Test hook — clear the shutdown flag so tests can stay isolated."""
     global _SHUTDOWN
@@ -74,6 +82,62 @@ class CircuitBreaker:
             return False
         errors = sum(1 for s in self._recent if s in error_statuses)
         return errors / self.window > self.threshold
+
+
+# Regime labels mirror the operating-regime table in
+# docs/rate-limits.md § Wall taxonomy and severity timeline.
+REGIMES = (
+    "warming",
+    "under_utilising",
+    "healthy",
+    "l2_engaged",
+    "approaching_collapse",
+    "collapse",
+)
+
+
+class CliffDetector:
+    """Rolling-window detector for WAF layer-2 engagement.
+
+    Observes per-process ``(status, wall_s)`` pairs and classifies the
+    sweep's current operating regime via two composite axes:
+    fail-rate in the window, and p95 wall_s in the window. Either
+    axis alone can promote the regime — the adaptive-block signature
+    (long stalls with still-ok statuses) is caught by the p95 axis,
+    while V-style collapse (many fails, not all long) is caught by
+    the fail-rate axis.
+
+    Thresholds match docs/rate-limits.md § Wall taxonomy so the live
+    regime matches the operating-regime table.
+    """
+
+    MIN_OBS = 20
+
+    def __init__(self, window: int = 50) -> None:
+        self._statuses: deque[str] = deque(maxlen=window)
+        self._walls: deque[float] = deque(maxlen=window)
+
+    def observe(self, status: str, wall_s: float) -> None:
+        self._statuses.append(status)
+        self._walls.append(wall_s)
+
+    def regime(self) -> str:
+        n = len(self._statuses)
+        if n < self.MIN_OBS:
+            return "warming"
+        fails = sum(1 for s in self._statuses if s != "ok")
+        fail_rate = fails / n
+        walls_sorted = sorted(self._walls)
+        p95 = walls_sorted[min(int(0.95 * n), n - 1)]
+        if fail_rate > 0.30 or p95 > 60:
+            return "collapse"
+        if fail_rate > 0.20 or p95 > 30:
+            return "approaching_collapse"
+        if fail_rate > 0.10 or p95 > 15:
+            return "l2_engaged"
+        if fail_rate > 0.05:
+            return "healthy"
+        return "under_utilising"
 
 
 def classify_exception(e: BaseException) -> tuple[str, Optional[int], Optional[str]]:

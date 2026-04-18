@@ -45,6 +45,7 @@ from scripts._diff import diff_item
 from src.sweeps import shared as _shared
 from src.config import ScraperConfig
 from src.scraping.http_session import RetryableHTTPError, new_session
+from src.scraping.proxy_pool import ProxyPool
 from src.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
 from src.scraping.scraper import scrape_processo_http
 
@@ -242,6 +243,23 @@ class ProcessResult:
         return len(self.diffs)
 
 
+def _write_item_json(items_dir: Path, classe: str, processo: int, item_dict: dict) -> None:
+    """Atomic write of `[item]` to <items_dir>/judex-mini_<classe>_<n>-<n>.json.
+
+    One-file-per-process so parallel replay tools can walk the dir
+    unambiguously. Wrapped in a 1-element list to match the JSON
+    format main.py -o json emits.
+    """
+    items_dir.mkdir(parents=True, exist_ok=True)
+    path = items_dir / f"judex-mini_{classe}_{processo}-{processo}.json"
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(
+        json.dumps([item_dict], ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
 def run_one(
     classe: str,
     processo: int,
@@ -252,6 +270,7 @@ def run_one(
     parity_csv: Optional[dict[tuple[str, int], dict[str, Any]]],
     *,
     config: Optional[Any] = None,
+    items_dir: Optional[Path] = None,
 ) -> ProcessResult:
     counter.reset()
     t0 = time.perf_counter()
@@ -287,6 +306,9 @@ def run_one(
 
     item_dict = dict(item)
     anomalies = shape_anomalies(item_dict)
+
+    if items_dir is not None:
+        _write_item_json(items_dir, classe, processo, item_dict)
 
     diffs: list[str] = []
     if gt_dir is not None:
@@ -470,7 +492,10 @@ def render_report(
 
 
 def _to_attempt_record(
-    res: ProcessResult, attempt: int, ts: Optional[str] = None
+    res: ProcessResult,
+    attempt: int,
+    ts: Optional[str] = None,
+    regime: Optional[str] = None,
 ) -> AttemptRecord:
     return AttemptRecord(
         ts=ts or datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -486,6 +511,7 @@ def _to_attempt_record(
         retries=dict(res.retries),
         diff_count=res.diff_count,
         anomaly_count=len(res.anomalies),
+        regime=regime,
     )
 
 
@@ -540,11 +566,51 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
              "(default: 50). Pass 0 to disable the breaker.",
     )
     ap.add_argument(
+        "--items-dir", type=Path, default=None,
+        help="If set, write one judex-mini_<CLASSE>_<n>-<n>.json per ok "
+             "process into this directory. Eliminates the post-sweep "
+             "cache-hot replay step used to populate output/sample/*/.",
+    )
+    ap.add_argument(
         "--circuit-threshold", type=float, default=0.8,
         help="Non-ok fraction of the window that trips the breaker (default: "
              "0.8 — permissive, since retry-403 normally absorbs WAF blocks; "
              "only a pathological cascade should trip this). Sweep aborts "
              "with exit code 2 once exceeded.",
+    )
+    ap.add_argument(
+        "--cliff-window", type=int, default=50,
+        help="Rolling window the CliffDetector uses to classify the sweep's "
+             "operating regime (default: 50). Regime is written to each "
+             "record in sweep.log.jsonl and printed on transitions. See "
+             "docs/rate-limits.md § Wall taxonomy and severity timeline.",
+    )
+    ap.add_argument(
+        "--no-stop-on-collapse", action="store_true",
+        help="Disable the CliffDetector's stop-on-collapse behavior. By "
+             "default, regime=collapse triggers a clean SIGTERM-equivalent "
+             "shutdown; pass this flag to keep scraping through collapse "
+             "(e.g. for observational studies of the cliff itself).",
+    )
+    ap.add_argument(
+        "--proxy-pool", type=Path, default=None,
+        help="Path to a file with one proxy URL per line (# comments ok). "
+             "Enables proactive IP rotation: swap sessions every "
+             "--proxy-rotate-seconds, well under STF's WAF L1 window, so "
+             "no IP ever trips a block. See docs/rate-limits.md § Wall "
+             "taxonomy and severity timeline.",
+    )
+    ap.add_argument(
+        "--proxy-rotate-seconds", type=float, default=270.0,
+        help="Seconds to use each proxy before rotating to the next "
+             "(default: 270 = 4.5 min, safely under STF's ~5-min WAF "
+             "sliding window). Ignored when --proxy-pool is absent.",
+    )
+    ap.add_argument(
+        "--proxy-cooldown-minutes", type=float, default=4.0,
+        help="Minutes a just-used proxy stays out of rotation (default: "
+             "4). Should be ≈ (pool_size - 1) × proxy-rotate-seconds / 60 "
+             "so each proxy has cooled by the time its turn returns.",
     )
     args = ap.parse_args(argv)
 
@@ -617,6 +683,7 @@ def _run_passes(
     counter: RetryCounter,
     config: ScraperConfig,
     started: datetime,
+    pool: Optional[ProxyPool] = None,
 ) -> SweepOutcome:
     cold_results: list[ProcessResult] = []
     totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
@@ -624,21 +691,97 @@ def _run_passes(
         _shared.CircuitBreaker(args.circuit_window, args.circuit_threshold)
         if args.circuit_window > 0 else None
     )
+    detector = _shared.CliffDetector(window=args.cliff_window)
+    # Track prior regime so we only print on transitions, not every record.
+    last_regime: dict[str, str] = {"value": "warming"}
+
+    # Session holder — mutable so proxy rotation can swap sessions mid-loop
+    # without reaching into closure cells. `on_item_cold` reads session via
+    # session_holder["session"] which is resolved at call-time.
+    pool_active = pool is not None and pool.size() > 0
+    initial_proxy = pool.pick() if pool_active else None
+    session_holder: dict[str, Any] = {
+        "session": new_session(proxy=initial_proxy),
+        "proxy": initial_proxy,
+        "started_at": time.monotonic(),
+        "rotations": 0,
+    }
+
+    def rotate_session(reason: str) -> None:
+        old = session_holder["proxy"]
+        elapsed = time.monotonic() - session_holder["started_at"]
+        pool.mark_hot(old, minutes=args.proxy_cooldown_minutes)
+        session_holder["session"].close()
+        new_proxy = pool.pick()
+        if new_proxy is None:
+            wait_s = pool.time_until_next_available()
+            print(
+                f"  [rotate] all proxies hot — waiting {wait_s:.0f}s "
+                f"for the next cool proxy",
+                flush=True,
+            )
+            time.sleep(wait_s + 1.0)
+            new_proxy = pool.pick()
+        session_holder["session"] = new_session(proxy=new_proxy)
+        session_holder["proxy"] = new_proxy
+        session_holder["started_at"] = time.monotonic()
+        session_holder["rotations"] += 1
+        print(
+            f"  [rotate] {old} → {new_proxy} "
+            f"(elapsed={elapsed:.0f}s reason={reason})",
+            flush=True,
+        )
 
     def on_item_cold(i: int, n: int, row: tuple[str, int, Optional[str]]) -> str:
         classe, processo, source = row
         res = run_one(
-            classe, processo, source, session, counter,
+            classe, processo, source, session_holder["session"], counter,
             args.parity_dir, parity_csv, config=config,
+            items_dir=args.items_dir,
         )
         cold_results.append(res)
+        detector.observe(res.status, res.wall_s)
+        regime = detector.regime()
         store.record(
-            _to_attempt_record(res, attempt=store.attempt_count(classe, processo) + 1)
+            _to_attempt_record(
+                res,
+                attempt=store.attempt_count(classe, processo) + 1,
+                regime=regime,
+            )
         )
         totals[res.status] = totals.get(res.status, 0) + 1
         totals["429"] += res.retries.get("429", 0)
         totals["5xx"] += res.retries.get("5xx", 0)
         _print_row(i, n, res)
+        if regime != last_regime["value"]:
+            print(
+                f"  [regime] {last_regime['value']} → {regime}  "
+                f"(see docs/rate-limits.md § Wall taxonomy)",
+                flush=True,
+            )
+            last_regime["value"] = regime
+        # Proactive rotation: swap IP before L1 fires at all. Reactive
+        # fallback covers the case where a proxy arrived pre-warmed.
+        if pool_active:
+            elapsed_on_proxy = time.monotonic() - session_holder["started_at"]
+            should_rotate = (
+                elapsed_on_proxy > args.proxy_rotate_seconds
+                or regime == "approaching_collapse"
+            )
+            if should_rotate:
+                rotate_session(
+                    reason=f"time>{args.proxy_rotate_seconds}s"
+                    if elapsed_on_proxy > args.proxy_rotate_seconds
+                    else "approaching_collapse"
+                )
+        if regime == "collapse" and not args.no_stop_on_collapse:
+            print(
+                f"\n!! cliff detector: regime=collapse at {i}/{n}. "
+                f"Stopping cleanly — cool down ≥60 min before --resume. "
+                f"See docs/rate-limits.md § Wall taxonomy and severity timeline.",
+                flush=True,
+            )
+            _shared.request_shutdown()
         return res.status
 
     def on_skip_cold(_row: tuple[str, int, Optional[str]]) -> None:
@@ -658,7 +801,15 @@ def _run_passes(
         )
 
     warm_results: Optional[list[ProcessResult]] = None
-    with new_session() as session:
+    if pool_active:
+        print(
+            f"  proxy pool: {pool.size()} proxies · "
+            f"rotate={args.proxy_rotate_seconds:.0f}s · "
+            f"cooldown={args.proxy_cooldown_minutes:.1f}min · "
+            f"initial={initial_proxy}",
+            flush=True,
+        )
+    try:
         tripped = _shared.iterate_with_guards(
             rows,
             on_item=on_item_cold,
@@ -679,8 +830,9 @@ def _run_passes(
             def on_item_warm(i: int, n: int, row: tuple[str, int, Optional[str]]) -> None:
                 classe, processo, source = row
                 res = run_one(
-                    classe, processo, source, session, counter,
-                    args.parity_dir, parity_csv,
+                    classe, processo, source, session_holder["session"], counter,
+                    args.parity_dir, parity_csv, config=config,
+                    items_dir=args.items_dir,
                 )
                 warm_results.append(res)
                 store.record(
@@ -695,6 +847,13 @@ def _run_passes(
                 rows,
                 on_item=on_item_warm,
                 progress_every=0,
+            )
+    finally:
+        session_holder["session"].close()
+        if pool_active and session_holder["rotations"] > 0:
+            print(
+                f"  proxy rotations during sweep: {session_holder['rotations']}",
+                flush=True,
             )
 
     return SweepOutcome(
@@ -717,6 +876,10 @@ def main(argv: list[str]) -> int:
     _shared.install_signal_handlers()
     config = ScraperConfig(retry_403=args.retry_403)
 
+    pool: Optional[ProxyPool] = None
+    if args.proxy_pool is not None:
+        pool = ProxyPool.from_file(args.proxy_pool)
+
     started = datetime.now(timezone.utc)
     print(
         f"=== sweep: {args.label} · {len(rows)} processes · "
@@ -724,7 +887,9 @@ def main(argv: list[str]) -> int:
         flush=True,
     )
 
-    outcome = _run_passes(args, rows, parity_csv, store, counter, config, started)
+    outcome = _run_passes(
+        args, rows, parity_csv, store, counter, config, started, pool=pool
+    )
 
     finished = datetime.now(timezone.utc)
     errors_path = store.write_errors_file()

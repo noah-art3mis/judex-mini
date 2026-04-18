@@ -41,6 +41,7 @@ class AttemptRecord:
     retries: dict[str, int] = field(default_factory=dict)
     diff_count: int = 0
     anomaly_count: int = 0
+    regime: Optional[str] = None  # CliffDetector regime at time of record
 
 
 def _key(classe: str, processo: int) -> str:
