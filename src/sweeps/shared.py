@@ -135,11 +135,12 @@ class CliffDetector:
         *,
         http_status: Optional[int] = None,
         retries: Optional[dict[str, int]] = None,
-    ) -> None:
+    ) -> bool:
         is_bad = status != "ok" and _is_waf_shape(wall_s, http_status, retries)
         self._waf_bad.append(is_bad)
         self._walls.append(wall_s)
         self._statuses.append(status)
+        return is_bad
 
     def regime(self) -> str:
         n = len(self._waf_bad)

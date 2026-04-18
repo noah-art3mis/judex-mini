@@ -65,11 +65,6 @@ def main() -> int:
                 continue
             elapsed = time.perf_counter() - t0
 
-            if http_item is None:
-                print("  ERROR: HTTP fetch failed (no incidente)")
-                results.append((path, 1, elapsed))
-                continue
-
             gt = _load_fixture(path)
             diffs = diff_item(dict(http_item), gt, allow_growth=True)
             print(f"  wall: {elapsed:.2f}s")

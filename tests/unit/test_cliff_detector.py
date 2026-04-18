@@ -193,3 +193,36 @@ def test_default_window_is_fifty():
     # If window weren't 50, we'd have more than 50 entries now and
     # the p95 calculation would be over a different N. Assert len directly.
     assert len(det._statuses) == 50
+
+
+# ----- observe() surfaces the WAF-shape verdict to callers -------------------
+# Motivation: the sweep log record embeds filter_skip so a human auditing
+# sweep.log.jsonl can tell which non-ok attempts the detector chose to ignore
+# (fast NoIncidente) vs. count (slow, 403, 429, 5xx, retries). Without a
+# return value the caller has to re-implement the predicate.
+
+
+def test_observe_returns_false_for_ok():
+    det = CliffDetector(window=50)
+    assert det.observe("ok", 1.0) is False
+    assert det.observe("ok", 70.0) is False  # slow OK still not "bad" in detector's fail-rate sense
+
+
+def test_observe_returns_false_for_fast_noincidente_fail():
+    det = CliffDetector(window=50)
+    # fail, no http_status, no retries, fast — the NoIncidente shape
+    assert det.observe("fail", 1.8) is False
+
+
+def test_observe_returns_true_for_waf_shaped_fail():
+    det = CliffDetector(window=50)
+    assert det.observe("fail", 1.0, http_status=403) is True
+    assert det.observe("fail", 1.0, http_status=429) is True
+    assert det.observe("fail", 1.0, http_status=502) is True
+    assert det.observe("fail", 20.0) is True  # slow — retry-403 exhausted
+    assert det.observe("fail", 1.0, retries={"403": 2}) is True
+
+
+def test_observe_returns_true_for_error_status_with_403():
+    det = CliffDetector(window=50)
+    assert det.observe("error", 1.0, http_status=403) is True

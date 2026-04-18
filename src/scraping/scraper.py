@@ -78,14 +78,35 @@ class ProcessFetch:
     tabs: dict[str, str]
 
 
+class NoIncidenteError(Exception):
+    """Raised when /listarProcessos.asp redirects without `incidente=<n>`.
+
+    Carries the Location header + HTTP status so the sweep log can
+    distinguish STF's real "this process is unallocated" response
+    (Location pointing to an error page, empty body) from a hypothetical
+    proxy soft-block returning a synthetic 200 with a different shape.
+    """
+
+    def __init__(self, *, http_status: int, location: str) -> None:
+        self.http_status = http_status
+        self.location = location
+        super().__init__(
+            f"no incidente in redirect (HTTP {http_status}, Location={location!r})"
+        )
+
+
 def resolve_incidente(
     session: requests.Session,
     classe: str,
     processo: int,
     *,
     config: Optional[ScraperConfig] = None,
-) -> Optional[int]:
-    """Follow the listarProcessos 302 to extract the incidente id."""
+) -> int:
+    """Follow the listarProcessos 302 to extract the incidente id.
+
+    Raises :class:`NoIncidenteError` when the redirect lacks
+    ``incidente=<n>`` — STF's way of signalling an unallocated process.
+    """
     r = _http_get_with_retry(
         session,
         f"{BASE}/listarProcessos.asp",
@@ -99,7 +120,7 @@ def resolve_incidente(
         logging.warning(
             f"{classe} {processo}: no incidente in redirect ({r.status_code} {loc!r})"
         )
-        return None
+        raise NoIncidenteError(http_status=r.status_code, location=loc)
     return int(m.group(1))
 
 
@@ -152,8 +173,12 @@ def fetch_process(
     use_cache: bool = True,
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
-) -> Optional[ProcessFetch]:
-    """Fetch detalhe + all tabs for one process. Caches fragments + incidente on disk."""
+) -> ProcessFetch:
+    """Fetch detalhe + all tabs for one process. Caches fragments + incidente on disk.
+
+    Raises :class:`NoIncidenteError` when STF signals the process is
+    unallocated (redirect without ``incidente=<n>``).
+    """
     owns_session = session is None
     if session is None:
         session = new_session()
@@ -164,8 +189,6 @@ def fetch_process(
         )
         if incidente is None:
             incidente = resolve_incidente(session, classe, processo, config=config)
-            if incidente is None:
-                return None
             html_cache.write_incidente(classe, processo, incidente)
 
         def cached(tab: str, fetcher: Any) -> str:
@@ -409,18 +432,19 @@ def scrape_processo_http(
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
     fetch_pdfs: bool = True,
-) -> Optional[StfItem]:
+) -> StfItem:
     """Full-process scrape via HTTP. Returns the same StfItem shape as the Selenium path.
 
     When fetch_pdfs is True (default), sessao_virtual documentos URLs
     are replaced with extracted text; the URL-keyed pdf cache makes
     repeated runs cheap.
+
+    Raises :class:`NoIncidenteError` when STF signals the process is
+    unallocated (redirect without ``incidente=<n>``).
     """
     fetched = fetch_process(
         classe, processo, use_cache=use_cache, session=session, config=config
     )
-    if fetched is None:
-        return None
 
     detalhe_soup = BeautifulSoup(fetched.detalhe_html, "lxml")
     info_soup = BeautifulSoup(fetched.tabs.get(TAB_INFORMACOES, ""), "lxml")

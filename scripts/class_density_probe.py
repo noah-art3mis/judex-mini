@@ -91,19 +91,22 @@ def main() -> None:
     results: list[tuple[int, int, bool]] = []
     session = new_session()
     started = time.perf_counter()
+    from src.scraping.scraper import NoIncidenteError
     for j, (band_idx, p) in enumerate(samples, 1):
         try:
             incidente = resolve_incidente(session, args.classe, p, config=cfg)
+        except NoIncidenteError:
+            results.append((band_idx, p, False))
+            print(f"  [{j:>3d}/{len(samples)}] {args.classe} {p:>7d} "
+                  f"band={band_idx}     inc=None")
         except Exception as e:
             print(f"  [{j:>3d}/{len(samples)}] {args.classe} {p}: "
                   f"ERROR {type(e).__name__}: {e}")
             results.append((band_idx, p, False))
         else:
-            exists = incidente is not None
-            results.append((band_idx, p, exists))
-            mark = "ok " if exists else "   "
+            results.append((band_idx, p, True))
             print(f"  [{j:>3d}/{len(samples)}] {args.classe} {p:>7d} "
-                  f"band={band_idx} {mark} inc={incidente}")
+                  f"band={band_idx} ok  inc={incidente}")
         if j < len(samples):
             time.sleep(args.pacing)
 

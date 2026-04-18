@@ -155,3 +155,50 @@ def test_http_get_retries_on_403_by_default(fast_config: ScraperConfig) -> None:
 
     assert r.status_code == 200
     assert session.get.call_count == 3
+
+
+# ----- resolve_incidente surfaces diagnostics via NoIncidenteError -----------
+# Motivation: when STF's /listarProcessos.asp redirects without `incidente=N`,
+# we want the sweep log to carry the Location header verbatim so a future
+# proxy-soft-block response with a different shape is distinguishable from a
+# genuine STF "HC unallocated" response. Before this change resolve_incidente
+# returned None and threw the diagnostics away.
+
+
+def test_resolve_incidente_raises_with_location_when_redirect_lacks_incidente(
+    fast_config: ScraperConfig,
+) -> None:
+    from src.scraping.scraper import NoIncidenteError, resolve_incidente
+
+    # STF's dead-zone response: 302 with a Location that redirects to an
+    # error page instead of carrying `incidente=<n>`.
+    redirect = Mock()
+    redirect.status_code = 302
+    redirect.headers = {"Location": "/processos/listarProcessos.asp?erro=1"}
+    redirect.text = ""
+    redirect.raise_for_status = Mock()
+
+    session = Mock()
+    session.get = Mock(return_value=redirect)
+
+    with pytest.raises(NoIncidenteError) as excinfo:
+        resolve_incidente(session, "HC", 999999, config=fast_config)
+
+    err = excinfo.value
+    assert err.location == "/processos/listarProcessos.asp?erro=1"
+    assert err.http_status == 302
+
+
+def test_resolve_incidente_returns_int_on_match(fast_config: ScraperConfig) -> None:
+    from src.scraping.scraper import resolve_incidente
+
+    redirect = Mock()
+    redirect.status_code = 302
+    redirect.headers = {"Location": "/processos/detalhe.asp?incidente=123456"}
+    redirect.text = ""
+    redirect.raise_for_status = Mock()
+
+    session = Mock()
+    session.get = Mock(return_value=redirect)
+
+    assert resolve_incidente(session, "HC", 1, config=fast_config) == 123456

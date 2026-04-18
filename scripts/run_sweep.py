@@ -48,7 +48,7 @@ from src.config import ScraperConfig
 from src.scraping.http_session import RetryableHTTPError, new_session
 from src.scraping.proxy_pool import ProxyPool
 from src.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
-from src.scraping.scraper import scrape_processo_http
+from src.scraping.scraper import NoIncidenteError, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -259,6 +259,7 @@ class ProcessResult:
     error_type: Optional[str] = None
     http_status: Optional[int] = None
     error_url: Optional[str] = None
+    body_head: Optional[str] = None
 
     @property
     def diff_count(self) -> int:
@@ -300,6 +301,18 @@ def run_one(
         item = scrape_processo_http(
             classe, processo, use_cache=True, session=session, config=config
         )
+    except NoIncidenteError as e:
+        return ProcessResult(
+            classe, processo, source,
+            wall_s=time.perf_counter() - t0,
+            status="fail",
+            error=f"scrape returned None (incidente not resolved): {e.location!r}",
+            retries=counter.snapshot(),
+            diffs=[], anomalies=[],
+            error_type="NoIncidente",
+            http_status=e.http_status,
+            body_head=e.location[:200] if e.location else "",
+        )
     except Exception as e:
         etype, http_status, url = _shared.classify_exception(e)
         return ProcessResult(
@@ -314,17 +327,6 @@ def run_one(
             error_url=url,
         )
     wall = time.perf_counter() - t0
-
-    if item is None:
-        return ProcessResult(
-            classe, processo, source,
-            wall_s=wall,
-            status="fail",
-            error="scrape returned None (incidente not resolved)",
-            retries=counter.snapshot(),
-            diffs=[], anomalies=[],
-            error_type="NoIncidente",
-        )
 
     item_dict = dict(item)
     anomalies = shape_anomalies(item_dict)
@@ -518,6 +520,7 @@ def _to_attempt_record(
     attempt: int,
     ts: Optional[str] = None,
     regime: Optional[str] = None,
+    filter_skip: Optional[bool] = None,
 ) -> AttemptRecord:
     return AttemptRecord(
         ts=ts or datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -534,6 +537,8 @@ def _to_attempt_record(
         diff_count=res.diff_count,
         anomaly_count=len(res.anomalies),
         regime=regime,
+        filter_skip=filter_skip,
+        body_head=res.body_head,
     )
 
 
@@ -757,18 +762,22 @@ def _run_passes(
             items_dir=args.items_dir,
         )
         cold_results.append(res)
-        detector.observe(
+        is_bad = detector.observe(
             res.status,
             res.wall_s,
             http_status=res.http_status,
             retries=res.retries or None,
         )
+        # filter_skip = non-ok attempt the WAF-shape filter chose to IGNORE
+        # (fast NoIncidente). Ok attempts aren't candidates for filtering.
+        filter_skip = (res.status != "ok") and not is_bad
         regime = detector.regime()
         store.record(
             _to_attempt_record(
                 res,
                 attempt=store.attempt_count(classe, processo) + 1,
                 regime=regime,
+                filter_skip=filter_skip,
             )
         )
         totals[res.status] = totals.get(res.status, 0) + 1

@@ -42,6 +42,14 @@ class AttemptRecord:
     diff_count: int = 0
     anomaly_count: int = 0
     regime: Optional[str] = None  # CliffDetector regime at time of record
+    # True when a non-ok attempt was ignored by CliffDetector's WAF-shape
+    # filter (fast NoIncidente, no retries). Makes the detector's per-record
+    # decision auditable from the log alone.
+    filter_skip: Optional[bool] = None
+    # First ~200 chars of diagnostic body for NoIncidente fails: STF's
+    # `/listarProcessos.asp` Location header verbatim. Lets us tell a real
+    # STF "unallocated" response apart from a hypothetical proxy soft-block.
+    body_head: Optional[str] = None
 
 
 def _key(classe: str, processo: int) -> str:

@@ -160,3 +160,58 @@ def test_log_is_appended_not_rewritten(tmp_path: Path):
     assert len(lines) == 2
     assert json.loads(lines[0])["processo"] == 1
     assert json.loads(lines[1])["processo"] == 2
+
+
+# ----- filter_skip + body_head land in the on-disk log -----------------------
+# Motivation: these two fields are the only way, post-sweep, to tell
+# CliffDetector's per-record decision apart from the raw status, and to
+# distinguish a real STF "unallocated" response from a hypothetical proxy
+# soft-block. Without them the diagnostics are forever.
+
+
+def test_filter_skip_persists_to_sweep_log(tmp_path: Path):
+    store = SweepStore(tmp_path)
+    store.record(
+        AttemptRecord(
+            ts="2026-04-18T00:00:00+00:00",
+            classe="HC",
+            processo=1,
+            attempt=1,
+            wall_s=1.8,
+            status="fail",
+            error="scrape returned None (incidente not resolved)",
+            error_type="NoIncidente",
+            filter_skip=True,
+        )
+    )
+    line = (tmp_path / "sweep.log.jsonl").read_text().splitlines()[0]
+    rec = json.loads(line)
+    assert rec["filter_skip"] is True
+
+
+def test_body_head_persists_on_noincidente_record(tmp_path: Path):
+    store = SweepStore(tmp_path)
+    store.record(
+        AttemptRecord(
+            ts="2026-04-18T00:00:00+00:00",
+            classe="HC",
+            processo=1,
+            attempt=1,
+            wall_s=1.8,
+            status="fail",
+            error="scrape returned None (incidente not resolved)",
+            error_type="NoIncidente",
+            body_head="/processos/listarProcessos.asp?erro=1",
+        )
+    )
+    line = (tmp_path / "sweep.log.jsonl").read_text().splitlines()[0]
+    rec = json.loads(line)
+    assert rec["body_head"] == "/processos/listarProcessos.asp?erro=1"
+
+
+def test_filter_skip_and_body_head_default_to_none(tmp_path: Path):
+    store = SweepStore(tmp_path)
+    store.record(_rec("ADI", 1, "ok"))
+    rec = json.loads((tmp_path / "sweep.log.jsonl").read_text().splitlines()[0])
+    assert rec["filter_skip"] is None
+    assert rec["body_head"] is None
