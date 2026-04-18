@@ -10,7 +10,7 @@ Layout under `out_dir`:
 
 Per-URL loop with:
 - `AdaptiveThrottle` + `RequestLog` wired through `ScraperConfig`
-- existing `data/pdf/*.txt.gz` text cache reused via `pdf_cache`
+- existing `data/cache/pdf/*.txt.gz` text cache reused via `pdf_cache`
 - `_shared.CircuitBreaker` for cascade protection
 - `_shared.install_signal_handlers()` for graceful SIGINT/SIGTERM
 - `--resume` (via `PdfStore.already_ok`) and `--retry-from` (reads

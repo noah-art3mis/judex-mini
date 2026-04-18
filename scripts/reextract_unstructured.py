@@ -11,7 +11,7 @@ is captured in `pdfs.state.json` / `pdfs.log.jsonl` / `pdfs.errors.jsonl`
 under ``--out``. That gives `--resume`, `--retry-from`, circuit breaker,
 and per-GET latency history for free.
 
-Cache-monotonic: only overwrites ``data/pdf/<sha1(url)>.txt.gz`` when
+Cache-monotonic: only overwrites ``data/cache/pdf/<sha1(url)>.txt.gz`` when
 the new OCR extract is strictly longer than the prior cached text.
 The per-attempt record uses ``extractor="unstructured_api"`` on
 improvement and ``extractor="unchanged"`` otherwise, so the report
@@ -21,12 +21,12 @@ Usage:
 
     # Dry run — show what would be re-extracted.
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
-        --out docs/pdf-sweeps/$(date +%Y-%m-%d)-reextract \\
+        --out runs/active/$(date +%Y-%m-%d)-reextract \\
         --classe HC --dry-run
 
     # Famous-lawyer HC preset (matches fetch_pdfs.py's preset).
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
-        --out docs/pdf-sweeps/2026-04-17-famous-lawyers-ocr \\
+        --out runs/active/2026-04-17-famous-lawyers-ocr \\
         --classe HC \\
         --impte-contains "TORON,PIERPAOLO,PEDRO MACHADO DE ALMEIDA CASTRO,\\
 ARRUDA BOTELHO,MARCELO LEONARDO,NILO BATISTA,VILARDI,PODVAL,\\

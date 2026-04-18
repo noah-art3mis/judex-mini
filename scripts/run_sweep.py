@@ -22,7 +22,7 @@ Run:
         --csv tests/sweep/shape_coverage.csv \\
         --label shape_coverage \\
         --parity-dir tests/ground_truth \\
-        --out docs/sweep-results/2026-04-16-A-shape-coverage
+        --out runs/active/2026-04-16-A-shape-coverage
 """
 
 from __future__ import annotations
@@ -557,7 +557,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap.add_argument(
         "--wipe-cache", action="store_true",
-        help="Remove data/html entries for the processes in the sweep before starting.",
+        help="Remove data/cache/html entries for the processes in the sweep before starting.",
     )
     ap.add_argument(
         "--resume", action="store_true",
@@ -659,7 +659,7 @@ def _resolve_parity(
 
 def _wipe_html_caches(rows: list[tuple[str, int, Optional[str]]]) -> None:
     for classe, processo, _ in rows:
-        d = Path("data/html") / f"{classe}_{processo}"
+        d = Path("data/cache/html") / f"{classe}_{processo}"
         if d.exists():
             shutil.rmtree(d)
 

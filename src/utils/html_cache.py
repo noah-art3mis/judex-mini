@@ -1,7 +1,7 @@
 """
 On-disk HTML cache keyed by (classe, processo, tab).
 
-Cache lives under `data/html/{classe}_{processo}/{tab}.html.gz`.
+Cache lives under `data/cache/html/{classe}_{processo}/{tab}.html.gz`.
 STF tab HTML compresses 8-10x so gzip costs almost nothing in CPU and
 keeps the cache practical for mass scrapes. Reads transparently fall
 back to legacy plain .html files if a gzip version is absent.
@@ -10,7 +10,7 @@ back to legacy plain .html files if a gzip version is absent.
 import gzip
 from pathlib import Path
 
-CACHE_ROOT = Path("data/html")
+CACHE_ROOT = Path("data/cache/html")
 
 
 def _dir(classe: str, processo: int) -> Path:

@@ -9,7 +9,7 @@
 #      already-done HC is re-fetched.
 #   3. Launch N run_sweep.py workers via nohup, each with its own --out,
 #      --csv, --proxy-pool. All shards share --items-dir (per-process JSON
-#      filenames are unique across disjoint CSVs) and the data/pdf/ cache
+#      filenames are unique across disjoint CSVs) and the data/cache/pdf/ cache
 #      (atomic writes land on 2026-04-17 via pdf_cache._atomic_write).
 #   4. Record all PIDs to <out-root>/shards.pids for scripted stop/resume.
 #
@@ -23,16 +23,18 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 DATE="2026-04-17"
-ROOT="docs/sweep-results/${DATE}-hc-full-backfill-sharded"
+ROOT="runs/active/${DATE}-hc-full-backfill-sharded"
 SRC_CSV="tests/sweep/hc_all_desc.csv"
-SRC_STATE="docs/sweep-results/${DATE}-hc-full-backfill/sweep.state.json"
+# Seed from the archived monolithic sweep's final state (all ok records
+# up to the pre-shard SIGTERM, 13 943 entries).
+SRC_STATE="runs/archive/${DATE}-hc-full-backfill/sweep.state.json"
 SHARD_CSV_DIR="tests/sweep/shards"
 
 # One proxy file per shard — order matters, shard i uses PROXY_FILES[i].
-PROXY_FILES=(proxies.txt proxies.b.txt proxies.c.txt proxies.d.txt)
+PROXY_FILES=(config/proxies.a.txt config/proxies.b.txt config/proxies.c.txt config/proxies.d.txt)
 N=${#PROXY_FILES[@]}
 
-mkdir -p "$ROOT" data/output/hc_backfill "$SHARD_CSV_DIR"
+mkdir -p "$ROOT" data/cases/HC "$SHARD_CSV_DIR"
 LOG="$ROOT/launcher.log"
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
 
@@ -108,7 +110,7 @@ for i in $(seq 0 $((N - 1))); do
         --csv "$CSV" \
         --label "$LABEL" \
         --out "$SHARD_DIR" \
-        --items-dir data/output/hc_backfill \
+        --items-dir data/cases/HC \
         --proxy-pool "$PROXY" \
         --resume \
         >> "$DRIVER_LOG" 2>&1 &

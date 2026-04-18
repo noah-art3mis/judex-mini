@@ -14,7 +14,7 @@ Usage:
 
     # Famous-lawyer preset
     PYTHONPATH=. uv run python scripts/fetch_pdfs.py \\
-        --out docs/pdf-sweeps/2026-04-17-famous-lawyers \\
+        --out runs/active/2026-04-17-famous-lawyers \\
         --classe HC \\
         --impte-contains "TORON,PIERPAOLO,ARRUDA BOTELHO,MARCELO LEONARDO,\\
 NILO BATISTA,VILARDI,PODVAL,MUDROVITSCH,BADARO,DANIEL GERBER,\\
@@ -25,7 +25,7 @@ MANIFESTAÇÃO DA PGR,DESPACHO" \\
 
     # All HC acórdãos from a specific relator
     PYTHONPATH=. uv run python scripts/fetch_pdfs.py \\
-        --out docs/pdf-sweeps/fachin-acordaos \\
+        --out runs/active/fachin-acordaos \\
         --classe HC --relator-contains FACHIN \\
         --doc-types "INTEIRO TEOR DO ACÓRDÃO"
 """

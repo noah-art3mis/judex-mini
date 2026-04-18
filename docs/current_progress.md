@@ -22,7 +22,7 @@ behave, class sizes, perf numbers, where data lives), read:
 ## Working conventions
 
 - **`analysis/`** — git-ignored scratch for this-session exploration (marimo notebooks, one-off scripts, raw JSON dumps). Safe to fill freely.
-- **All non-trivial arithmetic via `uv run python -c`** — never mental math. See `CLAUDE.md § Calculations`. The rate-budget doc (`docs/sweep-results/2026-04-16-D-rate-budget.md`) is the cautionary tale.
+- **All non-trivial arithmetic via `uv run python -c`** — never mental math. See `CLAUDE.md § Calculations`. The rate-budget doc (`docs/reports/2026-04-16-D-rate-budget.md`) is the cautionary tale.
 - **Sweeps write a directory**, not a file. Layout in [`docs/data-layout.md § Sweep run artifacts`](data-layout.md#sweep-run-artifacts).
 
 ---
@@ -33,13 +33,13 @@ behave, class sizes, perf numbers, where data lives), read:
 
 **Monitor the 4-shard concurrent HC backfill to completion.** The
 monolithic single-worker backfill at
-`docs/sweep-results/2026-04-17-hc-full-backfill/` was SIGTERM'd
+`runs/archive/2026-04-17-hc-full-backfill/` was SIGTERM'd
 at 23:08 local after confirming the WAF-shape fix held over
 1 656 fresh dead-zone records (all `under_utilising`, p50
 0.87 s, p95 1.74 s, 7 rotations, driver-projected ETA for
 remaining work = 5 330 min ≈ 89 h single-worker). It was
 replaced with a **4-shard concurrent deployment** under
-`docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`,
+`runs/active/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`,
 each shard consuming a disjoint 10–12-session ScrapeGW pool
 (`proxies.txt` / `.b.txt` / `.c.txt` / `.d.txt`; 42 total
 sessions across 4 files, zero overlap). Expected wall-time for
@@ -125,7 +125,7 @@ _(append-only log. UTC timestamps.)_
   counted by the WAF-shape filter** (all NoIncidente, all
   `wall_s` 0.78–3.05 s, zero retries, zero 403/429/5xx). Full
   analysis at
-  [`docs/sweep-results/2026-04-17-proxy-canary/REPORT-v2.md`](sweep-results/2026-04-17-proxy-canary/REPORT-v2.md).
+  [`docs/reports/2026-04-17-proxy-canary-v2.md`](reports/2026-04-17-proxy-canary-v2.md).
 - **2026-04-18 ~03:11 UTC — 4-shard backfill launched.**
   Pids: 740399 (shard-0, proxies.txt), 740407 (shard-1,
   proxies.b.txt), 740416 (shard-2, proxies.c.txt), 740422
@@ -218,14 +218,14 @@ _(append-only log. UTC timestamps.)_
   (cross-shard state union), `scripts/launch_hc_backfill_sharded.sh`
   (idempotent N-shard launcher with per-shard state bootstrap).
   Enables N concurrent workers against disjoint proxy pools +
-  disjoint CSV slices, sharing the `data/output/`,
-  `data/html/`, and `data/pdf/` caches safely (pdf_cache now
+  disjoint CSV slices, sharing the `data/cases/HC/`,
+  `data/cache/html/`, and `data/cache/pdf/` caches safely (pdf_cache now
   writes atomically via tempfile + `os.replace`).
 - **Canary v2 (10 distinct sessions) resolved the
   canary-vs-backfill divergence.** Report at
-  [`docs/sweep-results/2026-04-17-proxy-canary/REPORT-v2.md`](sweep-results/2026-04-17-proxy-canary/REPORT-v2.md);
+  [`docs/reports/2026-04-17-proxy-canary-v2.md`](reports/2026-04-17-proxy-canary-v2.md);
   v1 archived at
-  [`docs/sweep-results/2026-04-17-proxy-canary-v1-1session/`](sweep-results/2026-04-17-proxy-canary-v1-1session/).
+  [`docs/reports/2026-04-17-proxy-canary-v1.md`](reports/2026-04-17-proxy-canary-v1.md) (+ [PLAN](reports/2026-04-17-proxy-canary-v1-PLAN.md)).
 - **Two-axis regime documented** in
   [`docs/rate-limits.md § The two CliffDetector axes`](rate-limits.md#the-two-cliffdetector-axes).
 
@@ -233,7 +233,7 @@ _(append-only log. UTC timestamps.)_
 
 ### 4-shard concurrent HC backfill
 
-- **Location:** `docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`
+- **Location:** `runs/active/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`
 - **Shard PIDs** (at launch): 740399 / 740407 / 740416 / 740422
 - **Proxy pools** (all disjoint): `proxies.txt` (10) / `.b.txt`
   (10) / `.c.txt` (12) / `.d.txt` (10) = 42 total sessions
@@ -246,7 +246,7 @@ _(append-only log. UTC timestamps.)_
   shards (6 698 / 6 276 / 964 / 5). 2 766 previously-failed
   HCs re-enter the work queue via `--resume` semantics.
 - **Stop cleanly:**
-  `xargs -a docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shards.pids kill -TERM`
+  `xargs -a runs/active/2026-04-17-hc-full-backfill-sharded/shards.pids kill -TERM`
 - **Progress probe:** see [Reference § Live sharded-sweep probe](#live-sharded-sweep-probe)
 
 ## Next steps — queue
@@ -300,10 +300,10 @@ uv run pytest tests/unit/
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run python main.py scrape -c ADI -i 2820 -f 2820 -o json -d data/output/test --overwrite
+uv run judex scrape -c ADI -i 2820 -f 2820 -o json -d data/cases/ADI --overwrite
 
-# Wipe caches
-rm -rf data  # HTML fragments, sessao JSON, PDF text
+# Wipe all regenerable caches (safe; HC case JSONs under data/cases/ survive)
+rm -rf data/cache  # HTML fragments, sessao JSON, PDF text, requests.db
 ```
 
 ## Running sweeps
@@ -314,14 +314,14 @@ PYTHONPATH=. uv run python scripts/run_sweep.py \
     --csv tests/sweep/shape_coverage.csv \
     --label my_sweep \
     --parity-dir tests/ground_truth \
-    --out docs/sweep-results/<date>-<label>
+    --out runs/active/<date>-<label>
 
 # Long sweep with proxy rotation
 PYTHONPATH=. uv run python scripts/run_sweep.py \
     --csv tests/sweep/<input>.csv \
     --label long_sweep \
-    --proxy-pool proxies.txt \
-    --out docs/sweep-results/<date>-<label>
+    --proxy-pool config/proxies.a.txt \
+    --out runs/active/<date>-<label>
 
 # Resume (skip already-ok processes)
 PYTHONPATH=. uv run python scripts/run_sweep.py \
@@ -329,9 +329,9 @@ PYTHONPATH=. uv run python scripts/run_sweep.py \
 
 # Retry only previously-failed processes
 PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --retry-from docs/sweep-results/<dir>/sweep.errors.jsonl \
+    --retry-from runs/archive/<dir>/sweep.errors.jsonl \
     --label <label>_retry \
-    --out docs/sweep-results/<date>-<label>-retry
+    --out runs/active/<date>-<label>-retry
 ```
 
 **Stopping a running sweep cleanly.** The driver installs SIGINT/
@@ -358,11 +358,11 @@ Returns in <1 s.
 ```bash
 # union of all 4 shard states + per-shard regime + mtime
 PYTHONPATH=. uv run python scripts/probe_sharded.py \
-    --out-root docs/sweep-results/2026-04-17-hc-full-backfill-sharded
+    --out-root runs/active/2026-04-17-hc-full-backfill-sharded
 
 # count rotation events across all shards
 grep -cH "\[rotate\]" \
-    docs/sweep-results/2026-04-17-hc-full-backfill-sharded/shard-*/driver.log
+    runs/active/2026-04-17-hc-full-backfill-sharded/shard-*/driver.log
 
 # confirm all 4 shard workers still alive
 pgrep -af "run_sweep.*hc_full_backfill_shard"
@@ -379,10 +379,10 @@ PYTHONPATH=. uv run python scripts/shard_csv.py \
 # Launch N concurrent backfill shards (HC-specific launcher,
 # reads 4 pre-staged proxy files at repo root)
 nohup ./scripts/launch_hc_backfill_sharded.sh \
-    > docs/sweep-results/<dir>/launcher-stdout.log 2>&1 & disown
+    > runs/active/<dir>/launcher-stdout.log 2>&1 & disown
 
 # Stop all shards cleanly
-xargs -a docs/sweep-results/<dir>/shards.pids kill -TERM
+xargs -a runs/active/<dir>/shards.pids kill -TERM
 ```
 
 ## Marimo notebooks under `analysis/`
@@ -409,16 +409,16 @@ hub (`main.py`):
 
 ```bash
 # all five → exports/html/*.html (gitignored)
-uv run python main.py export
+uv run judex export
 
 # single notebook or custom out-dir
-uv run python main.py export --only hc_famous_lawyers
-uv run python main.py export --out-dir /tmp/share
+uv run judex export --only hc_famous_lawyers
+uv run judex export --out-dir /tmp/share
 ```
 
 The same hub exposes the scraper and every sweep-adjacent script
 — `main.py scrape / sweep / fetch-pdfs / reextract /
 validate-ground-truth / density-probe`. Run
-`uv run python main.py --help` for the list; `main.py <cmd> --help`
+`uv run judex --help` for the list; `main.py <cmd> --help`
 shows each subcommand's flags (passthrough commands forward to the
 underlying argparse script).

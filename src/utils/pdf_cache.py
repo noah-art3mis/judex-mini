@@ -39,7 +39,7 @@ def _atomic_write(path: Path, payload: bytes) -> None:
     tmp.write_bytes(payload)
     os.replace(tmp, path)
 
-CACHE_ROOT: Path = Path("data/pdf")
+CACHE_ROOT: Path = Path("data/cache/pdf")
 
 
 def _hash(url: str) -> str:

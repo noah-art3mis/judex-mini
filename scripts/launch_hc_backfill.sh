@@ -14,10 +14,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-OUT=docs/sweep-results/2026-04-17-hc-full-backfill
+OUT=runs/active/2026-04-17-hc-full-backfill
 LOG="$OUT/launcher.log"
 DRIVER_LOG="$OUT/driver.log"
-mkdir -p "$OUT" data/output/hc_backfill
+mkdir -p "$OUT" data/cases/HC
 
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
 
@@ -35,16 +35,16 @@ PYTHONPATH=. uv run python - <<'PY' >> "$LOG" 2>&1
 import json
 from pathlib import Path
 
-out = Path("docs/sweep-results/2026-04-17-hc-full-backfill/sweep.state.json")
+out = Path("runs/active/2026-04-17-hc-full-backfill/sweep.state.json")
 if out.exists():
     existing = json.loads(out.read_text())
     if len(existing) > 0:
         print(f"state already has {len(existing)} records — skipping merge (idempotent relaunch)")
         raise SystemExit(0)
 
-# First-run bootstrap: merge ok HC entries from every prior sweep
+# First-run bootstrap: merge ok HC entries from every prior archived sweep
 merged = {}
-for sf in sorted(Path("docs/sweep-results").glob("*/sweep.state.json")):
+for sf in sorted(Path("runs/archive").glob("*/sweep.state.json")):
     if "hc-full-backfill" in str(sf):
         continue
     try:
@@ -65,7 +65,7 @@ exec env PYTHONPATH=. uv run python scripts/run_sweep.py \
     --csv tests/sweep/hc_all_desc.csv \
     --label hc_full_backfill \
     --out "$OUT" \
-    --items-dir data/output/hc_backfill \
-    --proxy-pool "$PWD/proxies.txt" \
+    --items-dir data/cases/HC \
+    --proxy-pool "$PWD/config/proxies.a.txt" \
     --resume \
     >> "$DRIVER_LOG" 2>&1

@@ -22,7 +22,7 @@ See also:
 ## Empirical threshold
 
 Three 200-process ADI sweeps (commit `c101310`, full analysis at
-`docs/sweep-results/2026-04-16-D-rate-budget.md`):
+`docs/reports/2026-04-16-D-rate-budget.md`):
 
 | Run | Pacing  | Retry-403 | ok/200 | First block   | Stall duration      | Wall   |
 |-----|--------:|:---------:|-------:|---------------|--------------------:|-------:|
@@ -36,7 +36,7 @@ Headline findings:
 - **Reactive retry beats proactive pacing alone.** R1's 199/200 vs R3's 175/200.
 - **Warm-start measurements are meaningless.** R2 ran immediately after R1 and inherited a hot WAF counter; its 30/200 result doesn't tell us about 0.5 s pacing on a fresh IP.
 
-Earlier evidence (sweep C, `docs/sweep-results/2026-04-16-C-full-1000.md`)
+Earlier evidence (sweep C, `docs/reports/2026-04-16-C-full-1000.md`)
 tripped the block at process 108. R1 tripped at 121. The threshold is
 **not constant** — it drifts with whatever internal signals the WAF
 tracks.
@@ -350,7 +350,7 @@ makes single-IP multi-day sweeps feasible at all.
 ## Validated defaults (commit `2a2833d`)
 
 From the D-runs above, combined with the E validation (429/429 ok, 0
-errors at these defaults — `docs/sweep-results/2026-04-16-E-full-1k-defaults/`):
+errors at these defaults — `docs/reports/2026-04-16-E-full-1k-defaults.md`):
 
 - `ScraperConfig.retry_403: True`
 - `ScraperConfig.driver_max_retries: 20` (was 10)
@@ -383,7 +383,7 @@ hit `portal.stf.jus.br/processos/downloadPeca.asp` + the
 `sistemas.stf.jus.br` PDF origin — related but separate counters.
 
 Narrow PDF-sweep run from
-[`docs/pdf-sweeps/2026-04-17-top-volume-ocr/SUMMARY.md`][tv] (25 URLs
+[`docs/reports/2026-04-17-top-volume-ocr.md`][tv] (25 URLs
 + 19 OCR re-extracts + 6 retries over ~16 min):
 
 - **Transient empty-body rate ~28 %** on first pass at
@@ -402,7 +402,7 @@ Narrow PDF-sweep run from
   (see [`performance.md § OCR pass`][perf]); one outlier API read
   timeout (300 s) in 19 docs.
 
-[tv]: pdf-sweeps/2026-04-17-top-volume-ocr/SUMMARY.md
+[tv]: reports/2026-04-17-top-volume-ocr.md
 [perf]: performance.md#ocr-pass-unstructured-hi_res
 
 ## Retry semantics
@@ -423,7 +423,7 @@ the breaker handles pathological runaway.
 
 - **PDF extraction cost.** `pypdf.PdfReader.extract_text` and the Unstructured OCR path run at local-CPU / external-API speed; pacing the portal doesn't change them.
 - **Individual request latency.** The portal is what it is (~300–650 ms per tab). Pacing sits above that.
-- **Courtesy vs. just-faster-failure.** Faster scraping without proper caching is the same load concentrated in time. The HTML fragment cache (`data/html/<CLASSE>_<N>/*.html.gz`) is the primary lever for being a good citizen.
+- **Courtesy vs. just-faster-failure.** Faster scraping without proper caching is the same load concentrated in time. The HTML fragment cache (`data/cache/html/<CLASSE>_<N>/*.html.gz`) is the primary lever for being a good citizen.
 
 ## The unresolved policy question — `robots.txt`
 

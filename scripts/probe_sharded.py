@@ -7,7 +7,7 @@ and mentally sum.
 Usage:
 
     uv run python scripts/probe_sharded.py \\
-        --out-root docs/sweep-results/2026-04-17-hc-full-backfill-sharded
+        --out-root runs/active/2026-04-17-hc-full-backfill-sharded
 
 Reads `<out-root>/shard-*/sweep.state.json` and prints:
 
