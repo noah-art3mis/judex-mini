@@ -15,7 +15,7 @@ class StfItem(TypedDict):
     data_protocolo: Optional[str]
     orgao_origem: Optional[str]
     origem: Optional[str]
-    numero_origem: Optional[List[int]]
+    numero_origem: Optional[List[str]]
 
     volumes: Optional[int]
     folhas: Optional[int]

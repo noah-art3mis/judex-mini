@@ -69,14 +69,15 @@ def extract_origem(info_soup: BeautifulSoup) -> Optional[str]:
     return _labeled_value(info_soup, "Origem")
 
 
-def extract_numero_origem(info_soup: BeautifulSoup) -> Optional[list[int]]:
+def extract_numero_origem(info_soup: BeautifulSoup) -> Optional[list[str]]:
+    # STF emits comma-separated origin numbers on multi-source processes
+    # (HC 158802 has 7 of them). Leading zeros carry meaning — keep as
+    # strings rather than cast to int.
     val = _labeled_value(info_soup, "Número de Origem")
     if not val:
         return None
-    try:
-        return [int(val)]
-    except ValueError:
-        return None
+    parts = [p.strip() for p in val.split(",") if p.strip()]
+    return parts or None
 
 
 def extract_volumes(info_soup: BeautifulSoup) -> Optional[int]:
