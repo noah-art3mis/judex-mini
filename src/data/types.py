@@ -6,6 +6,19 @@ from typing import List, Literal, Optional, TypedDict
 # renormalizer (`scripts/renormalize_cases.py`) dispatches on missing
 # or lower-valued entries.
 #
+# v8 (2026-04-19) — Documento.text / Documento.extractor stripped from
+# JSON; `data/cache/pdf/<sha1(url)>.{txt.gz,extractor}` is now the
+# single source of truth. Fetchers still populate the cache during
+# scrape; consumers (warehouse builder, notebooks) resolve text from
+# the cache at read time via `peca_cache.read(url)` +
+# `peca_cache.read_extractor(url)`. The TypedDict keys stay (`text`,
+# `extractor` are still `Optional[str]`) but every Documento slot on
+# disk carries `None` for both. Applies uniformly to
+# `andamentos[].link`, `sessao_virtual[].documentos[]`, and
+# `publicacoes_dje[].decisoes[].rtf`. `PublicacaoDJe.decisoes[].texto`
+# (HTML-extracted, always present) is retained as the DJe fast-path;
+# content-equal to the stripped RTF after whitespace normalization
+# so no information is lost for DJe specifically.
 # v7 (2026-04-19) — DJe publicações added. Each case now carries a
 # `publicacoes_dje: List[PublicacaoDJe]` field sourced from two new
 # endpoints (`listarDiarioJustica.asp` + `verDiarioProcesso.asp`).
@@ -56,18 +69,20 @@ from typing import List, Literal, Optional, TypedDict
 # `.bg-danger`; partes reads `#todas-partes`; `link`/`documentos` became
 # `{url, text}` dicts.
 # v1 — pre-2026-04-18; implicit default for files with no key.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 class Documento(TypedDict):
     """Unified document reference — an `Andamento.link` or a session document.
 
-    `text` and `extractor` are **lazily populated** and are None on a
-    fresh scrape. They are filled in by `resolve_documentos` (when the
-    caller provides a `pdf_fetcher`) or during warehouse build. Source
-    of truth for extracted PDF text lives at
-    `data/cache/pdf/<sha1(url)>.txt.gz`; this struct is a pointer, not
-    a payload.
+    As of v8, `text` and `extractor` are **always None on disk**. This
+    struct is a pure pointer; the canonical extracted text + provider
+    label live in `data/cache/pdf/<sha1(url)>.txt.gz` and
+    `data/cache/pdf/<sha1(url)>.extractor`. Resolve via
+    `peca_cache.read(url)` + `peca_cache.read_extractor(url)` at read
+    time. The keys stay for backwards compatibility with v4–v7 files
+    that still have them populated; the renormalizer strips them on
+    v7→v8.
 
     `url` may be None when the source anchor had visible text but no
     href (STF occasionally renders broken anchors). In that case

@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "schema_version": 6,
+    "schema_version": 8,
     "status_http": 200,
     "extraido": "2026-04-18T23:46:25.315960"
   },
@@ -155,5 +155,6 @@
   "peticoes": [],
   "recursos": [],
   "pautas": [],
-  "outcome": null
+  "outcome": null,
+  "publicacoes_dje": []
 }

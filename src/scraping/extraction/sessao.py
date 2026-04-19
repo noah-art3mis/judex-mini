@@ -260,36 +260,25 @@ extraction failed.
 def resolve_documentos(
     docs: list[dict[str, Optional[str]]], *, fetcher: PdfFetcher
 ) -> list[dict[str, Optional[str]]]:
-    """Fill `text` + `extractor` on each documento using `fetcher(url)`.
+    """Warm the PDF cache for every documento URL; emit pointer-only entries.
 
-    Each entry is a `{"tipo", "url", "text", "extractor"}` dict. Tipo +
-    URL are preserved; text and extractor are only overwritten when
-    currently None. Entries whose text is already non-None pass through
-    untouched — rerunning enrich on an already-enriched list is free.
-    If `fetcher` returns `(None, _)` the entry is kept as-is so a
-    future re-run can retry.
+    v8 contract: `text` and `extractor` are always None on disk — the
+    canonical extracted text lives in `peca_cache` keyed on sha1(url).
+    The fetcher is still called for its cache-warming side effect
+    (download + extract + persist), but its return value is discarded.
+    Consumers resolve text at read time via `peca_cache.read(url)`.
     """
     out: list[dict[str, Optional[str]]] = []
     for entry in docs:
-        tipo = entry.get("tipo")
         url = entry.get("url")
-        text = entry.get("text")
-        extractor = entry.get("extractor")
-        if text is None and url:
-            fetched_text, fetched_extractor = fetcher(url)
-            out.append({
-                "tipo": tipo,
-                "url": url,
-                "text": fetched_text,
-                "extractor": fetched_extractor,
-            })
-        else:
-            out.append({
-                "tipo": tipo,
-                "url": url,
-                "text": text,
-                "extractor": extractor,
-            })
+        if url:
+            fetcher(url)  # warms peca_cache; return value discarded
+        out.append({
+            "tipo": entry.get("tipo"),
+            "url": url,
+            "text": None,
+            "extractor": None,
+        })
     return out
 
 

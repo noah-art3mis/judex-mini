@@ -17,10 +17,15 @@ from typing import Any
 # v6 groups scrape metadata under `_meta`; we skip that as a single
 # key. The individual legacy keys remain in the set so diffs against
 # pre-v6 fixtures still work.
+# `publicacoes_dje` (v7+) is skipped like sessao_virtual — unit tests
+# pin the parsers, and the list is reverse-chronological so drift
+# would land at index 0 (head-growth), not at the tail where
+# _diff_growing_list expects it.
 SKIP_FIELDS = {
     "_meta",
     "extraido",
     "sessao_virtual",
+    "publicacoes_dje",
     "status_http",
     "outcome",
     "schema_version",

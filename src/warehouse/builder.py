@@ -32,6 +32,37 @@ import pyarrow as pa
 from src.scraping.extraction._shared import to_iso
 
 
+def _resolve_text(
+    url: Optional[str], inline_text: Optional[str], pdf_cache_root: Optional[Path]
+) -> Optional[str]:
+    """Resolve extracted text, preferring the peca_cache file as the canonical source (v8).
+
+    Pre-v8 JSONs carry the text inline on each Documento; v8 JSONs
+    carry None and rely on the sha1-keyed cache under `pdf_cache_root`.
+    This helper bridges both — cache first (authoritative under v8),
+    inline as fallback for unmigrated JSONs. Either way the warehouse
+    column stays populated across corpus snapshots. `pdf_cache_root`
+    threads through from `build()` so tests can point at a tmp dir.
+    """
+    if url and pdf_cache_root is not None:
+        sha1 = hashlib.sha1(url.encode()).hexdigest()
+        txt_gz = pdf_cache_root / f"{sha1}.txt.gz"
+        if txt_gz.exists():
+            return gzip.decompress(txt_gz.read_bytes()).decode("utf-8")
+    return inline_text
+
+
+def _resolve_extractor(
+    url: Optional[str], inline_extractor: Optional[str], pdf_cache_root: Optional[Path]
+) -> Optional[str]:
+    if url and pdf_cache_root is not None:
+        sha1 = hashlib.sha1(url.encode()).hexdigest()
+        extractor_path = pdf_cache_root / f"{sha1}.extractor"
+        if extractor_path.exists():
+            return extractor_path.read_text(encoding="utf-8").strip() or None
+    return inline_extractor
+
+
 _SCHEMA_SQL = """
 CREATE TABLE cases (
     classe                VARCHAR NOT NULL,
@@ -247,7 +278,7 @@ def _flatten_partes(item: dict) -> list[dict]:
     return out
 
 
-def _flatten_andamentos(item: dict) -> list[dict]:
+def _flatten_andamentos(item: dict, pdf_cache_root: Optional[Path] = None) -> list[dict]:
     """Flatten andamentos into warehouse rows.
 
     v5+: `link = {tipo, url, text, extractor}` or None.
@@ -258,8 +289,11 @@ def _flatten_andamentos(item: dict) -> list[dict]:
     for seq, a in enumerate(item.get("andamentos") or []):
         link = a.get("link") if isinstance(a.get("link"), dict) else {}
         url = link.get("url")
-        text = link.get("text")
-        extractor = link.get("extractor")
+        # v8: text/extractor live canonically in peca_cache; fall back
+        # to the inline value for pre-v8 JSONs so a mid-migration corpus
+        # stays uniform.
+        text = _resolve_text(url, link.get("text"), pdf_cache_root)
+        extractor = _resolve_extractor(url, link.get("extractor"), pdf_cache_root)
         tipo = link.get("tipo") if link else None
         raw_data = a.get("data")
         # v6: data is already ISO. Pre-v6: data_iso sibling holds it.
@@ -318,7 +352,7 @@ def _flatten_pautas(item: dict) -> list[dict]:
     return out
 
 
-def _flatten_documentos(item: dict) -> list[dict]:
+def _flatten_documentos(item: dict, pdf_cache_root: Optional[Path] = None) -> list[dict]:
     """Flatten sessao_virtual[*].documentos across all schema versions.
 
     Handles three shapes:
@@ -337,16 +371,19 @@ def _flatten_documentos(item: dict) -> list[dict]:
         entries = _normalize_documentos(docs)
         for doc_seq, row in enumerate(entries):
             url = row.get("url")
+            # v8: cache-first resolve; inline only for pre-v8 fallback.
+            text = _resolve_text(url, row.get("text"), pdf_cache_root)
+            extractor = _resolve_extractor(url, row.get("extractor"), pdf_cache_root)
             out.append({
                 "classe":      item["classe"],
                 "processo_id": item["processo_id"],
                 "session_idx": session_idx,
                 "doc_seq":     doc_seq,
                 "doc_type":    row.get("tipo"),
-                "text":        row.get("text"),
+                "text":        text,
                 "url":         url,
                 "url_sha1":    hashlib.sha1(url.encode()).hexdigest() if url else None,
-                "extractor":   row.get("extractor"),
+                "extractor":   extractor,
             })
     return out
 
@@ -554,8 +591,8 @@ def build(
             continue
         cases_rows.append(_flatten_case(item, path))
         partes_rows.extend(_flatten_partes(item))
-        andamentos_rows.extend(_flatten_andamentos(item))
-        documentos_rows.extend(_flatten_documentos(item))
+        andamentos_rows.extend(_flatten_andamentos(item, pdf_cache_root))
+        documentos_rows.extend(_flatten_documentos(item, pdf_cache_root))
         pautas_rows.extend(_flatten_pautas(item))
         if progress_every and (i + 1) % progress_every == 0:
             print(f"  scanned {i + 1:,} cases", flush=True)

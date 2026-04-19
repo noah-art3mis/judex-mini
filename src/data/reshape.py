@@ -39,11 +39,11 @@ _SESSAO_METADATA_RENAMES = {
 }
 
 
-def reshape_to_v7(raw: Any) -> dict:
+def reshape_to_v8(raw: Any) -> dict:
     """Top-level entry. Accepts list-wrapped or bare-dict input."""
     rec = raw[0] if isinstance(raw, list) else raw
     if not isinstance(rec, dict):
-        raise TypeError(f"reshape_to_v7 expects dict or [dict], got {type(raw).__name__}")
+        raise TypeError(f"reshape_to_v8 expects dict or [dict], got {type(raw).__name__}")
     rec = dict(rec)  # shallow copy; nested mutators copy as needed
 
     rec = _migrate_meta(rec)
@@ -57,7 +57,10 @@ def reshape_to_v7(raw: Any) -> dict:
     rec["outcome"] = _promote_outcome(rec.get("outcome"), rec)
     # v7: publicacoes_dje is a fresh-scrape-only field; renormalizer seeds
     # an empty list so downstream code can assume the key exists.
-    rec["publicacoes_dje"] = rec.get("publicacoes_dje") or []
+    # v8: each DecisaoDJe.rtf.text / .extractor is stripped to None.
+    rec["publicacoes_dje"] = [
+        _normalize_publicacao_dje(p) for p in (rec.get("publicacoes_dje") or [])
+    ]
     # Re-derive primeiro_autor so AUTHOR_PARTY_TIPOS edits propagate to
     # corpus-on-disk. Fall back to whatever the record already carried
     # when partes can't surface an author (empty list or no matching tipo).
@@ -216,17 +219,36 @@ def _normalize_sessao(raw: dict) -> dict:
 
 
 def _normalize_documento(raw: Any) -> dict:
+    # v8: text + extractor are always None on disk; cache is canonical.
     if isinstance(raw, dict):
         return {
             "tipo": raw.get("tipo"),
             "url": raw.get("url"),
-            "text": raw.get("text"),
-            "extractor": raw.get("extractor"),
+            "text": None,
+            "extractor": None,
         }
-    # Legacy bare-string variant; treat the string as the type label.
     if isinstance(raw, str):
         return {"tipo": raw, "url": None, "text": None, "extractor": None}
     return {"tipo": None, "url": None, "text": None, "extractor": None}
+
+
+def _normalize_publicacao_dje(raw: Any) -> dict:
+    """v8: strip `.rtf.text` + `.rtf.extractor` on every decisao block.
+
+    `texto` (HTML-extracted) is kept — it's the DJe fast-path and is
+    content-equal to the stripped RTF after whitespace normalization.
+    """
+    if not isinstance(raw, dict):
+        return raw
+    p = dict(raw)
+    decisoes = []
+    for d in p.get("decisoes") or []:
+        if isinstance(d, dict):
+            dd = dict(d)
+            dd["rtf"] = _normalize_documento(dd.get("rtf"))
+            decisoes.append(dd)
+    p["decisoes"] = decisoes
+    return p
 
 
 # ----- helpers -------------------------------------------------------------
@@ -246,22 +268,19 @@ def _pop_index(d: dict) -> int:
 def _normalize_link(link: Any, link_descricao: Optional[str]) -> Optional[dict]:
     if link is None and link_descricao is None:
         return None
-    url, text, extractor = None, None, None
+    url = None
     if isinstance(link, dict):
         url = link.get("url")
-        text = link.get("text")
-        extractor = link.get("extractor")
-        # v5/v6 link already carries `tipo`; honour it if `link_descricao`
-        # sibling is absent (which it should be after migration).
         if link_descricao is None and "tipo" in link:
             link_descricao = link.get("tipo")
     elif isinstance(link, str):
         url = link
+    # v8: text + extractor are stripped — cache is the source of truth.
     return {
         "tipo": link_descricao,
         "url": url,
-        "text": text,
-        "extractor": extractor,
+        "text": None,
+        "extractor": None,
     }
 
 

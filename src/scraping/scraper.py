@@ -566,12 +566,14 @@ def _resolve_publicacoes_dje(
     detail_fetcher: Any,
     pdf_fetcher: Optional[Any],
 ) -> list[dict]:
-    """Fill each listing entry with detail-page fields + RTF text.
+    """Fill each listing entry with detail-page fields and warm the RTF cache.
 
-    Mutates `entries` in place (same pattern as
-    `sessao_ex.resolve_documentos`) and returns the list for
-    chaining. If `pdf_fetcher` is None, RTF text stays at None — the
-    scrape can still record the URLs for a later sweep to extract.
+    v8 contract: `rtf.text` and `rtf.extractor` stay None on disk.
+    When `pdf_fetcher` is provided, we call it per RTF URL for its
+    cache-warming side effect (download + extract + persist to
+    `peca_cache`) but discard the return value. Consumers resolve at
+    read time. `decisoes[].texto` (HTML-extracted) is kept as the
+    DJe fast-path.
     """
     for entry in entries:
         detail_html = detail_fetcher(entry["detail_url"])
@@ -581,11 +583,8 @@ def _resolve_publicacoes_dje(
             continue
         for dec in entry["decisoes"]:
             url = dec["rtf"].get("url")
-            if not url:
-                continue
-            text, extractor = pdf_fetcher(url)
-            dec["rtf"]["text"] = text
-            dec["rtf"]["extractor"] = extractor
+            if url:
+                pdf_fetcher(url)  # warms peca_cache; return value discarded
     return entries
 
 

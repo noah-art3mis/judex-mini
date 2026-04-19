@@ -171,21 +171,31 @@ def test_tema_number_extracted_from_abasessao_fragment() -> None:
     assert _extract_tema_from_abasessao(html_without_tema) is None
 
 
-def test_resolve_documentos_fills_text_and_extractor_without_losing_url() -> None:
+def test_resolve_documentos_v8_warms_cache_but_emits_pointer_only_entries() -> None:
+    """v8 contract: `resolve_documentos` calls the fetcher for its
+    cache-warming side effect, but the returned entries have
+    text=None and extractor=None. Canonical text lives in peca_cache."""
     docs = [
         {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None, "extractor": None},
         {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None, "extractor": None},
     ]
-    fake_store = {
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=1": ("relator body", "pypdf_plain"),
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=2": ("voto body",    "rtf"),
-    }
+    called: list[str] = []
 
-    result = resolve_documentos(docs, fetcher=lambda url: fake_store[url])
+    def fetcher(url: str) -> tuple:
+        called.append(url)
+        return ("body-from-cache", "pypdf_plain")
 
+    result = resolve_documentos(docs, fetcher=fetcher)
+
+    # Fetcher invoked once per URL — peca_cache gets warmed.
+    assert called == [
+        "https://sistemas.stf.jus.br/repgeral/votacao?texto=1",
+        "https://sistemas.stf.jus.br/repgeral/votacao?texto=2",
+    ]
+    # On-disk shape: pointer-only.
     assert result == [
-        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": "relator body", "extractor": "pypdf_plain"},
-        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": "voto body",    "extractor": "rtf"},
+        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None, "extractor": None},
+        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None, "extractor": None},
     ]
 
 
@@ -201,13 +211,13 @@ def test_resolve_documentos_preserves_duplicate_tipo_entries() -> None:
         fetcher=lambda url: (url.rsplit("=", 1)[-1], "pypdf_plain"),
     )
     assert [d["url"] for d in result] == ["https://x/?texto=1", "https://x/?texto=2"]
-    assert [d["text"] for d in result] == ["1", "2"]
-    assert all(d["extractor"] == "pypdf_plain" for d in result)
+    # v8: text/extractor are always None on disk.
+    assert all(d["text"] is None and d["extractor"] is None for d in result)
 
 
 def test_resolve_documentos_keeps_text_none_when_fetcher_returns_none() -> None:
-    """On fetch failure (network, 429, parse), text stays None so a
-    re-run can try again. URL + extractor slot are always preserved."""
+    """On fetch failure the entry still round-trips pointer-only — the
+    fetcher is allowed to return (None, _); we don't propagate it."""
     docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42",
              "text": None, "extractor": None}]
 
@@ -216,23 +226,31 @@ def test_resolve_documentos_keeps_text_none_when_fetcher_returns_none() -> None:
     assert result == docs
 
 
-def test_resolve_documentos_idempotent_on_already_enriched() -> None:
-    """Entries with text already filled pass through — enrich is free to re-run."""
+def test_resolve_documentos_still_warms_cache_even_if_entry_was_preenriched() -> None:
+    """v8: the fetcher is always called when a URL is present — it's a
+    side-effect call for cache warming, not a conditional enrichment."""
     docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9",
              "text": "already extracted", "extractor": "pypdf_plain"}]
-    called = []
+    called: list[str] = []
 
     def fetcher(url: str) -> tuple:
         called.append(url)
-        return ("should not be called", "pypdf_plain")
+        return ("fresh body", "pypdf_plain")
 
     result = resolve_documentos(docs, fetcher=fetcher)
 
-    assert result == docs
-    assert called == []
+    # Fetcher IS called (cache warming), and the v8 output strips the
+    # stale inline text regardless of what the entry had previously.
+    assert called == ["https://sistemas.stf.jus.br/repgeral/votacao?texto=9"]
+    assert result == [{
+        "tipo": "Voto",
+        "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9",
+        "text": None,
+        "extractor": None,
+    }]
 
 
-def test_extract_sessao_virtual_with_pdf_fetcher_resolves_docs() -> None:
+def test_extract_sessao_virtual_with_pdf_fetcher_warms_cache_but_leaves_docs_pointer_only() -> None:
     fake_responses = {
         ("oi", 2083816): _load("oi_2083816.json"),
         ("sessaoVirtual", 2083816): _load("sv_2083816.json"),
@@ -252,14 +270,15 @@ def test_extract_sessao_virtual_with_pdf_fetcher_resolves_docs() -> None:
     )
 
     assert len(result) == 3
-    # v4: documentos is a list; after enrichment every entry has url,
-    # non-None text, and the extractor label the fetcher reported.
+    # v8: pdf_fetcher is still called (for peca_cache warming), but the
+    # on-disk documento slots are pointer-only. Canonical text resolves
+    # through peca_cache at read time.
     for entry in result:
         assert isinstance(entry["documentos"], list)
         for d in entry["documentos"]:
             assert d["url"].startswith("https://")
-            assert d["text"] is not None
-            assert d["extractor"] == "pypdf_plain"
+            assert d["text"] is None
+            assert d["extractor"] is None
     assert len(pdf_calls) >= 3
 
 

@@ -372,6 +372,65 @@ def test_andamentos_link_extractor_propagates(tmp_path: Path) -> None:
     ]
 
 
+def test_v8_warehouse_resolves_link_text_and_extractor_from_cache_when_json_is_null(tmp_path: Path) -> None:
+    """v8: JSONs carry pointer-only Documentos (`text`/`extractor` both
+    None). The warehouse must still surface the extracted text + extractor
+    label by resolving sha1(url) against `pdf_cache_root`."""
+    cases = tmp_path / "cases"
+    pdfs = tmp_path / "pdf"
+    url = "https://portal.stf.jus.br/processos/downloadPeca.asp?id=42&ext=.pdf"
+    # Seed the cache: text body + extractor sidecar.
+    sha1 = _write_pdf(pdfs, url, "full cached text body")
+    (pdfs / f"{sha1}.extractor").write_text("mistral", encoding="utf-8")
+
+    # v8-shape case JSON: link carries url only, text/extractor are None.
+    _write_case(cases, _v1_case(andamentos=[
+        {
+            "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
+            "complemento": None, "julgador": None, "link_descricao": None,
+            "link": {"url": url, "text": None, "extractor": None, "tipo": "INTEIRO TEOR"},
+        },
+    ]))
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        row = con.execute(
+            "SELECT link_text, link_extractor FROM andamentos WHERE seq=0"
+        ).fetchone()
+    assert row == ("full cached text body", "mistral")
+
+
+def test_v8_warehouse_cache_wins_over_stale_inline_text(tmp_path: Path) -> None:
+    """If a pre-v8 JSON still has inline text but the cache has a newer
+    extracted body (e.g. re-OCR with a better provider), the cache wins.
+    This is the whole point of making the cache canonical."""
+    cases = tmp_path / "cases"
+    pdfs = tmp_path / "pdf"
+    url = "https://portal.stf.jus.br/processos/downloadPeca.asp?id=99&ext=.pdf"
+    sha1 = _write_pdf(pdfs, url, "FRESH cache body (from re-OCR)")
+    (pdfs / f"{sha1}.extractor").write_text("chandra", encoding="utf-8")
+
+    # Stale inline text from a pre-v8 migration that pre-dates the re-OCR.
+    _write_case(cases, _v1_case(andamentos=[
+        {
+            "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
+            "complemento": None, "julgador": None, "link_descricao": None,
+            "link": {"url": url, "text": "OLD inline text", "extractor": "pypdf_plain"},
+        },
+    ]))
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        row = con.execute(
+            "SELECT link_text, link_extractor FROM andamentos WHERE seq=0"
+        ).fetchone()
+    assert row == ("FRESH cache body (from re-OCR)", "chandra")
+
+
 def test_andamentos_link_extractor_null_on_v1_missing_field(tmp_path: Path) -> None:
     """Pre-v4 case JSONs don't carry link.extractor; builder must still
     write a row (NULL in link_extractor) rather than crashing."""

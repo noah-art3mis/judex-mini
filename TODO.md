@@ -10,6 +10,7 @@
     - [ ] running tier 1 sweep
     - [x] get pdfs (HC 2026 andamento PDFs, running — 3,404/9,306 at 10:00)
 - [ ] check golden example candidates
+- [ ] check out tfidf clustering example
 
 ### Document-universe follow-ups (from 2026-04-19 audit)
 

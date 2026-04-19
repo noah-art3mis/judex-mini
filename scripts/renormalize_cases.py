@@ -85,7 +85,7 @@ from src.scraping.scraper import (
     _dje_detail_cache_key,
     _extract_tema_from_abasessao,
 )
-from src.data.reshape import reshape_to_v7
+from src.data.reshape import reshape_to_v8
 from src.utils import html_cache, peca_cache
 
 CASES_ROOT = Path("data/cases")
@@ -118,7 +118,7 @@ def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
 
     Tolerant of missing cache because DJe is v7-new — pre-v7 archives
     have no `dje_listing` member. In that case we emit an empty list,
-    matching what `reshape_to_v7` would seed; operators wanting real
+    matching what `reshape_to_v8` would seed; operators wanting real
     DJe data should run a fresh scrape (`use_cache=False`). If the
     listing is cached but some detail pages aren't, those entries are
     skipped with a warning rather than emitted at half-populated shape.
@@ -127,7 +127,6 @@ def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
     if listing_html is None:
         return []
     entries = dje_ex.parse_dje_listing(listing_html)
-    pdf_fetcher = _cache_only_pdf_fetcher()
     out: list[dict] = []
     for entry in entries:
         detail_html = html_cache.read(
@@ -139,13 +138,8 @@ def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
             )
             continue
         entry.update(dje_ex.parse_dje_detail(detail_html))
-        for dec in entry["decisoes"]:
-            url = dec["rtf"].get("url")
-            if not url:
-                continue
-            text, extractor = pdf_fetcher(url)
-            dec["rtf"]["text"] = text
-            dec["rtf"]["extractor"] = extractor
+        # v8: rtf.text / rtf.extractor stay None on disk — peca_cache
+        # already holds the canonical payload under sha1(rtf.url).
         out.append(entry)
     return out
 

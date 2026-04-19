@@ -1,4 +1,4 @@
-"""Behavioral tests for src/data/reshape.py — pure JSON v1/v2/v3 → v7.
+"""Behavioral tests for src/data/reshape.py — pure JSON v1/v2/v3 → v8.
 
 Inputs are real on-disk corpus snapshots captured at
 tests/fixtures/reshape/. We assert on the *transformations*, not on
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data.reshape import reshape_to_v7
+from src.data.reshape import reshape_to_v8
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "reshape"
 
@@ -34,21 +34,21 @@ def v3_input():
 
 
 @pytest.fixture
-def v7_control():
-    return _load("v7_control.json")
+def v8_control():
+    return _load("v8_control.json")
 
 
 # ----- Container + meta -----------------------------------------------------
 
 def test_unwraps_list_input(v1_v2_input):
     assert isinstance(v1_v2_input, list)
-    out = reshape_to_v7(v1_v2_input)
+    out = reshape_to_v8(v1_v2_input)
     assert isinstance(out, dict)
 
 
 def test_meta_slot_synthesised_for_v1_v2(v1_v2_input):
-    out = reshape_to_v7(v1_v2_input)
-    assert out["_meta"]["schema_version"] == 7
+    out = reshape_to_v8(v1_v2_input)
+    assert out["_meta"]["schema_version"] == 8
     assert out["_meta"]["status_http"] == 200
     assert isinstance(out["_meta"]["extraido"], str)
     # Top-level provenance keys must not coexist with the slot.
@@ -59,8 +59,8 @@ def test_meta_slot_synthesised_for_v1_v2(v1_v2_input):
 
 def test_meta_slot_carries_v3_extraido(v3_input):
     inp_extraido = v3_input[0]["extraido"]
-    out = reshape_to_v7(v3_input)
-    assert out["_meta"]["schema_version"] == 7
+    out = reshape_to_v8(v3_input)
+    assert out["_meta"]["schema_version"] == 8
     # Preserve the original scrape timestamp; don't fabricate a new one.
     assert out["_meta"]["extraido"] == inp_extraido
     assert out["_meta"]["status_http"] == 200
@@ -70,14 +70,14 @@ def test_meta_slot_carries_v3_extraido(v3_input):
 
 def test_data_protocolo_is_iso(v1_v2_input, v3_input):
     for inp in (v1_v2_input, v3_input):
-        out = reshape_to_v7(inp)
+        out = reshape_to_v8(inp)
         if out["data_protocolo"] is not None:
             assert _looks_iso_date(out["data_protocolo"]), out["data_protocolo"]
         assert "data_protocolo_iso" not in out
 
 
 def test_andamento_data_is_iso_no_companion(v1_v2_input):
-    out = reshape_to_v7(v1_v2_input)
+    out = reshape_to_v8(v1_v2_input)
     for a in out["andamentos"]:
         if a["data"] is not None:
             assert _looks_iso_date(a["data"]), a["data"]
@@ -85,7 +85,7 @@ def test_andamento_data_is_iso_no_companion(v1_v2_input):
 
 
 def test_peticao_data_is_iso_no_companion(v3_input):
-    out = reshape_to_v7(v3_input)
+    out = reshape_to_v8(v3_input)
     for p in out["peticoes"]:
         if p["data"] is not None:
             assert _looks_iso_date(p["data"]), p["data"]
@@ -99,7 +99,7 @@ def test_peticao_data_is_iso_no_companion(v3_input):
 # ----- Andamento link unification (v4 → v5) --------------------------------
 
 def test_andamento_link_descricao_folded_into_link(v1_v2_input):
-    out = reshape_to_v7(v1_v2_input)
+    out = reshape_to_v8(v1_v2_input)
     for a in out["andamentos"]:
         assert "link_descricao" not in a
         link = a["link"]
@@ -109,7 +109,7 @@ def test_andamento_link_descricao_folded_into_link(v1_v2_input):
 # ----- Index field unification ---------------------------------------------
 
 def test_andamento_index_renamed(v1_v2_input):
-    out = reshape_to_v7(v1_v2_input)
+    out = reshape_to_v8(v1_v2_input)
     for a in out["andamentos"]:
         assert "index_num" not in a
         assert "id" not in a
@@ -119,7 +119,7 @@ def test_andamento_index_renamed(v1_v2_input):
 def test_recurso_data_to_tipo_id_to_index(v3_input):
     # v3 sample may or may not have recursos — the assertion only fires
     # when the list is non-empty. Still pinned by v1/v2 below.
-    out = reshape_to_v7(v3_input)
+    out = reshape_to_v8(v3_input)
     for r in out["recursos"]:
         assert "data" not in r
         assert "id" not in r
@@ -131,7 +131,7 @@ def test_recurso_data_to_tipo_id_to_index(v3_input):
 # ----- sessao_virtual metadata ASCII snake_case ----------------------------
 
 def test_sessao_metadata_keys_ascii(v3_input):
-    out = reshape_to_v7(v3_input)
+    out = reshape_to_v8(v3_input)
     for sv in out["sessao_virtual"]:
         md = sv.get("metadata") or {}
         # Forbidden legacy spellings.
@@ -143,7 +143,7 @@ def test_sessao_metadata_keys_ascii(v3_input):
 
 def test_outcome_string_promoted_to_dict(v1_v2_input):
     inp_outcome = v1_v2_input[0].get("outcome")
-    out = reshape_to_v7(v1_v2_input)
+    out = reshape_to_v8(v1_v2_input)
     if isinstance(inp_outcome, str):
         assert isinstance(out["outcome"], dict)
         assert out["outcome"]["verdict"] == inp_outcome
@@ -155,7 +155,7 @@ def test_outcome_string_promoted_to_dict(v1_v2_input):
 
 def test_outcome_dict_passthrough(v3_input):
     inp_outcome = v3_input[0].get("outcome")
-    out = reshape_to_v7(v3_input)
+    out = reshape_to_v8(v3_input)
     if isinstance(inp_outcome, dict):
         assert out["outcome"] == inp_outcome
 
@@ -181,7 +181,7 @@ def test_primeiro_autor_rederived_from_partes_overrides_stale_value():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v7(raw)
+    out = reshape_to_v8(raw)
     assert out["primeiro_autor"] == "ALICE"
 
 
@@ -200,7 +200,7 @@ def test_primeiro_autor_preserved_when_partes_yield_no_author():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v7(raw)
+    out = reshape_to_v8(raw)
     assert out["primeiro_autor"] == "LEGACY"
 
 
@@ -213,7 +213,7 @@ def test_primeiro_autor_absent_when_partes_empty_and_no_prior_value():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v7(raw)
+    out = reshape_to_v8(raw)
     assert out.get("primeiro_autor") is None
 
 
@@ -222,7 +222,7 @@ def test_primeiro_autor_absent_when_partes_empty_and_no_prior_value():
 def test_publicacoes_dje_seeded_empty_when_missing(v3_input):
     # v3 input has no publicacoes_dje (pre-v7); renormalizer seeds []
     # so downstream readers can assume the key exists.
-    out = reshape_to_v7(v3_input)
+    out = reshape_to_v8(v3_input)
     assert out["publicacoes_dje"] == []
 
 
@@ -234,22 +234,101 @@ def test_publicacoes_dje_preserved_when_already_populated():
         "classe": "HC", "processo_id": 158802,
         "publicacoes_dje": [{"numero": 204, "decisoes": []}],
     }
-    out = reshape_to_v7(raw)
+    out = reshape_to_v8(raw)
     assert out["publicacoes_dje"] == [{"numero": 204, "decisoes": []}]
 
 
-# ----- Idempotency + v7 control --------------------------------------------
+# ----- v8: inline text/extractor stripped to None --------------------------
 
-def test_v7_control_is_unchanged(v7_control):
-    expected = copy.deepcopy(v7_control)
-    out = reshape_to_v7(v7_control)
+def test_v8_strips_andamento_link_text_and_extractor():
+    raw = {
+        "_meta": {"schema_version": 7, "status_http": 200, "extraido": "2026-04-19T00:00:00"},
+        "classe": "HC", "processo_id": 1,
+        "andamentos": [{
+            "index": 1, "data": "2020-08-17", "nome": "FOO", "complemento": None,
+            "julgador": None,
+            "link": {
+                "tipo": "INTEIRO TEOR",
+                "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=1&ext=.pdf",
+                "text": "some cached body",
+                "extractor": "pypdf_plain",
+            },
+        }],
+    }
+    out = reshape_to_v8(raw)
+    link = out["andamentos"][0]["link"]
+    assert link["url"] == "https://portal.stf.jus.br/processos/downloadPeca.asp?id=1&ext=.pdf"
+    assert link["tipo"] == "INTEIRO TEOR"
+    assert link["text"] is None
+    assert link["extractor"] is None
+
+
+def test_v8_strips_sessao_virtual_documento_text_and_extractor():
+    raw = {
+        "_meta": {"schema_version": 7, "status_http": 200, "extraido": "2026-04-19T00:00:00"},
+        "classe": "HC", "processo_id": 1,
+        "sessao_virtual": [{
+            "metadata": {"relator": "X", "orgao_julgador": "Y", "lista": "1", "processo": "Z",
+                         "data_inicio": None, "data_fim_prevista": None},
+            "voto_relator": None,
+            "votes": {"relator": [], "acompanha_relator": [], "diverge_relator": [],
+                      "acompanha_divergencia": [], "pedido_vista": []},
+            "documentos": [{"tipo": "Voto", "url": "https://x/1.pdf",
+                            "text": "cached voto body", "extractor": "pypdf_plain"}],
+            "julgamento_item_titulo": None,
+        }],
+    }
+    out = reshape_to_v8(raw)
+    doc = out["sessao_virtual"][0]["documentos"][0]
+    assert doc["url"] == "https://x/1.pdf"
+    assert doc["text"] is None
+    assert doc["extractor"] is None
+
+
+def test_v8_strips_publicacoes_dje_rtf_text_and_extractor_but_keeps_texto():
+    raw = {
+        "_meta": {"schema_version": 7, "status_http": 200, "extraido": "2026-04-19T00:00:00"},
+        "classe": "HC", "processo_id": 1,
+        "publicacoes_dje": [{
+            "numero": 204, "data": "2020-08-17", "secao": "X", "subsecao": "Y",
+            "titulo": "T", "detail_url": "https://d/1", "incidente_linked": 1,
+            "classe": "HC", "procedencia": "DF", "relator": "R",
+            "partes": [], "materia": [],
+            "decisoes": [{
+                "kind": "ementa",
+                "texto": "EMENTA: ...",
+                "rtf": {
+                    "tipo": "DJE",
+                    "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=1",
+                    "text": "full rtf body",
+                    "extractor": "rtf",
+                },
+            }],
+        }],
+    }
+    out = reshape_to_v8(raw)
+    dec = out["publicacoes_dje"][0]["decisoes"][0]
+    # HTML-side texto is kept (DJe fast-path)
+    assert dec["texto"] == "EMENTA: ..."
+    assert dec["kind"] == "ementa"
+    # RTF side is stripped to pointer-only
+    assert dec["rtf"]["url"] == "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=1"
+    assert dec["rtf"]["text"] is None
+    assert dec["rtf"]["extractor"] is None
+
+
+# ----- Idempotency + v8 control --------------------------------------------
+
+def test_v8_control_is_unchanged(v8_control):
+    expected = copy.deepcopy(v8_control)
+    out = reshape_to_v8(v8_control)
     assert out == expected
 
 
 def test_reshape_is_idempotent(v1_v2_input, v3_input):
     for inp in (v1_v2_input, v3_input):
-        once = reshape_to_v7(copy.deepcopy(inp))
-        twice = reshape_to_v7(copy.deepcopy(once))
+        once = reshape_to_v8(copy.deepcopy(inp))
+        twice = reshape_to_v8(copy.deepcopy(once))
         assert twice == once
 
 

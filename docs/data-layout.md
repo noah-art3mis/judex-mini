@@ -91,7 +91,9 @@ data/cache/
 │       ├── abaPautas.html.gz
 │       ├── abaSessaoVirtual.html.gz
 │       ├── sessao_oi_<inc>.html.gz       (pseudo-tab for sessão JSON)
-│       └── sessao_sessaoVirtual_<inc>.html.gz
+│       ├── sessao_sessaoVirtual_<inc>.html.gz
+│       ├── dje_listing.html.gz            (pseudo-tab: listarDiarioJustica.asp, v7+)
+│       └── dje_detail_<sha1[:16]>.html.gz (pseudo-tab: verDiarioProcesso.asp per entry, v7+)
 ├── pdf/
 │   ├── <sha1(url)>.pdf.gz                ← raw PDF bytes (written by baixar-pecas)
 │   ├── <sha1(url)>.txt.gz                ← extracted text (written by extrair-pecas)

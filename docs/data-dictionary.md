@@ -12,7 +12,7 @@ Classification axes (HC vs ADI vs RE, órgão julgador, rito, etc.):
 Concrete examples: [`tests/ground_truth/*.json`](../tests/ground_truth)
 (7 hand-verified fixtures, one per classe family).
 
-**Current version:** `SCHEMA_VERSION = 7`. See [`## Schema history`](#schema-history) at the bottom of this file for the per-version changelog and the migration path. Every item emitted by the current scraper carries `_meta.schema_version = 7`; items with lower values (or no key) need `scripts/renormalize_cases.py`.
+**Current version:** `SCHEMA_VERSION = 8`. See [`## Schema history`](#schema-history) at the bottom of this file for the per-version changelog and the migration path. Every item emitted by the current scraper carries `_meta.schema_version = 8`; items with lower values (or no key) need `scripts/renormalize_cases.py`.
 
 ## Conventions used below
 
@@ -627,7 +627,36 @@ change; the renormalizer (`scripts/renormalize_cases.py`) dispatches on
 missing / lower values and re-runs the current extractors against the
 cached HTML fragments.
 
-### v7 — 2026-04-19 (current)
+### v8 — 2026-04-19 (current)
+
+Strip inline `.text` + `.extractor` from every `Documento` slot in
+the case JSON. `data/cache/pdf/<sha1(url)>.txt.gz` and `.extractor`
+become the single source of truth for extracted text and provider
+label. The JSON is a pure pointer; consumers (warehouse builder,
+notebooks) resolve at read time.
+
+| area              | change                                                                  |
+|-------------------|-------------------------------------------------------------------------|
+| stripped slots    | `andamentos[].link.text` + `.extractor`; `sessao_virtual[].documentos[].text` + `.extractor`; `publicacoes_dje[].decisoes[].rtf.text` + `.extractor`. All four fields are still typed `Optional[str]` in the TypedDicts but are always `None` on disk. |
+| kept as-is        | `PublicacaoDJe.decisoes[].texto` (HTML-extracted fast-path, confirmed content-equal to the RTF after whitespace normalization) and every `Documento.url` + `.tipo` (those are the pointer + label). |
+| fetchers          | `_make_pdf_fetcher`, `resolve_documentos` (sessao), and `_resolve_publicacoes_dje` (DJe) still call into `peca_utils.extract_document_text` for every URL — for the cache-warming side effect — but discard the returned text. Live scrapes populate `peca_cache`; JSON stays pointer-only. |
+| warehouse builder | `_flatten_andamentos` + `_flatten_documentos` gained a cache-first resolver (`_resolve_text` / `_resolve_extractor`) keyed on `sha1(url)` against the configured `pdf_cache_root`. Cache wins over inline; inline is the pre-v8 fallback so mid-migration corpora stay uniform. If a re-OCR sweep updates the cache, the next warehouse rebuild picks up the new text — no case-JSON rewrite needed. |
+| renormalizer      | `_rebuild_publicacoes_dje` no longer calls the pdf fetcher; `_normalize_link` + `_normalize_documento` in `reshape.py` strip text/extractor to None on every v1→v8 migration. Idempotent: v8-shaped input round-trips unchanged. |
+| on-disk size      | Typical ~40 % reduction per case (HC 158802: 208 KB → ~149 KB predicted); bigger on long-history cases with dozens of cached andamento PDFs. |
+
+**v7 → v8 migration.** `reshape_to_v8` (renamed from `reshape_to_v7`)
+runs the strip; see `scripts/renormalize_cases.py --mode shape-only`.
+No cache writes needed — the cache already held the canonical text
+under v7. The warehouse should be rebuilt once after migration so
+columns resolve cleanly; a rebuild is a no-op at the JSON layer
+(cache unchanged) but reads through the new resolver.
+
+```bash
+uv run python scripts/renormalize_cases.py --dry-run
+uv run python scripts/renormalize_cases.py --workers 8
+```
+
+### v7 — 2026-04-19
 
 `publicacoes_dje: List[PublicacaoDJe]` added as a top-level field.
 Each case now carries a structured view of every DJe publication that

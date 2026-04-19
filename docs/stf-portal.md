@@ -101,6 +101,7 @@ tab each field comes from.
 | `peticoes`                 | `abaPeticoes`                      |
 | `recursos`                 | `abaRecursos`                      |
 | `pautas`                   | `abaPautas`                        |
+| `publicacoes_dje`          | `listarDiarioJustica.asp` + `verDiarioProcesso.asp` (see § DJe flow) |
 
 ### `partes` gotcha — two sources on `abaPartes.asp`
 
@@ -115,6 +116,21 @@ parity with Selenium's `#resumo-partes` (jQuery-populated from
 
 Fetched but not parsed. The Selenium path didn't emit these either,
 so the HTTP path doesn't try to.
+
+## DJe flow — three layers, outside the tab set
+
+The `publicacoes_dje` field draws from a separate URL family under
+`portal.stf.jus.br/servicos/dje/*` — none of these are `abaX.asp`
+tabs, and they key on `(classe, numero)`, not `incidente`. Same
+origin as `/processos/*`, so they share the same WAF bucket.
+
+1. **Listing** — `GET /servicos/dje/listarDiarioJustica.asp?tipoPesquisaDJ=AP&classe=<C>&numero=<N>` → HTML with `<strong>` section headers and `<a onclick="abreDetalheDiarioProcesso(dj, data, incidente, capitulo, numMateria, codMateria)">…</a>` entries. Parsed by `parse_dje_listing` (`src/scraping/extraction/dje.py`). The 3rd onclick arg is the *linked* incidente, which can differ from the parent case's (AG.REG./EMB.DECL. file under their own).
+
+2. **Detail** — `GET /servicos/dje/verDiarioProcesso.asp?numDj=…&dataPublicacaoDj=…&incidente=…&codCapitulo=…&numMateria=…&codMateria=…` (one per entry from step 1) → HTML with a `<dl>` of identity fields (Classe/Procedência/Relator/Partes/Matéria) followed by alternating `<p>` text / `<p.text-right> <a href=verDecisao.asp?…>` pairs. Parsed by `parse_dje_detail`. EMENTA renders as a decisão-shaped block; the `"EMENTA:"` prefix is the `kind` discriminator.
+
+3. **RTF** — `GET /servicos/dje/verDecisao.asp?numDj=…&dataPublicacao=…&incidente=…&capitulo=…&codigoMateria=…&numeroMateria=…&texto=<id>` → `application/rtf` binary. Extracted via `src/utils/peca_utils.extract_document_text` (striprtf branch), URL-keyed in `peca_cache`.
+
+Per-case HTTP cost with DJe on: `1 + n + m` GETs to `portal.stf.jus.br`, where *n* = number of DJe entries (usually 1–20 over a case's lifetime; HC 158802 has 6) and *m* = number of RTF-bearing decisões across those entries (≈1–3 per acórdão-section entry, 0–2 per session entry). This roughly triples the per-case portal GET count — the `fetch_dje=True` kwarg (default on) lets sweeps turn it off when the WAF bucket is fragile. RTFs go through `peca_cache`, so re-scrapes are cheap.
 
 ## `sessao_virtual` — not from `abaSessao`
 

@@ -597,12 +597,155 @@ recorded for triage):
 - **Open question 1** (drop `data_protocolo_iso` as redundant under
   v6) — no new info; still punted.
 
+## Request-footprint audit (2026-04-19 ~afternoon)
+
+Ad-hoc count of every HTTP GET made per case under the current HTTP
+backend. Goal was to find cuts that buy WAF headroom so we can
+push the scrape rate harder without tripping 403s. Source: walk of
+`src/scraping/scraper.py` + extractors + `docs/stf-portal.md`
+field→source map.
+
+**Per-case baseline.** Small case (AI-style, `fetch_dje=False`,
+no sessão virtual) = **12 GETs**: 11 on `portal.stf.jus.br` + 1 on
+`sistemas.stf.jus.br`. Medium HC with DJe + sessão virtual ≈
+**30–40 GETs first run, ~15 with cache**. Three independent WAF
+buckets (`portal`, `sistemas`, `digital`) — interleaving across
+origins already paces the per-IP reputation counter; the per-case
+token budget that matters is **portal-bucket only**.
+
+Portal-bucket GETs (the WAF-bound ones):
+
+| # | Endpoint                              | Populates                          | Verdict                           |
+|---|---------------------------------------|------------------------------------|-----------------------------------|
+| 1 | `listarProcessos.asp` (302)           | `incidente`                        | Keep — entry point                |
+| 2 | `detalhe.asp`                         | cookies + base metadata            | Keep — cookies needed for abaX    |
+| 3 | `abaInformacoes.asp`                  | `assuntos`, `origem`, …            | Keep                              |
+| 4 | `abaPartes.asp`                       | `partes`, `primeiro_autor`         | Keep                              |
+| 5 | `abaAndamentos.asp?imprimir=`         | `andamentos[]` (+ PDF URLs)        | Keep                              |
+| 6 | `abaDeslocamentos.asp`                | `deslocamentos`                    | **Candidate cut** — low use       |
+| 7 | `abaSessao.asp?tema=`                 | `tema` id (regex)                  | Keep (gates sistemas `tema=`)     |
+| 8 | `abaDecisoes.asp`                     | **nothing — fetched, not parsed**  | **CUT** — pure waste (~57 B stub) |
+| 9 | `abaPautas.asp`                       | `pautas`                           | Keep (v7 just wired parsing)      |
+| 10| `abaPeticoes.asp`                     | `peticoes`                         | Keep (class-gate candidate)       |
+| 11| `abaRecursos.asp`                     | `recursos`                         | **Candidate skip** — ~1.8 s, usually empty on HC/AI |
+| 15| `dje/listarDiarioJustica.asp`         | `publicacoes_dje[]` listing        | Conditional (`fetch_dje`) — already gated |
+| 16+| `dje/verDiarioProcesso.asp`          | DJe entry detail                   | Keep if DJe on                    |
+| 17+| `dje/verDecisao.asp?texto=`          | RTF decision body                  | Keep if DJe on                    |
+
+Sistemas-bucket (separate WAF counter, not the bottleneck):
+`repgeral/votacao?tema=` (conditional), `?oi=` (always), `?sessaoVirtual=` (1 per OI).
+
+**Redundancy findings.** No data overlap between tabs —
+`abaInformacoes` and `detalhe` both mention `assuntos` but at
+different granularity. The three PDF sources (andamento links,
+sessão-virtual documentos, DJe RTF) are disjoint, all needed. The
+real waste is **`abaDecisoes.asp`: always fetched, never parsed**
+(the Selenium path dropped it and the HTTP port kept the fetch).
+Secondary: `abaRecursos.asp` is slow and usually empty on HC/AI.
+
+**Optimization ladder** (portal-bucket savings per case):
+
+1. **Delete `abaDecisoes.asp` fetch.** Free. −1 GET. No downstream reader.
+2. **Class-gate `abaRecursos.asp`** (skip on HC/AI by default). −1 GET + ~1.8 s wall on typical cases.
+3. **Audit + gate `abaDeslocamentos.asp`.** −1 GET. Needs warehouse-usage check first.
+4. **Class-gate `abaPautas` / `abaPeticoes`** on monocratic classes. −1–2 GETs situationally.
+
+Lean "fast sweep" floor: **7 portal GETs + 1 sistemas GET = 8 total**
+per case (vs today's 12 on the no-DJe path). ~33 % fewer requests,
+and more importantly **−3 portal-bucket tokens** where the WAF
+actually lives.
+
+**Decision:** ship #1 (delete `abaDecisoes.asp`) as a standalone
+chore commit — zero risk. #2 and #3 wait on a usage audit (notebook
++ warehouse grep for `deslocamentos` / `recursos` reads). Don't
+pipeline these into the v6 renormalize; they're scraper-side, not
+data-side.
+
+**Followups (not yet opened as issues):**
+- audit `recursos` / `deslocamentos` downstream usage in
+  `notebooks/`, `src/warehouse/`, and the warehouse DuckDB schema.
+- measure portal-bucket `ceil` under current WAF by holding other
+  origins constant — needed to quantify how much faster the fast
+  sweep actually runs.
+
 ---
 
 # Strategic state
 
 ## What just landed
 
+- **Schema v8 — strip inline Documento text, cache becomes canonical** (2026-04-19).
+  Every `Documento` slot (`andamentos[].link`, `sessao_virtual[].documentos[]`,
+  `publicacoes_dje[].decisoes[].rtf`) now carries `text=None` and
+  `extractor=None` on disk. `peca_cache` (`data/cache/pdf/<sha1(url)>.{txt.gz,extractor}`)
+  is the single source of truth — the `Documento` docstring's claim
+  ("struct is a pointer, not a payload") is finally accurate. Fetchers
+  (`_make_pdf_fetcher`, `resolve_documentos`, `_resolve_publicacoes_dje`)
+  still download + extract every URL for the cache-warming side
+  effect but discard the returned text. Warehouse builder gained
+  `_resolve_text` + `_resolve_extractor` (keyed on `sha1(url)` against
+  `pdf_cache_root`, cache-first with inline pre-v8 fallback) so
+  `andamentos.link_text` / `documentos.text` / `.extractor` columns
+  stay populated uniformly across v6–v8 cases. `reshape_to_v8`
+  (renamed from `reshape_to_v7`) strips inline text on migration;
+  idempotent. `PublicacaoDJe.decisoes[].texto` (HTML-extracted) is
+  retained as the DJe fast-path — content-equal to the stripped RTF
+  per the earlier finding, no information lost. The DJe `texto` is
+  the only per-Documento-like inline text surviving v8; everything
+  else is pointer-only. 412 unit tests green (+2 new v8 warehouse
+  resolver tests covering JSON-null cache-resolve and cache-wins-
+  over-stale-inline). E2E validated on HC 158802: 22 Documento slots
+  on a fresh scrape, all pointer-only; cache still holds 24.5 KB of
+  extracted text. Docs: `data-dictionary.md § v8`; `Documento`
+  docstring rewritten.
+- **Schema v7 — `publicacoes_dje` field + DJe scraper** (2026-04-19).
+  New top-level `publicacoes_dje: List[PublicacaoDJe]` on every case.
+  Three HTTP layers (same `portal.stf.jus.br` WAF bucket as the tabs):
+  `listarDiarioJustica.asp` → `verDiarioProcesso.asp` (per entry) →
+  `verDecisao.asp?texto=<id>` (RTF per decisão). `parse_dje_listing`
+  + `parse_dje_detail` in `src/scraping/extraction/dje.py` are pure;
+  orchestration in `scraper.py` (`_make_dje_*_fetcher` + `_resolve_publicacoes_dje`)
+  gates on `fetch_dje=True` kwarg. `DecisaoDJe.kind` ∈ `{decisao,
+  ementa}` — EMENTA is a decisao-shaped `<p>+<a>` block on the
+  Acórdão-section variant, discriminated by `"EMENTA:"` prefix.
+  HTML cache picks up two pseudo-tab keys: `dje_listing` and
+  `dje_detail_<sha1[:16]>`. RTFs flow through the existing
+  `peca_cache`. Renormalizer seeds `[]` on pre-v7 corpus; shape-only
+  mode plus tolerant cache-rebuild (`_rebuild_publicacoes_dje` skips
+  entries whose detail HTML isn't cached). All 7 ground-truth
+  fixtures bumped to v7 via `reshape_to_v7`; `publicacoes_dje` added
+  to `SKIP_FIELDS` (reverse-chrono list grows at head, not tail, so
+  the existing `_diff_growing_list` tail-append semantics don't fit).
+  HC 158802 ground truth now carries the real 6-entry populated
+  data (+24.5 KB inline RTF text) as the canonical DJe regression
+  fixture. 407 unit tests green. E2E validated on HC 158802: 6
+  publicações, 7 decisões, 24.5 KB of RTF text; cache-warm re-scrape
+  0.29 s. Docs: `stf-portal.md § DJe flow`, `data-dictionary.md § v7`,
+  `data-layout.md` pseudo-tab entries.
+- **Side-effect bug fix: `peca_utils.extract_document_text` UA** (2026-04-19).
+  Bare `requests.get()` was sending `python-requests/*` → STF's WAF
+  permanently 403s non-browser UAs (per `docs/stf-portal.md` gotcha).
+  `sistemas.stf.jus.br` and `digital.stf.jus.br` happened to be more
+  permissive so the bug was silent until the DJe RTFs (served from
+  `portal.stf.jus.br/servicos/dje/`) hit it. Fixed by passing a
+  Chrome UA. Probably unsticks an unknown count of prior
+  silent-failure PDF/RTF downloads on portal-host andamento links.
+  No test coverage was pinning this; adding one would need a
+  fixture capture of the 403 behavior, which I didn't chase.
+- **Finding: DJe HTML `texto` ≡ RTF `rtf.text` (content-equal)** (2026-04-19).
+  Every one of HC 158802's 7 decisão blocks is character-identical
+  between `decisoes[].texto` (HTML-extracted, single-paragraph
+  join) and `decisoes[].rtf.text` (RTF, paragraph-preserving) after
+  whitespace normalization (`re.sub(r'\s+', ' ', s.replace('\xa0',
+  ' '))`). Raw-length deltas (e.g. 18066 vs 18091 on the DJ 127
+  monocratic) are purely `\n`-vs-` ` and `\xa0`-vs-`  `. Implication
+  for the upcoming v8 strip: the DJe RTF is redundant with its
+  HTML sibling — unlike `andamentos[].link.text` (full PDF body,
+  no HTML sibling). V8 plan narrowed: strip `rtf.text` +
+  `andamentos[].link.text`/`sessao_virtual[].documentos[].text`
+  (all PDF-linked); KEEP DJe `decisoes[].texto` as the cache-free
+  fast path. Does not generalize to `andamentos` / sessao_virtual
+  documentos — those remain PDF-canonical with no HTML fallback.
 - **`scripts/` cleanup + `PYTHONPATH=.` retired** (2026-04-19).
   Three underscore helpers promoted to library code: `_diff.py` →
   `src/sweeps/diff_harness.py`, `_pdf_cli.py` → `src/sweeps/peca_cli.py`,
