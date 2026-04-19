@@ -8,15 +8,19 @@ link unification, ASCII-snake_case sessão metadata + ISO-only dates
 monotonic-guard bypass under `--force`, fixtures regenerated as
 bare-dict v6, v4-compat paths removed, 328 unit tests green.
 
-**Status as of 2026-04-19 ~05:00 UTC: v6 schema shipped; production
-case JSONs (57 595 files) not yet renormalized.** Code paths all
-emit v6 shape; fixtures are v6; tests are v6; existing on-disk
-`data/cases/**/*.json` (mostly v3, some v4/v5) still carry the old
-shape. Next fire: `PYTHONPATH=. uv run python
-scripts/renormalize_cases.py --workers 8` — a full dry-run sample
-classified 1 000/57 595 all `ok` under v4, so the v6 jump should be
-equally mechanical. Warehouse build (`scripts/build_warehouse.py`)
-is still to be exercised end-to-end against real corpus.
+**Status as of 2026-04-19 ~00:55 UTC: v6 schema shipped; production
+migration is 22 % complete.** Live renormalize (`--classe HC
+--workers 8`, detached) ran 6.75 min wall and produced
+`ok=12669 / needs_rescrape=44926 / error=0` over 57 595 files. The
+12 669 migrated cases are v6 on disk (`_meta` slot populated;
+andamento uses `index` + ISO `data`; no `data_iso` sibling). The
+44 926 in the rescrape bucket have incomplete HTML cache —
+concentrated in older-scrape files (mostly v2 list-wrapped shape
+on disk) whose tab set didn't include `abaPautas` / sessao JSON
+when they were first cached. Rescrape CSV at
+`runs/active/renormalize_needs_rescrape.csv`. Warehouse build
+(`scripts/build_warehouse.py`) is still to be exercised end-to-end
+against the migrated slice.
 
 Single live file covering the **active task's lab notebook**
 (plan / expectations / observations / decisions) and the **strategic
@@ -122,6 +126,128 @@ migration.
   `xargs -a runs/active/renormalize-hc.pid kill -TERM` for graceful
   stop (driver installs SIGTERM handlers and writes
   `needs_rescrape.csv` before exit).
+- **2026-04-19 — live migration finished in 6.75 min.** Final tally:
+  `ok=12669  needs_rescrape=44926  error=0`. Wall 405.2 s at 142 f/s
+  (much faster than the 26 f/s dry-run projection because
+  `needs_rescrape` short-circuits before the extractor chain — only
+  the 12 669 `ok` paths did the full rebuild; those ran at roughly
+  the projected rate). Rescrape CSV written to
+  `runs/active/renormalize_needs_rescrape.csv` (44 926 rows, 439 KB).
+  **H2 confirmed**: 78 % of the corpus has incomplete HTML cache.
+  Dry-run `ok=2000` was misleading — lex-sorted iteration put
+  recently-scraped (fully-cached) files first; stale-cache files are
+  concentrated in the tail of the ordering.
+- **2026-04-19 — v6 shape verified on migrated file.**
+  `HC_118201-118201`: `_meta={schema_version:6, status_http:200,
+  extraido:...}` at slot 0, no top-level `schema_version`, andamento
+  has `index` + ISO `data` + no `data_iso` sibling. Migration is
+  structurally correct on the files that ran through it.
+- **2026-04-19 — legacy-shape files persist.** Sampled
+  `HC_134348-134348` (in rescrape CSV): still the v2 list-wrapped
+  shape (a dict inside a 1-element list). Untouched by this pass.
+  The renormalizer's `_load_existing` can unwrap that shape; the
+  blocker was missing HTML fragments, not JSON shape.
+- **2026-04-19 01:17 → 06:12 — overnight chain (tiers 0→3) finished
+  cleanly.** 4h 55min wall, matches the ~5h estimate. Wrapper at
+  `scripts/overnight_t0123.sh`, chain pid was 197540, cron monitor
+  cleaned up post-completion. Per-tier tally:
+
+  | tier | year | CSV | ok | fail | wall | notes |
+  |---|---|---|---|---|---|---|
+  | 0 | 2026 |    917 |     0 |   917 |  ~2 min | all filter_skip (future-IDs); expected |
+  | 1 | 2025 |  4,555 | 1,744 | 2,811 | ~46 min | 38% ok rate — mid-range filter_skip density |
+  | 2 | 2024 | 13,609 | 10,361 | 1,966 | ~125 min | **shard-6 collapsed early at 02:40** (only 419/1701 records); 1,282 IDs ungrabbed in that slice |
+  | 3 | 2023 | 11,825 | 10,042 | 1,783 | ~117 min | 85% ok rate |
+
+  **Net-new captures: 22,147 HC cases**, all born v6. Aggregate
+  throughput across the run: ~78 ok/min real-capture (below the
+  92 ok/min projection but within ballpark). WAF behaved: only
+  1 `collapse` regime hit (shard-6 of t2), a handful of
+  `approaching_collapse` and `l2_engaged` hits in t2/t3. No
+  cross-tier WAF carryover.
+- **Two issues surfaced for later, neither blocking:**
+  - **Tier-2 shard-6 ungrabbed slice** (~1,282 IDs in 2024 range
+    `~239,271..240,972`). Tomorrow's `generate_hc_year_gap_csv.py
+    --year 2024` regen will surface them automatically — they're
+    not on disk so they re-enter the gap.
+  - **Monitor false-positive bug.** `scripts/monitor_overnight.sh`
+    flagged "stale workers" on completed-tier shards (e.g. tier-0
+    shards alerting through the night even though they exited at
+    01:19). The stale check should be scoped to only the
+    currently-active tier (the one whose `shards.pids` the
+    wrapper is currently waiting on). 150 false positives total
+    overnight; zero actionable alerts. The chain itself worked,
+    but the monitor needs a fix before reuse.
+- **2026-04-19 ~09:00 — Phase 3 morning audit complete.**
+  - **Anchor refresh.** `src/utils/hc_id_to_date.json` regenerated
+    from every on-disk HC case: 9,897 → **79,742 anchors**, id
+    range 82,959..271,060 → 48,933..271,139, date range 2003..2026
+    → 1971..2026. File grew 581KB → 4.6MB; load time 577ms (one-shot
+    at import). Backup at `…hc_id_to_date.json.bak-2026-04-19`.
+    Tightening of `year_to_id_range()` is modest (~93 IDs at year
+    boundaries) since modern years were already well-anchored;
+    big wins in paper-era extrapolation. Probably worth a
+    by-month subsample later to keep the file lean.
+  - **20-file v6 audit on new captures** — 20/20 clean
+    (`_meta.schema_version=6`, andamento link well-formed dict,
+    ISO `data_protocolo`).
+  - **Warehouse builder rewrite landed.** Original `_bulk_insert`
+    used `executemany` parameter-binding, which choked at 15+ min
+    on the full 79k corpus and never completed. Four-fix sequence:
+    (1) Arrow registration bulk insert (~40-50× speedup); (2)
+    schema-aware INTEGER coercion (corpus has occasional
+    string-shaped numerics); (3) VARCHAR / VARCHAR[] coercion
+    (`numero_origem` was `[int]` in some rows, `[str]` in others);
+    (4) **streamed PDF rows + eager row-list clearing** so peak
+    RAM is one table at a time, not all five stacked (PDFs alone
+    decompress to ~1 GB; WSL2 only has 2.3 GB available). New
+    capability: `--year YYYY --classe HC` for fast iteration
+    sub-warehouses (uses `hc_calendar.year_to_id_range`).
+  - **Full warehouse built** at `data/warehouse/judex.duckdb` —
+    722 MB, 79,742 cases / 268,157 partes / **1,086,647 andamentos** /
+    30,504 documentos / 30,387 pdfs, **wall 184.6s** (was 15+ min
+    and killed). Phase 1F sanity SQL all green: 100% v6, 0 NULL
+    `data_protocolo` (HC), 0 andamento link inconsistencies,
+    plausible outcome distribution (58% nao_conhecido, 10%
+    denegado, 3% concedido).
+  - **2026 sub-warehouse** at `data/warehouse/judex-2026.duckdb` —
+    262 MB, 3,098 cases, built in 21.9s. Fast iteration target
+    for analyses scoped to one year.
+  - **Year coverage after tonight** (HC): 2026=3,099, **2025=13,365,
+    2024=10,827, 2023=11,099** (last two grew ~12× from tonight),
+    2022=1,160 ← **next big gap (tier-4)**, 2021=7,423, then
+    declining through 2013 (511) plus paper-era stragglers. Stray
+    `2000: 1` outlier worth a one-line investigation later.
+- **Caveat on warehouse "100% v6".** The warehouse reports v6 for
+  every case because `_flatten_case` injects `schema_version=6`
+  into its output dict — it's a *structural* soundness signal, not
+  a *data completeness* one. The 44,926 stale-cache files made it
+  into the warehouse with whatever fields their incomplete HTML
+  cache could yield (tab fragments missing → empty
+  `andamentos`/`documentos`/`pautas` slots for those rows). If a
+  cross-case query mysteriously misses andamentos for a chunk of
+  older HCs, that's the explanation, not a v6 regression.
+
+## Re-extraction status — what's v6, what isn't
+
+The schema cascade (v3→v4→v5→v6 + andamento link unified +
+extractor provenance + `_meta` wrap + ISO-only dates + typed
+`Pauta`) changed enough surface area that **every cached case
+needs the extractor chain re-run** for the on-disk JSON to reflect
+the current code. State of that re-extraction:
+
+| Bucket | Count | Re-extracted? | What still needs to happen |
+|---|---|---|---|
+| Renormalized to v6 (`_meta.schema_version=6`)         | 12,669 | ✅ done — full extractor chain re-ran on cached HTML in the 2026-04-19 00:55 UTC pass         | nothing |
+| `needs_rescrape` (incomplete HTML cache, mostly v2 on disk) | 44,926 | ❌ **NOT** re-extracted — renormalizer short-circuited because cached HTML lacked `abaPautas` / sessão JSON | (1) re-fetch HTML (`run_sweep.py --csv runs/active/renormalize_needs_rescrape.csv`); (2) re-run `renormalize_cases.py` |
+| New captures from 2026-04-19 overnight (tiers 0–3)    | **22,147 net-new HC cases** | ✅ born v6 (current scraper writes v6 directly) | nothing |
+
+**The 2026-04-19 overnight did NOT touch the 44,926 stale-cache
+bucket** — those IDs were already on disk (just stale-shape) so
+the year-gap CSV generator excluded them. They remain on the
+explicit rescrape backlog (open question 3). Estimated wall to
+clear them: ~90 min WAF-bound rescrape + ~5 min renormalize
+re-run.
 
 ## Decisions
 
@@ -139,9 +265,21 @@ migration.
    column as redundant (now that `data_protocolo` is ISO)? Or keep
    as a no-cost alias? Lean toward drop to avoid two-names-one-value
    rot.
-2. `scripts/renormalize_cases.py` still has a stale `to_iso` import
-   reference (v3-era; removed in v6) — might surface in the dry-run.
-   Check before firing and fix if needed.
+2. ~~`scripts/renormalize_cases.py` still has a stale `to_iso`
+   import reference~~ — resolved; grep confirms absence.
+3. **Rescrape 44 926 or not?** Three options on the table:
+   (a) stop here — 22 % v6 coverage is enough to validate the
+   warehouse end-to-end; rescrape when there's a research need;
+   (b) fire `scripts/run_sweep.py --csv
+   runs/active/renormalize_needs_rescrape.csv` (8-shard, ~90 min,
+   WAF-bound) then re-run renormalizer; (c) triage the CSV first
+   (age distribution, date_protocolo coverage) to cut the target
+   by ~50 % before rescraping. Not yet decided.
+4. **Strategy retrospective**: a principled v5→v6 migration could
+   have been JSON-only (10× faster) for ~90 % of the diff (key
+   renames + `_meta` wrap + date-format change), with HTML only
+   needed for `extract_pautas` — one fragment, not eleven. Worth
+   capturing as a design pattern for the next schema bump.
 
 ## Next steps (this task)
 
@@ -197,6 +335,45 @@ step hasn't been marked done in the Observations log.
 
 ## What just landed
 
+- **`scripts/` cleanup + `PYTHONPATH=.` retired** (2026-04-19).
+  Three underscore helpers promoted to library code: `_diff.py` →
+  `src/sweeps/diff_harness.py`, `_pdf_cli.py` → `src/sweeps/pdf_cli.py`,
+  `_filters.py` → `src/utils/filters.py`. Five one-shots deleted (git
+  preserves): `migrate_html_cache_to_tar.py`, `class_density_probe.py`,
+  `ocr_bakeoff.py`, `replay_sample_jsons.py`, `launch_hc_backfill.sh`
+  (superseded by sharded variant). Callers updated in `run_sweep.py`,
+  `validate_ground_truth.py`, `baixar_pdfs.py`, `extrair_pdfs.py`, and
+  `tests/unit/test_pdf_cli.py`; doc refs in `stf-portal.md`,
+  `data-dictionary.md`, and the 2026-04-17 spec repointed. With no
+  `from scripts.*` imports remaining in `scripts/*.py`, the hatchling
+  editable install (`packages = ["src"]`, already in pyproject) is
+  sufficient — `PYTHONPATH=.` is no longer required for scripts or
+  pytest. `CLAUDE.md § Runtime` updated. 391 unit tests green;
+  `scripts/renormalize_cases.py` left in place pending the TODO-listed
+  pautas-crash fix.
+- **Phase 3 morning audit — full v6 warehouse online** (2026-04-19
+  ~09:00). Anchor file refreshed (9.9k → 79.7k anchors; date range
+  now 1971..2026). Warehouse builder rewritten end-to-end: Arrow
+  bulk insert + schema-aware INTEGER/VARCHAR/VARCHAR[] coercion +
+  streamed PDFs + eager memory release + new `--year` filter
+  (HC-only). Full warehouse built in **3:05 wall**
+  (`data/warehouse/judex.duckdb`, 722 MB, 79,742 cases / 1.08 M
+  andamentos), versus the original `executemany` path that was
+  killed at 15+ min and never completed. Year-scoped 2026
+  sub-warehouse built in 21.9s (`judex-2026.duckdb`, 262 MB).
+  Phase 1F sanity SQL all green. See active-task Observations
+  for full breakdown + the "Re-extraction status" caveat about
+  structural-vs-data v6.
+- **Overnight HC backfill, tiers 0–3** (2026-04-19 01:17 → 06:12).
+  `scripts/overnight_t0123.sh` chained four `launch_hc_year_sharded.sh`
+  invocations sequentially via `tail --pid` blocking. **22,147
+  net-new HC cases** captured, all born v6. Tier-2 shard-6
+  collapsed early (1,282 IDs ungrabbed in 2024 range, will
+  re-surface in next gap-CSV regen). `scripts/monitor_overnight.sh`
+  + `13,43 * * * *` crontab worked end-to-end but stale-shard
+  alert logic over-fires on completed-tier shards (150 false
+  positives overnight); needs scoping to active-tier-only before
+  reuse.
 - **PDF pipeline split into `baixar-pdfs` + `extrair-pdfs`**
   (2026-04-19). `varrer-pdfs`, `scripts/fetch_pdfs.py`, and
   `scripts/reextract_unstructured.py` retired — replaced by two
@@ -324,7 +501,7 @@ Nothing executing. Four strands paused at clean handoff points:
 
 - **`sessao_virtual` ground-truth parity** — the live code emits the
   ADI shape; older HC fixtures sometimes lacked the `metadata`
-  subkeys entirely. `SKIP_FIELDS` in `scripts/_diff.py` guards the
+  subkeys entirely. `SKIP_FIELDS` in `src/sweeps/diff_harness.py` guards the
   diff harness against this.
 - **PDF enrichment status tracking** — no persisted field answers
   "has this case been through PDF enrichment?" Derivable from
