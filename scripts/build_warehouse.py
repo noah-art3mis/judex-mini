@@ -62,12 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     size_mb = args.output.stat().st_size / 1024**2
     print()
     print(f"done in {summary.wall_s:.1f}s → {size_mb:.1f} MB")
-    print(f"  cases        {summary.n_cases:>8,}")
-    print(f"  partes       {summary.n_partes:>8,}")
-    print(f"  andamentos   {summary.n_andamentos:>8,}")
-    print(f"  documentos   {summary.n_documentos:>8,}")
-    print(f"  pautas       {summary.n_pautas:>8,}")
-    print(f"  pdfs         {summary.n_pdfs:>8,}")
+    print(f"  cases             {summary.n_cases:>10,}")
+    print(f"  partes            {summary.n_partes:>10,}")
+    print(f"  andamentos        {summary.n_andamentos:>10,}")
+    print(f"  documentos        {summary.n_documentos:>10,}")
+    print(f"  pautas            {summary.n_pautas:>10,}")
+    print(f"  publicacoes_dje   {summary.n_publicacoes_dje:>10,}")
+    print(f"  decisoes_dje      {summary.n_decisoes_dje:>10,}")
+    print(f"  pdfs              {summary.n_pdfs:>10,}")
     return 0
 
 

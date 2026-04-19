@@ -147,6 +147,42 @@ CREATE TABLE pautas (
     PRIMARY KEY (classe, processo_id, seq)
 );
 
+CREATE TABLE publicacoes_dje (
+    classe            VARCHAR NOT NULL,
+    processo_id       INTEGER NOT NULL,
+    seq               INTEGER NOT NULL,   -- position in case.publicacoes_dje[]
+    numero            INTEGER,            -- DJ number ("DJ Nr. 204")
+    data              VARCHAR,            -- raw (pass-through from JSON; already ISO in v7+)
+    data_iso          DATE,
+    secao             VARCHAR,
+    subsecao          VARCHAR,
+    titulo            VARCHAR,
+    detail_url        VARCHAR,
+    incidente_linked  INTEGER,            -- 3rd abreDetalheDiarioProcesso() arg
+    dje_classe        VARCHAR,            -- classe as recorded on the DJe (temporal snapshot)
+    procedencia       VARCHAR,
+    relator           VARCHAR,
+    partes            VARCHAR[],
+    materia           VARCHAR[],
+    n_decisoes        INTEGER NOT NULL,   -- denormalized from decisoes_dje; cheap for filtering
+    PRIMARY KEY (classe, processo_id, seq)
+);
+
+CREATE TABLE decisoes_dje (
+    classe          VARCHAR NOT NULL,
+    processo_id     INTEGER NOT NULL,
+    dje_seq         INTEGER NOT NULL,     -- FK → publicacoes_dje(seq)
+    dec_seq         INTEGER NOT NULL,     -- position in decisoes[] within the publicacao
+    kind            VARCHAR NOT NULL,     -- 'decisao' | 'ementa'
+    texto           VARCHAR,              -- HTML-extracted fast-path paragraph
+    rtf_tipo        VARCHAR,
+    rtf_url         VARCHAR,
+    rtf_url_sha1    VARCHAR,
+    rtf_text        VARCHAR,              -- cache-resolved (NULL when cache miss)
+    rtf_extractor   VARCHAR,              -- cache-resolved
+    PRIMARY KEY (classe, processo_id, dje_seq, dec_seq)
+);
+
 CREATE TABLE pdfs (
     sha1          VARCHAR PRIMARY KEY,
     n_chars       INTEGER NOT NULL,
@@ -162,10 +198,12 @@ CREATE TABLE manifest (
     n_partes      INTEGER,
     n_andamentos  INTEGER,
     n_documentos  INTEGER,
-    n_pautas      INTEGER,
-    n_pdfs        INTEGER,
-    build_wall_s  DOUBLE,
-    judex_commit  VARCHAR
+    n_pautas          INTEGER,
+    n_publicacoes_dje INTEGER,
+    n_decisoes_dje    INTEGER,
+    n_pdfs            INTEGER,
+    build_wall_s      DOUBLE,
+    judex_commit      VARCHAR
 );
 
 CREATE INDEX cases_relator_idx        ON cases (relator);
@@ -180,6 +218,11 @@ CREATE INDEX documentos_sha1_idx      ON documentos (url_sha1);
 CREATE INDEX documentos_extractor_idx ON documentos (extractor);
 CREATE INDEX pautas_data_idx          ON pautas (data_iso);
 CREATE INDEX pautas_nome_idx          ON pautas (nome);
+CREATE INDEX pubdje_data_idx          ON publicacoes_dje (data_iso);
+CREATE INDEX pubdje_secao_idx         ON publicacoes_dje (secao, subsecao);
+CREATE INDEX pubdje_linked_idx        ON publicacoes_dje (incidente_linked);
+CREATE INDEX decdje_kind_idx          ON decisoes_dje (kind);
+CREATE INDEX decdje_rtf_sha1_idx      ON decisoes_dje (rtf_url_sha1);
 """
 
 
@@ -190,6 +233,8 @@ class BuildSummary:
     n_andamentos: int
     n_documentos: int
     n_pautas: int
+    n_publicacoes_dje: int
+    n_decisoes_dje: int
     n_pdfs: int
     wall_s: float
     output_path: Path
@@ -318,6 +363,81 @@ def _flatten_andamentos(item: dict, pdf_cache_root: Optional[Path] = None) -> li
             "link_text":      text,
             "link_extractor": extractor,
         })
+    return out
+
+
+def _flatten_publicacoes_dje(item: dict) -> list[dict]:
+    """One row per PublicacaoDJe entry (listing + detail fields).
+
+    Lists (partes, materia) go in as VARCHAR[] — DuckDB supports
+    array columns natively and analytical queries over short lists
+    like these don't warrant a separate junction table. `n_decisoes`
+    is denormalized (computed here from `decisoes`) so callers can
+    filter publicações without a COUNT() subquery.
+    """
+    out: list[dict] = []
+    for seq, p in enumerate(item.get("publicacoes_dje") or []):
+        if not isinstance(p, dict):
+            continue
+        raw_data = p.get("data")
+        iso = (
+            raw_data if raw_data and len(raw_data) == 10 and raw_data[4] == "-"
+            else None
+        )
+        out.append({
+            "classe":           item["classe"],
+            "processo_id":      item["processo_id"],
+            "seq":              seq,
+            "numero":           p.get("numero"),
+            "data":             raw_data,
+            "data_iso":         iso,
+            "secao":            p.get("secao"),
+            "subsecao":         p.get("subsecao"),
+            "titulo":           p.get("titulo"),
+            "detail_url":       p.get("detail_url"),
+            "incidente_linked": p.get("incidente_linked"),
+            "dje_classe":       p.get("classe"),
+            "procedencia":      p.get("procedencia"),
+            "relator":          p.get("relator"),
+            "partes":           list(p.get("partes") or []),
+            "materia":          list(p.get("materia") or []),
+            "n_decisoes":       len(p.get("decisoes") or []),
+        })
+    return out
+
+
+def _flatten_decisoes_dje(
+    item: dict, pdf_cache_root: Optional[Path] = None
+) -> list[dict]:
+    """One row per DecisaoDJe block. rtf_text + rtf_extractor resolved via cache."""
+    out: list[dict] = []
+    for dje_seq, p in enumerate(item.get("publicacoes_dje") or []):
+        if not isinstance(p, dict):
+            continue
+        for dec_seq, dec in enumerate(p.get("decisoes") or []):
+            if not isinstance(dec, dict):
+                continue
+            rtf = dec.get("rtf") or {}
+            rtf_url = rtf.get("url") if isinstance(rtf, dict) else None
+            rtf_text = _resolve_text(rtf_url, rtf.get("text") if isinstance(rtf, dict) else None, pdf_cache_root)
+            rtf_extractor = _resolve_extractor(
+                rtf_url,
+                rtf.get("extractor") if isinstance(rtf, dict) else None,
+                pdf_cache_root,
+            )
+            out.append({
+                "classe":         item["classe"],
+                "processo_id":    item["processo_id"],
+                "dje_seq":        dje_seq,
+                "dec_seq":        dec_seq,
+                "kind":           dec.get("kind"),
+                "texto":          dec.get("texto"),
+                "rtf_tipo":       rtf.get("tipo") if isinstance(rtf, dict) else None,
+                "rtf_url":        rtf_url,
+                "rtf_url_sha1":   hashlib.sha1(rtf_url.encode()).hexdigest() if rtf_url else None,
+                "rtf_text":       rtf_text,
+                "rtf_extractor":  rtf_extractor,
+            })
     return out
 
 
@@ -584,6 +704,8 @@ def build(
     andamentos_rows: list[dict] = []
     documentos_rows: list[dict] = []
     pautas_rows: list[dict] = []
+    publicacoes_dje_rows: list[dict] = []
+    decisoes_dje_rows: list[dict] = []
 
     for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
         item = _load_case(path)
@@ -594,6 +716,8 @@ def build(
         andamentos_rows.extend(_flatten_andamentos(item, pdf_cache_root))
         documentos_rows.extend(_flatten_documentos(item, pdf_cache_root))
         pautas_rows.extend(_flatten_pautas(item))
+        publicacoes_dje_rows.extend(_flatten_publicacoes_dje(item))
+        decisoes_dje_rows.extend(_flatten_decisoes_dje(item, pdf_cache_root))
         if progress_every and (i + 1) % progress_every == 0:
             print(f"  scanned {i + 1:,} cases", flush=True)
 
@@ -603,6 +727,8 @@ def build(
     n_andamentos = len(andamentos_rows)
     n_documentos = len(documentos_rows)
     n_pautas = len(pautas_rows)
+    n_publicacoes_dje = len(publicacoes_dje_rows)
+    n_decisoes_dje = len(decisoes_dje_rows)
 
     con = duckdb.connect(str(tmp))
     try:
@@ -625,13 +751,15 @@ def build(
             }
         _bulk_insert(con, "documentos", documentos_rows); documentos_rows.clear()
         _bulk_insert(con, "pautas", pautas_rows); pautas_rows.clear()
+        _bulk_insert(con, "publicacoes_dje", publicacoes_dje_rows); publicacoes_dje_rows.clear()
+        _bulk_insert(con, "decisoes_dje", decisoes_dje_rows); decisoes_dje_rows.clear()
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pdf_cache_root, sha1_filter)
         )
         wall = time.monotonic() - t0
         con.execute(
-            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 datetime.now(),
                 classes_seen,
@@ -640,6 +768,8 @@ def build(
                 n_andamentos,
                 n_documentos,
                 n_pautas,
+                n_publicacoes_dje,
+                n_decisoes_dje,
                 n_pdfs,
                 wall,
                 _git_commit(),
@@ -655,6 +785,8 @@ def build(
         n_andamentos=n_andamentos,
         n_documentos=n_documentos,
         n_pautas=n_pautas,
+        n_publicacoes_dje=n_publicacoes_dje,
+        n_decisoes_dje=n_decisoes_dje,
         n_pdfs=n_pdfs,
         wall_s=time.monotonic() - t0,
         output_path=output_path,

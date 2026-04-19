@@ -63,11 +63,15 @@ def check_missing_processes(
         else:  # "json"
             with open(existing_file, "r") as f:
                 data = json.load(f)
-                processed_numbers = set(
-                    str(item["processo_id"])
-                    for item in data
-                    if "processo_id" in item
-                )
+            # v3+ per-process JSON is a bare dict; pre-v3 was a 1-element list.
+            # Normalize to a list so the comprehension below handles both.
+            if isinstance(data, dict):
+                data = [data]
+            processed_numbers = set(
+                str(item["processo_id"])
+                for item in data
+                if isinstance(item, dict) and "processo_id" in item
+            )
 
         expected = set(str(i) for i in range(processo_inicial, processo_final + 1))
         return [int(num) for num in expected - processed_numbers]

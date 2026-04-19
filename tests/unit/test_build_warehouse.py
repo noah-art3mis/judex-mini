@@ -600,6 +600,148 @@ def test_pdf_cache_joins_to_andamento_by_sha1(tmp_path: Path) -> None:
     assert row == ("DESPACHO", len("Body text"))
 
 
+def _dje_case(**overrides) -> dict:
+    """Minimal v8 case with populated publicacoes_dje for warehouse tests."""
+    base = _v3_case(classe="HC", n=158802)
+    base["_meta"] = {"schema_version": 8, "status_http": 200, "extraido": "2026-04-19T00:00:00"}
+    base.pop("schema_version", None); base.pop("status_http", None); base.pop("extraido", None)
+    base["publicacoes_dje"] = [
+        {
+            "numero": 204, "data": "2020-08-17",
+            "secao": "Acórdãos", "subsecao": "Acórdãos 2ª Turma",
+            "titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802",
+            "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=204",
+            "incidente_linked": 5522739,
+            "classe": "HC", "procedencia": "DISTRITO FEDERAL", "relator": "MIN. GILMAR MENDES",
+            "partes": ["AGTE.(S) - MPF", "AGDO.(A/S) - FULANO"],
+            "materia": ["DIREITO PROCESSUAL PENAL | Prisão Preventiva"],
+            "decisoes": [
+                {
+                    "kind": "decisao",
+                    "texto": "Decisão: curta sumário da sessão.",
+                    "rtf": {
+                        "tipo": "DJE",
+                        "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=8783507",
+                        "text": None, "extractor": None,
+                    },
+                },
+                {
+                    "kind": "ementa",
+                    "texto": "EMENTA: AGRAVO REGIMENTAL... (2 pages of reasoning)",
+                    "rtf": {
+                        "tipo": "DJE",
+                        "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=8900854",
+                        "text": None, "extractor": None,
+                    },
+                },
+            ],
+        },
+        {
+            "numero": 126, "data": "2018-06-26",
+            "secao": "Presidência", "subsecao": "Distribuição",
+            "titulo": "HABEAS CORPUS 158802",
+            "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=126",
+            "incidente_linked": 5494703,
+            "classe": "HC", "procedencia": "RIO DE JANEIRO", "relator": "MIN. GILMAR MENDES",
+            "partes": [], "materia": [],
+            "decisoes": [],  # distribuição entries often have no RTF
+        },
+    ]
+    base.update(overrides)
+    return base
+
+
+def test_publicacoes_dje_flattens_one_row_per_entry(tmp_path: Path) -> None:
+    cases = tmp_path / "cases"
+    _write_case(cases, _dje_case())
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+
+    with _connect(out) as con:
+        rows = con.execute(
+            "SELECT numero, data_iso, secao, subsecao, incidente_linked, "
+            "procedencia FROM publicacoes_dje ORDER BY numero DESC"
+        ).fetchall()
+    assert len(rows) == 2
+    assert rows[0] == (204, __import__("datetime").date(2020, 8, 17),
+                       "Acórdãos", "Acórdãos 2ª Turma", 5522739, "DISTRITO FEDERAL")
+    assert rows[1][0] == 126  # 2018 distribuição
+    assert rows[1][5] == "RIO DE JANEIRO"
+
+
+def test_decisoes_dje_flattens_decisao_and_ementa_kinds(tmp_path: Path) -> None:
+    cases = tmp_path / "cases"
+    _write_case(cases, _dje_case())
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+
+    with _connect(out) as con:
+        rows = con.execute(
+            "SELECT dje_seq, dec_seq, kind, LEFT(texto, 20), rtf_url_sha1 IS NOT NULL "
+            "FROM decisoes_dje ORDER BY dje_seq, dec_seq"
+        ).fetchall()
+    assert len(rows) == 2  # DJ 204 has 2 decisões; DJ 126 has none
+    # Both rows are under publicacao seq=0 (DJ 204 is the first in reverse-chrono).
+    assert [(r[0], r[1], r[2]) for r in rows] == [(0, 0, "decisao"), (0, 1, "ementa")]
+    assert rows[0][3].startswith("Decisão: curta sum")
+    assert rows[1][3].startswith("EMENTA: AGRAVO REGIM")
+    # Every decisão carries a joinable sha1.
+    assert all(r[4] for r in rows)
+
+
+def test_decisoes_dje_rtf_text_resolved_from_cache(tmp_path: Path) -> None:
+    """v8 resolver: decisoes_dje.rtf_text populates from peca_cache even
+    when the JSON carries rtf.text=null."""
+    cases = tmp_path / "cases"
+    pdfs = tmp_path / "pdf"
+    # Seed the cache for both RTF URLs.
+    rtf_decisao_url = "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=8783507"
+    rtf_ementa_url = "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=8900854"
+    decisao_sha = _write_pdf(pdfs, rtf_decisao_url, "cached decisao body")
+    (pdfs / f"{decisao_sha}.extractor").write_text("rtf", encoding="utf-8")
+    ementa_sha = _write_pdf(pdfs, rtf_ementa_url, "cached EMENTA body with full reasoning")
+    (pdfs / f"{ementa_sha}.extractor").write_text("rtf", encoding="utf-8")
+
+    _write_case(cases, _dje_case())
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        rows = con.execute(
+            "SELECT kind, rtf_text, rtf_extractor "
+            "FROM decisoes_dje ORDER BY dec_seq"
+        ).fetchall()
+    assert rows == [
+        ("decisao", "cached decisao body", "rtf"),
+        ("ementa", "cached EMENTA body with full reasoning", "rtf"),
+    ]
+
+
+def test_decisoes_dje_join_to_pdfs_by_rtf_sha1(tmp_path: Path) -> None:
+    """A realistic cross-table query — join DJe decisões to the pdfs
+    table by sha1(rtf.url) to pull extracted text stats."""
+    cases = tmp_path / "cases"
+    pdfs = tmp_path / "pdf"
+    _write_pdf(pdfs, "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?texto=8900854",
+               "EMENTA body" * 100)
+    _write_case(cases, _dje_case())
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        # "Give me every ementa acórdão's char count."
+        row = con.execute(
+            "SELECT d.kind, p.n_chars "
+            "FROM decisoes_dje d JOIN pdfs p ON d.rtf_url_sha1 = p.sha1 "
+            "WHERE d.kind='ementa'"
+        ).fetchone()
+    assert row == ("ementa", len("EMENTA body" * 100))
+
+
 def test_classes_filter_limits_ingest(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
     _write_case(cases, _v1_case(classe="HC", n=1))
