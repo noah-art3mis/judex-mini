@@ -12,7 +12,7 @@ Classification axes (HC vs ADI vs RE, órgão julgador, rito, etc.):
 Concrete examples: [`tests/ground_truth/*.json`](../tests/ground_truth)
 (7 hand-verified fixtures, one per classe family).
 
-**Current version:** `SCHEMA_VERSION = 3`. See [`## Schema history`](#schema-history) at the bottom of this file for the per-version changelog and the migration path. Every item emitted by the current scraper carries `"schema_version": 3`; items with lower values (or no key) need `scripts/renormalize_cases.py`.
+**Current version:** `SCHEMA_VERSION = 7`. See [`## Schema history`](#schema-history) at the bottom of this file for the per-version changelog and the migration path. Every item emitted by the current scraper carries `_meta.schema_version = 7`; items with lower values (or no key) need `scripts/renormalize_cases.py`.
 
 ## Conventions used below
 
@@ -55,6 +55,7 @@ Concrete examples: [`tests/ground_truth/*.json`](../tests/ground_truth)
 | `peticoes`           | `List[Peticao]`          | abaPeticoes.asp      | `extract_peticoes`        |
 | `recursos`           | `List[Recurso]`          | abaRecursos.asp      | `extract_recursos`        |
 | `pautas`             | `Optional[List]`         | abaPautas.asp        | (not parsed; always `[]`) |
+| `publicacoes_dje`    | `List[PublicacaoDJe]`    | listarDiarioJustica.asp + verDiarioProcesso.asp + verDecisao.asp | `parse_dje_listing` + `parse_dje_detail` (src/scraping/extraction/dje.py) |
 | `outcome`            | `Optional[OutcomeInfo]`  | derived              | `derive_outcome`          |
 | `status_http`        | `int` (HTTP)             | detalhe.asp response | —                         |
 | `extraido`           | `str` (ISO 8601)         | client clock         | —                         |
@@ -626,7 +627,35 @@ change; the renormalizer (`scripts/renormalize_cases.py`) dispatches on
 missing / lower values and re-runs the current extractors against the
 cached HTML fragments.
 
-### v3 — 2026-04-18 (current)
+### v7 — 2026-04-19 (current)
+
+`publicacoes_dje: List[PublicacaoDJe]` added as a top-level field.
+Each case now carries a structured view of every DJe publication that
+references it, sourced from a new URL family (`portal.stf.jus.br/servicos/dje/*`)
+outside the `abaX.asp` tab set.
+
+| area              | change                                                                 |
+|-------------------|------------------------------------------------------------------------|
+| new top-level     | `publicacoes_dje: List[PublicacaoDJe]` (empty list when a case has no DJe entries, never `None`). |
+| new endpoints     | `listarDiarioJustica.asp?tipoPesquisaDJ=AP&classe=<C>&numero=<N>` → listing; `verDiarioProcesso.asp?numDj=…&dataPublicacaoDj=…&incidente=…&codCapitulo=…&numMateria=…&codMateria=…` → per-entry detail; `verDecisao.asp?...&texto=<id>` → per-decisão RTF. All share the `portal.stf.jus.br` WAF counter. |
+| new nested types  | `PublicacaoDJe` carries listing metadata (`numero`, `data`, `secao`, `subsecao`, `titulo`, `detail_url`, `incidente_linked`) + detail fields (`classe`, `procedencia`, `relator`, `partes: List[str]`, `materia: List[str]`, `decisoes: List[DecisaoDJe]`). `DecisaoDJe` bundles `{kind, texto, rtf: Documento}` where `kind ∈ {"decisao", "ementa"}` — EMENTA renders as a decisão-shaped `<p>+<a>` block on the Acórdão variant of the detail page; the prefix `"EMENTA:"` is the discriminator. |
+| `incidente_linked`| 3rd arg of the listing's `abreDetalheDiarioProcesso(dj, data, incidente, …)` onclick — may differ from the parent case's incidente because AG.REG./EMB.DECL. filings often file under their own incidente. Preserve as given; do not collapse to the parent's. |
+| RTF text storage  | `DecisaoDJe.rtf: Documento` — the standard `{tipo, url, text, extractor}` slot used everywhere else for PDFs/RTFs. `rtf.text` is populated via `peca_cache` (sha1(url) keying; `rtf` extractor via `striprtf`). |
+| UA fix (side effect) | `src/utils/peca_utils.extract_document_text` now sends a Chrome User-Agent. Previously its bare `requests.get` sent `python-requests/*`, which STF's WAF permanently 403s; fix was needed for the DJe RTF fetches and also unblocks any prior silent failures on andamento PDFs on the `portal.stf.jus.br` host. |
+| cache layout      | New pseudo-tab members in `data/cache/html/{classe}_{processo}.tar.gz`: `dje_listing.html` (one per case) and `dje_detail_<sha1[:16]>.html` (one per entry). |
+
+**v6 → v7 migration.** The renormalizer seeds `publicacoes_dje = []`
+via `reshape_to_v7` (shape-only mode), and `_rebuild_publicacoes_dje`
+rebuilds from cache when the DJe fragments are present. Pre-v7 archives
+that don't have `dje_listing` cached emit an empty list — do a fresh
+scrape (`use_cache=False`) if you need populated DJe.
+
+```bash
+uv run python scripts/renormalize_cases.py --dry-run
+uv run python scripts/renormalize_cases.py --workers 8
+```
+
+### v3 — 2026-04-18
 
 Nested-list types promoted to TypedDicts, ISO-date companions added
 everywhere dates live, outcome carries provenance, `status` renamed to
