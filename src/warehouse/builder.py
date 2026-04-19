@@ -345,14 +345,23 @@ def _normalize_documentos(docs: Any) -> list[dict]:
     return []
 
 
-def _iter_pdf_rows(pdf_cache_root: Path) -> Iterable[dict]:
+def _iter_pdf_rows(
+    pdf_cache_root: Path,
+    sha1_filter: Optional[set[str]] = None,
+) -> Iterable[dict]:
     # Generator (not materialised list) — PDF text decompresses to ~1 GB
     # at production scale; holding it all in memory pushes peak RSS over
     # WSL2's available limit.
+    #
+    # sha1_filter: when provided, only yield PDFs whose sha1 is in the set.
+    # Used by scoped builds (--classe or --year) to avoid pulling the
+    # global cache into a narrow warehouse. None → include every PDF.
     if not pdf_cache_root.exists():
         return
     for txt_gz in pdf_cache_root.glob("*.txt.gz"):
         sha1 = txt_gz.name.removesuffix(".txt.gz")
+        if sha1_filter is not None and sha1 not in sha1_filter:
+            continue
         text = gzip.decompress(txt_gz.read_bytes()).decode("utf-8", errors="replace")
         has_elements = (pdf_cache_root / f"{sha1}.elements.json.gz").exists()
         yield {
@@ -516,9 +525,22 @@ def build(
         _bulk_insert(con, "cases", cases_rows); cases_rows.clear()
         _bulk_insert(con, "partes", partes_rows); partes_rows.clear()
         _bulk_insert(con, "andamentos", andamentos_rows); andamentos_rows.clear()
+        # If the build is scoped (classe or year filter), capture the set
+        # of documentos url_sha1s first so PDFs can be filtered to just
+        # those referenced by this warehouse's documentos. Unscoped
+        # builds keep the full PDF cache (preserves original behaviour).
+        sha1_filter: Optional[set[str]] = None
+        if classes is not None or id_range is not None:
+            sha1_filter = {
+                d["url_sha1"]
+                for d in documentos_rows
+                if d.get("url_sha1")
+            }
         _bulk_insert(con, "documentos", documentos_rows); documentos_rows.clear()
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
-        n_pdfs = _bulk_insert_iter(con, "pdfs", _iter_pdf_rows(pdf_cache_root))
+        n_pdfs = _bulk_insert_iter(
+            con, "pdfs", _iter_pdf_rows(pdf_cache_root, sha1_filter)
+        )
         wall = time.monotonic() - t0
         con.execute(
             "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

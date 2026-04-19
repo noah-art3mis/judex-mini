@@ -61,6 +61,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **The corpus is schema-mixed.** Production case JSONs are mostly v3 (bare-string `outcome`); v4/v5/v6 code reads dict-shaped `outcome`. The renormalizer (`scripts/renormalize_cases.py`) hasn't been run full-corpus. The warehouse builder handles both transparently via `_unpack_outcome`; downstream readers that touch `outcome` directly (notebooks, ad-hoc scripts) must normalize or query through the warehouse.
 - **`src/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
+- **`sessao_virtual[].documentos` entries with `url=None` are capture gaps, not inline-text documents.** Every `Relatório` / `Voto` row *is* a URL-linked PDF — a null URL means the scrape didn't capture the link (older scrape versions, or the link wasn't live yet on STF). Consequence: a year-scoped warehouse's `pdfs` table count reflects *captured URLs*, not the total PDF population for that year. If a `--year 2026` warehouse comes out with `pdfs=0`, investigate the scraper's link-capture path before assuming those cases genuinely have no PDFs.
 
 ## Don't break these
 
