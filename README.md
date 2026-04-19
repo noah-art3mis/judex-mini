@@ -3,8 +3,10 @@
 Extração automatizada de dados de processos do STF (Supremo Tribunal
 Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo
 de números de processo**; o programa acessa o portal do STF, extrai
-metadados de cada processo (partes, andamentos, relator, decisão, PDFs
-anexados) e grava um arquivo `.csv` ou `.json` por processo.
+metadados de cada processo (partes, andamentos, relator, decisão, URLs
+dos PDFs anexados) e grava um arquivo `.json` por processo. Se quiser
+o texto dos PDFs também, há dois comandos dedicados (`baixar-pdfs` +
+`extrair-pdfs`) — descritos na seção 5.
 
 Este README é o **guia prático para rodar a ferramenta**. Detalhes de
 arquitetura, testes e convenções para quem contribui com o código estão
@@ -63,7 +65,7 @@ uv --version
 ```
 
 Se aparecer algo como `uv 0.x.y`, está tudo certo. Se der
-`command not found`, veja **[Problemas comuns](#6-problemas-comuns)**.
+`command not found`, veja **[Problemas comuns](#7-problemas-comuns)**.
 
 ### 2.3 Clonar o repositório
 
@@ -90,7 +92,8 @@ uv run judex --help
 ```
 
 Deve aparecer o menu de subcomandos (`varrer-processos`,
-`varrer-pdfs`, `exportar`, `validar-gabarito`, `sondar-densidade`).
+`baixar-pdfs`, `extrair-pdfs`, `exportar`, `validar-gabarito`,
+`sondar-densidade`).
 Para
 ver as opções de cada um: `uv run judex <comando> --help`. (O
 comando longo `uv run python main.py …` também funciona — é
@@ -113,10 +116,11 @@ O que cada pedaço significa:
 | `-c`  | **c**lasse processual | `HC`, `ADI`, `RE`, `AI`|
 | `-i`  | número **i**nicial    | `135041`               |
 | `-f`  | número **f**inal      | `135041`               |
-| `-o`  | formato de saída      | `csv`, `json`, `jsonl` |
 
-Se tudo deu certo, o arquivo fica em
-`data/output/judex-mini_HC_135041.json`.
+Se tudo deu certo, o arquivo do processo fica em
+`runs/coletas/<timestamp>-<rótulo>/items/judex-mini_HC_135041-135041.json`.
+O timestamp e o rótulo são inferidos quando você passa só `-c/-i/-f`;
+para escolher, use `--saida caminho/` e `--rotulo meu-nome`.
 
 > **Sempre use `uv run judex ...`** (ou `uv run python main.py ...`),
 > nunca `python main.py` direto. O `uv run` garante que o Python certo
@@ -155,18 +159,16 @@ então reusos não se atropelam — é só rodar de novo. Para retomar
 uma varredura interrompida, aponte a mesma `--saida` e passe
 `--retomar` (só os processos que ainda não deram `ok` são rerodados).
 
-**Salvar em um diretório específico**:
+**Salvar direto no Desktop do Windows (só WSL)**:
 
 ```bash
 uv run judex varrer-processos -c HC -i 135041 -f 135041 \
   --saida /mnt/c/Users/SeuUsuario/Desktop/judex-mini
 ```
 
-No WSL, essa saída aparece no Desktop do Windows como se tivesse
-sido gerada lá mesmo.
-
-Substitua `SeuUsuario` pelo seu nome de usuário do Windows. Os arquivos
-aparecem no Desktop como se tivessem sido gerados pelo próprio Windows.
+Substitua `SeuUsuario` pelo seu nome de usuário do Windows. Os
+arquivos aparecem no Desktop como se tivessem sido gerados pelo
+próprio Windows.
 
 **Ver todas as opções**:
 
@@ -176,39 +178,106 @@ uv run judex --help
 
 ---
 
-## 5. Onde ficam os arquivos
+## 5. Baixando e extraindo PDFs
 
-Por padrão a ferramenta cria estas pastas dentro do projeto:
+O `varrer-processos` já coleta os **metadados** de cada processo,
+incluindo as URLs dos PDFs anexados (decisões, acórdãos, manifestações
+da PGR). Quando você quer o **texto** desses PDFs também, rode dois
+comandos em sequência — eles são independentes de propósito:
 
+1. **`baixar-pdfs`** — baixa os bytes dos PDFs para
+   `data/cache/pdf/<hash>.pdf.gz`. Esta é a única parte que volta a
+   falar com o portal do STF, então está sujeita aos mesmos limites de
+   taxa do `varrer-processos`.
+2. **`extrair-pdfs --provedor <X>`** — lê os bytes do disco e extrai
+   o texto via o provedor escolhido. Nenhuma chamada ao STF.
+   Provedores suportados: `pypdf` (local, grátis, camada de texto;
+   padrão), `mistral`, `chandra`, `unstructured` (OCR pagos; exigem
+   chave de API).
+
+Exemplo típico para os HCs que você acabou de varrer:
+
+```bash
+# 1) Baixa os bytes (uma vez por URL — respeita o --forcar)
+uv run judex baixar-pdfs -c HC -i 135041 -f 135041 --nao-perguntar
+
+# 2) Extrai o texto com pypdf (rápido, grátis, zero HTTP)
+uv run judex extrair-pdfs -c HC -i 135041 -f 135041 --nao-perguntar
+
+# Depois, re-extrair com OCR melhor (sem baixar de novo):
+export MISTRAL_API_KEY="..."
+uv run judex extrair-pdfs -c HC -i 135041 -f 135041 \
+  --provedor mistral --forcar --nao-perguntar
 ```
-data/
-├── output/                        ← o que você quer ver
-│   └── judex-mini_HC_135041.json     (um arquivo por processo)
-├── html/                          ← cache interno (pode ignorar)
-│   └── HC_135041/
-│       ├── detalhe.html.gz
-│       ├── abaPartes.html.gz
-│       └── ...
-├── pdf/                           ← cache de PDFs extraídos
-│   └── <hash>.txt.gz
-└── logs/                          ← log de cada execução
-    └── scraper_YYYYMMDD_HHMMSS.log
-```
 
-- **`data/output/`** é o que importa — um arquivo por processo, com
-  todos os metadados.
-- **`data/html/`** e **`data/pdf/`** são caches. Se você rodar o mesmo
-  processo de novo, a ferramenta reaproveita o cache e fica ~60× mais
-  rápida. Pode apagar à vontade (`rm -rf data/html data/pdf`) — só vai
-  demorar mais na próxima vez.
-- **`data/logs/`** tem o registro detalhado de cada execução. Útil para
-  reportar bugs.
+O texto extraído fica em `data/cache/pdf/<hash>.txt.gz`, com um
+pequeno arquivo `.extractor` ao lado marcando **qual provedor**
+produziu aquele texto. Na próxima execução com o mesmo `--provedor`,
+a ferramenta pula os PDFs que já têm texto desse provedor; passe
+`--forcar` para reextrair.
 
-Quer usar outra pasta para a saída? Passe `-d /caminho/da/pasta`.
+**Sempre use `--dry-run`** antes de uma extração paga (Mistral /
+Chandra / Unstructured). A prévia mostra quantas páginas serão
+processadas, custo estimado em dólares e tempo estimado. Detalhes
+técnicos em [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md).
 
 ---
 
-## 6. Problemas comuns
+## 6. Onde ficam os arquivos
+
+A ferramenta mantém três categorias de arquivos. As duas primeiras
+você apaga à vontade (regenerável); a terceira é o produto
+científico e deve ser preservada.
+
+```
+runs/
+├── coletas/                               ← saída de varrer-processos
+│   └── <timestamp>-<rótulo>/
+│       ├── items/
+│       │   └── judex-mini_HC_135041-135041.json   (um por processo)
+│       ├── sweep.state.json               (estado atômico, retomável)
+│       ├── sweep.log.jsonl                (log append-only)
+│       ├── sweep.errors.jsonl             (só as falhas — use com --retentar-de)
+│       └── report.md                      (resumo humano)
+├── active/                                ← saída de baixar/extrair-pdfs (em curso)
+└── archive/                               ← varreduras concluídas, arquivadas
+
+data/
+├── cases/<CLASSE>/                        ← produto final, um arquivo por processo
+│   └── judex-mini_HC_135041-135041.json
+├── cache/
+│   ├── html/<CLASSE>_<N>/                 ← fragmentos HTML por processo
+│   │   ├── detalhe.html.gz
+│   │   ├── abaPartes.html.gz
+│   │   ├── abaAndamentos.html.gz
+│   │   └── ... (um .html.gz por aba + incidente.txt)
+│   └── pdf/                               ← cache URL-keyed (sha1) dos PDFs
+│       ├── <sha1>.pdf.gz                  (bytes crus — baixar-pdfs)
+│       ├── <sha1>.txt.gz                  (texto extraído — extrair-pdfs)
+│       ├── <sha1>.extractor               (qual provedor produziu o texto)
+│       └── <sha1>.elements.json.gz        (elementos estruturados, OCR)
+└── logs/                                  ← log detalhado por sessão
+    └── scraper_YYYYMMDD_HHMMSS.log
+```
+
+- **`data/cases/`** é o que importa — um arquivo JSON por processo com
+  todos os metadados (partes, andamentos, relator, decisão, etc.).
+- **`runs/coletas/<timestamp>-<rótulo>/`** é o diretório operacional de
+  cada execução de `varrer-processos`. Pode apagar depois que a
+  varredura terminou e você moveu os JSONs para `data/cases/` (ou
+  deixe em `runs/archive/` como histórico).
+- **`data/cache/`** é cache regenerável. Se apagar (`rm -rf data/cache`),
+  a próxima execução refaz — só fica mais lenta. Segunda-passagens com
+  cache frio são ~60× mais lentas que com cache quente.
+- **`data/logs/`** tem o log detalhado de cada sessão. Útil para
+  reportar bugs.
+
+Detalhes completos em [`docs/data-layout.md`](docs/data-layout.md).
+Para mudar a pasta de saída, passe `--saida /caminho/da/pasta`.
+
+---
+
+## 7. Problemas comuns
 
 ### `command not found: uv`
 
@@ -236,42 +305,30 @@ tempo. O bloqueio dura alguns minutos e libera sozinho. O que fazer:
   ferramentas de *sweep* com retry automático e pacing configurável —
   veja [`CLAUDE.md`](CLAUDE.md).
 
-### Caracteres quebrados nos nomes (ex.: `JosÃ©` em vez de `José`)
-
-Não deveria acontecer — o programa já corrige o encoding do STF. Se
-aparecer, abra uma *issue* anexando o log.
-
 ### O arquivo de saída não aparece
 
 Confira, nessa ordem:
 
-1. Qual pasta você passou em `-d` (padrão é `data/output/`).
+1. Qual pasta você passou em `--saida` (quando omitida, `varrer-processos`
+   gera automaticamente um diretório em `runs/coletas/<timestamp>-<rótulo>/`).
 2. Se o processo existe mesmo no STF (tente abrir no navegador:
    `https://portal.stf.jus.br/processos/detalhe.asp?classe=HC&numero=135041`).
 3. O arquivo de log em `data/logs/` — ele diz exatamente o que deu
    errado.
 
-### Como limpar tudo e começar do zero
-
-```bash
-rm -rf data
-```
-
-Isso apaga saída, caches e logs. Na próxima execução o programa recria
-as pastas.
-
 ---
 
-## 7. Para saber mais
+## 8. Para saber mais
 
 - [`CLAUDE.md`](CLAUDE.md) — guia técnico para quem contribui: módulos,
   testes, convenções, arquitetura, pegadinhas do portal do STF,
   ferramentas de *sweep* em larga escala.
 - [`docs/data-layout.md`](docs/data-layout.md) — mapa detalhado de onde
   cada arquivo mora e como se referenciam.
-- [`docs/current_progress.md`](docs/current_progress.md) — estado atual do trabalho em
-  andamento.
-- [`docs/sweep-results/`](docs/sweep-results/) — relatórios de extrações
-  em larga escala (centenas/milhares de processos).
-
-Para relatar bugs ou sugerir melhorias, abra uma *issue* no GitHub.
+- [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md) —
+  convenções dos comandos `baixar-pdfs` + `extrair-pdfs` (modos de
+  entrada, layout de saída, formato da prévia).
+- [`docs/current_progress.md`](docs/current_progress.md) — estado atual
+  do trabalho em andamento.
+- [`docs/reports/`](docs/reports/) — relatórios de varreduras em larga
+  escala (centenas/milhares de processos).

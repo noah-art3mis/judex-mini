@@ -14,6 +14,7 @@ from src.scraping.ocr import (
     extract_pdf,
 )
 from src.scraping.ocr import dispatch as d
+from src.scraping.ocr.dispatch import estimate_wall
 
 
 def test_extract_pdf_routes_by_provider_name(monkeypatch):
@@ -79,3 +80,36 @@ def test_cheapest_provider_falls_back_when_batch_disallowed():
     needs to know what `cheapest_provider` is actually returning."""
     out = cheapest_provider(batch_ok=False)
     assert out in {"unstructured", "mistral"}  # pricing-tied; either is valid
+
+
+# ----- estimate_wall — sync provider picker for the preview block ----------
+
+
+def test_estimate_wall_anchors_from_2026_04_19_bakeoff():
+    """Per-PDF wall times (sync, not batch) that gate the preview ETA.
+
+    Anchors: pypdf 0.1s, mistral 3.5s, chandra 15s, unstructured 25s.
+    The preview multiplies these by `to-extract`; drift here silently
+    under/over-estimates every sweep ETA.
+    """
+    assert estimate_wall("pypdf", 100) == pytest.approx(10.0)
+    assert estimate_wall("mistral", 100) == pytest.approx(350.0)
+    assert estimate_wall("chandra", 100) == pytest.approx(1500.0)
+    assert estimate_wall("unstructured", 100) == pytest.approx(2500.0)
+
+
+def test_estimate_wall_mistral_batch_is_submit_and_exit():
+    """Mistral batch blocks on ~30s submit, SLA report is separate.
+
+    A 1k-PDF batch submit takes the same wall as a 10-PDF batch submit
+    (the SLA is the bottleneck, not the submit), so the estimate MUST
+    NOT scale with n_pdfs or the preview misleads users into thinking
+    batch is slower than sync at scale.
+    """
+    assert estimate_wall("mistral", 10, batch=True) == pytest.approx(30.0)
+    assert estimate_wall("mistral", 10_000, batch=True) == pytest.approx(30.0)
+
+
+def test_estimate_wall_unknown_provider_raises():
+    with pytest.raises(KeyError):
+        estimate_wall("bogus", 10)

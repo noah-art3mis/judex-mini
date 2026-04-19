@@ -25,11 +25,19 @@ class PdfAttemptRecord:
     url: str
     attempt: int
     wall_s: float
-    status: str  # "ok" | "empty" | "http_error" | "extract_error" | "unknown_type"
+    # Status values across download + extract drivers:
+    #   download: "ok" | "cached" | "http_error"
+    #   extract:  "ok" | "cached" | "no_bytes" | "empty" | "provider_error" | "unknown_type"
+    # Legacy `varrer-pdfs` also emitted "extract_error" (fetch+extract fused);
+    # that driver was retired in the 2026-04-19 split.
+    status: str
     error: Optional[str] = None
     error_type: Optional[str] = None
     http_status: Optional[int] = None
-    extractor: Optional[str] = None  # "pypdf" | "rtf" | "unstructured_api" | "cache"
+    # Extractor / producer label:
+    #   download: "bytes" (always, regardless of outcome)
+    #   extract:  "pypdf" | "rtf" | "mistral" | "chandra" | "unstructured"
+    extractor: Optional[str] = None
     chars: Optional[int] = None
     processo_id: Optional[int] = None
     classe: Optional[str] = None

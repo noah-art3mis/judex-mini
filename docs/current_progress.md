@@ -94,7 +94,34 @@ migration.
 
 ## Observations
 
-Empty — task hasn't been fired yet.
+- **2026-04-19 — smoke-run clean.**
+  `PYTHONPATH=. uv run python scripts/renormalize_cases.py --dry-run --workers 4 --limit 10`
+  → 10/10 `ok`, 0 error, 0 needs_rescrape, 0.3 s wall (31 files/s).
+- **2026-04-19 — bounded dry-run clean.**
+  `PYTHONPATH=. uv run python scripts/renormalize_cases.py --dry-run --workers 8 --limit 2000`
+  → 2000/2000 `ok`, 0 error, 0 needs_rescrape, 76.1 s wall (26 files/s
+  stable after ramp-up). Throughput is I/O-bound, not CPU — 8-workers
+  plateaued near 4-workers. Naive full-corpus ETA: **~37 min at 8
+  workers** (57 595 / 26 f/s, computed via `uv run python -c`).
+- **Open question 2 resolved.** The stale `to_iso` import in
+  `scripts/renormalize_cases.py` is already gone (removed when the
+  renormalizer was updated to emit the v6 shape). Grep confirms no
+  `to_iso` import in the file.
+- **2026-04-19 — corpus is HC-only.** `data/cases/` has one subdir:
+  `HC` (57 595 files). The "57 595-file production corpus" figure
+  and `--classe HC` count are identical — step 5 ("remaining
+  classes") is a no-op at current corpus size.
+- **2026-04-19 — live migration launched.** Detached:
+  `nohup bash -c 'PYTHONPATH=. uv run python scripts/renormalize_cases.py
+  --classe HC --workers 8 > runs/active/renormalize-hc.log 2>&1' & disown`.
+  Driver PID in `runs/active/renormalize-hc.pid` (inner nohup'd
+  bash; python worker tree lives as children). First 1000 files at
+  27 f/s, 100 % `ok`. ETA ~36 min. Reconnect recipe:
+  `pgrep -af renormalize_cases` to verify alive;
+  `tail -f runs/active/renormalize-hc.log` for progress;
+  `xargs -a runs/active/renormalize-hc.pid kill -TERM` for graceful
+  stop (driver installs SIGTERM handlers and writes
+  `needs_rescrape.csv` before exit).
 
 ## Decisions
 
@@ -118,10 +145,51 @@ Empty — task hasn't been fired yet.
 
 ## Next steps (this task)
 
-1. Smoke-test the renormalizer on a 10-file slice to catch the
-   `to_iso` issue cited above (or confirm it's already resolved).
-2. Fire the bounded dry-run (--limit 2000).
-3. On clean dry-run, move to full dry-run, then live.
+Smoke-run + bounded dry-run landed clean (see Observations). Plan
+below is the **agreed process** if the session dies between steps —
+reconnect from a fresh window, read this file, resume from whichever
+step hasn't been marked done in the Observations log.
+
+1. ~~Smoke-run (10 files).~~ Done 2026-04-19, clean.
+2. ~~Bounded dry-run (2000 files, 8 workers).~~ Done 2026-04-19, clean.
+3. **Skip full dry-run.** Justification: H1 held strongly on 2000-file
+   sample (0 error / 0 needs_rescrape); renormalizer's atomic-write
+   contract (`tmp + os.replace`) + `--resume`-safe `already_current`
+   short-circuit mean the blast radius of any surprise is "re-run
+   with `--force`", not data loss.
+4. **Live — HC first.** `--classe HC --workers 8` (~55 k files, ~35
+   min at 26 f/s). HC is the biggest class; any systematic edge case
+   surfaces here. Fire detached:
+
+   ```bash
+   nohup PYTHONPATH=. uv run python scripts/renormalize_cases.py \
+       --classe HC --workers 8 \
+       > runs/active/renormalize-hc.log 2>&1 & disown
+   echo $! > runs/active/renormalize-hc.pid
+   ```
+
+   On reconnect from a crashed window: `pgrep -af renormalize_cases`
+   to verify alive; `tail -f runs/active/renormalize-hc.log` for
+   progress; `wc -l` on `runs/active/renormalize_needs_rescrape.csv`
+   for rescrape count (written on exit only).
+
+5. **Live — remaining classes.** `--workers 8` with no `--classe`
+   filter, after step 4 completes. Remaining ~2.6 k files; ~2 min.
+   `--resume`-safe: already-v6 HC files short-circuit via
+   `_meta.schema_version == 6` check.
+6. **Post-migration audit.** Sample 10 v6 files across classes:
+   confirm `_meta` slot, `_meta.schema_version == 6`, andamento link
+   is `{tipo, url, text, extractor}`, sessão metadata keys are ASCII
+   snake_case, every date field is ISO-8601. Spot-check one HC + one
+   ACO + one RE.
+7. **Warehouse end-to-end.**
+   `PYTHONPATH=. uv run python scripts/build_warehouse.py` → exercise
+   all 5 tables + manifest against the migrated corpus. Expected
+   wall a few minutes; full-rebuild by design.
+8. **Drop older-version tolerance** (separate PR). Delete v1/v2/v3
+   branches in `_normalize_documentos` and pre-v6 fallbacks in
+   `_flatten_case` / `_flatten_andamentos` once step 6 confirms all
+   data is v6.
 
 ---
 
@@ -129,6 +197,20 @@ Empty — task hasn't been fired yet.
 
 ## What just landed
 
+- **PDF pipeline split into `baixar-pdfs` + `extrair-pdfs`**
+  (2026-04-19). `varrer-pdfs`, `scripts/fetch_pdfs.py`, and
+  `scripts/reextract_unstructured.py` retired — replaced by two
+  independent commands. `baixar-pdfs` is the only WAF-bound path;
+  writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. `extrair-pdfs
+  --provedor {pypdf|mistral|chandra|unstructured}` reads those bytes
+  locally — zero HTTP, no throttle, no circuit breaker — and writes
+  text + `.extractor` sidecar. Switch providers or re-OCR without
+  re-hitting STF. Sidecar-match skip replaces the retired
+  monotonic-by-length guard. Pypdf now a first-class `OCRProvider`
+  (`src/scraping/ocr/pypdf.py`); `estimate_wall` added to the
+  dispatcher for the preview block. Drivers +363 unit tests green,
+  up from 333 pre-split. Spec:
+  [`docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md`](superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md).
 - **Schema v6 — broad cleanup sweep** (2026-04-19 ~04:30 UTC via
   external edit, documented in `src/data/types.py`). Reduces schema
   variance: ASCII snake_case metadata keys, ISO-only dates (no raw
@@ -299,14 +381,22 @@ xargs -a runs/active/<label>/shards.pids kill -TERM
 ## PDF sweeps + OCR
 
 ```bash
-# Default: pypdf pass + Mistral rescue on short-cached entries
-PYTHONPATH=. uv run python scripts/fetch_pdfs.py \
-    --out runs/active/<label> --classe HC --impte-contains "<name>"
+# 1) Download bytes (WAF-bound; runs once per URL)
+PYTHONPATH=. uv run python scripts/baixar_pdfs.py \
+    --classe HC --impte-contem "<name>" \
+    --saida runs/active/<label>-bytes --nao-perguntar
 
-# OCR-only re-extraction (default provider: mistral)
-PYTHONPATH=. uv run python scripts/reextract_unstructured.py \
-    --out runs/active/<label> --classe HC \
-    --force   # bypass monotonic guard, always overwrite
+# 2) Extract text via chosen provider (zero HTTP; local cache)
+PYTHONPATH=. uv run python scripts/extrair_pdfs.py \
+    --classe HC --impte-contem "<name>" \
+    --provedor mistral --forcar \
+    --saida runs/active/<label>-mistral --nao-perguntar
+
+# Re-extract same URLs with a different provider — no re-download
+PYTHONPATH=. uv run python scripts/extrair_pdfs.py \
+    --classe HC --impte-contem "<name>" \
+    --provedor chandra \
+    --saida runs/active/<label>-chandra --nao-perguntar
 
 # Provider bakeoff
 PYTHONPATH=. uv run python scripts/ocr_bakeoff.py \

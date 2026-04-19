@@ -448,9 +448,9 @@ alone (R3: 175/200 at 2 s). `--proxy-pool` rotation addresses the
 binding layer-2 constraint directly; adding a throttle on top of
 rotation only sacrifices throughput without reducing WAF pressure.
 The parameter is retained in `iterate_with_guards()` for the PDF
-sweep (`scripts/fetch_pdfs.py`), where the empty-body retry rate on
-`sistemas.stf.jus.br` does respond to pacing — different signal,
-different host, different defaults.
+download sweep (`scripts/baixar_pdfs.py`), where the empty-body retry
+rate on `sistemas.stf.jus.br` does respond to pacing — different
+signal, different host, different defaults.
 
 Measured pace at the (pre-removal) defaults: **3.60 s/process** end-to-end.
 Without `--throttle-sleep`, expected pace is ~1.6 s/process when WAF
@@ -461,9 +461,12 @@ wall time projection now depends primarily on WAF cycle count; see
 ## PDF-sweep datapoints (distinct from process sweeps)
 
 Process sweeps (above) hit `portal.stf.jus.br`'s case-page counter.
-PDF sweeps (`scripts/fetch_pdfs.py` + `scripts/reextract_unstructured.py`)
-hit `portal.stf.jus.br/processos/downloadPeca.asp` + the
+PDF **download** sweeps (`scripts/baixar_pdfs.py`) hit
+`portal.stf.jus.br/processos/downloadPeca.asp` + the
 `sistemas.stf.jus.br` PDF origin — related but separate counters.
+`scripts/extrair_pdfs.py` runs local + API-only (Mistral /
+Unstructured / Chandra); it does not touch STF at all, so it's
+excluded from the WAF reasoning below.
 
 Narrow PDF-sweep run from
 [`docs/reports/2026-04-17-top-volume-ocr.md`][tv] (25 URLs

@@ -255,7 +255,7 @@ filings). Time-ordered by `data`, but **indexed newest-first**
   - `link` — `{"url": str, "text": Optional[str]}` or `None`. URL is joined against `https://portal.stf.jus.br`; `text` is populated later by the PDF-enrichment pass.
   - `link_descricao` — anchor text, uppercased.
 - **HC-specific:** The key events are `DECISÃO MONOCRÁTICA`, `ACÓRDÃO`, `BAIXA AO ARQUIVO DO STF`. Majority of HCs terminate with a monocrática. See [`andamentos-classifier-gaps.md`](andamentos-classifier-gaps.md) for the classifier gaps the HC analysis has to work around.
-- **PDF extraction:** `link` → PDF URL → fetched by `scripts/fetch_pdfs.py` → text cached at `data/cache/pdf/<sha1(url)>.txt.gz`. Read via `src.utils.pdf_cache.read(url)`. Elements cache at `<sha1>.elements.json.gz` for OCR-sourced entries only.
+- **PDF extraction:** `link` → PDF URL → downloaded by `scripts/baixar_pdfs.py` to `data/cache/pdf/<sha1(url)>.pdf.gz` → text extracted by `scripts/extrair_pdfs.py --provedor {pypdf|mistral|chandra|unstructured}` into `<sha1>.txt.gz` (+ `<sha1>.extractor` sidecar, + `<sha1>.elements.json.gz` for providers that emit element lists). Read text via `src.utils.pdf_cache.read(url)`.
 
 ### `deslocamentos: List[dict]`
 

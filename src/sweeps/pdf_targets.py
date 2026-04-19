@@ -1,17 +1,32 @@
 """Generic PDF target collection from judex-mini output files.
 
-Walks `judex-mini_*.json` files under one or more roots, applies
-per-item filters, and emits one PdfTarget per substantive-doc URL
-in the andamento list. The filter parameters (classe, impte_contains,
-doc_types, relator_contains) are driven by `scripts/fetch_pdfs.py`.
+Walks `judex-mini_*.json` files under one or more roots and emits one
+PdfTarget per substantive-doc URL in the andamento list. Four
+resolvers share the same output shape:
+
+- `collect_pdf_targets` — filter fallback (classe, impte_contains,
+  doc_types, relator_contains, exclude_doc_types). Used when no direct
+  selector is set.
+- `targets_from_range` — `-c CLASSE -i INICIO -f FIM`. All PDFs in
+  each process in the inclusive range.
+- `targets_from_csv` — `--csv alvos.csv`. Rows of `(classe, processo)`.
+  All PDFs per matching case.
+- `targets_from_errors_jsonl` — `--retentar-de pdfs.errors.jsonl`.
+  Rehydrates full PdfTargets (url + processo_id + classe + doc_type +
+  context) from a prior run's error log.
+
+Direct selectors (range / CSV / retry) ignore the filter parameters
+per `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md §
+Input-mode resolution`.
 """
 
 from __future__ import annotations
 
+import csv
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Iterator, Optional, Sequence
 
 
 @dataclass
@@ -89,9 +104,7 @@ def collect_pdf_targets(
         rec_classe = rec.get("classe")
 
         for a in rec.get("andamentos") or []:
-            link = a.get("link") if isinstance(a.get("link"), dict) else None
-            desc = link.get("tipo") if link else None
-            url = link.get("url") if link else None
+            url, desc = _andamento_link(a)
             if not url or not url.lower().endswith(".pdf"):
                 continue
             if doc_type_set is not None and desc not in doc_type_set:
@@ -111,5 +124,157 @@ def collect_pdf_targets(
                 classe=rec_classe,
                 doc_type=desc,
                 context=ctx,
+            ))
+    return out
+
+
+def _andamento_link(a: dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    """Normalize `andamento.link` across schema versions.
+
+    v3 (dominant on-disk shape): `link` is a bare URL string;
+    `link_descricao` carries the doc type.
+    v5+: `link` is a dict `{url, tipo, text, extractor}` or None.
+
+    Returns `(url, doc_type)` or `(None, None)` when absent/malformed.
+    """
+    link_val = a.get("link")
+    if isinstance(link_val, dict):
+        return link_val.get("url"), link_val.get("tipo")
+    if isinstance(link_val, str) and link_val:
+        return link_val, a.get("link_descricao")
+    return None, None
+
+
+def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PdfTarget]:
+    """Yield one PdfTarget per .pdf URL in `rec.andamentos`.
+
+    No filters. Parallel to the inner loop of `collect_pdf_targets`
+    but without the per-rec/impte/relator/doc-type filters — the
+    direct-selector resolvers (range / CSV) scope by picking which
+    files to feed in, not by filtering inside them.
+    """
+    pid = rec.get("processo_id")
+    rec_classe = rec.get("classe")
+    for a in rec.get("andamentos") or []:
+        url, doc_type = _andamento_link(a)
+        if not url or not url.lower().endswith(".pdf"):
+            continue
+        yield PdfTarget(
+            url=url,
+            processo_id=pid,
+            classe=rec_classe,
+            doc_type=doc_type,
+        )
+
+
+def _load_case_records(path: Path) -> list[dict[str, Any]]:
+    """Return the records inside a `judex-mini_*.json`.
+
+    Two on-disk shapes exist — a single-record dict (one process per
+    file) and a list of record dicts (batch/range files). Both are
+    flattened here; malformed JSON is silently dropped.
+    """
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return []
+    if isinstance(data, list):
+        return [r for r in data if isinstance(r, dict)]
+    if isinstance(data, dict):
+        return [data]
+    return []
+
+
+def _targets_from_files(paths: Sequence[Path]) -> list[PdfTarget]:
+    """Dedupe-by-URL over a fixed file list."""
+    seen: set[str] = set()
+    out: list[PdfTarget] = []
+    for p in paths:
+        for rec in _load_case_records(p):
+            for tgt in _iter_case_pdf_targets(rec):
+                if tgt.url in seen:
+                    continue
+                seen.add(tgt.url)
+                out.append(tgt)
+    return out
+
+
+def _find_case_file(roots: Sequence[Path], classe: str, processo: int) -> Optional[Path]:
+    """Locate the case file for `(classe, processo)` under any root.
+
+    Accepts two filename shapes produced by the scraper:
+      - `judex-mini_<classe>_<processo>.json` (plain)
+      - `judex-mini_<classe>_<processo>-<processo>.json` (range-row form)
+
+    Returns None if neither exists — a scraped-but-missing process is
+    not an error, just absent from the resolved target set.
+    """
+    candidates = (
+        f"judex-mini_{classe}_{processo}.json",
+        f"judex-mini_{classe}_{processo}-{processo}.json",
+    )
+    for r in roots:
+        r = Path(r)
+        if not r.exists():
+            continue
+        for name in candidates:
+            for p in r.rglob(name):
+                return p
+    return None
+
+
+def targets_from_range(
+    classe: str, inicio: int, fim: int, *, roots: Sequence[Path]
+) -> list[PdfTarget]:
+    """All PDF URLs across `classe` processes in the inclusive range
+    `[inicio, fim]`. Silently skips processes with no case file on disk."""
+    files: list[Path] = []
+    for n in range(inicio, fim + 1):
+        p = _find_case_file(roots, classe, n)
+        if p is not None:
+            files.append(p)
+    return _targets_from_files(files)
+
+
+def targets_from_csv(csv_path: Path, *, roots: Sequence[Path]) -> list[PdfTarget]:
+    """All PDF URLs across every `(classe, processo)` row in the CSV.
+
+    Accepts minimal `classe,processo` columns. Extra columns (e.g.
+    `source` from `run_sweep.py`'s CSV shape) are ignored.
+    """
+    files: list[Path] = []
+    with Path(csv_path).open(newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            classe = (row.get("classe") or "").strip()
+            processo_raw = (row.get("processo") or "").strip()
+            if not classe or not processo_raw:
+                continue
+            p = _find_case_file(roots, classe, int(processo_raw))
+            if p is not None:
+                files.append(p)
+    return _targets_from_files(files)
+
+
+def targets_from_errors_jsonl(errors_path: Path) -> list[PdfTarget]:
+    """Rehydrate PdfTargets from a prior run's `pdfs.errors.jsonl`.
+
+    Each line is a JSON object emitted by `PdfStore.write_errors_file()`.
+    Relies on url / processo_id / classe / doc_type / context being
+    present — other fields (status, error, ts) are ignored.
+    """
+    out: list[PdfTarget] = []
+    with Path(errors_path).open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            out.append(PdfTarget(
+                url=rec["url"],
+                processo_id=rec.get("processo_id"),
+                classe=rec.get("classe"),
+                doc_type=rec.get("doc_type"),
+                context=rec.get("context") or {},
             ))
     return out

@@ -1,6 +1,11 @@
-"""Institutionalised PDF sweep driver.
+"""Download driver — the WAF-bound half of the PDF pipeline.
 
-Layout under `out_dir`:
+This is the ONLY path that talks to STF after the 2026-04-19 split.
+It fetches `PdfTarget.url` via `_http_get_with_retry` and writes the
+raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. Text extraction is an
+independent concern, handled by `extract_driver.run_extract_sweep`.
+
+Layout under `out_dir` is shared with the process sweep convention:
 
     pdfs.state.json       atomic per-URL state (via PdfStore)
     pdfs.log.jsonl        append-only attempt log
@@ -8,16 +13,11 @@ Layout under `out_dir`:
     requests.db           per-GET SQLite archive (WAL mode)
     report.md             human-readable summary
 
-Per-URL loop with:
-- `AdaptiveThrottle` + `RequestLog` wired through `ScraperConfig`
-- existing `data/cache/pdf/*.txt.gz` text cache reused via `pdf_cache`
-- `_shared.CircuitBreaker` for cascade protection
-- `_shared.install_signal_handlers()` for graceful SIGINT/SIGTERM
-- `--resume` (via `PdfStore.already_ok`) and `--retry-from` (reads
-  prior `pdfs.errors.jsonl` and scopes the run to that URL set)
+Skip logic per target:
 
-The per-item loop skeleton lives in `_shared.iterate_with_guards`; this
-module supplies the domain-specific `on_item` + `on_progress` callbacks.
+    --retomar + state=ok   → skip (no breaker accounting)
+    has_bytes + not forcar → skip, status=cached
+    otherwise              → HTTP GET, write bytes, status=ok
 """
 
 from __future__ import annotations
@@ -25,64 +25,50 @@ from __future__ import annotations
 import logging
 import time
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import requests
 
-from src.sweeps import shared as _shared
 from src.config import ScraperConfig
+from src.scraping.http_session import _http_get_with_retry, new_session
+from src.sweeps import shared as _shared
 from src.sweeps.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
 from src.sweeps.pdf_targets import PdfTarget
-from src.scraping.http_session import _http_get_with_retry, new_session
 from src.utils import pdf_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
-from src.utils.pdf_utils import (
-    detect_file_type,
-    extract_pdf_text_from_content,
-    extract_rtf_text,
-)
 from src.utils.request_log import RequestLog
 
 
-FetcherFn = Callable[
-    [Any, PdfTarget, ScraperConfig],
-    tuple[Optional[str], Optional[str], str],
-]
-"""(session, target, config) -> (text, extractor_name, status).
-
-status ∈ {"ok", "empty", "unknown_type"}. Raises on HTTP failure;
-the driver catches and records status="http_error".
+GetterFn = Callable[[Any, PdfTarget, ScraperConfig], bytes]
+"""(session, target, config) -> raw bytes. Raises on HTTP failure;
+the driver catches and records status="http_error". Tests inject a
+deterministic getter; production leaves it None and gets
+`_default_getter`.
 """
 
 
 @dataclass
 class _Counters:
-    fetched: int = 0
+    downloaded: int = 0
     cached_hits: int = 0
     failed: int = 0
 
 
-def _default_fetcher(
+def _default_getter(
     session: Any, target: PdfTarget, config: ScraperConfig
-) -> tuple[Optional[str], Optional[str], str]:
+) -> bytes:
     r = _http_get_with_retry(session, target.url, config=config, timeout=60)
-    ftype = detect_file_type(r)
-    if ftype == "pdf":
-        text = extract_pdf_text_from_content(r.content)
-        return (text, "pypdf_plain", "ok") if text else (None, "pypdf_plain", "empty")
-    if ftype == "rtf":
-        text = extract_rtf_text(r.content)
-        return (text, "rtf", "ok") if text else (None, "rtf", "empty")
-    return (None, "unknown", "unknown_type")
+    return r.content
 
 
-def run_pdf_sweep(
+def run_download_sweep(
     targets: list[PdfTarget],
     *,
     out_dir: Path,
+    forcar: bool = False,
     throttle_sleep: float = 2.0,
     resume: bool = False,
     retry_from: Optional[Path] = None,
@@ -94,13 +80,9 @@ def run_pdf_sweep(
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
     install_signal_handlers: bool = True,
-    fetcher: Optional[FetcherFn] = None,
+    getter: Optional[GetterFn] = None,
 ) -> tuple[int, int, int]:
-    """Run a PDF sweep. Returns `(fetched, cached_hits, failed)`.
-
-    `fetcher` lets tests inject a deterministic function; production
-    leaves it None and gets `_default_fetcher`.
-    """
+    """Run a PDF download sweep. Returns `(downloaded, cached_hits, failed)`."""
     out_dir = Path(out_dir)
     store = PdfStore(out_dir)
 
@@ -109,7 +91,7 @@ def run_pdf_sweep(
         targets = [t for t in targets if t.url in keep]
 
     if install_signal_handlers:
-        _shared._reset_shutdown_for_tests()  # clear stale flag between runs
+        _shared._reset_shutdown_for_tests()
         _shared.install_signal_handlers()
 
     if config is None:
@@ -135,18 +117,20 @@ def run_pdf_sweep(
 
     counters = _Counters()
     started = datetime.now(timezone.utc)
-    print(f"=== pdf sweep · {len(targets)} targets · out={out_dir} ===", flush=True)
+    print(
+        f"=== pdf download · {len(targets)} targets · out={out_dir} ===",
+        flush=True,
+    )
 
-    fetch_fn: FetcherFn = fetcher or _default_fetcher
+    get_fn: GetterFn = getter or _default_getter
 
     def on_item(i: int, n: int, tgt: PdfTarget) -> str:
-        # Disk-cache fast path — no network, no throttle budget spent.
-        existing_text = pdf_cache.read(tgt.url)
-        if existing_text is not None:
+        # Bytes-cache fast path — bytes already on disk.
+        if not forcar and pdf_cache.has_bytes(tgt.url):
             counters.cached_hits += 1
             store.record(_make_record(
-                tgt, status="ok", extractor="cache",
-                chars=len(existing_text), wall_s=0.0,
+                tgt, status="cached", extractor="bytes",
+                wall_s=0.0,
                 attempt=store.attempt_count(tgt.url) + 1,
             ))
             if config.request_log is not None:
@@ -166,11 +150,9 @@ def run_pdf_sweep(
         error: Optional[str] = None
         error_type: Optional[str] = None
         http_status: Optional[int] = None
-        extractor: Optional[str] = None
-        chars: Optional[int] = None
-        text: Optional[str] = None
+        body: Optional[bytes] = None
         try:
-            text, extractor, status = fetch_fn(session, tgt, config)
+            body = get_fn(session, tgt, config)
         except Exception as e:
             status = "http_error"
             etype, hstatus, _ = _shared.classify_exception(e)
@@ -180,14 +162,13 @@ def run_pdf_sweep(
 
         wall = time.perf_counter() - t0
 
-        if status == "ok" and text:
-            pdf_cache.write(tgt.url, text, extractor=extractor)
-            chars = len(text)
-            counters.fetched += 1
-            logging.info(f"[{i}/{n}] {tgt.url}: ok ({chars} chars)")
+        if status == "ok" and body is not None:
+            pdf_cache.write_bytes(tgt.url, body)
+            counters.downloaded += 1
+            logging.info(f"[{i}/{n}] {tgt.url}: ok ({len(body)} bytes)")
         else:
             counters.failed += 1
-            if status != "http_error" and error is None:
+            if error is None:
                 error = status
                 error_type = error_type or status
             logging.warning(
@@ -197,7 +178,8 @@ def run_pdf_sweep(
 
         store.record(_make_record(
             tgt, status=status, error=error, error_type=error_type,
-            http_status=http_status, extractor=extractor, chars=chars,
+            http_status=http_status, extractor="bytes",
+            chars=len(body) if body is not None else None,
             wall_s=round(wall, 3),
             attempt=store.attempt_count(tgt.url) + 1,
         ))
@@ -206,7 +188,7 @@ def run_pdf_sweep(
     def on_progress(i: int, n: int) -> None:
         _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
         print(
-            f"  [progress] ok={counters.fetched} cached={counters.cached_hits} "
+            f"  [progress] ok={counters.downloaded} cached={counters.cached_hits} "
             f"fail={counters.failed} · {rate:.2f} tgt/s · "
             f"eta {eta_s / 60:.1f} min",
             flush=True,
@@ -225,8 +207,8 @@ def run_pdf_sweep(
             should_resume_skip=is_already_done,
             on_skip=on_resume_skip,
             breaker=breaker,
-            error_statuses=("http_error", "extract_error"),
-            trip_noun="targets",
+            error_statuses=("http_error",),
+            trip_noun="downloads",
             progress_every=progress_every,
             on_progress=on_progress,
             throttle_sleep=throttle_sleep,
@@ -237,13 +219,13 @@ def run_pdf_sweep(
 
     finished = datetime.now(timezone.utc)
     errors_path = store.write_errors_file()
-    report_path = _render_pdf_report(
+    report_path = _render_download_report(
         out_dir=out_dir, store=store, request_log=config.request_log,
         started=started, finished=finished,
     )
 
     print(
-        f"\nsummary: fetched={counters.fetched} cached={counters.cached_hits} "
+        f"\nsummary: downloaded={counters.downloaded} cached={counters.cached_hits} "
         f"failed={counters.failed}"
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
@@ -252,7 +234,7 @@ def run_pdf_sweep(
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")
     print(f"  report: {report_path}")
-    return counters.fetched, counters.cached_hits, counters.failed
+    return counters.downloaded, counters.cached_hits, counters.failed
 
 
 def _make_record(
@@ -285,7 +267,7 @@ def _make_record(
     )
 
 
-def _render_pdf_report(
+def _render_download_report(
     *,
     out_dir: Path,
     store: PdfStore,
@@ -297,15 +279,12 @@ def _render_pdf_report(
     status_counts: Counter = Counter(
         r.get("status", "unknown") for r in snap.values()
     )
-    extractor_counts: Counter = Counter(
-        r.get("extractor") or "-" for r in snap.values()
-    )
     by_doc_type: Counter = Counter(
         r.get("doc_type") or "-" for r in snap.values()
     )
 
     lines = [
-        f"# PDF sweep — {out_dir.name}",
+        f"# PDF download sweep — {out_dir.name}",
         "",
         f"- started:  {started.isoformat(timespec='seconds')}",
         f"- finished: {finished.isoformat(timespec='seconds')}",
@@ -319,9 +298,6 @@ def _render_pdf_report(
     ]
     for s, n in sorted(status_counts.items(), key=lambda kv: -kv[1]):
         lines.append(f"| {s} | {n} |")
-    lines += ["", "## Extractor", "", "| extractor | n |", "|-----------|--:|"]
-    for e, n in sorted(extractor_counts.items(), key=lambda kv: -kv[1]):
-        lines.append(f"| {e} | {n} |")
     lines += ["", "## Doc type", "", "| doc_type | n |", "|----------|--:|"]
     for d, n in sorted(by_doc_type.items(), key=lambda kv: -kv[1]):
         lines.append(f"| {d} | {n} |")

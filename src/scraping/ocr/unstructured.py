@@ -1,9 +1,7 @@
 """Unstructured SaaS API provider.
 
-Equivalent to the inlined logic in `scripts/reextract_unstructured.py`,
-extracted into a reusable module. The script keeps its own copy for
-backwards compat; this module is the forward-looking entry point used
-by the unified dispatcher.
+The single Unstructured entry point used by the OCR dispatcher. Called
+by `extrair-pdfs --provedor unstructured` via `run_extract_sweep`.
 
 Endpoint: POST https://api.unstructuredapp.io/general/v0/general
 Auth: `unstructured-api-key` header.

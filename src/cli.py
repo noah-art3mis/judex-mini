@@ -16,8 +16,9 @@ Exemplos:
     uv run judex --help
     uv run judex varrer-processos -c HC -i 135041 -f 135041    # ad-hoc (range)
     uv run judex varrer-processos --csv lista.csv --rotulo foo --saida out/
-    uv run judex varrer-pdfs --saida out/ --classe HC --impte-contem TORON
-    uv run judex varrer-pdfs --saida out/ --classe HC --ocr --min-caracteres 5000
+    uv run judex baixar-pdfs -c HC -i 252920 -f 253000        # download bytes
+    uv run judex extrair-pdfs -c HC -i 252920 -f 253000 \\
+        --provedor mistral --nao-perguntar                     # OCR a partir do cache
     uv run judex exportar --apenas hc_famous_lawyers
     uv run judex sondar-densidade --classe HC --amostras 20
 """
@@ -377,85 +378,118 @@ def varrer_processos(
 
 
 # ---------------------------------------------------------------------------
-# `pdfs` — baixa PDFs das peças; ``--ocr`` comuta para reextração OCR
-# (provedor padrão: Mistral; selecionável via ``--provedor``)
+# `baixar-pdfs` — baixa os PDFs brutos para o cache local
+# `extrair-pdfs` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
 
 
-@app.command(name="varrer-pdfs")
-def varrer_pdfs(
-    saida: Path = typer.Option(
-        ..., "--saida",
-        help="Diretório de saída: pdfs.state.json, pdfs.log.jsonl, "
-             "pdfs.errors.jsonl, requests.db, report.md.",
+def _argv_pdf_common(
+    *,
+    classe: Optional[str], inicio: Optional[int], fim: Optional[int],
+    csv: Optional[Path], retentar_de: Optional[Path], rotulo: Optional[str],
+    raizes: list[Path], impte_contem: str, tipos_doc: str,
+    relator_contem: str, excluir_tipos_doc: str, limite: int,
+    saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
+    retomar: bool,
+) -> list[str]:
+    """Montar a parte comum de argv para baixar-pdfs e extrair-pdfs."""
+    a: list[str] = []
+    _push(a, "-c", classe)
+    _push(a, "-i", inicio)
+    _push(a, "-f", fim)
+    _push(a, "--csv", csv)
+    _push(a, "--retentar-de", retentar_de)
+    _push(a, "--rotulo", rotulo)
+    if raizes:
+        a.append("--roots")
+        a.extend(str(r) for r in raizes)
+    _push(a, "--impte-contem", impte_contem)
+    _push(a, "--tipos-doc", tipos_doc)
+    _push(a, "--relator-contem", relator_contem)
+    _push(a, "--excluir-tipos-doc", excluir_tipos_doc)
+    _push(a, "--limite", limite)
+    _push(a, "--saida", saida)
+    _push(a, "--dry-run", dry_run)
+    _push(a, "--nao-perguntar", nao_perguntar)
+    _push(a, "--retomar", retomar)
+    return a
+
+
+@app.command(name="baixar-pdfs")
+def baixar_pdfs(
+    # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
+    classe: Optional[str] = typer.Option(
+        None, "-c", "--classe",
+        help='Classe (p.ex. "HC"). Sozinha → filtros. Com -i/-f → range.',
     ),
-    ocr: bool = typer.Option(
-        False, "--ocr",
-        help="**Só OCR** (provedor padrão: Mistral), sem passar pelo "
-             "extrator padrão. Reextrai entradas de cache com texto menor "
-             "que --min-caracteres; requer a chave de API do provedor no "
-             "ambiente (MISTRAL_API_KEY por padrão; ver --provedor). "
-             "Mutuamente exclusivo com --ocr-resgate.",
+    inicio: Optional[int] = typer.Option(
+        None, "-i", "--inicio",
+        help="Primeiro processo do range (inclusive).",
     ),
-    ocr_resgate: bool = typer.Option(
-        True, "--ocr-resgate/--sem-ocr-resgate",
-        help="**Duas passagens** (padrão): primeiro pypdf (baixa e extrai), "
-             "depois OCR via Mistral nas entradas cujo texto ficou abaixo "
-             "de --min-caracteres (decisões escaneadas). Use "
-             "--sem-ocr-resgate para pular a segunda passagem e ficar só "
-             "com o pypdf. Requer MISTRAL_API_KEY para a segunda passagem "
-             "(sem a chave, a segunda passagem é pulada com aviso). Use "
-             "--provedor para trocar o provedor OCR.",
+    fim: Optional[int] = typer.Option(
+        None, "-f", "--fim",
+        help="Último processo do range (inclusive).",
     ),
-    provedor: str = typer.Option(
-        "mistral", "--provedor",
-        help="Provedor OCR (padrão: mistral). Valores: mistral, "
-             "unstructured, chandra. Cada um lê sua própria chave de API "
-             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
+    csv: Optional[Path] = typer.Option(
+        None, "--csv",
+        help="CSV de (classe, processo). Ganha de range e filtros.",
     ),
+    retentar_de: Optional[Path] = typer.Option(
+        None, "--retentar-de",
+        help="Caminho de um pdfs.errors.jsonl anterior; reroda só essas URLs.",
+    ),
+    rotulo: Optional[str] = typer.Option(
+        None, "--rotulo",
+        help="Rótulo livre (aparece no --saida padrão quando omitido).",
+    ),
+    # Filtros (fallback).
     raizes: list[Path] = typer.Option(
         None, "--raizes",
-        help="Diretórios varridos em busca de judex-mini_*.json. "
-             "Padrão: data/output, data/output/sample.",
-    ),
-    classe: Optional[str] = typer.Option(
-        None, "--classe",
-        help='Casar classe exata, p.ex. "HC", "RE", "ADI".',
+        help="Diretórios varridos em busca de judex-mini_*.json.",
     ),
     impte_contem: str = typer.Option(
         "", "--impte-contem",
-        help="Substrings separadas por vírgula (qualquer uma casa) para "
-             'casar em partes[].nome onde tipo == "IMPTE.(S)".',
+        help='Filtro: substrings (qualquer uma) para IMPTE.(S).',
     ),
     tipos_doc: str = typer.Option(
         "", "--tipos-doc",
-        help="Valores exatos de andamento.link.tipo, separados por "
-             'vírgula (ex.: "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO"). '
-             "Vazio = todos os tipos.",
+        help="Filtro: valores exatos de andamento.link.tipo.",
     ),
     relator_contem: str = typer.Option(
         "", "--relator-contem",
-        help="Substrings separadas por vírgula para casar em .relator.",
+        help="Filtro: substrings em .relator.",
     ),
     excluir_tipos_doc: str = typer.Option(
         "", "--excluir-tipos-doc",
-        help="Tipos de doc a pular, separados por vírgula. Aplicado depois "
-             "de --tipos-doc.",
+        help="Filtro: tipos de doc a pular (depois de --tipos-doc).",
+    ),
+    limite: int = typer.Option(
+        0, "--limite",
+        help="Trunca em N alvos (0 = sem limite).",
+    ),
+    # Execução.
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Diretório de saída. Inferido a partir de --rotulo se omitido.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Rebaixar mesmo se os bytes já estiverem em disco.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Só prévia; não baixa nada.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o confirm. Obrigatório para não-TTY.",
+    ),
+    retomar: bool = typer.Option(
+        False, "--retomar",
+        help="Pula alvos já status=ok em pdfs.state.json.",
     ),
     sleep_throttle: float = typer.Option(
         2.0, "--sleep-throttle",
         help="Segundos entre GETs sucessivos.",
-    ),
-    limite: int = typer.Option(
-        0, "--limite",
-        help="Trunca a lista de alvos em N entradas (0 = sem limite).",
-    ),
-    retomar: bool = typer.Option(
-        False, "--retomar",
-        help="Pula alvos já marcados como status=ok.",
-    ),
-    retentar_de: Optional[Path] = typer.Option(
-        None, "--retentar-de",
-        help="Caminho para um pdfs.errors.jsonl existente; reroda só essas URLs.",
     ),
     janela_circuit: int = typer.Option(
         50, "--janela-circuit",
@@ -465,187 +499,103 @@ def varrer_pdfs(
         0.8, "--limiar-circuit",
         help="Fração de erros na janela que dispara o disjuntor.",
     ),
-    simular: bool = typer.Option(
-        False, "--simular",
-        help="Imprime contagem de alvos + breakdown por tipo de doc e sai.",
+) -> None:
+    """Baixa PDFs do STF para o cache local de bytes.
+
+    Metade do pipeline que fala com o portal STF; escreve bytes crus
+    em ``data/cache/pdf/<sha1(url)>.pdf.gz``. A extração de texto é
+    um comando separado (``extrair-pdfs``).
+
+    Prioridade de modos de entrada: ``--retentar-de`` > ``--csv`` >
+    range (``-c`` + ``-i``/``-f``) > filtros.
+    """
+    argv = _argv_pdf_common(
+        classe=classe, inicio=inicio, fim=fim, csv=csv,
+        retentar_de=retentar_de, rotulo=rotulo, raizes=raizes or [],
+        impte_contem=impte_contem, tipos_doc=tipos_doc,
+        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
+        limite=limite, saida=saida, dry_run=dry_run,
+        nao_perguntar=nao_perguntar, retomar=retomar,
+    )
+    _push(argv, "--forcar", forcar)
+    _push(argv, "--sleep-throttle", sleep_throttle)
+    _push(argv, "--janela-circuit", janela_circuit)
+    _push(argv, "--limiar-circuit", limiar_circuit)
+
+    from scripts.baixar_pdfs import main as _baixar_main
+    raise typer.Exit(code=_baixar_main(argv))
+
+
+@app.command(name="extrair-pdfs")
+def extrair_pdfs(
+    # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
+    classe: Optional[str] = typer.Option(
+        None, "-c", "--classe",
+        help='Classe (p.ex. "HC"). Sozinha → filtros. Com -i/-f → range.',
     ),
-    # flags que só fazem sentido no modo padrão (pypdf):
-    throttle_adaptativo: bool = typer.Option(
-        True, "--throttle-adaptativo/--sem-throttle",
-        help="[modo pypdf] Throttle adaptativo por host.",
+    inicio: Optional[int] = typer.Option(
+        None, "-i", "--inicio",
+        help="Primeiro processo do range (inclusive).",
     ),
-    throttle_max_segundos: float = typer.Option(
-        60.0, "--throttle-max-segundos",
-        help="[modo pypdf] Teto do sleep adaptativo por GET.",
+    fim: Optional[int] = typer.Option(
+        None, "-f", "--fim",
+        help="Último processo do range (inclusive).",
     ),
-    verificar: bool = typer.Option(
-        False, "--verificar",
-        help="[modo pypdf] Relata cobertura de cache (cacheado vs. faltando) e sai.",
-    ),
-    # flags que só fazem sentido no modo OCR:
-    min_caracteres: int = typer.Option(
-        1000, "--min-caracteres",
-        help="[modo --ocr] Reextrai entradas de cache com texto menor que "
-             "este tamanho.",
-    ),
-    estrategia: str = typer.Option(
-        "hi_res", "--estrategia",
-        help="[modo --ocr, provedor=unstructured] Estratégia do "
-             "Unstructured: hi_res, ocr_only, fast ou auto. Ignorada "
-             "pelos outros provedores.",
+    csv: Optional[Path] = typer.Option(None, "--csv"),
+    retentar_de: Optional[Path] = typer.Option(None, "--retentar-de"),
+    rotulo: Optional[str] = typer.Option(None, "--rotulo"),
+    # Filtros (fallback).
+    raizes: list[Path] = typer.Option(None, "--raizes"),
+    impte_contem: str = typer.Option("", "--impte-contem"),
+    tipos_doc: str = typer.Option("", "--tipos-doc"),
+    relator_contem: str = typer.Option("", "--relator-contem"),
+    excluir_tipos_doc: str = typer.Option("", "--excluir-tipos-doc"),
+    limite: int = typer.Option(0, "--limite"),
+    # Extrator.
+    provedor: str = typer.Option(
+        "pypdf", "--provedor",
+        help="Extrator: pypdf | mistral | chandra | unstructured. "
+             "Padrão: pypdf (local, grátis, camada de texto). OCR requer "
+             "a chave de API correspondente no ambiente "
+             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
-        help="[modo --ocr] (1) inclui entradas cacheadas ≥ "
-             "--min-caracteres como candidatas E (2) desativa a guarda "
-             "monotônica do cache — sobrescreve o cache com a nova saída "
-             "do provedor mesmo se for menor. Use quando quiser rodar o "
-             "provedor novo (ex.: trocou de Unstructured para Mistral) "
-             "e gravar os resultados sem ressalva de tamanho.",
+        help="Re-extrai mesmo se o sidecar já for igual a --provedor.",
     ),
+    lote: bool = typer.Option(
+        False, "--lote",
+        help="(Fase 2) Modo batch do Mistral. Ainda não implementado.",
+    ),
+    # Execução.
+    saida: Optional[Path] = typer.Option(None, "--saida"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
+    retomar: bool = typer.Option(False, "--retomar"),
 ) -> None:
-    """Baixa os PDFs das peças (decisão, acórdão, manifestação da PGR).
+    """Extrai texto dos PDFs já baixados em disco (zero HTTP).
 
-    Três modos:
+    Lê bytes de ``data/cache/pdf/<sha1(url)>.pdf.gz``, despacha
+    para o provedor pedido via ``src.scraping.ocr.extract_pdf``,
+    escreve texto + sidecar ``.extractor`` de volta no cache. Pré-
+    requisito: rodar ``baixar-pdfs`` antes.
 
-    - **Padrão** (sem flag): **duas passagens**. Roda o ``pypdf``
-      primeiro, filtrando pelos critérios (classe, impetrante,
-      tipos de doc, relator); em seguida faz uma segunda passagem
-      por um provedor OCR (Mistral por padrão; trocável via
-      ``--provedor``) **só** nas entradas cujo texto extraído ficou
-      abaixo de ``--min-caracteres`` — alvo clássico do OCR, as
-      decisões escaneadas. Rápido por padrão, cai no OCR só quando
-      precisa. Requer a chave de API do provedor no ambiente
-      (``MISTRAL_API_KEY`` por padrão) para a segunda passagem; sem
-      a chave a segunda passagem é pulada com aviso e os resultados
-      do ``pypdf`` permanecem.
-
-    - ``--sem-ocr-resgate``: **só pypdf**, uma passagem. Útil para
-      sessões rápidas onde não faz sentido pagar OCR (ex.: só
-      verificar cache, ou rodar com ``--simular``).
-
-    - ``--ocr``: **só OCR**. Pula o ``pypdf`` e vai direto à
-      reextração via provedor OCR sobre as entradas de cache curtas.
-      Útil quando o ``pypdf`` já rodou em uma sessão anterior e só
-      as escaneadas faltam.
-
-    O cache em ``data/cache/pdf/<sha1(url)>.txt.gz`` é **monotônico por
-    tamanho** por padrão: só sobrescreve quando a saída nova é maior
-    que a atual. Passe ``--forcar`` para desativar essa guarda e
-    sobrescrever incondicionalmente (o que você quer quando muda de
-    provedor e quer o texto novo mesmo se for menor). ``--ocr`` e
-    ``--ocr-resgate`` são mutuamente exclusivos.
+    Prioridade de modos de entrada igual a ``baixar-pdfs``.
     """
-    # valida combinações
-    if ocr and ocr_resgate:
-        raise typer.BadParameter(
-            "--ocr (só OCR) e --ocr-resgate (pypdf + OCR) são mutuamente "
-            "exclusivos. Escolha um."
-        )
-    if ocr and verificar:
-        raise typer.BadParameter(
-            "--verificar é do modo padrão (pypdf); não combina com --ocr."
-        )
-    if (ocr or ocr_resgate) and estrategia not in {"hi_res", "ocr_only", "fast", "auto"}:
-        raise typer.BadParameter(
-            f"estratégia inválida {estrategia!r}; "
-            "escolha entre hi_res, ocr_only, fast, auto."
-        )
-
-    # argv comum aos dois extratores
-    def _argv_comum() -> list[str]:
-        a: list[str] = ["--out", str(saida)]
-        if raizes:
-            a.append("--roots")
-            a.extend(str(r) for r in raizes)
-        _push(a, "--classe", classe)
-        _push(a, "--impte-contains", impte_contem)
-        _push(a, "--doc-types", tipos_doc)
-        _push(a, "--relator-contains", relator_contem)
-        _push(a, "--exclude-doc-types", excluir_tipos_doc)
-        _push(a, "--throttle-sleep", sleep_throttle)
-        _push(a, "--limit", limite)
-        _push(a, "--resume", retomar)
-        _push(a, "--retry-from", retentar_de)
-        _push(a, "--circuit-window", janela_circuit)
-        _push(a, "--circuit-threshold", limiar_circuit)
-        _push(a, "--dry-run", simular)
-        return a
-
-    # env var do provedor selecionado — usado tanto para validar a chave
-    # quanto para decidir se pulamos o resgate OCR com aviso.
-    _KEY_ENV_BY_PROVIDER = {
-        "mistral": "MISTRAL_API_KEY",
-        "unstructured": "UNSTRUCTURED_API_KEY",
-        "chandra": "CHANDRA_API_KEY",
-    }
-    key_env = _KEY_ENV_BY_PROVIDER.get(provedor)
-    if key_env is None:
-        raise typer.BadParameter(
-            f"provedor inválido {provedor!r}; "
-            "escolha entre mistral, unstructured, chandra."
-        )
-
-    # Modo só-OCR: pula pypdf, vai direto à reextração
-    if ocr:
-        argv = _argv_comum()
-        _push(argv, "--provider", provedor)
-        _push(argv, "--min-chars", min_caracteres)
-        _push(argv, "--strategy", estrategia)
-        _push(argv, "--force", forcar)
-        from scripts.reextract_unstructured import main as _reextract_main
-        raise typer.Exit(code=_reextract_main(argv))
-
-    # Modo padrão ou primeira passagem do resgate: pypdf
-    argv_pypdf = _argv_comum()
-    if not throttle_adaptativo:  # argparse do script usa --no-throttle
-        argv_pypdf.append("--no-throttle")
-    _push(argv_pypdf, "--throttle-max-delay", throttle_max_segundos)
-    _push(argv_pypdf, "--check", verificar)
-
-    from scripts.fetch_pdfs import main as _fetch_pdfs_main
-
-    saida_pypdf = _fetch_pdfs_main(argv_pypdf)
-
-    if not ocr_resgate:
-        raise typer.Exit(code=saida_pypdf)
-
-    # --ocr-resgate: segunda passagem OCR sobre as entradas curtas
-    # (pula se a primeira foi dry-run ou falhou sem gerar cache)
-    if simular:
-        raise typer.Exit(code=saida_pypdf)
-
-    # A segunda passagem depende da API do provedor OCR. Se a chave não
-    # está no ambiente (nem via .env), pulamos com aviso em vez de
-    # deixar o script filho falhar com exit 2 — a primeira passagem já
-    # produziu os artefatos duráveis em --saida.
-    from dotenv import load_dotenv
-    load_dotenv()
-    if not os.environ.get(key_env):
-        typer.secho(
-            f"\nAviso: {key_env} não está no ambiente (nem via .env). "
-            f"Pulando o resgate OCR (provedor={provedor}) — os resultados "
-            f"do pypdf estão preservados em {saida}. Para habilitar a "
-            f"segunda passagem, defina {key_env}; para silenciar este "
-            "aviso, passe --sem-ocr-resgate.",
-            fg=typer.colors.YELLOW,
-        )
-        raise typer.Exit(code=saida_pypdf)
-
-    typer.echo(
-        f"\n=== Resgate OCR ({provedor}): reextraindo entradas com texto "
-        f"< {min_caracteres} caracteres ==="
+    argv = _argv_pdf_common(
+        classe=classe, inicio=inicio, fim=fim, csv=csv,
+        retentar_de=retentar_de, rotulo=rotulo, raizes=raizes or [],
+        impte_contem=impte_contem, tipos_doc=tipos_doc,
+        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
+        limite=limite, saida=saida, dry_run=dry_run,
+        nao_perguntar=nao_perguntar, retomar=retomar,
     )
-    argv_ocr = _argv_comum()
-    _push(argv_ocr, "--provider", provedor)
-    _push(argv_ocr, "--min-chars", min_caracteres)
-    _push(argv_ocr, "--strategy", estrategia)
-    _push(argv_ocr, "--force", forcar)
-    from scripts.reextract_unstructured import main as _reextract_main
+    _push(argv, "--provedor", provedor)
+    _push(argv, "--forcar", forcar)
+    _push(argv, "--lote", lote)
 
-    saida_ocr = _reextract_main(argv_ocr)
-
-    raise typer.Exit(code=max(saida_pypdf, saida_ocr))
+    from scripts.extrair_pdfs import main as _extrair_main
+    raise typer.Exit(code=_extrair_main(argv))
 
 
 # ---------------------------------------------------------------------------

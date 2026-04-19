@@ -93,8 +93,10 @@ data/cache/
 │       ├── sessao_oi_<inc>.html.gz       (pseudo-tab for sessão JSON)
 │       └── sessao_sessaoVirtual_<inc>.html.gz
 ├── pdf/
-│   ├── <sha1(url)>.txt.gz                ← flat extracted PDF text
-│   └── <sha1(url)>.elements.json.gz      ← Unstructured OCR element list (optional)
+│   ├── <sha1(url)>.pdf.gz                ← raw PDF bytes (written by baixar-pdfs)
+│   ├── <sha1(url)>.txt.gz                ← extracted text (written by extrair-pdfs)
+│   ├── <sha1(url)>.elements.json.gz      ← provider element list (optional)
+│   └── <sha1(url)>.extractor             ← provider label sidecar
 ├── requests.db                           ← per-GET SQLite WAL archive
 └── scraper-session-logs/                 ← per-session log files
 ```
@@ -102,14 +104,16 @@ data/cache/
 Read/write via `src.utils.html_cache` (classe/processo/tab-keyed)
 and `src.utils.pdf_cache` (URL-sha1-keyed, atomic writes).
 
-Cache-keying is content-addressed where possible: PDF text is
-URL-sha1'd, so two cases citing the same PDF share one cache entry.
+Cache-keying is content-addressed where possible: PDF bytes and
+extracted text share one URL-derived sha1, so two cases citing the
+same PDF share one cache entry.
 
-**Important — cache is monotonic-by-length, not archival.**
-`scripts/reextract_unstructured.py` overwrites the pypdf extract
-when the OCR pass is longer. The prior attempt is lost unless the
-script routes through `src/sweeps/pdf_driver.py` (which keeps history
-in `pdfs.log.jsonl`). Don't treat the cache as an audit trail.
+**Re-extraction is sidecar-keyed, not length-keyed.**
+`baixar-pdfs` writes `<sha1>.pdf.gz` once. `extrair-pdfs --provedor X`
+writes `<sha1>.txt.gz` + `<sha1>.extractor = "X"`. On a later run,
+`--provedor X` sees the matching sidecar and skips; `--provedor Y`
+re-extracts (bytes already on disk, no STF fetch); `--forcar`
+overwrites unconditionally. No monotonic-by-length guard.
 
 ### `data/cases/` — scientific product
 

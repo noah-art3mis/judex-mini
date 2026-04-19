@@ -1,302 +1,74 @@
 # CLAUDE.md — judex-mini (project-level)
 
-Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the only first-class backend.** The legacy Selenium implementation was frozen under `deprecated/` on 2026-04-17 (`docs/superpowers/specs/2026-04-17-selenium-retirement.md`); `--backend selenium` now errors out. See `docs/current_progress.md` for current task state.
+Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the only first-class backend.** The legacy Selenium implementation was frozen under `deprecated/` on 2026-04-17; `--backend selenium` now errors out.
 
-## Read first
+## When to read what
 
-1. **`docs/current_progress.md`** — single live file: active-task lab notebook **+** strategic state (what landed, in flight, next steps, known limitations, reference). See `## Progress tracking` below.
-2. **`docs/data-layout.md`** — spatial map (config / runs / cache / cases / exports / docs).
-3. **`docs/stf-portal.md`** — how the portal works (URL flow, auth triad, field→source map).
-4. **`docs/rate-limits.md`** — WAF behavior + validated sweep defaults + robots.txt posture question.
-5. **`docs/process-space.md`** / **`docs/performance.md`** — class sizes + perf numbers (on demand).
-6. **`docs/reports/`** — promoted human-written narratives from validation sweeps (A–V, canary v1/v2, etc.).
-7. **`docs/superpowers/specs/`** — design specs for major features.
+| Open this doc when… | File |
+|---|---|
+| Starting a session / resuming work | [`docs/current_progress.md`](docs/current_progress.md) — active-task lab notebook + strategic state. Living file; template and archive convention live inside it. |
+| You need to know where a file lives (cases, caches, runs, exports) | [`docs/data-layout.md`](docs/data-layout.md) — spatial map of every store and every key. |
+| Writing new scraping code or debugging a 403 | [`docs/stf-portal.md`](docs/stf-portal.md) — URL flow, auth triad, UTF-8 quirk, field→source map. |
+| Tuning request pacing, retries, or proxy rotation | [`docs/rate-limits.md`](docs/rate-limits.md) — WAF behavior (403-not-429), validated defaults, cross-sweep cooldowns. |
+| **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
+| Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
+| A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
+| Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
+| Writing a PDF sweep | [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md). |
+| You want to see how a prior experiment turned out | [`docs/reports/`](docs/reports/) — promoted narratives from validation sweeps. |
+| You want to understand how a major feature was designed | [`docs/superpowers/specs/`](docs/superpowers/specs/). |
 
 ## Runtime
 
-Python project managed with **`uv`**. **Never** run bare `python`, `pip`, or `pytest` — always:
+Python project managed with **`uv`**. **Never** run bare `python`, `pip`, or `pytest`:
 
 ```bash
 uv run pytest tests/unit/
 uv run python main.py ...
-uv add <pkg>             # adds to pyproject
+uv add <pkg>
 ```
 
-Tests live under `tests/unit/` (48 fast tests, <3 s). Fixtures under `tests/ground_truth/` and `tests/fixtures/`. Run them before every change.
-
-Many scripts need `PYTHONPATH=.` because they import `src.*` and `scripts.*`:
+Scripts that import `src.*` or `scripts.*` need `PYTHONPATH=.`:
 ```bash
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 PYTHONPATH=. uv run python scripts/run_sweep.py ...
 ```
 
-## Scraping architecture
-
-- **HTTP backend** (`src/scraping/scraper.py`): replays the XHR requests `/processos/detalhe.asp` and `/processos/abaX.asp` make. Fetches detalhe + 9 tabs concurrently (`_TAB_WORKERS=4`). `sessao_virtual` comes from `sistemas.stf.jus.br/repgeral/votacao` as JSON + PDFs. The only live scraping path. Was `src/scraper_http.py` until 2026-04-17 — renamed once Selenium retirement freed up the canonical name.
-- **Selenium backend** (`deprecated/scraper.py`): frozen reference, not imported by live code. To install the optional dep + import it directly: `uv sync --extra selenium-legacy`. See `deprecated/README.md`.
-- **Pure-soup extractors** (`src/scraping/extraction/*.py`): five small modules — `extract_classe`, `extract_meio`, `extract_numero_unico`, `extract_publicidade`, `extract_relator` — plus `_shared.py` regex helpers. Imported by `src/scraping/extraction/http.py`. The 16 Selenium-bound extractors moved to `deprecated/extraction/`.
-- **HTTP extractors** (`src/scraping/extraction/http.py`, `src/scraping/extraction/sessao.py`): fragment parsers for the HTTP path.
-- **Sweep driver** (`scripts/run_sweep.py` + `src/sweeps/process_store.py` + `src/sweeps/shared.py`): CSV-driven, appends to `sweep.log.jsonl`, atomic `sweep.state.json`, derived `sweep.errors.jsonl`. Supports `--resume`, `--retry-from`, `--retry-403`, `--proxy-pool`, graceful SIGINT/SIGTERM. Circuit breaker, CliffDetector, signal handlers and exception classifier live in `src/sweeps/shared.py` and are reused by `src/sweeps/pdf_driver.py`.
-
-## Caches
-
-- `data/cache/html/<CLASSE>_<N>/<tab>.html.gz` — gzipped HTML fragments + `incidente.txt` per process. Gzip-on-write, gzip-on-read.
-- `data/cache/html/<CLASSE>_<N>/sessao_oi_<inc>.html.gz`, `sessao_sessaoVirtual_<inc>.html.gz` — sessão JSON cached under the same directory, named as pseudo-tabs.
-- `data/cache/pdf/<sha1(url)>.txt.gz` — extracted PDF text, URL-keyed. Hot vs cold = ~60× speed-up.
-
-Wipe everything: `rm -rf data/cache`. Wipe per-process: `rm -rf data/cache/html/<CLASSE>_<N>`.
-
-## Non-obvious gotchas
-
-- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper._decode` sets `r.encoding = "utf-8"` before reading `r.text`. Never bypass.
-- **`/processos/*` is disallowed in STF's `robots.txt`.** STF enforces it at the WAF: HTTP **403 Forbidden** (not 429) blocks IPs that exceed a behavioral threshold. The block clears within minutes. `cfg.retry_403=True` (via `ScraperConfig` or `--retry-403`) rides it out with tenacity backoff. Non-browser UAs (`curl/*`) get permanent 403 — our default Chrome UA is fine. The V-sweep (2026-04-17) showed proactive process-level pacing doesn't drain the per-IP reputation counter; `--throttle-sleep` was removed from `run_sweep.py` in favour of `--proxy-pool` rotation, which addresses the binding constraint.
-- **`abaX.asp` endpoints return 403 without three things**: valid `ASPSESSIONID…` + `AWSALB` cookies, `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. `requests.Session()` plus those two headers suffices.
-- **`extract_partes` reads `#todas-partes`** on `abaPartes.asp` — every named party, each IMPTE lawyer listed separately, PROC.(A/S)(ES) preserved, amicus curiae included (9 entries for ADI 2820). The sibling `#partes-resumidas` container collapses multi-lawyer IMPTE entries into "E OUTRO(A/S)" and drops PROC on HC — we don't use it. (Pre-2026-04-18 the HTTP path used `#partes-resumidas` for Selenium parity; that parity no longer matters.)
-- **Ground-truth fixtures have inconsistent `sessao_virtual` schemas.** HTTP emits the ADI shape (`{metadata, voto_relator, votes, documentos, …}`). `sessao_virtual` is a SKIP field in `scripts/_diff.SKIP_FIELDS` — do not try to diff it.
-- **PDF URLs live on `sistemas.stf.jus.br`**, NOT `portal.stf.jus.br`. Separate origin, separate throttle counter.
-- **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
-- **`src/scraping/extraction/__init__.py` is intentionally empty.** Keeps the HTTP backend Selenium-free. `import src.scraper` and `import main` both load 0 selenium modules — pinned by `tests/unit/test_http_backend_no_selenium.py`.
-- **`data/cache/pdf/<sha1>.txt.gz` is monotonic-by-length, not archival.** `scripts/reextract_unstructured.py` overwrites the pypdf extract when the OCR pass is longer. The prior attempt is lost unless the script is routed through `src/sweeps/pdf_driver.py` (which keeps history in `pdfs.log.jsonl`). Right now it isn't — see the script's "Known gaps" block. Implication: don't trust the on-disk cache as an audit trail of what a given extractor produced at a given time.
-
-## Don't break these
-
-- `tests/ground_truth/*.json` — 5 fixtures; the source of truth for `validate_ground_truth.py`.
-- `tests/fixtures/sessao_virtual/*.json` — captured JSON for the sessao_virtual unit tests.
-- `tests/unit/*.py` — 48 tests; run them before every change. `uv run pytest tests/unit/`.
-- `src/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
-- `src/data/export.py` — write paths for CSV/JSON/JSONL output.
-- `src/sweeps/process_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates. `src/sweeps/pdf_store.py` mirrors the same contracts for URL-keyed PDF sweeps.
-
-## Calculations
-
-**Always use code** (`uv run python -c "..."` or equivalent) for non-trivial arithmetic. Never mental math, especially in docs and reports where incorrect numbers get quoted downstream. Inherited from user-level `~/.claude/CLAUDE.md § Arithmetic`, repeated here because the rate-budget doc (`docs/reports/2026-04-16-D-rate-budget.md`) was the case where forgetting it bit us.
-
-## Conventions (project-specific)
-
-- **No backwards-compat shims.** Change the call sites + tests. See user-level `CLAUDE.md`.
-- **Keep files focused.** When `scraper.py` grows past ~600 lines, split by concern — `fetch_process`, PDF fetchers, sessão orchestration already have their own modules. (`http_session.py` was carved off in this exact way; see `src/scraping/http_session.py`.)
-- **Extractor tests should diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
-- **Sweeps write everything to a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
-- **Measure before optimising.** The perf numbers in `docs/performance.md` apply to cold single-process requests; at sweep scale the WAF ceiling (`docs/rate-limits.md`) dominates and the naive extrapolation doesn't hold. Check `docs/reports/` for the latest reality.
-
-## Progress tracking
-
-One live file — `docs/current_progress.md` — holds **everything**
-that used to be split across multiple places: the active task's
-lab notebook (plan / expectations / observations / decisions) *and*
-the strategic state across work-sessions (what just landed, in
-flight, next steps, known limitations, how to run things). There is
-no separate `handoff.md` — that's the convention. Update
-continuously while work is in flight, not once at the end.
-
-**Required top-of-file structure** (see the current file for the
-worked example, and `docs/reports/2026-04-17-proxy-canary-v1-PLAN.md`
-for the per-sweep form that seeded this pattern):
-
-- `# Current progress — judex-mini` header with branch / PR / status.
-- `## Working conventions` — stable operational rules.
-- `# Active task — lab notebook` with:
-  1. **Task** — one paragraph: what are we trying to accomplish.
-  2. **Plan** — concrete, ordered steps.
-  3. **Expectations / hypotheses** — what we think will happen.
-     **H1** (expected), **H0** (null — would falsify), **H2**
-     (unexpected-but-plausible). Specific and falsifiable — "regime
-     stays in `healthy`" beats "it should be fine."
-  4. **Observations** — append-only log, timestamped. Link to
-     artifacts (sweep reports, PDFs, log files, commits). Don't
-     batch — append the moment a result exists.
-  5. **Decisions** — what we concluded + what we changed. Dated.
-  6. **Open questions** — things this cycle couldn't resolve.
-  7. **Next steps (this task)** — concrete follow-ups to close the
-     open questions.
-- `# Strategic state` with `## What just landed`, `## In flight`,
-  `## Next steps, ordered`, `## Known limitation …`, `## Known gaps …`.
-- `# Reference — how to run things` at the end (commands, sweep
-  recipes, notebook exports).
-
-**Archive when** the active task closes out, the file exceeds ~500
-lines, or the next task is genuinely unrelated. `git mv
-docs/current_progress.md
-docs/progress_archive/YYYY-MM-DD_HHMM_<slug>.md` (e.g.
-`2026-04-17_2230_proxy-canary.md`), then start fresh from the
-same structure. Strategic-state sections carry forward; the
-lab-notebook sections get re-seeded from the open questions of the
-archived file.
-
-**What stays outside `current_progress.md`:**
-- `docs/reports/<date>-<label>-PLAN.md` = per-sweep experiment records
-  (one promoted file per sweep). Same hypothesis/observation pattern,
-  scoped to one sweep. The current_progress lab-notebook section is
-  the same pattern one level up — for work spanning multiple sweeps
-  or non-sweep tasks.
-- `docs/rate-limits.md`, `docs/data-layout.md`, `docs/stf-portal.md`,
-  etc. = conceptual knowledge that doesn't change every session.
-  Promote findings from `current_progress` into these once they've
-  solidified.
-
 ## Testing
 
 ```bash
-# suíte unitária (fast — <3 s, run before every change)
-uv run pytest tests/unit/
-
-# ground-truth parity vs. hand-verified JSON in tests/ground_truth/
-PYTHONPATH=. uv run python scripts/validate_ground_truth.py
+uv run pytest tests/unit/                                        # fast, <3 s — run before every change
+PYTHONPATH=. uv run python scripts/validate_ground_truth.py      # parity vs. hand-verified JSON
 ```
 
-Fixtures:
-- `tests/ground_truth/*.json` — 5 hand-verified cases; the source of truth for `validate_ground_truth.py`.
-- `tests/fixtures/sessao_virtual/*.json` — captured JSON for the sessão_virtual unit tests.
-- `tests/unit/test_http_backend_no_selenium.py` — pins that the HTTP path loads 0 Selenium modules.
+## Non-obvious gotchas
 
-## Where the data lives
+These prevent a cold agent from taking the wrong action. Everything else is findable.
 
-See [`docs/data-layout.md`](docs/data-layout.md) for the canonical spatial
-map. The scientific product + two caches:
+- **STF serves UTF-8 without declaring a charset.** `requests` defaults to Latin-1 → mojibake. `scraper._decode` sets `r.encoding = "utf-8"` before reading `r.text`. Never bypass.
+- **`/processos/*` is WAF-throttled with HTTP 403 (not 429).** The block clears within minutes. `cfg.retry_403=True` rides it out with tenacity backoff. Non-browser UAs (`curl/*`) get permanent 403. Process-level pacing doesn't drain the per-IP reputation counter; use `--proxy-pool` rotation instead of `--throttle-sleep`.
+- **`abaX.asp` endpoints need all three**: `ASPSESSIONID…` + `AWSALB` cookies, `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. Otherwise 403.
+- **`extract_partes` reads `#todas-partes`**, not `#partes-resumidas` (which collapses multi-lawyer IMPTE entries and drops PROC on HC).
+- **PDF URLs live on `sistemas.stf.jus.br`**, not `portal.stf.jus.br`. Separate origin, separate throttle counter.
+- **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pdfs`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pdfs`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
+- **`varrer-pdfs` is split into two commands.** `baixar-pdfs` is the only path that talks to STF (WAF-bound; throttle, proxy pool, circuit breaker all live here). `extrair-pdfs --provedor {pypdf|mistral|chandra|unstructured}` reads cached bytes and writes text — zero HTTP, no throttle, no breaker. Switch providers / re-OCR a tier without re-downloading. See `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md` for the spec.
+- **The corpus is schema-mixed.** Production case JSONs are mostly v3 (bare-string `outcome`); v4/v5/v6 code reads dict-shaped `outcome`. The renormalizer (`scripts/renormalize_cases.py`) hasn't been run full-corpus. The warehouse builder handles both transparently via `_unpack_outcome`; downstream readers that touch `outcome` directly (notebooks, ad-hoc scripts) must normalize or query through the warehouse.
+- **`src/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
+- **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
 
-- **Case JSON** (product) — `data/cases/<CLASSE>/judex-mini_<CLASSE>_<N>.json`, one record per process, schema in `src/data/types.py` (`StfItem` TypedDict).
-- **PDF text cache** — `data/cache/pdf/<sha1(url)>.txt.gz`, URL-keyed. Read via `src.utils.pdf_cache.read(url)`.
-- **PDF elements cache** — `data/cache/pdf/<sha1(url)>.elements.json.gz`, structured Unstructured element list for OCR-sourced entries only. Read via `pdf_cache.read_elements(url)` — returns `None` for pypdf-sourced URLs.
-- **HTML fragment cache** — `data/cache/html/<CLASSE>_<N>/*.html.gz`, per-tab raw HTML; ~60× speedup on re-scrapes.
+## Don't break these
 
-Foreign key from a case to its PDF text:
+- `tests/ground_truth/*.json` — 5 hand-verified cases; source of truth for `validate_ground_truth.py`.
+- `tests/fixtures/sessao_virtual/*.json` — captured JSON for the sessao_virtual unit tests.
+- `tests/unit/*.py` — run before every change.
+- `src/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
+- `src/sweeps/process_store.py` + `src/sweeps/pdf_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
 
-```
-data/cases/HC/judex-mini_HC_135041.json
-  └── andamentos[17].link                       ← STF portal PDF URL
-       └── src.utils.pdf_cache.read(link)       ← extracted text
-```
+## Conventions
 
-## Sweep drivers
-
-Two institutional sweep drivers, both resume / retry-from / circuit-breaker / SIGINT-safe / atomic-state:
-
-- **Process sweep** — `scripts/run_sweep.py` + `src/sweeps/process_store.py` + `src/sweeps/shared.py`. CSV-driven, one `(classe, processo)` per row. Output at `runs/active/<date>-<label>/` during the run, promote SUMMARY/REPORT to `docs/reports/<date>-<label>.md` on completion, archive state under `runs/archive/<date>-<label>/`.
-- **PDF sweep** — `scripts/fetch_pdfs.py` + `src/sweeps/pdf_driver.py` + `src/sweeps/pdf_store.py`. Walks case JSON, filters by `--classe / --impte-contains / --doc-types / --relator-contains`, fetches each andamento PDF. Same `runs/active/` → `docs/reports/` + `runs/archive/` lifecycle as process sweeps.
-- **Sharded process sweep** — `scripts/launch_hc_backfill_sharded.sh` + `scripts/shard_csv.py` + `scripts/probe_sharded.py`. N concurrent workers against disjoint `config/proxies.*.txt` pools and disjoint CSV shards. Output at `runs/active/<date>-<label>/shard-{0..N-1}/`.
-
-OCR re-extraction (`scripts/reextract_unstructured.py`) runs as a sibling of the PDF sweep; Unstructured API `hi_res` strategy, writes both flat text and structured element list back to the cache. See [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md) for directory conventions.
-
-### Running sweeps from a Claude Code / agent session
-
-A 60-minute sweep in the background will chew through your context
-window if you drive it the obvious way. Lessons learned the hard way
-on 2026-04-17 (4-sweep session that ended with ~150k tokens of
-duplicate log buffer in context):
-
-- **Don't `| tee` the driver's stdout to its log file.** The
-  `run_sweep.py` driver already writes everything durable to
-  `<out>/sweep.log.jsonl` and `<out>/sweep.state.json` atomically.
-  Piping stdout through `tee` means every `TaskOutput` poll returns
-  the full buffered log (early-sweep lines repeated each time — the
-  buffer flushes slowly). Use `> <out>/driver.log 2>&1` (or simply
-  don't redirect and let the agent harness capture stdout) so
-  `TaskOutput` only returns the final completion summary.
-- **Poll `sweep.state.json`, not `TaskOutput`, for progress.** One
-  small Python snippet reading the state file gives you
-  `{ok, fail, last_processo, wall}` in ~100 tokens. `TaskOutput` on
-  a live sweep returns tens of thousands of tokens of stale stdout.
-  Reserve `TaskOutput` for the completion notification (block=true
-  with a long timeout; it returns when the background bash exits).
-- **Use `run_in_background: true` on the Bash call that launches the
-  sweep.** Foreground bash calls time out at 2–10 min; sweeps take
-  55–90 min. Background bash gives you a task id you can check on.
-- **If something goes wrong, `kill -TERM <pid>` via `pkill -TERM -f
-  run_sweep.*<label-fragment>`.** The driver installs SIGTERM
-  handlers; it will finish the in-flight process, write
-  `sweep.errors.jsonl` + `report.md`, and exit cleanly. The state is
-  always `--resume`-safe because per-record writes are atomic.
-- **WAF cooldowns matter across sweeps, not just within them.** See
-  [`docs/rate-limits.md § Two-layer model`](docs/rate-limits.md#two-layer-model-sweep-v-2026-04-17)
-  before stacking paper-era sweeps back-to-back. The short version:
-  wait 30–90 min between sweeps, overnight for a full IP reset.
-
-### Surviving session death (the "detached-sweep" pattern)
-
-The Claude Code / Cursor window can die (crash, OOM, reload, explicit
-close) without killing the in-flight sweep. This is not accidental — the
-launcher is structured to detach from the controlling shell, and
-everything durable goes to disk atomically per record. Four structural
-pieces make it work:
-
-1. **Detach at launch.**
-   `nohup ./scripts/launch_hc_backfill_sharded.sh > runs/active/<dir>/launcher-stdout.log 2>&1 & disown`
-   — `nohup` ignores SIGHUP (sent when the terminal closes); `& disown`
-   drops the job from the shell's job table so it isn't killed when the
-   shell exits. The launcher's `run_sweep.py` children inherit the
-   detached state via `nohup`'s parent group.
-2. **Persist PIDs.** The launcher writes child PIDs to
-   `runs/active/<dir>/shards.pids`. On reconnect, `pgrep -af run_sweep`
-   finds them, but the pids file is authoritative when multiple sweeps
-   overlap.
-3. **Atomic state per record.** `src/sweeps/process_store.py` writes
-   `sweep.state.json` via `tempfile → os.replace` (atomic on POSIX) and
-   appends to `sweep.log.jsonl` with `fsync` after each record. A process
-   killed mid-record loses at most the in-flight record; `--resume`
-   skips already-ok records, so driver-restart is safe.
-4. **Session-independent alerting.** A cron monitor scheduled via
-   `/schedule` polls `sweep.state.json` on a cron expression (e.g.
-   `13,43 * * * *`). The cron runs in the harness, not in the window,
-   so heartbeats survive window death.
-
-**Reconnecting from a fresh window:**
-
-```bash
-cat runs/active/<dir>/shards.pids                          # discover PIDs
-pgrep -af "run_sweep.*<label-fragment>"                    # verify alive
-PYTHONPATH=. uv run python scripts/probe_sharded.py \      # read state
-    --out-root runs/active/<dir>
-cat docs/current_progress.md                               # restore context
-# Stop cleanly if needed:
-xargs -a runs/active/<dir>/shards.pids kill -TERM
-```
-
-**What does NOT survive session death:**
-- Claude Code conversation state (thinking, plans, Bash task ids). The
-  `run_in_background` task id is gone with the window. Mitigation: the
-  lab-notebook at `docs/current_progress.md` is the out-of-band memory —
-  write observations as they happen; the fresh window's first act is to
-  read it.
-- Cron jobs with a short `expires_after`. Use 7-day expiry (or longer)
-  so monitoring outlives the window that scheduled it.
-- Any state the driver held in memory but hadn't yet flushed to disk.
-  With the current atomic contracts this is <1 record; don't break the
-  contract (see `src/sweeps/process_store.py`).
-
-## Key source modules
-
-| Module | Role |
-|---|---|
-| `src/scraping/scraper.py`                                       | HTTP backend orchestrator — `fetch_process` + `scrape_processo_http`. |
-| `src/scraping/http_session.py`                                  | Session builder: cookies, headers, `X-Requested-With`, UA. |
-| `src/scraping/extraction/*.py`                                  | Pure-soup fragment parsers for the HTTP path. |
-| `src/data/types.py`                                             | `StfItem` TypedDict — the case-JSON schema. |
-| `src/data/export.py`                                            | CSV / JSON / JSONL write paths. |
-| `src/utils/pdf_cache.py`                                        | URL-keyed text + elements cache. |
-| `src/utils/adaptive_throttle.py` + `src/utils/request_log.py`   | Per-host latency-aware delay + per-GET SQLite archive. |
-| `src/sweeps/process_store.py` + `src/sweeps/shared.py`          | Process-sweep state / log / errors + shared primitives (circuit breaker, signal handlers, exception classifier). |
-| `src/sweeps/pdf_driver.py` + `src/sweeps/pdf_store.py`          | PDF-sweep driver — resumable, circuit-breakered, SIGINT-safe. |
-| `scripts/run_sweep.py`                                          | CSV-driven process sweep entry. |
-| `scripts/fetch_pdfs.py`                                         | Generic PDF sweep entry. |
-| `scripts/reextract_unstructured.py`                             | Re-OCR image-only PDFs via the Unstructured API. |
-
-## Documentation index
-
-| File | What it tells you |
-|---|---|
-| [`README.md`](README.md)                                 | End-user getting-started guide (Portuguese). Install → first run → troubleshooting. |
-| [`docs/data-layout.md`](docs/data-layout.md)             | Spatial map — every store, every key, every cross-reference. **Start here.** |
-| [`docs/stf-portal.md`](docs/stf-portal.md)               | How the STF portal works — URL flow, auth triad, UTF-8 quirk, field→source map, DataJud dead-end. |
-| [`docs/rate-limits.md`](docs/rate-limits.md)             | WAF behavior (403-not-429), empirical thresholds, validated defaults, robots.txt posture question. |
-| [`docs/process-space.md`](docs/process-space.md)         | HC / ADI / RE ceilings + density-probe numbers + methodology. |
-| [`docs/performance.md`](docs/performance.md)             | HTTP-vs-Selenium measured numbers; caching is the real lever. |
-| [`docs/current_progress.md`](docs/current_progress.md)  | Live lab notebook + temporal map — active-task plan/hypotheses/observations, plus what just landed / in flight / next steps. Replaces `docs/handoff.md` (archived under `docs/progress_archive/`). |
-| [`docs/hc-who-wins.md`](docs/hc-who-wins.md)             | HC deep-dive research question + notebook-strand layout + findings. |
-| [`docs/reports/`](docs/reports/)                         | Promoted human-written narratives from process + PDF sweeps. `2026-04-16-E-full-1k-defaults.md` is the canonical SUMMARY template. |
-| [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md) | PDF-sweep directory conventions. |
-| `runs/active/` + `runs/archive/`                         | Operational sweep state (sweep.log.jsonl, sweep.state.json, driver.log). Gitignored. |
-| [`docs/superpowers/specs/`](docs/superpowers/specs/)     | Design specs for major features (sweep driver, rate-budget experiments, Selenium retirement). |
-
-## Dependencies
-
-`requests` + `beautifulsoup4` (HTTP backend), `tenacity` (retry), `typer` (CLI), `pypdf` (PDF text), `python-dotenv` (env loading), `unstructured-client` via HTTP (OCR). `selenium` is an optional extra (`uv sync --extra selenium-legacy`) gated behind the frozen `deprecated/` backend.
+- **No backwards-compat shims.** Change the call sites + tests.
+- **Always use code for non-trivial arithmetic** — `uv run python -c "..."`. Never mental math; numbers get quoted downstream.
+- **Keep files focused.** `scraper.py` past ~600 lines → split by concern.
+- **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
+- **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
+- **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).

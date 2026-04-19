@@ -1,9 +1,12 @@
 # PDF sweeps — directory layout
 
 PDF-sweep results live here in one directory per run, named
-`<date>-<label>/`. Contents match the institutional layout written
-by `src/sweeps/pdf_driver.run_pdf_sweep` (when routed through it) plus a
-human summary.
+`<date>-<label>/`. Both `baixar-pdfs` (via
+`src.sweeps.download_driver.run_download_sweep`) and `extrair-pdfs`
+(via `src.sweeps.extract_driver.run_extract_sweep`) write this same
+institutional layout — state, log, errors, optional request_log,
+report — so the operational tooling (monitoring, archiving) is
+uniform across both halves of the pipeline.
 
 ## Expected files
 
@@ -37,9 +40,19 @@ Follow the shape of
 
 ## Scripts that populate this directory
 
-- `scripts/fetch_pdfs.py` — routes through `pdf_driver.run_pdf_sweep`;
-  writes the full institutional layout above.
-- `scripts/reextract_unstructured.py` — **does not yet route through
-  `pdf_driver`** (pre-Phase-A inlined loop). Currently only
-  `run.log` (via `tee`) is produced. See the script's "Known gaps"
-  section for the migration todo.
+The PDF pipeline is split into two commands (see
+[`docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md`](superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md)):
+
+- `scripts/baixar_pdfs.py` — routes through
+  `src.sweeps.download_driver.run_download_sweep`. The only path that
+  talks to STF; writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`.
+- `scripts/extrair_pdfs.py` — routes through
+  `src.sweeps.extract_driver.run_extract_sweep`. Reads cached bytes,
+  dispatches via `--provedor {pypdf|mistral|chandra|unstructured}`,
+  writes text + sidecar + (optional) elements. Zero HTTP.
+
+Both share four input modes (priority: `--retentar-de` > `--csv` >
+`-c` + `-i`/`-f` range > filter fallback) and the same preview +
+confirm guardrails (`--dry-run`, `--nao-perguntar`). Filters
+(`--classe`, `--impte-contem`, `--tipos-doc`, `--relator-contem`,
+`--excluir-tipos-doc`) apply only in the fallback mode.

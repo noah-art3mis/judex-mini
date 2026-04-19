@@ -139,3 +139,63 @@ def test_write_overwrites_extractor_sidecar_when_provided(tmp_path, monkeypatch)
     pdf_cache.write("https://example.test/a.pdf", "B", extractor="unstructured")
 
     assert pdf_cache.read_extractor("https://example.test/a.pdf") == "unstructured"
+
+
+# ----- Bytes cache (raw PDF storage for the download/extract split) --------
+
+
+def test_has_bytes_false_when_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    assert pdf_cache.has_bytes("https://example.test/a.pdf") is False
+
+
+def test_read_bytes_miss_returns_none(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    assert pdf_cache.read_bytes("https://example.test/a.pdf") is None
+
+
+def test_read_bytes_after_write_round_trips(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    body = b"%PDF-1.4\n...fake bytes...\n%%EOF"
+    pdf_cache.write_bytes("https://example.test/a.pdf", body)
+
+    assert pdf_cache.has_bytes("https://example.test/a.pdf") is True
+    assert pdf_cache.read_bytes("https://example.test/a.pdf") == body
+
+
+def test_write_bytes_overwrites(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    pdf_cache.write_bytes("https://example.test/a.pdf", b"v1")
+    pdf_cache.write_bytes("https://example.test/a.pdf", b"v2")
+
+    assert pdf_cache.read_bytes("https://example.test/a.pdf") == b"v2"
+
+
+def test_bytes_file_is_gzipped_on_disk(tmp_path, monkeypatch) -> None:
+    """Written file is `.pdf.gz` and decompresses to the original bytes."""
+    import gzip
+
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    body = b"%PDF-1.4\nraw pdf contents\n%%EOF"
+    pdf_cache.write_bytes("https://example.test/a.pdf", body)
+
+    files = list(tmp_path.glob("*.pdf.gz"))
+    assert len(files) == 1
+    assert gzip.decompress(files[0].read_bytes()) == body
+
+
+def test_bytes_cache_is_independent_from_text_cache(tmp_path, monkeypatch) -> None:
+    """Writing bytes doesn't populate the text cache and vice versa."""
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    pdf_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4")
+    assert pdf_cache.read("https://example.test/a.pdf") is None
+    assert pdf_cache.read_extractor("https://example.test/a.pdf") is None
+
+    pdf_cache.write("https://example.test/b.pdf", "extracted text")
+    assert pdf_cache.has_bytes("https://example.test/b.pdf") is False
