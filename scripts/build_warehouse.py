@@ -7,6 +7,8 @@ atomic swap, no incremental logic.
 Usage:
     PYTHONPATH=. uv run python scripts/build_warehouse.py
     PYTHONPATH=. uv run python scripts/build_warehouse.py --classe HC
+    PYTHONPATH=. uv run python scripts/build_warehouse.py --year 2026 --classe HC \\
+        --output data/warehouse/judex-2026.duckdb
     PYTHONPATH=. uv run python scripts/build_warehouse.py --output data/warehouse/dev.duckdb
 """
 
@@ -27,8 +29,20 @@ def main(argv: list[str] | None = None) -> int:
         "--classe", action="append",
         help="Restrict ingest to one or more classes (e.g. --classe HC --classe ADI)."
     )
+    parser.add_argument(
+        "--year", type=int,
+        help="Filter to one HC year via hc_calendar.year_to_id_range (requires --classe HC)."
+    )
     parser.add_argument("--progress-every", type=int, default=10_000)
     args = parser.parse_args(argv)
+
+    id_range = None
+    if args.year is not None:
+        if args.classe != ["HC"]:
+            parser.error("--year requires --classe HC (calendar is HC-only)")
+        from src.utils.hc_calendar import year_to_id_range
+        id_range = year_to_id_range(args.year)
+        print(f"  year {args.year} → id_range {id_range[0]}..{id_range[1]}")
 
     print(f"building warehouse → {args.output}")
     print(f"  cases   from {args.cases_root}")
@@ -41,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         pdf_cache_root=args.pdf_cache_root,
         output_path=args.output,
         classes=args.classe,
+        id_range=id_range,
         progress_every=args.progress_every,
     )
 

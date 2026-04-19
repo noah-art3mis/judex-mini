@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 import duckdb
+import pyarrow as pa
 
 from src.scraping.extraction._shared import to_iso
 
@@ -344,22 +345,43 @@ def _normalize_documentos(docs: Any) -> list[dict]:
     return []
 
 
-def _read_pdf_rows(pdf_cache_root: Path) -> list[dict]:
-    out = []
+def _iter_pdf_rows(pdf_cache_root: Path) -> Iterable[dict]:
+    # Generator (not materialised list) — PDF text decompresses to ~1 GB
+    # at production scale; holding it all in memory pushes peak RSS over
+    # WSL2's available limit.
     if not pdf_cache_root.exists():
-        return out
+        return
     for txt_gz in pdf_cache_root.glob("*.txt.gz"):
         sha1 = txt_gz.name.removesuffix(".txt.gz")
         text = gzip.decompress(txt_gz.read_bytes()).decode("utf-8", errors="replace")
         has_elements = (pdf_cache_root / f"{sha1}.elements.json.gz").exists()
-        out.append({
+        yield {
             "sha1":         sha1,
             "n_chars":      len(text),
             "has_elements": has_elements,
             "text":         text,
             "cache_path":   str(txt_gz),
-        })
-    return out
+        }
+
+
+def _bulk_insert_iter(
+    con: duckdb.DuckDBPyConnection,
+    table: str,
+    rows_iter: Iterable[dict],
+    batch_size: int = 5000,
+) -> int:
+    batch: list[dict] = []
+    n = 0
+    for row in rows_iter:
+        batch.append(row)
+        if len(batch) >= batch_size:
+            _bulk_insert(con, table, batch)
+            n += len(batch)
+            batch.clear()
+    if batch:
+        _bulk_insert(con, table, batch)
+        n += len(batch)
+    return n
 
 
 def _git_commit() -> str:
@@ -371,21 +393,82 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _iter_case_files(cases_root: Path, classes: Optional[Iterable[str]]) -> Iterable[Path]:
+def _iter_case_files(
+    cases_root: Path,
+    classes: Optional[Iterable[str]],
+    id_range: Optional[tuple[int, int]] = None,
+) -> Iterable[Path]:
     if classes is None:
-        yield from cases_root.rglob("judex-mini_*.json")
+        gen: Iterable[Path] = cases_root.rglob("judex-mini_*.json")
+    else:
+        gen = (
+            p
+            for classe in classes
+            for p in (cases_root / classe).glob("judex-mini_*.json")
+        )
+    if id_range is None:
+        yield from gen
         return
-    for classe in classes:
-        yield from (cases_root / classe).glob("judex-mini_*.json")
+    lo, hi = id_range
+    for p in gen:
+        stem = p.stem
+        if "_" not in stem:
+            continue
+        rng = stem.rsplit("_", 1)[1]
+        if "-" not in rng:
+            continue
+        a, _, b = rng.partition("-")
+        try:
+            ia, ib = int(a), int(b)
+        except ValueError:
+            continue
+        if ia >= lo and ib <= hi:
+            yield p
 
 
 def _bulk_insert(con: duckdb.DuckDBPyConnection, table: str, rows: list[dict]) -> None:
+    # Bulk-insert via Arrow registration. ~10–100x faster than
+    # `executemany` parameter-binding (which becomes the dominant wall on
+    # multi-million-row inserts). Coerces values to schema-aligned types
+    # first — pyarrow's auto type inference picks a type from the first
+    # rows it sees, then chokes on later rows whose dtypes differ. The
+    # corpus has int/str mismatches in both scalar and list-element form.
     if not rows:
         return
     cols = list(rows[0].keys())
-    placeholders = ", ".join("?" for _ in cols)
-    sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders})"
-    con.executemany(sql, [[r[c] for c in cols] for r in rows])
+    schema_info = con.execute(f"PRAGMA table_info('{table}')").fetchall()
+    int_cols = {r[1] for r in schema_info if r[2] in ("INTEGER", "BIGINT")}
+    str_cols = {r[1] for r in schema_info if r[2] in ("VARCHAR", "TEXT")}
+    str_list_cols = {r[1] for r in schema_info if r[2] in ("VARCHAR[]", "TEXT[]")}
+    for row in rows:
+        for c in int_cols:
+            v = row.get(c)
+            if v is None or isinstance(v, int):
+                continue
+            try:
+                row[c] = int(v)
+            except (ValueError, TypeError):
+                row[c] = None
+        for c in str_cols:
+            v = row.get(c)
+            if v is None or isinstance(v, str):
+                continue
+            row[c] = str(v)
+        for c in str_list_cols:
+            v = row.get(c)
+            if v is None or not isinstance(v, list):
+                continue
+            row[c] = [str(x) if x is not None else None for x in v]
+    arrow_table = pa.Table.from_pylist(rows)
+    view = f"__bulk_{table}"
+    con.register(view, arrow_table)
+    try:
+        col_list = ", ".join(cols)
+        con.execute(
+            f"INSERT INTO {table} ({col_list}) SELECT {col_list} FROM {view}"
+        )
+    finally:
+        con.unregister(view)
 
 
 def build(
@@ -394,6 +477,7 @@ def build(
     pdf_cache_root: Path,
     output_path: Path,
     classes: Optional[Iterable[str]] = None,
+    id_range: Optional[tuple[int, int]] = None,
     progress_every: int = 10_000,
 ) -> BuildSummary:
     t0 = time.monotonic()
@@ -407,7 +491,7 @@ def build(
     andamentos_rows: list[dict] = []
     documentos_rows: list[dict] = []
 
-    for i, path in enumerate(_iter_case_files(cases_root, classes)):
+    for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
         item = _load_case(path)
         if item is None or "classe" not in item or "processo_id" not in item:
             continue
@@ -418,28 +502,34 @@ def build(
         if progress_every and (i + 1) % progress_every == 0:
             print(f"  scanned {i + 1:,} cases", flush=True)
 
-    pdfs_rows = _read_pdf_rows(pdf_cache_root)
     classes_seen = sorted({r["classe"] for r in cases_rows})
+    n_cases = len(cases_rows)
+    n_partes = len(partes_rows)
+    n_andamentos = len(andamentos_rows)
+    n_documentos = len(documentos_rows)
 
     con = duckdb.connect(str(tmp))
     try:
         con.execute(_SCHEMA_SQL)
-        _bulk_insert(con, "cases", cases_rows)
-        _bulk_insert(con, "partes", partes_rows)
-        _bulk_insert(con, "andamentos", andamentos_rows)
-        _bulk_insert(con, "documentos", documentos_rows)
-        _bulk_insert(con, "pdfs", pdfs_rows)
+        # Insert + clear each table eagerly so peak RAM is at most one
+        # table's data + its Arrow conversion, not all five stacked.
+        _bulk_insert(con, "cases", cases_rows); cases_rows.clear()
+        _bulk_insert(con, "partes", partes_rows); partes_rows.clear()
+        _bulk_insert(con, "andamentos", andamentos_rows); andamentos_rows.clear()
+        _bulk_insert(con, "documentos", documentos_rows); documentos_rows.clear()
+        # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
+        n_pdfs = _bulk_insert_iter(con, "pdfs", _iter_pdf_rows(pdf_cache_root))
         wall = time.monotonic() - t0
         con.execute(
             "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 datetime.now(),
                 classes_seen,
-                len(cases_rows),
-                len(partes_rows),
-                len(andamentos_rows),
-                len(documentos_rows),
-                len(pdfs_rows),
+                n_cases,
+                n_partes,
+                n_andamentos,
+                n_documentos,
+                n_pdfs,
                 wall,
                 _git_commit(),
             ],
@@ -449,11 +539,11 @@ def build(
 
     os.replace(tmp, output_path)
     return BuildSummary(
-        n_cases=len(cases_rows),
-        n_partes=len(partes_rows),
-        n_andamentos=len(andamentos_rows),
-        n_documentos=len(documentos_rows),
-        n_pdfs=len(pdfs_rows),
+        n_cases=n_cases,
+        n_partes=n_partes,
+        n_andamentos=n_andamentos,
+        n_documentos=n_documentos,
+        n_pdfs=n_pdfs,
         wall_s=time.monotonic() - t0,
         output_path=output_path,
     )
