@@ -1,13 +1,13 @@
 """Download driver — the WAF-bound half of the PDF pipeline.
 
 This is the ONLY path that talks to STF after the 2026-04-19 split.
-It fetches `PdfTarget.url` via `_http_get_with_retry` and writes the
+It fetches `PecaTarget.url` via `_http_get_with_retry` and writes the
 raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. Text extraction is an
 independent concern, handled by `extract_driver.run_extract_sweep`.
 
 Layout under `out_dir` is shared with the process sweep convention:
 
-    pdfs.state.json       atomic per-URL state (via PdfStore)
+    pdfs.state.json       atomic per-URL state (via PecaStore)
     pdfs.log.jsonl        append-only attempt log
     pdfs.errors.jsonl     derived on write_errors_file()
     requests.db           per-GET SQLite archive (WAL mode)
@@ -35,14 +35,14 @@ import requests
 from src.config import ScraperConfig
 from src.scraping.http_session import _http_get_with_retry, new_session
 from src.sweeps import shared as _shared
-from src.sweeps.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
-from src.sweeps.pdf_targets import PdfTarget
-from src.utils import pdf_cache
+from src.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
+from src.sweeps.peca_targets import PecaTarget
+from src.utils import peca_cache
 from src.utils.adaptive_throttle import AdaptiveThrottle
 from src.utils.request_log import RequestLog
 
 
-GetterFn = Callable[[Any, PdfTarget, ScraperConfig], bytes]
+GetterFn = Callable[[Any, PecaTarget, ScraperConfig], bytes]
 """(session, target, config) -> raw bytes. Raises on HTTP failure;
 the driver catches and records status="http_error". Tests inject a
 deterministic getter; production leaves it None and gets
@@ -58,14 +58,14 @@ class _Counters:
 
 
 def _default_getter(
-    session: Any, target: PdfTarget, config: ScraperConfig
+    session: Any, target: PecaTarget, config: ScraperConfig
 ) -> bytes:
     r = _http_get_with_retry(session, target.url, config=config, timeout=60)
     return r.content
 
 
 def run_download_sweep(
-    targets: list[PdfTarget],
+    targets: list[PecaTarget],
     *,
     out_dir: Path,
     forcar: bool = False,
@@ -84,7 +84,7 @@ def run_download_sweep(
 ) -> tuple[int, int, int]:
     """Run a PDF download sweep. Returns `(downloaded, cached_hits, failed)`."""
     out_dir = Path(out_dir)
-    store = PdfStore(out_dir)
+    store = PecaStore(out_dir)
 
     if retry_from is not None:
         keep = set(load_retry_list(retry_from))
@@ -124,9 +124,9 @@ def run_download_sweep(
 
     get_fn: GetterFn = getter or _default_getter
 
-    def on_item(i: int, n: int, tgt: PdfTarget) -> str:
+    def on_item(i: int, n: int, tgt: PecaTarget) -> str:
         # Bytes-cache fast path — bytes already on disk.
-        if not forcar and pdf_cache.has_bytes(tgt.url):
+        if not forcar and peca_cache.has_bytes(tgt.url):
             counters.cached_hits += 1
             store.record(_make_record(
                 tgt, status="cached", extractor="bytes",
@@ -163,7 +163,7 @@ def run_download_sweep(
         wall = time.perf_counter() - t0
 
         if status == "ok" and body is not None:
-            pdf_cache.write_bytes(tgt.url, body)
+            peca_cache.write_bytes(tgt.url, body)
             counters.downloaded += 1
             logging.info(f"[{i}/{n}] {tgt.url}: ok ({len(body)} bytes)")
         else:
@@ -194,10 +194,10 @@ def run_download_sweep(
             flush=True,
         )
 
-    def is_already_done(tgt: PdfTarget) -> bool:
+    def is_already_done(tgt: PecaTarget) -> bool:
         return resume and store.already_ok(tgt.url)
 
-    def on_resume_skip(_tgt: PdfTarget) -> None:
+    def on_resume_skip(_tgt: PecaTarget) -> None:
         counters.cached_hits += 1
 
     try:
@@ -238,7 +238,7 @@ def run_download_sweep(
 
 
 def _make_record(
-    tgt: PdfTarget,
+    tgt: PecaTarget,
     *,
     status: str,
     attempt: int,
@@ -248,8 +248,8 @@ def _make_record(
     http_status: Optional[int] = None,
     extractor: Optional[str] = None,
     chars: Optional[int] = None,
-) -> PdfAttemptRecord:
-    return PdfAttemptRecord(
+) -> PecaAttemptRecord:
+    return PecaAttemptRecord(
         ts=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         url=tgt.url,
         attempt=attempt,
@@ -270,7 +270,7 @@ def _make_record(
 def _render_download_report(
     *,
     out_dir: Path,
-    store: PdfStore,
+    store: PecaStore,
     request_log: Optional[RequestLog],
     started: datetime,
     finished: datetime,

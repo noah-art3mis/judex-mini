@@ -83,7 +83,7 @@ from src.scraping.scraper import (
     _extract_tema_from_abasessao,
 )
 from src.data.reshape import reshape_to_v6
-from src.utils import html_cache, pdf_cache
+from src.utils import html_cache, peca_cache
 
 CASES_ROOT = Path("data/cases")
 
@@ -120,7 +120,7 @@ def _cache_only_pdf_fetcher():
     extractor produced this" signal.
     """
     def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
-        return pdf_cache.read(url), pdf_cache.read_extractor(url)
+        return peca_cache.read(url), peca_cache.read_extractor(url)
     return fetcher
 
 

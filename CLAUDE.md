@@ -14,7 +14,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
 | Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
-| Writing a PDF sweep | [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md). |
+| Writing a PDF sweep | [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md). |
 | You want to see how a prior experiment turned out | [`docs/reports/`](docs/reports/) — promoted narratives from validation sweeps. |
 | You want to understand how a major feature was designed | [`docs/superpowers/specs/`](docs/superpowers/specs/). |
 
@@ -56,8 +56,8 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **`abaX.asp` endpoints need all three**: `ASPSESSIONID…` + `AWSALB` cookies, `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. Otherwise 403.
 - **`extract_partes` reads `#todas-partes`**, not `#partes-resumidas` (which collapses multi-lawyer IMPTE entries and drops PROC on HC).
 - **PDF URLs live on `sistemas.stf.jus.br`**, not `portal.stf.jus.br`. Separate origin, separate throttle counter.
-- **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pdfs`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pdfs`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
-- **`varrer-pdfs` is split into two commands.** `baixar-pdfs` is the only path that talks to STF (WAF-bound; throttle, proxy pool, circuit breaker all live here). `extrair-pdfs --provedor {pypdf|mistral|chandra|unstructured}` reads cached bytes and writes text — zero HTTP, no throttle, no breaker. Switch providers / re-OCR a tier without re-downloading. See `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md` for the spec.
+- **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pecas`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pecas`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
+- **`varrer-pdfs` is split into two commands.** `baixar-pecas` is the only path that talks to STF (WAF-bound; throttle, proxy pool, circuit breaker all live here). `extrair-pecas --provedor {pypdf|mistral|chandra|unstructured}` reads cached bytes and writes text — zero HTTP, no throttle, no breaker. Switch providers / re-OCR a tier without re-downloading. See `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md` for the spec.
 - **The corpus is schema-mixed.** Production case JSONs are mostly v3 (bare-string `outcome`); v4/v5/v6 code reads dict-shaped `outcome`. The renormalizer (`scripts/renormalize_cases.py`) hasn't been run full-corpus. The warehouse builder handles both transparently via `_unpack_outcome`; downstream readers that touch `outcome` directly (notebooks, ad-hoc scripts) must normalize or query through the warehouse.
 - **`src/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
@@ -69,7 +69,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - `tests/fixtures/sessao_virtual/*.json` — captured JSON for the sessao_virtual unit tests.
 - `tests/unit/*.py` — run before every change.
 - `src/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
-- `src/sweeps/process_store.py` + `src/sweeps/pdf_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
+- `src/sweeps/process_store.py` + `src/sweeps/peca_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
 
 ## Conventions
 

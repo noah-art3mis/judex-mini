@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from src.sweeps.pdf_store import (
-    PdfAttemptRecord,
-    PdfStore,
+from src.sweeps.peca_store import (
+    PecaAttemptRecord,
+    PecaStore,
     load_retry_list,
     recover_state_from_log,
 )
@@ -24,7 +24,7 @@ def _rec(
     status: str = "ok",
     attempt: int = 1,
     **kwargs,
-) -> PdfAttemptRecord:
+) -> PecaAttemptRecord:
     defaults = dict(
         ts="2026-04-17T12:00:00",
         url=url,
@@ -33,18 +33,18 @@ def _rec(
         status=status,
     )
     defaults.update(kwargs)
-    return PdfAttemptRecord(**defaults)
+    return PecaAttemptRecord(**defaults)
 
 
 def test_store_is_empty_initially(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     assert store.snapshot() == {}
     assert store.already_ok("https://x.test/a.pdf") is False
     assert store.attempt_count("https://x.test/a.pdf") == 0
 
 
 def test_record_writes_log_and_state(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     store.record(_rec("https://x.test/a.pdf", status="ok", chars=1000))
     assert store.already_ok("https://x.test/a.pdf") is True
     assert store.attempt_count("https://x.test/a.pdf") == 1
@@ -53,7 +53,7 @@ def test_record_writes_log_and_state(tmp_path: Path) -> None:
 
 
 def test_log_is_append_only(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     store.record(_rec("https://x.test/a.pdf", status="http_error", attempt=1))
     store.record(_rec("https://x.test/a.pdf", status="ok", attempt=2))
     lines = (tmp_path / "pdfs.log.jsonl").read_text().splitlines()
@@ -63,7 +63,7 @@ def test_log_is_append_only(tmp_path: Path) -> None:
 
 
 def test_state_reflects_latest_attempt(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     store.record(_rec("https://x.test/a.pdf", status="http_error", attempt=1))
     store.record(_rec("https://x.test/a.pdf", status="ok", attempt=2))
     snap = store.snapshot()
@@ -72,7 +72,7 @@ def test_state_reflects_latest_attempt(tmp_path: Path) -> None:
 
 
 def test_errors_excludes_ok(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     store.record(_rec("https://x.test/a.pdf", status="ok"))
     store.record(_rec("https://x.test/b.pdf", status="empty"))
     store.record(_rec("https://x.test/c.pdf", status="http_error"))
@@ -104,14 +104,14 @@ def test_store_recovers_state_when_state_file_missing(tmp_path: Path) -> None:
     )
     assert not (tmp_path / "pdfs.state.json").exists()
 
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     assert store.already_ok("https://x.test/a.pdf")
     # Opening also rehydrated the state file.
     assert (tmp_path / "pdfs.state.json").exists()
 
 
 def test_write_errors_file(tmp_path: Path) -> None:
-    store = PdfStore(tmp_path)
+    store = PecaStore(tmp_path)
     store.record(_rec("https://x.test/a.pdf", status="ok"))
     store.record(_rec("https://x.test/b.pdf", status="empty"))
     path = store.write_errors_file()

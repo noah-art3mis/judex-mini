@@ -1,10 +1,10 @@
 """Generic PDF target collection from judex-mini output files.
 
 Walks `judex-mini_*.json` files under one or more roots and emits one
-PdfTarget per substantive-doc URL in the andamento list. Four
+PecaTarget per substantive-doc URL in the andamento list. Four
 resolvers share the same output shape:
 
-- `collect_pdf_targets` — filter fallback (classe, impte_contains,
+- `collect_peca_targets` — filter fallback (classe, impte_contains,
   doc_types, relator_contains, exclude_doc_types). Used when no direct
   selector is set.
 - `targets_from_range` — `-c CLASSE -i INICIO -f FIM`. All PDFs in
@@ -30,7 +30,7 @@ from typing import Any, Iterator, Optional, Sequence
 
 
 @dataclass
-class PdfTarget:
+class PecaTarget:
     url: str
     processo_id: Optional[int] = None
     classe: Optional[str] = None
@@ -38,7 +38,29 @@ class PdfTarget:
     context: dict[str, Any] = field(default_factory=dict)
 
 
-def collect_pdf_targets(
+def _is_supported_doc_url(url: Optional[str]) -> bool:
+    """True if `url` looks like a downloadable case document (PDF or RTF).
+
+    Three STF URL shapes land as targets:
+      - `.pdf` suffix — andamento `downloadPeca.asp?…&ext=.pdf` (note the
+        leading dot is part of the suffix) and sessão-virtual voto PDFs
+        on `sistemas.stf.jus.br/repgeral/` + `digital.stf.jus.br/…`.
+      - `.rtf` suffix — future-proofing; not currently emitted by STF.
+      - `ext=RTF` query suffix — andamento `downloadTexto.asp?…&ext=RTF`
+        (STF's actual RTF form; the ext is a query param, not a file
+        extension). The extraction layer auto-detects RTF by magic
+        bytes, so the URL-side check only needs to recognise it as a
+        valid document.
+    """
+    if not url:
+        return False
+    u = url.lower()
+    if u.endswith((".pdf", ".rtf")):
+        return True
+    return u.endswith("ext=rtf")
+
+
+def collect_peca_targets(
     roots: Sequence[Path],
     *,
     classe: Optional[str] = None,
@@ -46,7 +68,7 @@ def collect_pdf_targets(
     doc_types: Sequence[str] = (),
     relator_contains: Sequence[str] = (),
     exclude_doc_types: Sequence[str] = (),
-) -> list[PdfTarget]:
+) -> list[PecaTarget]:
     """Collect PDF targets from judex-mini output files.
 
     All filters AND together. Leaving a filter empty/None disables it.
@@ -72,7 +94,7 @@ def collect_pdf_targets(
     relator_needles = tuple(s.upper() for s in relator_contains) or None
 
     seen_urls: set[str] = set()
-    out: list[PdfTarget] = []
+    out: list[PecaTarget] = []
 
     for f in files:
         try:
@@ -105,7 +127,7 @@ def collect_pdf_targets(
 
         for a in rec.get("andamentos") or []:
             url, desc = _andamento_link(a)
-            if not url or not url.lower().endswith(".pdf"):
+            if not _is_supported_doc_url(url):
                 continue
             if doc_type_set is not None and desc not in doc_type_set:
                 continue
@@ -118,7 +140,7 @@ def collect_pdf_targets(
             ctx: dict[str, Any] = {}
             if impte_hits:
                 ctx["impte_hits"] = list(impte_hits)
-            out.append(PdfTarget(
+            out.append(PecaTarget(
                 url=url,
                 processo_id=pid,
                 classe=rec_classe,
@@ -145,10 +167,10 @@ def _andamento_link(a: dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PdfTarget]:
-    """Yield one PdfTarget per .pdf URL in `rec.andamentos`.
+def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PecaTarget]:
+    """Yield one PecaTarget per .pdf URL in `rec.andamentos`.
 
-    No filters. Parallel to the inner loop of `collect_pdf_targets`
+    No filters. Parallel to the inner loop of `collect_peca_targets`
     but without the per-rec/impte/relator/doc-type filters — the
     direct-selector resolvers (range / CSV) scope by picking which
     files to feed in, not by filtering inside them.
@@ -157,9 +179,9 @@ def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PdfTarget]:
     rec_classe = rec.get("classe")
     for a in rec.get("andamentos") or []:
         url, doc_type = _andamento_link(a)
-        if not url or not url.lower().endswith(".pdf"):
+        if not _is_supported_doc_url(url):
             continue
-        yield PdfTarget(
+        yield PecaTarget(
             url=url,
             processo_id=pid,
             classe=rec_classe,
@@ -185,10 +207,10 @@ def _load_case_records(path: Path) -> list[dict[str, Any]]:
     return []
 
 
-def _targets_from_files(paths: Sequence[Path]) -> list[PdfTarget]:
+def _targets_from_files(paths: Sequence[Path]) -> list[PecaTarget]:
     """Dedupe-by-URL over a fixed file list."""
     seen: set[str] = set()
-    out: list[PdfTarget] = []
+    out: list[PecaTarget] = []
     for p in paths:
         for rec in _load_case_records(p):
             for tgt in _iter_case_pdf_targets(rec):
@@ -225,7 +247,7 @@ def _find_case_file(roots: Sequence[Path], classe: str, processo: int) -> Option
 
 def targets_from_range(
     classe: str, inicio: int, fim: int, *, roots: Sequence[Path]
-) -> list[PdfTarget]:
+) -> list[PecaTarget]:
     """All PDF URLs across `classe` processes in the inclusive range
     `[inicio, fim]`. Silently skips processes with no case file on disk."""
     files: list[Path] = []
@@ -236,7 +258,7 @@ def targets_from_range(
     return _targets_from_files(files)
 
 
-def targets_from_csv(csv_path: Path, *, roots: Sequence[Path]) -> list[PdfTarget]:
+def targets_from_csv(csv_path: Path, *, roots: Sequence[Path]) -> list[PecaTarget]:
     """All PDF URLs across every `(classe, processo)` row in the CSV.
 
     Accepts minimal `classe,processo` columns. Extra columns (e.g.
@@ -256,21 +278,21 @@ def targets_from_csv(csv_path: Path, *, roots: Sequence[Path]) -> list[PdfTarget
     return _targets_from_files(files)
 
 
-def targets_from_errors_jsonl(errors_path: Path) -> list[PdfTarget]:
+def targets_from_errors_jsonl(errors_path: Path) -> list[PecaTarget]:
     """Rehydrate PdfTargets from a prior run's `pdfs.errors.jsonl`.
 
-    Each line is a JSON object emitted by `PdfStore.write_errors_file()`.
+    Each line is a JSON object emitted by `PecaStore.write_errors_file()`.
     Relies on url / processo_id / classe / doc_type / context being
     present — other fields (status, error, ts) are ignored.
     """
-    out: list[PdfTarget] = []
+    out: list[PecaTarget] = []
     with Path(errors_path).open() as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             rec = json.loads(line)
-            out.append(PdfTarget(
+            out.append(PecaTarget(
                 url=rec["url"],
                 processo_id=rec.get("processo_id"),
                 classe=rec.get("classe"),

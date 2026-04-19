@@ -1,8 +1,8 @@
 # PDF sweeps — directory layout
 
 PDF-sweep results live here in one directory per run, named
-`<date>-<label>/`. Both `baixar-pdfs` (via
-`src.sweeps.download_driver.run_download_sweep`) and `extrair-pdfs`
+`<date>-<label>/`. Both `baixar-pecas` (via
+`src.sweeps.download_driver.run_download_sweep`) and `extrair-pecas`
 (via `src.sweeps.extract_driver.run_extract_sweep`) write this same
 institutional layout — state, log, errors, optional request_log,
 report — so the operational tooling (monitoring, archiving) is
@@ -12,9 +12,9 @@ uniform across both halves of the pipeline.
 
 | File | Written by | Purpose |
 |---|---|---|
-| `pdfs.state.json`   | `src.pdf_store.PdfStore._write_state_atomically` | compacted per-URL state, atomic rewrite |
-| `pdfs.log.jsonl`    | `PdfStore.record` (per attempt, fsynced)         | append-only attempt log; source of truth if `state.json` tears |
-| `pdfs.errors.jsonl` | `PdfStore.write_errors_file`                     | derived; feeds `--retry-from` on the next run |
+| `pdfs.state.json`   | `src.pdf_store.PecaStore._write_state_atomically` | compacted per-URL state, atomic rewrite |
+| `pdfs.log.jsonl`    | `PecaStore.record` (per attempt, fsynced)         | append-only attempt log; source of truth if `state.json` tears |
+| `pdfs.errors.jsonl` | `PecaStore.write_errors_file`                     | derived; feeds `--retry-from` on the next run |
 | `requests.db`       | `src.utils.request_log.RequestLog` (SQLite WAL)  | per-GET URL / status / latency / bytes |
 | `report.md`         | `pdf_driver._render_pdf_report`                  | auto-generated; status counts, extractor breakdown, per-host HTTP stats |
 | `SUMMARY.md`        | human                                            | human narrative — headline numbers, outliers, what changed |
@@ -43,10 +43,10 @@ Follow the shape of
 The PDF pipeline is split into two commands (see
 [`docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md`](superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md)):
 
-- `scripts/baixar_pdfs.py` — routes through
+- `scripts/baixar_pecas.py` — routes through
   `src.sweeps.download_driver.run_download_sweep`. The only path that
   talks to STF; writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`.
-- `scripts/extrair_pdfs.py` — routes through
+- `scripts/extrair_pecas.py` — routes through
   `src.sweeps.extract_driver.run_extract_sweep`. Reads cached bytes,
   dispatches via `--provedor {pypdf|mistral|chandra|unstructured}`,
   writes text + sidecar + (optional) elements. Zero HTTP.

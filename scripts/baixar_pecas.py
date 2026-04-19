@@ -1,20 +1,20 @@
 """Download STF PDFs to the local bytes cache.
 
 The WAF-bound half of the PDF pipeline: fetches
-`PdfTarget.url` from STF and writes raw bytes to
+`PecaTarget.url` from STF and writes raw bytes to
 `data/cache/pdf/<sha1>.pdf.gz`. Extraction is handled separately by
-`scripts/extrair_pdfs.py`.
+`scripts/extrair_pecas.py`.
 
 Usage:
 
     # Range mode (parallel to varrer-processos)
-    PYTHONPATH=. uv run python scripts/baixar_pdfs.py \\
+    PYTHONPATH=. uv run python scripts/baixar_pecas.py \\
         -c HC -i 252920 -f 253000 \\
         --saida runs/active/2026-04-19-hc-bytes \\
         --nao-perguntar
 
     # Filter fallback
-    PYTHONPATH=. uv run python scripts/baixar_pdfs.py \\
+    PYTHONPATH=. uv run python scripts/baixar_pecas.py \\
         --classe HC --impte-contem TORON \\
         --tipos-doc "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO" \\
         --saida runs/active/2026-04-19-toron
@@ -29,7 +29,7 @@ import logging
 import sys
 from pathlib import Path
 
-from src.sweeps import pdf_cli as _pdf_cli
+from src.sweeps import peca_cli as _pdf_cli
 from src.sweeps.download_driver import run_download_sweep
 
 

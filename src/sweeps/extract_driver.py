@@ -1,7 +1,7 @@
 """Extract driver — the OCR/text half of the PDF pipeline.
 
 Reads bytes from `data/cache/pdf/<sha1>.pdf.gz` (populated by
-`baixar-pdfs`), dispatches text extraction via
+`baixar-pecas`), dispatches text extraction via
 `src.scraping.ocr.extract_pdf` per `--provedor`, writes text +
 sidecar + optional element list back to the same cache. Zero HTTP.
 
@@ -32,10 +32,10 @@ from typing import Callable, Optional
 from src.scraping.ocr import ExtractResult, OCRConfig
 from src.scraping.ocr.dispatch import extract_pdf as _dispatch_extract
 from src.sweeps import shared as _shared
-from src.sweeps.pdf_store import PdfAttemptRecord, PdfStore, load_retry_list
-from src.sweeps.pdf_targets import PdfTarget
-from src.utils import pdf_cache
-from src.utils.pdf_utils import extract_rtf_text
+from src.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
+from src.sweeps.peca_targets import PecaTarget
+from src.utils import peca_cache
+from src.utils.peca_utils import extract_rtf_text
 
 
 DispatcherFn = Callable[[bytes, OCRConfig], ExtractResult]
@@ -63,7 +63,7 @@ def _detect_bytes_type(body: bytes) -> str:
 
 
 def run_extract_sweep(
-    targets: list[PdfTarget],
+    targets: list[PecaTarget],
     *,
     out_dir: Path,
     provedor: str,
@@ -80,7 +80,7 @@ def run_extract_sweep(
     Returns `(extracted, cached_hits, no_bytes, failed)`.
     """
     out_dir = Path(out_dir)
-    store = PdfStore(out_dir)
+    store = PecaStore(out_dir)
 
     if retry_from is not None:
         keep = set(load_retry_list(retry_from))
@@ -102,13 +102,13 @@ def run_extract_sweep(
         flush=True,
     )
 
-    def on_item(i: int, n: int, tgt: PdfTarget) -> str:
-        if not pdf_cache.has_bytes(tgt.url):
+    def on_item(i: int, n: int, tgt: PecaTarget) -> str:
+        if not peca_cache.has_bytes(tgt.url):
             counters.no_bytes += 1
             store.record(_make_record(
                 tgt, status="no_bytes",
                 wall_s=0.0,
-                error="run baixar-pdfs first",
+                error="run baixar-pecas first",
                 error_type="NoLocalBytes",
                 attempt=store.attempt_count(tgt.url) + 1,
             ))
@@ -116,19 +116,19 @@ def run_extract_sweep(
             return "no_bytes"
 
         # Sidecar-match skip (spec's truth table).
-        sidecar = pdf_cache.read_extractor(tgt.url)
-        text_cached = pdf_cache.read(tgt.url) is not None
+        sidecar = peca_cache.read_extractor(tgt.url)
+        text_cached = peca_cache.read(tgt.url) is not None
         if sidecar == provedor and text_cached and not forcar:
             counters.cached_hits += 1
             store.record(_make_record(
                 tgt, status="cached", extractor=sidecar,
-                chars=len(pdf_cache.read(tgt.url) or ""),
+                chars=len(peca_cache.read(tgt.url) or ""),
                 wall_s=0.0,
                 attempt=store.attempt_count(tgt.url) + 1,
             ))
             return "ok"
 
-        body = pdf_cache.read_bytes(tgt.url)
+        body = peca_cache.read_bytes(tgt.url)
         assert body is not None  # has_bytes returned True above
 
         t0 = time.perf_counter()
@@ -162,9 +162,9 @@ def run_extract_sweep(
         wall = time.perf_counter() - t0
 
         if status == "ok" and text:
-            pdf_cache.write(tgt.url, text, extractor=extractor_label)
+            peca_cache.write(tgt.url, text, extractor=extractor_label)
             if elements is not None:
-                pdf_cache.write_elements(tgt.url, elements)
+                peca_cache.write_elements(tgt.url, elements)
             counters.extracted += 1
             logging.info(
                 f"[{i}/{n}] {tgt.url}: ok ({len(text)} chars, {extractor_label})"
@@ -200,10 +200,10 @@ def run_extract_sweep(
             flush=True,
         )
 
-    def is_already_done(tgt: PdfTarget) -> bool:
+    def is_already_done(tgt: PecaTarget) -> bool:
         return resume and store.already_ok(tgt.url)
 
-    def on_resume_skip(_tgt: PdfTarget) -> None:
+    def on_resume_skip(_tgt: PecaTarget) -> None:
         counters.cached_hits += 1
 
     tripped = _shared.iterate_with_guards(
@@ -245,7 +245,7 @@ def run_extract_sweep(
 
 
 def _make_record(
-    tgt: PdfTarget,
+    tgt: PecaTarget,
     *,
     status: str,
     attempt: int,
@@ -254,8 +254,8 @@ def _make_record(
     error_type: Optional[str] = None,
     extractor: Optional[str] = None,
     chars: Optional[int] = None,
-) -> PdfAttemptRecord:
-    return PdfAttemptRecord(
+) -> PecaAttemptRecord:
+    return PecaAttemptRecord(
         ts=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         url=tgt.url,
         attempt=attempt,
@@ -275,7 +275,7 @@ def _make_record(
 def _render_extract_report(
     *,
     out_dir: Path,
-    store: PdfStore,
+    store: PecaStore,
     provedor: str,
     started: datetime,
     finished: datetime,

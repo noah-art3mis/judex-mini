@@ -10,7 +10,7 @@
 #   3. Launch N run_sweep.py workers via nohup, each with its own --out,
 #      --csv, --proxy-pool. All shards share --items-dir (per-process JSON
 #      filenames are unique across disjoint CSVs) and the data/cache/pdf/ cache
-#      (atomic writes land on 2026-04-17 via pdf_cache._atomic_write).
+#      (atomic writes land on 2026-04-17 via peca_cache._atomic_write).
 #   4. Record all PIDs to <out-root>/shards.pids for scripted stop/resume.
 #
 # Idempotent: re-running after a partial launch leaves any shard whose

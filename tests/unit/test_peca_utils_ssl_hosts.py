@@ -1,4 +1,4 @@
-from src.utils.pdf_utils import _is_stf_host
+from src.utils.peca_utils import _is_stf_host
 
 
 def test_matches_known_stf_subdomains():

@@ -177,8 +177,8 @@ In order:
 
 - **Paper era (pre-2013).** Explicitly out of scope. The 1991–2012 capture gap identified in the 23:20 UTC observation stays unfilled by this sweep. Revisit as a separate class/era plan if research value emerges.
 - **Non-HC classes** (RHC, AP, MS, RE, ADI). One class at a time. Reprioritize after HC is done.
-- **PDF download** — `scripts/baixar_pdfs.py` (writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`); run on the completed HC corpus.
-- **Text extraction / OCR** — `scripts/extrair_pdfs.py --provedor {pypdf|mistral|chandra|unstructured}` over the downloaded cache; no STF fetch.
+- **PDF download** — `scripts/baixar_pecas.py` (writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`); run on the completed HC corpus.
+- **Text extraction / OCR** — `scripts/extrair_pecas.py --provedor {pypdf|mistral|chandra|unstructured}` over the downloaded cache; no STF fetch.
 - **Robots.txt posture** — unchanged.
 
 ## Rollback

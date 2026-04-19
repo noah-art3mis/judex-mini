@@ -59,13 +59,13 @@ never has to talk to STF.
 This is why CLAUDE.md insists the cache contracts are load-bearing
 and why sweeps wipe-cache explicitly rather than by default.
 
-## OCR pass (provider-selectable via `extrair-pdfs`)
+## OCR pass (provider-selectable via `extrair-pecas`)
 
 Image-only scans in the andamentos PDFs (older decisões monocráticas
 and acórdãos pre-2020 are frequently stamped scans, not text-born
-PDFs) need OCR to be usable. `extrair-pdfs --provedor {mistral|chandra|unstructured}`
+PDFs) need OCR to be usable. `extrair-pecas --provedor {mistral|chandra|unstructured}`
 reads bytes from `data/cache/pdf/<sha1>.pdf.gz` (populated by
-`baixar-pdfs`), dispatches via `src.scraping.ocr.extract_pdf`, writes
+`baixar-pecas`), dispatches via `src.scraping.ocr.extract_pdf`, writes
 text + `<sha1>.extractor` sidecar back to the cache. After the
 2026-04-19 bakeoff Mistral is the canonical OCR path (12× faster and
 10× cheaper than Unstructured with better column/symbol fidelity).

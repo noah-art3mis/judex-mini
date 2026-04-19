@@ -81,7 +81,7 @@ def estimate_cost(
 
 # Per-PDF wall anchors (sync, seconds). Measured on the 2026-04-19
 # bakeoff (5-PDF canary, runs/active/2026-04-19-ocr-bakeoff/). These
-# drive the `extrair-pdfs` preview ETA; re-anchor when a new bakeoff
+# drive the `extrair-pecas` preview ETA; re-anchor when a new bakeoff
 # lands.
 _WALL_PER_PDF: dict[str, float] = {
     "pypdf": 0.1,

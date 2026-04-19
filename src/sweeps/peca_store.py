@@ -20,7 +20,7 @@ ERRORS_NAME = "pdfs.errors.jsonl"
 
 
 @dataclass
-class PdfAttemptRecord:
+class PecaAttemptRecord:
     ts: str
     url: str
     attempt: int
@@ -66,7 +66,7 @@ def load_retry_list(errors_path: Path) -> list[str]:
     return out
 
 
-class PdfStore(BaseStore):
+class PecaStore(BaseStore):
     LOG_NAME = LOG_NAME
     STATE_NAME = STATE_NAME
     ERRORS_NAME = ERRORS_NAME
@@ -83,5 +83,5 @@ class PdfStore(BaseStore):
         rec = self._state.get(url)
         return int(rec["attempt"]) if rec else 0
 
-    def record(self, rec: PdfAttemptRecord) -> None:
+    def record(self, rec: PecaAttemptRecord) -> None:
         self._append_and_compact(asdict(rec))

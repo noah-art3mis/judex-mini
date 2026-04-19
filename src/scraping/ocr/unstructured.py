@@ -1,7 +1,7 @@
 """Unstructured SaaS API provider.
 
 The single Unstructured entry point used by the OCR dispatcher. Called
-by `extrair-pdfs --provedor unstructured` via `run_extract_sweep`.
+by `extrair-pecas --provedor unstructured` via `run_extract_sweep`.
 
 Endpoint: POST https://api.unstructuredapp.io/general/v0/general
 Auth: `unstructured-api-key` header.

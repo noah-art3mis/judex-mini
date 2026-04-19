@@ -31,7 +31,7 @@ def test_concat_elements_empty_input():
 
 def test_extract_returns_text_and_raw_elements(monkeypatch):
     """The element list survives alongside the joined text — the
-    `pdf_cache.write_elements` consumer requires the raw list, not just
+    `peca_cache.write_elements` consumer requires the raw list, not just
     text. Regressing this contract would silently disable the elements
     cache on every OCR'd document.
     """

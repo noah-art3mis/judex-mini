@@ -3,21 +3,21 @@
 Four parallel caches, all under `data/cache/pdf/`, all sha1(url)-keyed:
 
 - **Bytes cache** (`<sha1>.pdf.gz`): raw PDF bytes, gzip-wrapped.
-  Written by `baixar-pdfs`; read by `extrair-pdfs`. Splitting download
+  Written by `baixar-pecas`; read by `extrair-pecas`. Splitting download
   from extraction lets us switch OCR providers without re-hitting
   STF's WAF.
 - **Text cache** (`<sha1>.txt.gz`): flat extracted text. Written by
   every extractor path (pypdf, Unstructured OCR, RTF fallback). This
-  is what downstream notebooks read via `pdf_cache.read(url)`.
+  is what downstream notebooks read via `peca_cache.read(url)`.
 - **Elements cache** (`<sha1>.elements.json.gz`): structured element
   list from OCR providers (each element has `type`, `text`, `metadata`,
-  `element_id`, …). Written by `extrair-pdfs` when the provider
+  `element_id`, …). Written by `extrair-pecas` when the provider
   returns an element list. Absent for pypdf-sourced entries.
 - **Extractor sidecar** (`<sha1>.extractor`, plain text, no gzip):
   the label of the extractor that produced the text. Values come from
   the schema v4 open set ("rtf", "pypdf_plain", "pypdf_layout", "pypdf",
   "unstructured", "mistral", "chandra"); the file is 5-20 bytes so
-  the storage overhead is noise. Read via `pdf_cache.read_extractor`;
+  the storage overhead is noise. Read via `peca_cache.read_extractor`;
   `None` when the sidecar is absent (pre-v4 cache entries) or the
   extractor wasn't recorded.
 
@@ -143,7 +143,7 @@ def read_bytes(url: str) -> Optional[bytes]:
 def write_bytes(url: str, body: bytes) -> None:
     """Store raw PDF bytes for `url`, gzip-wrapped and atomically written.
 
-    Paired with `baixar-pdfs` → `extrair-pdfs`: the download command
+    Paired with `baixar-pecas` → `extrair-pecas`: the download command
     writes bytes once, then every extractor run reads them locally via
     `read_bytes`. No quality guard on overwrite — `--forcar` is the
     only knob that re-downloads.

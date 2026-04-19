@@ -1,7 +1,7 @@
 """Generic append-log + atomic compacted-state store.
 
 Shared skeleton behind `src/sweeps/process_store.py` (keyed by classe/processo)
-and `src/sweeps/pdf_store.py` (keyed by URL). Both subclasses supply:
+and `src/sweeps/peca_store.py` (keyed by URL). Both subclasses supply:
 
 - class-level filename constants (LOG_NAME, STATE_NAME, ERRORS_NAME)
 - a `_state_key(rec_dict)` classmethod that derives the state dict key

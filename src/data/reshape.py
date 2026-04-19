@@ -12,7 +12,7 @@ even when the rescrape path is unavailable.
 
 What it cannot fix: data that was missing from the original scrape
 (empty `pautas` / `recursos` when those tabs were never captured),
-PDF text/extractor provenance (filled by `extrair-pdfs`), or
+PDF text/extractor provenance (filled by `extrair-pecas`), or
 `OutcomeInfo.source_index` when `derive_outcome` no longer matches
 the verdict against the in-memory andamentos.
 """

@@ -1,4 +1,4 @@
-"""Tests for the shared CLI scaffolding behind baixar-pdfs + extrair-pdfs.
+"""Tests for the shared CLI scaffolding behind baixar-pecas + extrair-pecas.
 
 Exercises the pieces that are easy to get wrong:
 - Input-mode priority (retry > csv > range > filter).
@@ -19,15 +19,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.sweeps import pdf_cli as _pdf_cli
-from src.sweeps.pdf_targets import PdfTarget
-from src.utils import pdf_cache
+from src.sweeps import peca_cli as _pdf_cli
+from src.sweeps.peca_targets import PecaTarget
+from src.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.pdf_cache.CACHE_ROOT", tmp_path / "pdf_cache",
+        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 
@@ -184,11 +184,11 @@ def test_download_preview_reports_already_on_disk_and_to_download() -> None:
     """Baixar preview splits targets into already-cached vs to-download
     using has_bytes. Drift here mis-estimates the sweep's remaining work.
     """
-    pdf_cache.write_bytes("https://x.test/cached.pdf", b"%PDF already here")
+    peca_cache.write_bytes("https://x.test/cached.pdf", b"%PDF already here")
     targets = [
-        PdfTarget(url="https://x.test/cached.pdf"),
-        PdfTarget(url="https://x.test/new-1.pdf"),
-        PdfTarget(url="https://x.test/new-2.pdf"),
+        PecaTarget(url="https://x.test/cached.pdf"),
+        PecaTarget(url="https://x.test/new-1.pdf"),
+        PecaTarget(url="https://x.test/new-2.pdf"),
     ]
 
     buf = io.StringIO()
@@ -206,14 +206,14 @@ def test_extract_preview_reports_no_bytes_and_sidecar_hits() -> None:
     no-local-bytes (will fail), to-extract. Missing any of these hides
     real cost.
     """
-    pdf_cache.write_bytes("https://x.test/hit.pdf", b"%PDF hit")
-    pdf_cache.write("https://x.test/hit.pdf", "prior", extractor="mistral")
-    pdf_cache.write_bytes("https://x.test/miss.pdf", b"%PDF miss")
+    peca_cache.write_bytes("https://x.test/hit.pdf", b"%PDF hit")
+    peca_cache.write("https://x.test/hit.pdf", "prior", extractor="mistral")
+    peca_cache.write_bytes("https://x.test/miss.pdf", b"%PDF miss")
     # "nobytes.pdf" — no bytes cached.
     targets = [
-        PdfTarget(url="https://x.test/hit.pdf"),
-        PdfTarget(url="https://x.test/miss.pdf"),
-        PdfTarget(url="https://x.test/nobytes.pdf"),
+        PecaTarget(url="https://x.test/hit.pdf"),
+        PecaTarget(url="https://x.test/miss.pdf"),
+        PecaTarget(url="https://x.test/nobytes.pdf"),
     ]
 
     buf = io.StringIO()
@@ -232,7 +232,7 @@ def test_extract_preview_reports_no_bytes_and_sidecar_hits() -> None:
 
 
 def test_extract_preview_pypdf_reports_zero_cost() -> None:
-    targets = [PdfTarget(url="https://x.test/a.pdf")]
+    targets = [PecaTarget(url="https://x.test/a.pdf")]
     buf = io.StringIO()
     _pdf_cli.print_extract_preview(
         targets, mode_label="filtros", provedor="pypdf", stream=buf,

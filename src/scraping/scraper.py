@@ -35,8 +35,8 @@ from src.scraping.http_session import (
     _http_get_with_retry,
     new_session,
 )
-from src.utils import html_cache, pdf_cache
-from src.utils.pdf_utils import extract_document_text
+from src.utils import html_cache, peca_cache
+from src.utils.peca_utils import extract_document_text
 
 SESSAO_JSON_BASE = "https://sistemas.stf.jus.br/repgeral/votacao"
 
@@ -384,7 +384,7 @@ def _make_pdf_fetcher(*, use_cache: bool = True) -> Any:
     """Return a `fetcher(url) -> (text, extractor)` that caches extracts.
 
     Cache is URL-keyed (sha1); misses hit sistemas.stf.jus.br via
-    `src.utils.pdf_utils.extract_document_text` (which handles both PDF
+    `src.utils.peca_utils.extract_document_text` (which handles both PDF
     and RTF) and persist the label to `<sha1>.extractor`. Fetch failures
     propagate as `(None, _)` so `resolve_documentos` keeps the URL for a
     later retry. Cache hits return the sidecar label when present; None
@@ -394,12 +394,12 @@ def _make_pdf_fetcher(*, use_cache: bool = True) -> Any:
 
     def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
         if use_cache:
-            hit = pdf_cache.read(url)
+            hit = peca_cache.read(url)
             if hit is not None:
-                return (hit, pdf_cache.read_extractor(url))
+                return (hit, peca_cache.read_extractor(url))
         text, extractor = extract_document_text(url)
         if text is not None:
-            pdf_cache.write(url, text, extractor=extractor)
+            peca_cache.write(url, text, extractor=extractor)
         return (text, extractor)
 
     return fetcher

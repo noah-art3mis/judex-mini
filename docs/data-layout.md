@@ -93,8 +93,8 @@ data/cache/
 │       ├── sessao_oi_<inc>.html.gz       (pseudo-tab for sessão JSON)
 │       └── sessao_sessaoVirtual_<inc>.html.gz
 ├── pdf/
-│   ├── <sha1(url)>.pdf.gz                ← raw PDF bytes (written by baixar-pdfs)
-│   ├── <sha1(url)>.txt.gz                ← extracted text (written by extrair-pdfs)
+│   ├── <sha1(url)>.pdf.gz                ← raw PDF bytes (written by baixar-pecas)
+│   ├── <sha1(url)>.txt.gz                ← extracted text (written by extrair-pecas)
 │   ├── <sha1(url)>.elements.json.gz      ← provider element list (optional)
 │   └── <sha1(url)>.extractor             ← provider label sidecar
 ├── requests.db                           ← per-GET SQLite WAL archive
@@ -109,7 +109,7 @@ extracted text share one URL-derived sha1, so two cases citing the
 same PDF share one cache entry.
 
 **Re-extraction is sidecar-keyed, not length-keyed.**
-`baixar-pdfs` writes `<sha1>.pdf.gz` once. `extrair-pdfs --provedor X`
+`baixar-pecas` writes `<sha1>.pdf.gz` once. `extrair-pecas --provedor X`
 writes `<sha1>.txt.gz` + `<sha1>.extractor = "X"`. On a later run,
 `--provedor X` sees the matching sidecar and skips; `--provedor Y`
 re-extracts (bytes already on disk, no STF fetch); `--forcar`
@@ -164,7 +164,7 @@ docs/
 ├── performance.md                        ← HTTP vs Selenium numbers
 ├── hc-who-wins.md                        ← HC research question + notebook layout
 ├── hc-backfill-extension-plan.md
-├── pdf-sweep-conventions.md              ← PDF-sweep directory conventions
+├── peca-sweep-conventions.md              ← PDF-sweep directory conventions
 ├── progress_archive/                     ← prior lab-notebook snapshots
 │   └── YYYY-MM-DD_HHMM_<slug>.md
 ├── reports/                              ← promoted human-written narratives
@@ -228,7 +228,7 @@ gracefully fall back to flat text when `read_elements` returns `None`.
   `TypedDict`. Fields are Optional for a reason — STF data is
   irregular; fields-that-can-be-absent must be nullable.
 - **Attempt records**: `src/sweeps/process_store.AttemptRecord` (process
-  sweeps) and `src/sweeps/pdf_store.PdfAttemptRecord` (PDF sweeps) are the
+  sweeps) and `src/sweeps/pdf_store.PecaAttemptRecord` (PDF sweeps) are the
   dataclasses written into the `.jsonl` files.
 - **Ground-truth fixtures**: `tests/ground_truth/*.json` — five
   hand-validated cases that `scripts/validate_ground_truth.py`

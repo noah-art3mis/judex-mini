@@ -5,8 +5,8 @@ Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo
 de números de processo**; o programa acessa o portal do STF, extrai
 metadados de cada processo (partes, andamentos, relator, decisão, URLs
 dos PDFs anexados) e grava um arquivo `.json` por processo. Se quiser
-o texto dos PDFs também, há dois comandos dedicados (`baixar-pdfs` +
-`extrair-pdfs`) — descritos na seção 5.
+o texto dos PDFs também, há dois comandos dedicados (`baixar-pecas` +
+`extrair-pecas`) — descritos na seção 5.
 
 Este README é o **guia prático para rodar a ferramenta**. Detalhes de
 arquitetura, testes e convenções para quem contribui com o código estão
@@ -92,7 +92,7 @@ uv run judex --help
 ```
 
 Deve aparecer o menu de subcomandos (`varrer-processos`,
-`baixar-pdfs`, `extrair-pdfs`, `exportar`, `validar-gabarito`,
+`baixar-pecas`, `extrair-pecas`, `exportar`, `validar-gabarito`,
 `sondar-densidade`).
 Para
 ver as opções de cada um: `uv run judex <comando> --help`. (O
@@ -185,13 +185,13 @@ incluindo as URLs dos PDFs anexados (decisões, acórdãos, manifestações
 da PGR). Quando você quer o **texto** desses PDFs também, rode dois
 comandos em sequência — eles são independentes de propósito:
 
-1. **`baixar-pdfs`** — baixa os bytes dos PDFs para
+1. **`baixar-pecas`** — baixa os bytes dos PDFs para
    `data/cache/pdf/<hash>.pdf.gz`. É a única parte que volta a falar
    com o STF, mas vai para um domínio diferente
    (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio
    orçamento de taxa — na prática, 403 aqui é bem mais raro que no
    `varrer-processos`, e o comando roda sempre direto (sem proxy).
-2. **`extrair-pdfs --provedor <X>`** — lê os bytes do disco e extrai
+2. **`extrair-pecas --provedor <X>`** — lê os bytes do disco e extrai
    o texto via o provedor escolhido. Nenhuma chamada ao STF.
    Provedores suportados: `pypdf` (local, grátis, camada de texto;
    padrão), `mistral`, `chandra`, `unstructured` (OCR pagos; exigem
@@ -201,14 +201,14 @@ Exemplo típico para os HCs que você acabou de varrer:
 
 ```bash
 # 1) Baixa os bytes (uma vez por URL — respeita o --forcar)
-uv run judex baixar-pdfs -c HC -i 135041 -f 135041 --nao-perguntar
+uv run judex baixar-pecas -c HC -i 135041 -f 135041 --nao-perguntar
 
 # 2) Extrai o texto com pypdf (rápido, grátis, zero HTTP)
-uv run judex extrair-pdfs -c HC -i 135041 -f 135041 --nao-perguntar
+uv run judex extrair-pecas -c HC -i 135041 -f 135041 --nao-perguntar
 
 # Depois, re-extrair com OCR melhor (sem baixar de novo):
 export MISTRAL_API_KEY="..."
-uv run judex extrair-pdfs -c HC -i 135041 -f 135041 \
+uv run judex extrair-pecas -c HC -i 135041 -f 135041 \
   --provedor mistral --forcar --nao-perguntar
 ```
 
@@ -221,7 +221,7 @@ a ferramenta pula os PDFs que já têm texto desse provedor; passe
 **Sempre use `--dry-run`** antes de uma extração paga (Mistral /
 Chandra / Unstructured). A prévia mostra quantas páginas serão
 processadas, custo estimado em dólares e tempo estimado. Detalhes
-técnicos em [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md).
+técnicos em [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md).
 
 ---
 
@@ -241,7 +241,7 @@ runs/
 │       ├── sweep.log.jsonl                (log append-only)
 │       ├── sweep.errors.jsonl             (só as falhas — use com --retentar-de)
 │       └── report.md                      (resumo humano)
-├── active/                                ← saída de baixar/extrair-pdfs (em curso)
+├── active/                                ← saída de baixar/extrair-pecas (em curso)
 └── archive/                               ← varreduras concluídas, arquivadas
 
 data/
@@ -254,8 +254,8 @@ data/
 │   │   ├── abaAndamentos.html.gz
 │   │   └── ... (um .html.gz por aba + incidente.txt)
 │   └── pdf/                               ← cache URL-keyed (sha1) dos PDFs
-│       ├── <sha1>.pdf.gz                  (bytes crus — baixar-pdfs)
-│       ├── <sha1>.txt.gz                  (texto extraído — extrair-pdfs)
+│       ├── <sha1>.pdf.gz                  (bytes crus — baixar-pecas)
+│       ├── <sha1>.txt.gz                  (texto extraído — extrair-pecas)
 │       ├── <sha1>.extractor               (qual provedor produziu o texto)
 │       └── <sha1>.elements.json.gz        (elementos estruturados, OCR)
 └── logs/                                  ← log detalhado por sessão
@@ -305,7 +305,7 @@ tempo. O bloqueio dura alguns minutos e libera sozinho. O que fazer:
 - **Rode intervalos menores** (ex.: 50 processos por vez, não 1000).
 - Para varreduras grandes, `varrer-processos` aceita `--proxy-pool`
   (arquivo com uma URL de proxy por linha) e faz rotação automática
-  de IP antes de estourar o limite da WAF. Já o `baixar-pdfs` roda
+  de IP antes de estourar o limite da WAF. Já o `baixar-pecas` roda
   sempre direto — não usa proxy, mas como vive em outro domínio
   (`sistemas.stf.jus.br`) com contador próprio, normalmente também
   não precisa.
@@ -333,8 +333,8 @@ Confira, nessa ordem:
   ferramentas de *sweep* em larga escala.
 - [`docs/data-layout.md`](docs/data-layout.md) — mapa detalhado de onde
   cada arquivo mora e como se referenciam.
-- [`docs/pdf-sweep-conventions.md`](docs/pdf-sweep-conventions.md) —
-  convenções dos comandos `baixar-pdfs` + `extrair-pdfs` (modos de
+- [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md) —
+  convenções dos comandos `baixar-pecas` + `extrair-pecas` (modos de
   entrada, layout de saída, formato da prévia).
 - [`docs/current_progress.md`](docs/current_progress.md) — estado atual
   do trabalho em andamento.

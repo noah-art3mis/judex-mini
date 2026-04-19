@@ -300,6 +300,100 @@ migration.
   content because they're in the rescrape bucket. A
   `reextracted_at` / `content_version` column would let analyses
   filter to the clean slice; not yet added.
+- **2026-04-19 ~10:00 — HC 2026 PDF bytes sweep launched.**
+  `scripts/baixar_pecas.py --csv runs/active/2026-04-19-hc-2026-pdfs/targets.csv`
+  against the 3,098 HC 2026 cases surfaced via
+  `judex-2026.duckdb`. 9,306 distinct PDF URLs from
+  `andamentos.link_url`, ~10 h wall at `--sleep-throttle 2.0`.
+  Detached per `docs/agent-sweeps.md`; pid in `baixar.pid`.
+  Progress at 3.5 h in: 3,404 ok / 0 fail, one absorbed 403.
+  **Note on target resolution**: `_find_case_file` in
+  `peca_targets.py` does one `rglob` per CSV row over the full
+  79k-file `data/cases/HC` tree — ~2 min of pure CPU before the
+  first HTTP. Worth indexing `{processo_id → path}` once per root.
+- **2026-04-19 — document-universe audit (the prompt was
+  "are there other PDFs associated with a case").** Scope
+  clarified and written to
+  [`docs/stf-portal.md § Document sources`](stf-portal.md#document-sources--the-full-universe-of-pdfs--rtfs--voto-html):
+  - Exactly two URL-bearing surfaces per case:
+    `andamentos[].link.url` (PDF + RTF) and
+    `sessao_virtual[].documentos[].url` (voto PDFs, two
+    hosts). Nothing else — verified against the warehouse
+    tables and every `aba*.html.gz` tab.
+  - **Corrected an earlier misreading.** I'd said sessão-virtual
+    votos from `sistemas.stf.jus.br/repgeral/votacao?texto=<id>`
+    were HTML-text (no OCR). Wrong: a direct probe shows **both**
+    sistemas (`octet-stream`, `%PDF-1.6`) and
+    digital.stf.jus.br (`application/pdf`, `%PDF-1.7`) return
+    binary PDFs. Ground-truth `text` fields are populated because
+    an OCR step already ran during capture — not because the
+    endpoint serves text.
+  - **Stale-JSON gap surfaced on 2026 corpus.** All 1,302
+    `sessao_virtual.documentos[].url` entries across the 625
+    2026 HCs are null in the production JSON. Running the current
+    `parse_sessao_virtual` on the *cached JSON* populates them
+    immediately (tested on HC 270392 and HC 128377). So this is
+    a re-extraction gap — the JSONs were written under an older
+    `_build_documentos` — not a scraper bug. Fix is local CPU,
+    zero STF traffic.
+  - **Known target-filter gap.** `peca_targets.py`'s
+    `_iter_case_pdf_targets` filters on `url.lower().endswith(".pdf")`,
+    which silently drops the 372 `DECISÃO DE JULGAMENTO` RTF URLs
+    (`downloadTexto.asp?ext=RTF`) — and misses sessão-virtual
+    documentos entirely (never walked). Two targeted fixes land
+    both in one change.
+- **2026-04-19 ~13:45 — warehouse-vs-JSON benchmark.**
+  `analysis/warehouse_benchmark.py` runs the same analyst query
+  (per-year case count, andamento count, distinct `primeiro_autor`)
+  two ways, each in its own subprocess so `getrusage` peaks are
+  independent.
+
+  |                        | warehouse    | JSON walk    | ratio |
+  |------------------------|--------------|--------------|-------|
+  | wall                   | **0.157 s**  | **39.41 s**  | **251× faster** |
+  | peak RSS               | 103.8 MB     | 56.9 MB      | warehouse heavier (DuckDB engine baseline) |
+  | filesystem bytes read  | ~tens of MB  | 7.36 GB      | ~100× less I/O |
+  | on-disk footprint      | 722 MB       | 3.8 GB       | **5.3× more compact** |
+
+  Head/tail rows match exactly on both paths (e.g. `[2026, 3099,
+  35682, 2862]`). Warehouse wins by two orders of magnitude on wall
+  and I/O; loses ~47 MB on peak RSS (DuckDB engine baseline vs a
+  small Python dict). JSON mode is parse-bound (51 % CPU, 7.4 GB of
+  filesystem reads for 79,742 files). Investment validated: any
+  analyst query that touches >1 field per case amortises the
+  warehouse instantly.
+- **2026-04-19 ~13:45 — v6 representation audit on `judex.duckdb`.**
+  Fit of `src/warehouse/builder.py` against the current v6 schema:
+  - ✅ `_meta` slot → `cases.*` siblings (`schema_version`,
+    `status_http`, `extraido`); reads both `_meta.*` and pre-v6
+    top-level via `.get(…, item.get(…))`.
+  - ✅ `outcome` dict exploded into four columns
+    (`outcome_verdict/_source/_source_index/_date_iso`) via
+    `_unpack_outcome`; tolerates bare-string v3 outcomes still on
+    disk.
+  - ✅ v5+ andamento `link` dict exploded into
+    `link_tipo/_url/_url_sha1/_text/_extractor`; sha1 precomputed
+    for joining to `pdfs`.
+  - ✅ `sessao_virtual[].documentos` positional PK
+    `(session_idx, doc_seq)` preserves v4 duplicates; v1/v2/v3
+    shapes handled by `_normalize_documentos`.
+  - ❌ **`pautas` is not represented.** v6 added typed `Pauta` via
+    `extract_pautas`; builder has zero pauta logic (`grep -c pauta
+    src/warehouse/builder.py` → 0). 18.7 % of the re-extracted
+    slice has populated pautas — all invisible to SQL today.
+  - ⚠️ **Content-stale residue** (probed on full warehouse):
+    **9,877 partes rows** carry the `LIKE '%E OUTRO%'` truncation
+    sentinel, **92 cases** have zero partes, **16,153 cases** have
+    NULL `outcome_verdict`. All three are the 44,926 stale-cache
+    rescrape cliff leaking in — structurally v6, content stale.
+    Author-based analyses on the full corpus will over-count a fake
+    author 9,877 times unless filtered.
+  - ⚠️ **PDF join skew.** `documentos` → `pdfs` joins
+    **13,075 / 30,504 rows** (42 %) via `url_sha1`;
+    `andamentos.link_url_sha1` → `pdfs` joins only **167 / 240,995
+    rows** (0.07 %). Documentos are well-populated (session voto
+    PDFs); andamento-linked PDFs were never bulk-downloaded until
+    today's `baixar-pecas` run (PID 574055).
 
 ## Re-extraction status — what's v6, what isn't
 
@@ -412,6 +506,62 @@ step hasn't been marked done in the Observations log.
    `_flatten_case` / `_flatten_andamentos` once step 6 confirms all
    data is v6.
 
+## Analytical readiness — actions after 2026-04-19 ~13:45 audit
+
+Ordered by urgency. Items 1–2 are hands-off ("do nothing yet"); 3–5
+are the real backlog this audit surfaces.
+
+1. **Hold on warehouse rebuilds while `baixar-pecas` (PID 574055)
+   runs.** ~5 h remaining at 0.27 tgt/s. Concurrent `.pdf.gz`
+   writes + a warehouse read of the PDF cache is fine in principle
+   (builder streams), but a rebuild now captures a half-populated
+   state. Rebuild once the run finishes (~19:35 local).
+2. **Then rebuild `judex-2026.duckdb` (fast, ~22 s) and
+   `judex.duckdb` (~2 min).** Validate the andamento→pdfs join
+   climbs from 167 → the expected ~3 k-row level for 2026 HC.
+3. **Add a `pautas` flatten to the builder.** Small, self-contained:
+   - schema SQL: `CREATE TABLE pautas (classe, processo_id, seq,
+     data_iso, tipo, descricao, julgador, link_url, link_url_sha1)
+     PRIMARY KEY (classe, processo_id, seq)`;
+   - new `_flatten_pautas(item: dict) -> list[dict]` alongside
+     `_flatten_andamentos` (pautas share the same `link` dict shape
+     post-v6);
+   - `_bulk_insert(con, "pautas", pautas_rows); pautas_rows.clear()`
+     in `build()`.
+   Unlocks session-level + pauta-facet analyses and brings the
+   18.7 % of re-extracted cases with populated pautas into SQL.
+4. **Clear the rescrape cliff — open question 3 option (c).**
+   Flat-dir fallback in `html_cache.read` (~20 LOC) + re-run
+   `renormalize_cases.py --force --workers 8`. Recovers 35,254 of
+   the 44,926 stale-cache cases locally (zero HTTP, ~15 min wall).
+   Residual 9,671 go through `run_sweep.py --csv
+   runs/active/renormalize_needs_rescrape.csv` afterwards (~90 min
+   WAF-bound). Drops the "E OUTRO" partes count from 9,877 toward
+   zero and populates pautas on the recovered slice.
+5. **Add `content_version` (or `reextracted_at`) to `cases`.** One
+   column at flatten time, derived from `reshape_to_v6` provenance
+   (e.g. whether `partes` came from `#todas-partes` vs stale — a
+   reasonable proxy: `all(nome NOT LIKE '%E OUTRO%' for nome in
+   partes)` AND `len(pautas) > 0 OR session_count == 0`). Lets
+   analyses `WHERE content_version >= 2` without `LIKE` heuristics.
+   Fold in alongside step 3.
+
+Additional housekeeping surfaced en route (not blocking analyses,
+recorded for triage):
+
+- **`_find_case_file` in `peca_targets.py` rglob-per-row** — ~2 min
+  of pure CPU before the first HTTP on the 2026 sweep launch.
+  Index once (`{processo_id: path}`) at CSV ingest.
+- **`peca_targets.py` target-filter gap** — drops 372 RTF URLs
+  (`downloadTexto.asp?ext=RTF`), doesn't walk `sessao_virtual
+  documentos`. Both fixed in one change.
+- **Stale `sessao_virtual.documentos[].url` in 2026 corpus** —
+  all 1,302 URLs null on disk; re-running `parse_sessao_virtual`
+  on cached JSON populates them. Re-extraction gap, not a scraper
+  bug. Folds into step 4's renormalizer re-run.
+- **Open question 1** (drop `data_protocolo_iso` as redundant under
+  v6) — no new info; still punted.
+
 ---
 
 # Strategic state
@@ -420,12 +570,12 @@ step hasn't been marked done in the Observations log.
 
 - **`scripts/` cleanup + `PYTHONPATH=.` retired** (2026-04-19).
   Three underscore helpers promoted to library code: `_diff.py` →
-  `src/sweeps/diff_harness.py`, `_pdf_cli.py` → `src/sweeps/pdf_cli.py`,
+  `src/sweeps/diff_harness.py`, `_pdf_cli.py` → `src/sweeps/peca_cli.py`,
   `_filters.py` → `src/utils/filters.py`. Five one-shots deleted (git
   preserves): `migrate_html_cache_to_tar.py`, `class_density_probe.py`,
   `ocr_bakeoff.py`, `replay_sample_jsons.py`, `launch_hc_backfill.sh`
   (superseded by sharded variant). Callers updated in `run_sweep.py`,
-  `validate_ground_truth.py`, `baixar_pdfs.py`, `extrair_pdfs.py`, and
+  `validate_ground_truth.py`, `baixar_pecas.py`, `extrair_pecas.py`, and
   `tests/unit/test_pdf_cli.py`; doc refs in `stf-portal.md`,
   `data-dictionary.md`, and the 2026-04-17 spec repointed. With no
   `from scripts.*` imports remaining in `scripts/*.py`, the hatchling
@@ -457,11 +607,11 @@ step hasn't been marked done in the Observations log.
   alert logic over-fires on completed-tier shards (150 false
   positives overnight); needs scoping to active-tier-only before
   reuse.
-- **PDF pipeline split into `baixar-pdfs` + `extrair-pdfs`**
+- **PDF pipeline split into `baixar-pecas` + `extrair-pecas`**
   (2026-04-19). `varrer-pdfs`, `scripts/fetch_pdfs.py`, and
   `scripts/reextract_unstructured.py` retired — replaced by two
-  independent commands. `baixar-pdfs` is the only WAF-bound path;
-  writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. `extrair-pdfs
+  independent commands. `baixar-pecas` is the only WAF-bound path;
+  writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. `extrair-pecas
   --provedor {pypdf|mistral|chandra|unstructured}` reads those bytes
   locally — zero HTTP, no throttle, no circuit breaker — and writes
   text + `.extractor` sidecar. Switch providers or re-OCR without
@@ -642,18 +792,18 @@ xargs -a runs/active/<label>/shards.pids kill -TERM
 
 ```bash
 # 1) Download bytes (WAF-bound; runs once per URL)
-PYTHONPATH=. uv run python scripts/baixar_pdfs.py \
+PYTHONPATH=. uv run python scripts/baixar_pecas.py \
     --classe HC --impte-contem "<name>" \
     --saida runs/active/<label>-bytes --nao-perguntar
 
 # 2) Extract text via chosen provider (zero HTTP; local cache)
-PYTHONPATH=. uv run python scripts/extrair_pdfs.py \
+PYTHONPATH=. uv run python scripts/extrair_pecas.py \
     --classe HC --impte-contem "<name>" \
     --provedor mistral --forcar \
     --saida runs/active/<label>-mistral --nao-perguntar
 
 # Re-extract same URLs with a different provider — no re-download
-PYTHONPATH=. uv run python scripts/extrair_pdfs.py \
+PYTHONPATH=. uv run python scripts/extrair_pecas.py \
     --classe HC --impte-contem "<name>" \
     --provedor chandra \
     --saida runs/active/<label>-chandra --nao-perguntar

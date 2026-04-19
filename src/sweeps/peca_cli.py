@@ -1,4 +1,4 @@
-"""Shared CLI scaffolding for `baixar-pdfs` + `extrair-pdfs`.
+"""Shared CLI scaffolding for `baixar-pecas` + `extrair-pecas`.
 
 Input-mode resolver (retry > csv > range > filter), TTY-aware
 confirmation prompt, and the two preview printers. Kept here so both
@@ -13,14 +13,14 @@ from pathlib import Path
 from typing import TextIO
 
 from src.scraping.ocr.dispatch import estimate_cost, estimate_wall
-from src.sweeps.pdf_targets import (
-    PdfTarget,
-    collect_pdf_targets,
+from src.sweeps.peca_targets import (
+    PecaTarget,
+    collect_peca_targets,
     targets_from_csv,
     targets_from_errors_jsonl,
     targets_from_range,
 )
-from src.utils import pdf_cache
+from src.utils import peca_cache
 from src.utils.filters import split_csv
 
 
@@ -33,7 +33,7 @@ _AVG_PAGES_PER_PDF = 5
 # ----- Input-mode resolver --------------------------------------------------
 
 
-def resolve_targets(args: argparse.Namespace) -> tuple[list[PdfTarget], str]:
+def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
     """Return `(targets, mode_label)` per spec's input-mode priority.
 
     Priority: `--retentar-de` > `--csv` > range (`-c` + `-i`/`-f`) >
@@ -63,7 +63,7 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PdfTarget], str]:
 
     # Filter fallback.
     roots = _default_roots(args)
-    targets = collect_pdf_targets(
+    targets = collect_peca_targets(
         roots,
         classe=classe,
         impte_contains=split_csv(getattr(args, "impte_contem", "") or ""),
@@ -112,13 +112,13 @@ def confirm_or_exit(nao_perguntar: bool) -> None:
 
 
 def print_download_preview(
-    targets: list[PdfTarget], *,
+    targets: list[PecaTarget], *,
     mode_label: str,
     throttle_sleep: float,
     stream: TextIO = sys.stdout,
 ) -> None:
     """Baixar-pdfs preview: bytes-cache split + disk / wall estimates."""
-    already = sum(1 for t in targets if pdf_cache.has_bytes(t.url))
+    already = sum(1 for t in targets if peca_cache.has_bytes(t.url))
     to_download = len(targets) - already
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     space_mb = to_download * _AVG_PDF_MB
@@ -138,7 +138,7 @@ def print_download_preview(
 
 
 def print_extract_preview(
-    targets: list[PdfTarget], *,
+    targets: list[PecaTarget], *,
     mode_label: str,
     provedor: str,
     stream: TextIO = sys.stdout,
@@ -149,12 +149,12 @@ def print_extract_preview(
     cached = 0
     no_bytes = 0
     for t in targets:
-        if not pdf_cache.has_bytes(t.url):
+        if not peca_cache.has_bytes(t.url):
             no_bytes += 1
             continue
         if (
-            pdf_cache.read_extractor(t.url) == provedor
-            and pdf_cache.read(t.url) is not None
+            peca_cache.read_extractor(t.url) == provedor
+            and peca_cache.read(t.url) is not None
         ):
             cached += 1
     to_extract = len(targets) - cached - no_bytes

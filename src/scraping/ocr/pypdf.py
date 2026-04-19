@@ -7,7 +7,7 @@ and image-only PDFs return empty or garbage; that's when users switch
 to a real OCR provider via `--provedor mistral|chandra|unstructured`.
 
 Registering pypdf through the same `OCRProvider` contract as the OCR
-providers keeps the extract driver's call site uniform. `extrair-pdfs
+providers keeps the extract driver's call site uniform. `extrair-pecas
 --provedor pypdf` is the default and the cost-free first tier.
 """
 

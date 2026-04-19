@@ -18,15 +18,15 @@ import pytest
 
 from src.sweeps import shared as _shared
 from src.sweeps.download_driver import run_download_sweep
-from src.sweeps.pdf_store import PdfStore
-from src.sweeps.pdf_targets import PdfTarget
-from src.utils import pdf_cache
+from src.sweeps.peca_store import PecaStore
+from src.sweeps.peca_targets import PecaTarget
+from src.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.pdf_cache.CACHE_ROOT", tmp_path / "pdf_cache",
+        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 
@@ -35,8 +35,8 @@ def _reset_shutdown() -> None:
     _shared._reset_shutdown_for_tests()
 
 
-def _target(url: str, **kw) -> PdfTarget:
-    return PdfTarget(url=url, **kw)
+def _target(url: str, **kw) -> PecaTarget:
+    return PecaTarget(url=url, **kw)
 
 
 def _kwargs(out_dir: Path, **overrides) -> dict:
@@ -61,9 +61,9 @@ def test_successful_download_writes_bytes_and_records_ok(tmp_path: Path) -> None
     )
 
     assert (downloaded, cached, failed) == (1, 0, 0)
-    assert pdf_cache.read_bytes("https://x.test/a.pdf") == b"%PDF-1.4\nhello\n%%EOF"
+    assert peca_cache.read_bytes("https://x.test/a.pdf") == b"%PDF-1.4\nhello\n%%EOF"
 
-    store = PdfStore(tmp_path / "sweep")
+    store = PecaStore(tmp_path / "sweep")
     snap = store.snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "ok"
     assert snap["processo_id"] == 1
@@ -72,7 +72,7 @@ def test_successful_download_writes_bytes_and_records_ok(tmp_path: Path) -> None
 
 def test_has_bytes_cache_hit_bypasses_getter(tmp_path: Path) -> None:
     """If bytes already on disk, skip the network entirely — record status=cached."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 prior")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 prior")
 
     calls: list[str] = []
 
@@ -87,7 +87,7 @@ def test_has_bytes_cache_hit_bypasses_getter(tmp_path: Path) -> None:
 
     assert calls == []
     assert (downloaded, cached, failed) == (0, 1, 0)
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "cached"
 
 
@@ -95,7 +95,7 @@ def test_forcar_bypasses_cache_and_overwrites(tmp_path: Path) -> None:
     """--forcar re-downloads even if bytes are cached, and the new
     bytes replace the old ones on disk.
     """
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"OLD")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"OLD")
 
     def getter(session, target, config):
         return b"NEW"
@@ -106,7 +106,7 @@ def test_forcar_bypasses_cache_and_overwrites(tmp_path: Path) -> None:
     )
 
     assert (downloaded, cached, failed) == (1, 0, 0)
-    assert pdf_cache.read_bytes("https://x.test/a.pdf") == b"NEW"
+    assert peca_cache.read_bytes("https://x.test/a.pdf") == b"NEW"
 
 
 def test_http_error_classified_and_recorded(tmp_path: Path) -> None:
@@ -119,7 +119,7 @@ def test_http_error_classified_and_recorded(tmp_path: Path) -> None:
     )
 
     assert failed == 1
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "http_error"
     assert snap["error_type"] == "RuntimeError"
     assert "nope" in snap["error"]

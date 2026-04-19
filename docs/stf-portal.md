@@ -147,17 +147,43 @@ The HTTP path commits to the ADI shape. `sessao_virtual` is a SKIP
 field in `src.sweeps.diff_harness.SKIP_FIELDS` — unit tests validate the
 parsers instead.
 
-## PDF origin — different hostname, different throttle
+## Document sources — the full universe of PDFs / RTFs / voto HTML
 
-Andamento PDFs are referenced from the portal HTML but served from
-**`sistemas.stf.jus.br`**, not `portal.stf.jus.br`. This matters for
-rate-limit accounting: the two hosts have independent counters.
-Interleaving PDF fetches between tab fetches naturally slows the
-portal hit rate and can reduce WAF pressure — see
-[`docs/rate-limits.md`](rate-limits.md).
+Every downloadable document attached to a case comes from exactly
+**two** surfaces. The rest of the JSON is metadata. If you're enumerating
+"all docs for a case" — these are the only places to look.
 
-URL-keyed text cache at `data/pdf/<sha1(url)>.txt.gz` — see
-[`docs/data-layout.md`](data-layout.md) § "The three data stores".
+| surface | where URLs live | typical host | format(s) | role |
+|---|---|---|---|---|
+| `andamentos[].link` | `abaAndamentos.asp` HTML, parsed into the case JSON | `portal.stf.jus.br/processos/` | PDF (`downloadPeca.asp?…&ext=.pdf`) **or** RTF (`downloadTexto.asp?…&ext=RTF`) | full doc stream: decisões monocráticas, acórdãos (PDF), decisões de julgamento (RTF), despachos, petições, certidões, intimações |
+| `sessao_virtual[].documentos[]` | `sistemas.stf.jus.br/repgeral/votacao?sessaoVirtual=<id>` JSON, parsed by `extraction/sessao.py` | `sistemas.stf.jus.br/repgeral/votacao?texto=<id>` (older) **or** `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/<id>/conteudo.pdf` (newer) | **Both serve binary PDFs.** Older endpoint returns `Content-Type: application/octet-stream` with `%PDF-1.6` magic bytes; newer returns proper `application/pdf` with `%PDF-1.7`. Either may be scanned → OCR-needed. | per-session relator + minister votos in a virtual plenary |
+
+No other tab (`abaPartes`, `abaDecisoes`, `abaPeticoes`, `abaRecursos`,
+`abaPautas`, `abaDeslocamentos`, `abaInformacoes`) emits document URLs.
+`documentos[].url == None` is a **capture gap** — the scraper didn't
+fill it in — not an "inline text" document (see CLAUDE.md gotcha).
+
+### Origins + throttle counters
+
+Three independent hosts, three independent WAF buckets:
+
+- **`portal.stf.jus.br`** — serves `abaX.asp` tabs *and* andamento
+  PDFs/RTFs via `downloadPeca.asp` / `downloadTexto.asp`. Hits from
+  both paths accumulate on the same IP-reputation counter.
+- **`sistemas.stf.jus.br/repgeral/`** — serves the sessao_virtual JSON
+  endpoints and the older voto HTML-text endpoint
+  (`?texto=<id>`). Independent counter from `portal`.
+- **`digital.stf.jus.br/decisoes-monocraticas/api/public/votos/`** —
+  newer voto PDF origin; served as scanned images (OCR-needed).
+  Independent counter; has not been load-tested for WAF behavior.
+
+Interleaving fetches across origins naturally paces each counter —
+see [`docs/rate-limits.md`](rate-limits.md).
+
+URL-keyed bytes+text cache at `data/cache/pdf/<sha1(url)>.*` — see
+[`docs/data-layout.md`](data-layout.md). The cache is
+format-agnostic (sha1-of-URL keying), so RTFs and voto PDFs share the
+same quartet layout; only the extractor-sidecar label varies.
 
 ## What doesn't exist
 

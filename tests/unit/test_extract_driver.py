@@ -22,15 +22,15 @@ import pytest
 from src.scraping.ocr import ExtractResult, OCRConfig
 from src.sweeps import shared as _shared
 from src.sweeps.extract_driver import run_extract_sweep
-from src.sweeps.pdf_store import PdfStore
-from src.sweeps.pdf_targets import PdfTarget
-from src.utils import pdf_cache
+from src.sweeps.peca_store import PecaStore
+from src.sweeps.peca_targets import PecaTarget
+from src.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.pdf_cache.CACHE_ROOT", tmp_path / "pdf_cache",
+        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 
@@ -39,8 +39,8 @@ def _reset_shutdown() -> None:
     _shared._reset_shutdown_for_tests()
 
 
-def _target(url: str, **kw) -> PdfTarget:
-    return PdfTarget(url=url, **kw)
+def _target(url: str, **kw) -> PecaTarget:
+    return PecaTarget(url=url, **kw)
 
 
 def _kwargs(out_dir: Path, **overrides) -> dict:
@@ -68,14 +68,14 @@ def test_no_local_bytes_records_no_bytes(tmp_path: Path) -> None:
 
     assert calls == []
     assert (extracted, cached, no_bytes, failed) == (0, 0, 1, 0)
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "no_bytes"
 
 
 def test_sidecar_match_skips_dispatcher(tmp_path: Path) -> None:
     """Bytes cached, text cached, sidecar matches --provedor → status=cached."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
-    pdf_cache.write("https://x.test/a.pdf", "prior text", extractor="mistral")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write("https://x.test/a.pdf", "prior text", extractor="mistral")
 
     calls: list[str] = []
     def dispatcher(body, cfg):
@@ -89,13 +89,13 @@ def test_sidecar_match_skips_dispatcher(tmp_path: Path) -> None:
 
     assert calls == []
     assert (extracted, cached, no_bytes, failed) == (0, 1, 0, 0)
-    assert pdf_cache.read("https://x.test/a.pdf") == "prior text"
+    assert peca_cache.read("https://x.test/a.pdf") == "prior text"
 
 
 def test_sidecar_mismatch_runs_dispatcher_and_overwrites(tmp_path: Path) -> None:
     """Bytes cached, text cached by a different provider → re-extract."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
-    pdf_cache.write("https://x.test/a.pdf", "old text", extractor="pypdf")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write("https://x.test/a.pdf", "old text", extractor="pypdf")
 
     def dispatcher(body, cfg):
         return ExtractResult(text="fresh mistral text", provider="mistral")
@@ -106,14 +106,14 @@ def test_sidecar_mismatch_runs_dispatcher_and_overwrites(tmp_path: Path) -> None
     )
 
     assert (extracted, cached, no_bytes, failed) == (1, 0, 0, 0)
-    assert pdf_cache.read("https://x.test/a.pdf") == "fresh mistral text"
-    assert pdf_cache.read_extractor("https://x.test/a.pdf") == "mistral"
+    assert peca_cache.read("https://x.test/a.pdf") == "fresh mistral text"
+    assert peca_cache.read_extractor("https://x.test/a.pdf") == "mistral"
 
 
 def test_forcar_bypasses_sidecar_match(tmp_path: Path) -> None:
     """--forcar re-runs even when sidecar matches --provedor."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
-    pdf_cache.write("https://x.test/a.pdf", "old", extractor="mistral")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write("https://x.test/a.pdf", "old", extractor="mistral")
 
     def dispatcher(body, cfg):
         return ExtractResult(text="new", provider="mistral")
@@ -124,12 +124,12 @@ def test_forcar_bypasses_sidecar_match(tmp_path: Path) -> None:
     )
 
     assert (extracted, cached, no_bytes, failed) == (1, 0, 0, 0)
-    assert pdf_cache.read("https://x.test/a.pdf") == "new"
+    assert peca_cache.read("https://x.test/a.pdf") == "new"
 
 
 def test_missing_sidecar_runs_dispatcher(tmp_path: Path) -> None:
     """Bytes cached but no sidecar (pre-v4 entry or fresh download) → extract."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
 
     def dispatcher(body, cfg):
         return ExtractResult(text="first pass", provider="mistral")
@@ -139,12 +139,12 @@ def test_missing_sidecar_runs_dispatcher(tmp_path: Path) -> None:
         **_kwargs(tmp_path / "sweep", dispatcher=dispatcher),
     )
     assert extracted == 1
-    assert pdf_cache.read_extractor("https://x.test/a.pdf") == "mistral"
+    assert peca_cache.read_extractor("https://x.test/a.pdf") == "mistral"
 
 
 def test_empty_text_records_empty_and_skips_write(tmp_path: Path) -> None:
     """Dispatcher returns empty text → status=empty, text cache not touched."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 blank")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 blank")
 
     def dispatcher(body, cfg):
         return ExtractResult(text="", provider="mistral")
@@ -155,8 +155,8 @@ def test_empty_text_records_empty_and_skips_write(tmp_path: Path) -> None:
     )
 
     assert failed == 1
-    assert pdf_cache.read("https://x.test/a.pdf") is None
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    assert peca_cache.read("https://x.test/a.pdf") is None
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "empty"
 
 
@@ -165,7 +165,7 @@ def test_elements_written_when_provider_returns_them(tmp_path: Path) -> None:
     that emit element lists (Unstructured, Chandra chunks, Mistral pages).
     Losing this silently disables downstream structure-aware consumers.
     """
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
 
     elements = [{"type": "Title", "text": "HC"}, {"type": "NarrativeText", "text": "body"}]
     def dispatcher(body, cfg):
@@ -175,7 +175,7 @@ def test_elements_written_when_provider_returns_them(tmp_path: Path) -> None:
         [_target("https://x.test/a.pdf")],
         **_kwargs(tmp_path / "sweep", dispatcher=dispatcher),
     )
-    assert pdf_cache.read_elements("https://x.test/a.pdf") == elements
+    assert peca_cache.read_elements("https://x.test/a.pdf") == elements
 
 
 def test_rtf_bytes_bypass_ocr_provider(tmp_path: Path) -> None:
@@ -183,7 +183,7 @@ def test_rtf_bytes_bypass_ocr_provider(tmp_path: Path) -> None:
     regardless of what --provedor was requested. This preserves today's
     behavior where `_default_fetcher` auto-routed RTF.
     """
-    pdf_cache.write_bytes(
+    peca_cache.write_bytes(
         "https://x.test/a.rtf",
         rb"{\rtf1\ansi Hello RTF World.}",
     )
@@ -200,13 +200,13 @@ def test_rtf_bytes_bypass_ocr_provider(tmp_path: Path) -> None:
 
     assert calls == []
     assert extracted == 1
-    assert pdf_cache.read_extractor("https://x.test/a.rtf") == "rtf"
-    assert "Hello RTF World" in (pdf_cache.read("https://x.test/a.rtf") or "")
+    assert peca_cache.read_extractor("https://x.test/a.rtf") == "rtf"
+    assert "Hello RTF World" in (peca_cache.read("https://x.test/a.rtf") or "")
 
 
 def test_unknown_bytes_type_records_unknown_type(tmp_path: Path) -> None:
     """Bytes that are neither PDF nor RTF → status=unknown_type, no dispatch."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"<html>not a pdf</html>")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"<html>not a pdf</html>")
 
     def dispatcher(body, cfg):
         return ExtractResult(text="unreachable", provider="mistral")
@@ -216,7 +216,7 @@ def test_unknown_bytes_type_records_unknown_type(tmp_path: Path) -> None:
         **_kwargs(tmp_path / "sweep", dispatcher=dispatcher),
     )
     assert failed == 1
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "unknown_type"
 
 
@@ -225,7 +225,7 @@ def test_retomar_wins_over_sidecar_match(tmp_path: Path) -> None:
     regardless of the sidecar. --retomar is evaluated first.
     """
     sweep_dir = tmp_path / "sweep"
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
 
     # First run records status=ok.
     def dispatcher_one(body, cfg):
@@ -250,7 +250,7 @@ def test_retomar_wins_over_sidecar_match(tmp_path: Path) -> None:
 def test_provider_error_recorded_as_provider_error(tmp_path: Path) -> None:
     """Dispatcher raises → status=provider_error (not http_error — extract
     driver has no HTTP path); goes into pdfs.errors.jsonl retryable."""
-    pdf_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 fake")
 
     def dispatcher(body, cfg):
         raise RuntimeError("mistral 503")
@@ -260,7 +260,7 @@ def test_provider_error_recorded_as_provider_error(tmp_path: Path) -> None:
         **_kwargs(tmp_path / "sweep", dispatcher=dispatcher),
     )
     assert failed == 1
-    snap = PdfStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
     assert snap["status"] == "provider_error"
     assert snap["error_type"] == "RuntimeError"
     assert "mistral 503" in snap["error"]

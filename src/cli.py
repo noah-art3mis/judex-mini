@@ -16,8 +16,8 @@ Exemplos:
     uv run judex --help
     uv run judex varrer-processos -c HC -i 135041 -f 135041    # ad-hoc (range)
     uv run judex varrer-processos --csv lista.csv --rotulo foo --saida out/
-    uv run judex baixar-pdfs -c HC -i 252920 -f 253000        # download bytes
-    uv run judex extrair-pdfs -c HC -i 252920 -f 253000 \\
+    uv run judex baixar-pecas -c HC -i 252920 -f 253000        # download bytes
+    uv run judex extrair-pecas -c HC -i 252920 -f 253000 \\
         --provedor mistral --nao-perguntar                     # OCR a partir do cache
     uv run judex exportar --apenas hc_famous_lawyers
     uv run judex sondar-densidade --classe HC --amostras 20
@@ -378,8 +378,8 @@ def varrer_processos(
 
 
 # ---------------------------------------------------------------------------
-# `baixar-pdfs` — baixa os PDFs brutos para o cache local
-# `extrair-pdfs` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
+# `baixar-pecas` — baixa os PDFs brutos para o cache local
+# `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
 
 
 def _argv_pdf_common(
@@ -391,7 +391,7 @@ def _argv_pdf_common(
     saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
     retomar: bool,
 ) -> list[str]:
-    """Montar a parte comum de argv para baixar-pdfs e extrair-pdfs."""
+    """Montar a parte comum de argv para baixar-pecas e extrair-pecas."""
     a: list[str] = []
     _push(a, "-c", classe)
     _push(a, "-i", inicio)
@@ -414,8 +414,8 @@ def _argv_pdf_common(
     return a
 
 
-@app.command(name="baixar-pdfs")
-def baixar_pdfs(
+@app.command(name="baixar-pecas")
+def baixar_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
         None, "-c", "--classe",
@@ -504,7 +504,7 @@ def baixar_pdfs(
 
     Metade do pipeline que fala com o portal STF; escreve bytes crus
     em ``data/cache/pdf/<sha1(url)>.pdf.gz``. A extração de texto é
-    um comando separado (``extrair-pdfs``).
+    um comando separado (``extrair-pecas``).
 
     Prioridade de modos de entrada: ``--retentar-de`` > ``--csv`` >
     range (``-c`` + ``-i``/``-f``) > filtros.
@@ -522,12 +522,12 @@ def baixar_pdfs(
     _push(argv, "--janela-circuit", janela_circuit)
     _push(argv, "--limiar-circuit", limiar_circuit)
 
-    from scripts.baixar_pdfs import main as _baixar_main
+    from scripts.baixar_pecas import main as _baixar_main
     raise typer.Exit(code=_baixar_main(argv))
 
 
-@app.command(name="extrair-pdfs")
-def extrair_pdfs(
+@app.command(name="extrair-pecas")
+def extrair_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
         None, "-c", "--classe",
@@ -578,9 +578,9 @@ def extrair_pdfs(
     Lê bytes de ``data/cache/pdf/<sha1(url)>.pdf.gz``, despacha
     para o provedor pedido via ``src.scraping.ocr.extract_pdf``,
     escreve texto + sidecar ``.extractor`` de volta no cache. Pré-
-    requisito: rodar ``baixar-pdfs`` antes.
+    requisito: rodar ``baixar-pecas`` antes.
 
-    Prioridade de modos de entrada igual a ``baixar-pdfs``.
+    Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
     argv = _argv_pdf_common(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
@@ -594,7 +594,7 @@ def extrair_pdfs(
     _push(argv, "--forcar", forcar)
     _push(argv, "--lote", lote)
 
-    from scripts.extrair_pdfs import main as _extrair_main
+    from scripts.extrair_pecas import main as _extrair_main
     raise typer.Exit(code=_extrair_main(argv))
 
 

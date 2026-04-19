@@ -1,23 +1,23 @@
 """Extract text from locally-cached STF PDFs.
 
 Reads bytes from `data/cache/pdf/<sha1>.pdf.gz` (populated by
-`scripts/baixar_pdfs.py`), dispatches text extraction via
+`scripts/baixar_pecas.py`), dispatches text extraction via
 `src.scraping.ocr.extract_pdf` per `--provedor`, writes text +
 sidecar + optional element list back to the same cache. Zero HTTP.
 
 Usage:
 
     # Default: pypdf (free, fast, text-layer only)
-    PYTHONPATH=. uv run python scripts/extrair_pdfs.py \\
+    PYTHONPATH=. uv run python scripts/extrair_pecas.py \\
         -c HC -i 252920 -f 253000 \\
         --provedor pypdf --nao-perguntar
 
     # Mistral OCR (re-extract a prior pypdf run; no network)
-    PYTHONPATH=. uv run python scripts/extrair_pdfs.py \\
+    PYTHONPATH=. uv run python scripts/extrair_pecas.py \\
         -c HC -i 252920 -f 253000 \\
         --provedor mistral --forcar --nao-perguntar
 
-Input-mode priority matches `baixar-pdfs`: retry > csv > range > filter.
+Input-mode priority matches `baixar-pecas`: retry > csv > range > filter.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import os
 import sys
 from pathlib import Path
 
-from src.sweeps import pdf_cli as _pdf_cli
+from src.sweeps import peca_cli as _pdf_cli
 from src.scraping.ocr import OCRConfig
 from src.sweeps.extract_driver import run_extract_sweep
 

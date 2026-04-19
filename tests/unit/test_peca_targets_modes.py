@@ -1,7 +1,7 @@
 """Behavior tests for the three direct-selector target resolvers.
 
-Shared by `baixar-pdfs` and `extrair-pdfs`. The fallback filter mode
-(`collect_pdf_targets`) is tested separately; this file covers
+Shared by `baixar-pecas` and `extrair-pecas`. The fallback filter mode
+(`collect_peca_targets`) is tested separately; this file covers
 `targets_from_range`, `targets_from_csv`, and `targets_from_errors_jsonl`.
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.sweeps.pdf_targets import (
-    PdfTarget,
+from src.sweeps.peca_targets import (
+    PecaTarget,
     targets_from_csv,
     targets_from_errors_jsonl,
     targets_from_range,
@@ -82,9 +82,9 @@ def test_range_skips_missing_case_files(tmp_path: Path) -> None:
     assert [t.url for t in out] == ["https://stf.test/100.pdf"]
 
 
-def test_range_filters_to_pdf_urls(tmp_path: Path) -> None:
-    """Only `.pdf` URLs are collected. RTFs and linkless andamentos
-    are skipped — parity with `collect_pdf_targets`.
+def test_range_filters_to_supported_doc_urls(tmp_path: Path) -> None:
+    """PDF + RTF URLs are collected; HTML and linkless andamentos are
+    skipped — parity with `collect_peca_targets`.
     """
     _write_case(
         tmp_path / "HC" / "judex-mini_HC_100.json",
@@ -97,7 +97,10 @@ def test_range_filters_to_pdf_urls(tmp_path: Path) -> None:
     )
 
     out = targets_from_range("HC", 100, 100, roots=[tmp_path])
-    assert [t.url for t in out] == ["https://stf.test/100.pdf"]
+    assert {t.url for t in out} == {
+        "https://stf.test/100.pdf",
+        "https://stf.test/100.rtf",
+    }
 
 
 def test_range_matches_start_end_filename_shape(tmp_path: Path) -> None:
@@ -167,7 +170,7 @@ def test_range_accepts_list_wrapped_case_files(tmp_path: Path) -> None:
 
 
 def test_range_populates_target_fields(tmp_path: Path) -> None:
-    """PdfTarget carries processo_id, classe, doc_type from the case."""
+    """PecaTarget carries processo_id, classe, doc_type from the case."""
     _write_case(
         tmp_path / "HC" / "judex-mini_HC_42.json",
         classe="HC", processo_id=42,
@@ -176,7 +179,7 @@ def test_range_populates_target_fields(tmp_path: Path) -> None:
 
     out = targets_from_range("HC", 42, 42, roots=[tmp_path])
     assert len(out) == 1
-    assert out[0] == PdfTarget(
+    assert out[0] == PecaTarget(
         url="https://stf.test/42.pdf",
         processo_id=42,
         classe="HC",
@@ -251,7 +254,7 @@ def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
     out = targets_from_errors_jsonl(errors_path)
 
     assert len(out) == 2
-    assert out[0] == PdfTarget(
+    assert out[0] == PecaTarget(
         url="https://stf.test/a.pdf",
         processo_id=100,
         classe="HC",
@@ -260,6 +263,28 @@ def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
     )
     assert out[1].url == "https://stf.test/b.pdf"
     assert out[1].doc_type == "INTEIRO TEOR DO ACÓRDÃO"
+
+
+def test_range_and_csv_collect_rtf_urls(tmp_path: Path) -> None:
+    # Direct-selector resolvers (range + CSV) must surface RTF andamento
+    # links the same as PDFs — the `.pdf`-only filter historically dropped
+    # `DECISÃO DE JULGAMENTO` RTFs even though extraction supports them.
+    rtf_url = "https://portal.stf.jus.br/processos/downloadTexto.asp?id=42&ext=RTF"
+    pdf_url = "https://portal.stf.jus.br/processos/downloadPeca.asp?id=43&ext=.pdf"
+    case = tmp_path / "judex-mini_HC_100-100.json"
+    _write_case(case, classe="HC", processo_id=100, urls=[
+        (pdf_url, "DECISÃO MONOCRÁTICA"),
+        (rtf_url, "DECISÃO DE JULGAMENTO"),
+    ])
+
+    out_range = targets_from_range("HC", 100, 100, roots=[tmp_path])
+    assert {t.url for t in out_range} == {pdf_url, rtf_url}
+    assert any(t.doc_type == "DECISÃO DE JULGAMENTO" for t in out_range)
+
+    csv_path = tmp_path / "alvos.csv"
+    csv_path.write_text("classe,processo\nHC,100\n")
+    out_csv = targets_from_csv(csv_path, roots=[tmp_path])
+    assert {t.url for t in out_csv} == {pdf_url, rtf_url}
 
 
 def test_errors_jsonl_tolerates_blank_lines(tmp_path: Path) -> None:
