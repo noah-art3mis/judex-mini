@@ -385,8 +385,8 @@ def varrer_processos(
 def _argv_pdf_common(
     *,
     classe: Optional[str], inicio: Optional[int], fim: Optional[int],
-    csv: Optional[Path], retentar_de: Optional[Path], rotulo: Optional[str],
-    raizes: list[Path], impte_contem: str, tipos_doc: str,
+    csv: Optional[Path], retentar_de: Optional[Path],
+    impte_contem: str, tipos_doc: str,
     relator_contem: str, excluir_tipos_doc: str, limite: int,
     saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
     retomar: bool,
@@ -398,10 +398,6 @@ def _argv_pdf_common(
     _push(a, "-f", fim)
     _push(a, "--csv", csv)
     _push(a, "--retentar-de", retentar_de)
-    _push(a, "--rotulo", rotulo)
-    if raizes:
-        a.append("--roots")
-        a.extend(str(r) for r in raizes)
     _push(a, "--impte-contem", impte_contem)
     _push(a, "--tipos-doc", tipos_doc)
     _push(a, "--relator-contem", relator_contem)
@@ -437,15 +433,7 @@ def baixar_pecas(
         None, "--retentar-de",
         help="Caminho de um pdfs.errors.jsonl anterior; reroda só essas URLs.",
     ),
-    rotulo: Optional[str] = typer.Option(
-        None, "--rotulo",
-        help="Rótulo livre (aparece no --saida padrão quando omitido).",
-    ),
     # Filtros (fallback).
-    raizes: list[Path] = typer.Option(
-        None, "--raizes",
-        help="Diretórios varridos em busca de judex-mini_*.json.",
-    ),
     impte_contem: str = typer.Option(
         "", "--impte-contem",
         help='Filtro: substrings (qualquer uma) para IMPTE.(S).',
@@ -469,7 +457,7 @@ def baixar_pecas(
     # Execução.
     saida: Optional[Path] = typer.Option(
         None, "--saida",
-        help="Diretório de saída. Inferido a partir de --rotulo se omitido.",
+        help="Diretório de saída. Usa runs/active/baixar-adhoc se omitido.",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
@@ -487,18 +475,6 @@ def baixar_pecas(
         False, "--retomar",
         help="Pula alvos já status=ok em pdfs.state.json.",
     ),
-    sleep_throttle: float = typer.Option(
-        2.0, "--sleep-throttle",
-        help="Segundos entre GETs sucessivos.",
-    ),
-    janela_circuit: int = typer.Option(
-        50, "--janela-circuit",
-        help="Janela rolante do disjuntor (0 desliga).",
-    ),
-    limiar_circuit: float = typer.Option(
-        0.8, "--limiar-circuit",
-        help="Fração de erros na janela que dispara o disjuntor.",
-    ),
 ) -> None:
     """Baixa PDFs do STF para o cache local de bytes.
 
@@ -511,16 +487,13 @@ def baixar_pecas(
     """
     argv = _argv_pdf_common(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de, rotulo=rotulo, raizes=raizes or [],
+        retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
         limite=limite, saida=saida, dry_run=dry_run,
         nao_perguntar=nao_perguntar, retomar=retomar,
     )
     _push(argv, "--forcar", forcar)
-    _push(argv, "--sleep-throttle", sleep_throttle)
-    _push(argv, "--janela-circuit", janela_circuit)
-    _push(argv, "--limiar-circuit", limiar_circuit)
 
     from scripts.baixar_pecas import main as _baixar_main
     raise typer.Exit(code=_baixar_main(argv))
@@ -543,9 +516,7 @@ def extrair_pecas(
     ),
     csv: Optional[Path] = typer.Option(None, "--csv"),
     retentar_de: Optional[Path] = typer.Option(None, "--retentar-de"),
-    rotulo: Optional[str] = typer.Option(None, "--rotulo"),
     # Filtros (fallback).
-    raizes: list[Path] = typer.Option(None, "--raizes"),
     impte_contem: str = typer.Option("", "--impte-contem"),
     tipos_doc: str = typer.Option("", "--tipos-doc"),
     relator_contem: str = typer.Option("", "--relator-contem"),
@@ -562,10 +533,6 @@ def extrair_pecas(
     forcar: bool = typer.Option(
         False, "--forcar",
         help="Re-extrai mesmo se o sidecar já for igual a --provedor.",
-    ),
-    lote: bool = typer.Option(
-        False, "--lote",
-        help="(Fase 2) Modo batch do Mistral. Ainda não implementado.",
     ),
     # Execução.
     saida: Optional[Path] = typer.Option(None, "--saida"),
@@ -584,7 +551,7 @@ def extrair_pecas(
     """
     argv = _argv_pdf_common(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de, rotulo=rotulo, raizes=raizes or [],
+        retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
         limite=limite, saida=saida, dry_run=dry_run,
@@ -592,7 +559,6 @@ def extrair_pecas(
     )
     _push(argv, "--provedor", provedor)
     _push(argv, "--forcar", forcar)
-    _push(argv, "--lote", lote)
 
     from scripts.extrair_pecas import main as _extrair_main
     raise typer.Exit(code=_extrair_main(argv))

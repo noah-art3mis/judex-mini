@@ -29,6 +29,11 @@ from src.utils.filters import split_csv
 _AVG_PDF_MB = 2.0
 _AVG_PAGES_PER_PDF = 5
 
+# Baked-in throttle used by the download driver. The preview estimates wall
+# time against this value; if `download_driver` ever changes its default,
+# update this constant to match.
+_THROTTLE_SLEEP_S = 2.0
+
 
 # ----- Input-mode resolver --------------------------------------------------
 
@@ -114,7 +119,6 @@ def confirm_or_exit(nao_perguntar: bool) -> None:
 def print_download_preview(
     targets: list[PecaTarget], *,
     mode_label: str,
-    throttle_sleep: float,
     stream: TextIO = sys.stdout,
 ) -> None:
     """Baixar-pdfs preview: bytes-cache split + disk / wall estimates."""
@@ -122,8 +126,8 @@ def print_download_preview(
     to_download = len(targets) - already
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     space_mb = to_download * _AVG_PDF_MB
-    # Wall: pure HTTP + sleep per target. ~1s HTTP + throttle_sleep.
-    wall_s = to_download * (1.0 + max(throttle_sleep, 0.0))
+    # Wall: pure HTTP + sleep per target. ~1s HTTP + _THROTTLE_SLEEP_S.
+    wall_s = to_download * (1.0 + _THROTTLE_SLEEP_S)
 
     lines = [
         f"targets: {len(targets)} PDFs across {n_procs} processes (modo: {mode_label})",
@@ -131,7 +135,7 @@ def print_download_preview(
         f"a baixar:               {to_download:>6d}",
         f"espaço estimado:     ~{space_mb:>6.0f} MB (at ~{_AVG_PDF_MB:.1f} MB/PDF)",
         f"tempo estimado:      ~{wall_s / 60:>6.1f} min "
-        f"(at --sleep-throttle {throttle_sleep:.1f} + HTTP)",
+        f"(at ~{_THROTTLE_SLEEP_S:.1f}s/req throttle + HTTP)",
         "",
     ]
     stream.write("\n".join(lines))

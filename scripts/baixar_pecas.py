@@ -50,12 +50,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="CSV of (classe, processo). Beats range/filter.")
     ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
                     help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
-    ap.add_argument("--rotulo", type=str, default=None,
-                    help="Free-text label (surfaces in default --saida path).")
 
     # Filters (fallback only).
-    ap.add_argument("--roots", nargs="+", type=Path, default=[],
-                    help="Directories to walk for judex-mini_*.json files.")
     ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="",
                     help="Filter: comma-separated substrings for IMPTE.(S).")
     ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="",
@@ -79,12 +75,6 @@ def main(argv: list[str] | None = None) -> int:
                     help="Skip the interactive confirm. Required for non-TTY.")
     ap.add_argument("--retomar", action="store_true",
                     help="Skip targets already status=ok in pdfs.state.json.")
-    ap.add_argument("--sleep-throttle", type=float, default=2.0,
-                    help="Seconds between GETs (default: 2.0).")
-    ap.add_argument("--janela-circuit", type=int, default=50,
-                    help="Rolling breaker window (0 disables).")
-    ap.add_argument("--limiar-circuit", type=float, default=0.8,
-                    help="Breaker error fraction (default: 0.8).")
 
     args = ap.parse_args(argv)
 
@@ -99,27 +89,22 @@ def main(argv: list[str] | None = None) -> int:
               "--retentar-de, or filter args.", file=sys.stderr)
         return 2
 
-    _pdf_cli.print_download_preview(
-        targets, mode_label=mode_label, throttle_sleep=args.sleep_throttle,
-    )
+    _pdf_cli.print_download_preview(targets, mode_label=mode_label)
 
     if args.dry_run:
         return 0
 
     _pdf_cli.confirm_or_exit(nao_perguntar=args.nao_perguntar)
 
-    saida = args.saida or Path(f"runs/active/baixar-{args.rotulo or 'adhoc'}")
+    saida = args.saida or Path("runs/active/baixar-adhoc")
     saida.mkdir(parents=True, exist_ok=True)
 
     _, _, failed = run_download_sweep(
         targets,
         out_dir=saida,
         forcar=args.forcar,
-        throttle_sleep=args.sleep_throttle,
         resume=args.retomar,
         retry_from=args.retentar_de,
-        circuit_window=args.janela_circuit,
-        circuit_threshold=args.limiar_circuit,
     )
     return 0 if failed == 0 else 1
 

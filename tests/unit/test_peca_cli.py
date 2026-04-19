@@ -193,7 +193,7 @@ def test_download_preview_reports_already_on_disk_and_to_download() -> None:
 
     buf = io.StringIO()
     _pdf_cli.print_download_preview(
-        targets, mode_label="filtros", throttle_sleep=2.0, stream=buf,
+        targets, mode_label="filtros", stream=buf,
     )
     out = buf.getvalue()
     assert "3" in out  # total

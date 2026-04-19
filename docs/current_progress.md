@@ -8,19 +8,18 @@ link unification, ASCII-snake_case sessão metadata + ISO-only dates
 monotonic-guard bypass under `--force`, fixtures regenerated as
 bare-dict v6, v4-compat paths removed, 328 unit tests green.
 
-**Status as of 2026-04-19 ~00:55 UTC: v6 schema shipped; production
-migration is 22 % complete.** Live renormalize (`--classe HC
---workers 8`, detached) ran 6.75 min wall and produced
-`ok=12669 / needs_rescrape=44926 / error=0` over 57 595 files. The
-12 669 migrated cases are v6 on disk (`_meta` slot populated;
-andamento uses `index` + ISO `data`; no `data_iso` sibling). The
-44 926 in the rescrape bucket have incomplete HTML cache —
-concentrated in older-scrape files (mostly v2 list-wrapped shape
-on disk) whose tab set didn't include `abaPautas` / sessao JSON
-when they were first cached. Rescrape CSV at
-`runs/active/renormalize_needs_rescrape.csv`. Warehouse build
-(`scripts/build_warehouse.py`) is still to be exercised end-to-end
-against the migrated slice.
+**Status as of 2026-04-19 evening: schema v8 shipped, corpus
+migrated full-corpus, warehouse rebuilt end-to-end.** `SCHEMA_VERSION
+= 8` in `src/data/types.py`; random-sample audit (3 000 of 79 742
+HC files) shows 100 % `_meta.schema_version = 8`, outcome either
+dict-shaped or `None` — no bare-string `outcome` left in production
+data. Warehouse `judex.duckdb`: 79 742 cases / 268 157 partes /
+1 086 647 andamentos / 30 504 documentos / 7 463 pautas / 30 387
+pdfs, 518 MB, 168 s rebuild. 2026 sub-warehouse `judex-2026.duckdb`:
+3 098 cases, 8.5 MB. In-flight tail: `baixar-pecas` for HC 2026
+stopped manually at 6 909 / 9 306 URLs (74.2 %); `--sleep-throttle`
+CLI flag was deleted after the sweep confirmed 0 retries at
+2.0 s/req — hardcoded now. Test suite: 423 / 423 unit tests green.
 
 Single live file covering the **active task's lab notebook**
 (plan / expectations / observations / decisions) and the **strategic
@@ -429,6 +428,35 @@ migration.
   --provedor mistral` over the 2026 scope, then rebuild. That step
   turns `.pdf.gz` into `.txt.gz` + `.extractor` sidecar, which the
   next builder pass ingests.
+- **2026-04-19 17:00 — HC-2026 bytes sweep stopped manually at
+  6 909 / 9 306 URLs (74.2 %).** Wall 7 h 08 min (13:00 → 20:09 UTC),
+  PID 574055 drained cleanly on SIGTERM (final in-flight GET
+  completed, last log line `status=ok`, atomic write committed).
+  **Outcome: 6 909 `ok` / 0 `fail` / 0 retries** — every request
+  hit portal.stf.jus.br on attempt 1 at `--sleep-throttle 2.0`.
+  The tenacity 403-riding retry path never fired — matches the
+  `docs/rate-limits.md` equilibrium (2 s/req sits under the
+  per-IP reputation ceiling for `/processos/*`). Throughput
+  **968.6 URLs/h**, which is where the 2 s throttle lands:
+  `2 s × 6 909 + Σ http_wall = 13 818 s + 11 272 s ≈ 6.97 h` —
+  reconciles to the 7.13 h observed within ~6 min of startup /
+  resume-skip overhead. Coverage **2 307 / 3 099 cases (74.4 %)**
+  touched at avg 3.0 PDFs/case, **918 M characters** of body text
+  written to `cache/pdfs/*.bytes.gz`. Resume recipe: same `baixar-pecas`
+  invocation with `--retomar`; 2 397 URLs / 792 cases remain, ETA
+  ~2.5 h at the same rate. Why stopped: user call — the sweep had
+  produced enough to derisk the OCR/warehouse tail, and we wanted
+  a checkpoint before moving on.
+- **2026-04-19 17:15 — `--sleep-throttle` CLI flag deleted.** Given
+  zero retries across 6 909 requests at 2.0 s, the value is validated
+  policy, not a knob. Removed the flag from the Typer wrapper
+  (`src/cli.py`) and the `scripts/baixar_pecas.py` argparse surface;
+  dropped `throttle_sleep` from `print_download_preview` in
+  `src/sweeps/peca_cli.py` (hardcoded `_THROTTLE_SLEEP_S = 2.0`);
+  `run_download_sweep` keeps `throttle_sleep=2.0` as a kwarg because
+  `tests/unit/test_download_driver.py` injects `0` to skip real sleeps.
+  Per CLAUDE.md § no backwards-compat, no deprecation alias. Test
+  suite green: **423 / 423** unit tests.
 
 ## Re-extraction status — what's v6, what isn't
 

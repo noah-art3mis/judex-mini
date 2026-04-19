@@ -77,11 +77,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="CSV of (classe, processo). Beats range/filter.")
     ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
                     help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
-    ap.add_argument("--rotulo", type=str, default=None,
-                    help="Free-text label (surfaces in default --saida path).")
 
     # Filters (fallback only).
-    ap.add_argument("--roots", nargs="+", type=Path, default=[])
     ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="")
     ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="")
     ap.add_argument("--relator-contem", dest="relator_contem", type=str, default="")
@@ -94,8 +91,6 @@ def main(argv: list[str] | None = None) -> int:
                     help="Text extractor. Default: pypdf.")
     ap.add_argument("--forcar", action="store_true",
                     help="Re-extract even if sidecar already matches --provedor.")
-    ap.add_argument("--lote", action="store_true",
-                    help="(Phase 2) Mistral batch mode. Not yet implemented.")
 
     # Execution.
     ap.add_argument("--saida", type=Path, default=None)
@@ -107,13 +102,6 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-
-    if args.lote:
-        sys.stderr.write(
-            "error: --lote is deferred to Phase 2 (see "
-            "docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md).\n",
-        )
-        return 2
 
     targets, mode_label = _pdf_cli.resolve_targets(args)
     if args.limite and len(targets) > args.limite:
@@ -134,9 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     _pdf_cli.confirm_or_exit(nao_perguntar=args.nao_perguntar)
 
     ocr_config = _build_ocr_config(args.provedor)
-    saida = args.saida or Path(
-        f"runs/active/extrair-{args.provedor}-{args.rotulo or 'adhoc'}"
-    )
+    saida = args.saida or Path(f"runs/active/extrair-{args.provedor}")
     saida.mkdir(parents=True, exist_ok=True)
 
     _, _, _, failed = run_extract_sweep(
