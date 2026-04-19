@@ -61,10 +61,9 @@ def collect_pdf_targets(
 
     for f in files:
         try:
-            d = json.loads(f.read_text())
+            rec = json.loads(f.read_text())
         except Exception:
             continue
-        rec = d[0] if isinstance(d, list) else d
 
         if classe is not None and rec.get("classe") != classe:
             continue

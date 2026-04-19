@@ -225,8 +225,7 @@ def load_gt_fixture(parity_dir: Path, classe: str, processo: int) -> Optional[di
 
 
 def _load_fixture_file(path: Path) -> dict[str, Any]:
-    data = json.load(path.open())
-    return data[0] if isinstance(data, list) else data
+    return json.load(path.open())
 
 
 def load_parity_csv(path: Path) -> dict[tuple[str, int], dict[str, Any]]:

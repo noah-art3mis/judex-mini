@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 4780094,
     "classe": "HC",
     "processo_id": 128377,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=4780094",
     "numero_unico": "0002818-11.2015.1.00.0000",
     "meio": "ELETRONICO",
     "publicidade": "PUBLICO",
@@ -15,6 +17,7 @@
       "DIREITO PENAL | Parte Geral | Aplicação da Pena | Substituição da Pena"
     ],
     "data_protocolo": "21/05/2015",
+    "data_protocolo_iso": "2015-05-21",
     "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
     "origem": "SP - SÃO PAULO",
     "numero_origem": [
@@ -52,6 +55,7 @@
       {
         "index_num": 19,
         "data": "02/05/2017",
+        "data_iso": "2017-05-02",
         "nome": "BAIXA AO ARQUIVO DO STF",
         "complemento": null,
         "julgador": null,
@@ -61,6 +65,7 @@
       {
         "index_num": 18,
         "data": "02/05/2017",
+        "data_iso": "2017-05-02",
         "nome": "TRANSITADO(A) EM JULGADO",
         "complemento": "em 29/04/2017",
         "julgador": null,
@@ -73,6 +78,7 @@
       {
         "index_num": 17,
         "data": "20/04/2017",
+        "data_iso": "2017-04-20",
         "nome": "PUBLICADO ACÓRDÃO, DJE",
         "complemento": "DATA DE PUBLICAÇÃO DJE 20/04/2017 - ATA Nº 52/2017. DJE nº 79, divulgado em 19/04/2017",
         "julgador": null,
@@ -85,6 +91,7 @@
       {
         "index_num": 16,
         "data": "04/04/2017",
+        "data_iso": "2017-04-04",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "ATA Nº 8, de 24/03/2017. DJE nº 67, divulgado em 03/04/2017",
         "julgador": null,
@@ -94,6 +101,7 @@
       {
         "index_num": 15,
         "data": "24/03/2017",
+        "data_iso": "2017-03-24",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -103,6 +111,7 @@
       {
         "index_num": 14,
         "data": "24/03/2017",
+        "data_iso": "2017-03-24",
         "nome": "AGRAVO REGIMENTAL NÃO PROVIDO",
         "complemento": "Decisão: A Turma, por maioria, negou provimento ao agravo, nos termos do voto do Relator, vencido o Ministro Marco Aurélio. Primeira Turma, Sessão Virtual de 17 a 23.3.2017.",
         "julgador": "1ª TURMA - SESSÃO VIRTUAL",
@@ -115,6 +124,7 @@
       {
         "index_num": 13,
         "data": "24/03/2017",
+        "data_iso": "2017-03-24",
         "nome": "FINALIZADO JULGAMENTO VIRTUAL",
         "complemento": "Finalizado julgamento virtual em 23 de Março de 2017 (Quinta-feira), às 23:59 .",
         "julgador": null,
@@ -124,6 +134,7 @@
       {
         "index_num": 12,
         "data": "17/03/2017",
+        "data_iso": "2017-03-17",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -133,6 +144,7 @@
       {
         "index_num": 11,
         "data": "09/03/2017",
+        "data_iso": "2017-03-09",
         "nome": "PAUTA PUBLICADA NO DJE - 1ª TURMA",
         "complemento": "PAUTA Nº 20/2017. DJE nº 44, divulgado em 08/03/2017",
         "julgador": null,
@@ -142,6 +154,7 @@
       {
         "index_num": 10,
         "data": "07/03/2017",
+        "data_iso": "2017-03-07",
         "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
         "complemento": "Julgamento Virtual - 1ª Turma em 07/03/2017 19:50:57 - HC-AgR",
         "julgador": null,
@@ -151,6 +164,7 @@
       {
         "index_num": 9,
         "data": "10/08/2015",
+        "data_iso": "2015-08-10",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -160,6 +174,7 @@
       {
         "index_num": 8,
         "data": "10/08/2015",
+        "data_iso": "2015-08-10",
         "nome": "INTERPOSTO AGRAVO REGIMENTAL",
         "complemento": "Juntada Petição: 38146/2015",
         "julgador": null,
@@ -169,6 +184,7 @@
       {
         "index_num": 7,
         "data": "10/08/2015",
+        "data_iso": "2015-08-10",
         "nome": "PETIÇÃO",
         "complemento": "Agravo Regimental - Petição: 38146 Data: 10/08/2015 16:26:56.67 GMT-03:00",
         "julgador": null,
@@ -178,6 +194,7 @@
       {
         "index_num": 6,
         "data": "07/08/2015",
+        "data_iso": "2015-08-07",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "DJE nº 155, divulgado em 06/08/2015",
         "julgador": null,
@@ -190,6 +207,7 @@
       {
         "index_num": 5,
         "data": "03/08/2015",
+        "data_iso": "2015-08-03",
         "nome": "NEGADO SEGUIMENTO",
         "complemento": null,
         "julgador": "MIN. LUIZ FUX",
@@ -199,6 +217,7 @@
       {
         "index_num": 4,
         "data": "21/05/2015",
+        "data_iso": "2015-05-21",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -208,6 +227,7 @@
       {
         "index_num": 3,
         "data": "21/05/2015",
+        "data_iso": "2015-05-21",
         "nome": "DISTRIBUÍDO",
         "complemento": "MIN. LUIZ FUX",
         "julgador": null,
@@ -217,6 +237,7 @@
       {
         "index_num": 2,
         "data": "21/05/2015",
+        "data_iso": "2015-05-21",
         "nome": "AUTUADO",
         "complemento": null,
         "julgador": null,
@@ -226,6 +247,7 @@
       {
         "index_num": 1,
         "data": "21/05/2015",
+        "data_iso": "2015-05-21",
         "nome": "PROTOCOLADO",
         "complemento": null,
         "julgador": null,
@@ -261,15 +283,15 @@
         "documentos": {
           "Relatório": {
             "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4248647",
-            "text": null
+            "text": "R E L A T Ó R I O\n\n          O S      ENHOR            M    INISTRO            L   UIZ     F   UX     (R    ELATOR         ):   Trata-se de agravo\nregimental interposto por ODETE ETELVINA DE JESUS DOMINGOS\ncontra decisão de minha relatoria que negou seguimento a pedido de\nhabeas corpus,              a qual restou assim ementada,                                  in verbis        :\n\n\n                                        “ PENAL E PROCESSUAL PENAL. HABEAS CORPUS.\n                              PENA E REGIME DE CUMPRIMENTO. RÉ REINCIDENTE.\n                              DITAME LEGAL QUE IMPEDE A CONCESSÃO DE REGIME\n                              ABERTO. ATO APONTADO COMO COATOR QUE NÃO\n                              ESTÁ EM DESACORDO COM A JURISPRUDÊNCIA DO\n                              SUPREMO           TRIBUNAL           FEDERAL.           NEGADO\n                              SEGUIMENTO.                    ”.\n\n          Consta dos autos que o paciente foi condenada à pena de 5 (cinco)\nanos, 4 (quatro) meses e 5 (cinco) dias de reclusão, em regime fechado, e\nde 23 (vinte e três) dias-multa, por infração aos artigos 288,                                                                    caput      , 171,\ncaput     , c/c o 14, inciso II, e ao 297, todos do Código Penal.\n\n          O Tribunal               a quo       deu provimento parcial à apelação da recorrente,\npara absolvê-la do crime de estelionato e reduziu a pena a 2 (dois) anos e\n1 (um) mês de reclusão, em regime semiaberto, e de 8 (oito) dias-multa\n(fls. 12/18).\n\n\n          Inconformada impetrou writ junto a Corte Superior, sustentando,\nem síntese, que teria direito ao regime aberto de cumprimento de pena, o\nqual foi não foi conhecido.\n\n\n          Ato contínuo, postulou novo                                         habeas corpus                  perante esta Corte,\naduzindo que a “                    A paciente, apesar dos problemas que teve em sua vida, leva\numa vida regrada há quase 08 anos, não tendo cometido mais nenhum delito e,\nsem adentrarmos ao mérito do crime anterior apenado com reclusão em que a\nmesma se viu condenada, já faz mais de 10 anos que fora condenada, tendo\ncumprido, à época, o que lhe fora determinado, portanto, apesar dos maus\nantecedentes, não pode ser considerada reincidente, conforme comprova com os\ndocumentos em anexo                      .\n\n\n          No mérito, postulou fosse determinada a mudança do regime\nprisional para que a paciente iniciasse o cumprimento da pena no regime\naberto.\n\n\n          Negado seguimento ao                                 habeas corpus               , ante a ausência de teratologia\nno ato impugnado, sobrevém o presente recurso em que o agravante\nrepisa os mesmos argumentos do pedido inicial e requer a reconsideração\nda decisão agravada,                          in verbis        :\n\n\n                                           “Assim, diante dos relevantes esclarecimentos que a Agravante\n                                apresenta, requer a apreciação do presente recurso, precedido de juízo\n                                de retratação, ao que, deverá ser recebido e processado, colocando-o em\n                                pauta para julgamento, e dando-lhe provimento, para o fim de\n                                reformar-se a r. decisão agravada, de modo a permitir o conhecimento\n                                e concessão da Ordem de Habeas Corpus, com o fim de alterar o\n                                regime prisional inicial da Paciente.”.\n\n          É o relatório."
           },
           "Voto": {
             "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4248648",
-            "text": null
+            "text": "V O T O\n\n\n\n          O S      ENHOR           M     INISTRO            L  UIZ      F  UX     (R    ELATOR          ): A presente irresignação\nnão merece prosperar.\n\n\n          Em   que   pesem   os   argumentos   expendidos   no   agravo,   resta\nevidenciado das razões recursais que o agravante não trouxe nenhum\nargumento capaz de infirmar a decisão hostilizada, razão pela qual    deve\nela ser mantida, por seus próprios fundamentos.\n\n          A   competência   originária   do   Supremo   Tribunal   Federal   para\nconhecer e julgar                        Habeas Corpus                    está definida, taxativamente, no artigo\n102, inciso I, alíneas                      d  e   i, da Constituição Federal,                                verbis     :\n\n\n                                           Art.     102.     Compete     ao     Supremo     Tribunal     Federal,\n                                precipuamente, a guarda da Constituição, cabendo-lhe:\n                                           I processar e julgar, originariamente:\n                                           (…)\n                                           d) o    habeas corpus, sendo paciente qualquer das pessoas\n                                referidas nas alíneas anteriores; o mandado de segurança e o habeas\n                                data contra atos do Presidente da República, das Mesas da Câmara e\n                                do Senado Federal, do Tribunal de Contas da União, do Procurador-\n                                Geral da República e do próprio Supremo Tribunal Federal;\n                                           …\n                                           i) o habeas corpus, quando o coator for Tribunal Superior ou\n                                quando o coator ou o paciente for autoridade ou funcionário cujos atos\n                                estejam sujeitos diretamente à jurisdição do Supremo Tribunal\n                                Federal, ou se trate de crime sujeito à mesma jurisdição em uma única\n                                instância.\n\n          In casu         , o paciente não está arrolado em nenhuma das hipóteses\nsujeitas à jurisdição originária desta Corte.\n\n          A ementa do acórdão proferido na Pet 1738-AgR, Pleno, Relator o\nMinistro Celso de Mello, Dje de 1º.10.99, é elucidativa e precisa quanto à\ntaxatividade da competência do Supremo Tribunal Federal:\n\n\n                                           “EMENTA:     PROTESTO     JUDICIAL     FORMULADO\n                                 CONTRA DEPUTADO FEDERAL - MEDIDA DESTITUÍDA DE\n                                 CARÁTER   PENAL   (CPC,   ART.   867)   -   AUSÊNCIA   DE\n                                 COMPETÊNCIA   ORIGINÁRIA   DO   SUPREMO   TRIBUNAL\n                                 FEDERAL - RECURSO DE AGRAVO IMPROVIDO.\n                                            A   PRERROGATIVA   DE   FORO   -   UNICAMENTE\n                                 INVOCÁVEL NOS PROCEDIMENTOS DE CARÁTER PENAL -\n                                 NÃO SE ESTENDE ÀS CAUSAS DE NATUREZA CIVIL.\n                                            - As medidas cautelares a que se refere o art. 867 do Código de\n                                 Processo   Civil   (protesto,   notificação   ou   interpelação),   quando\n                                 promovidas contra membros do Congresso Nacional, não se incluem\n                                 na esfera de competência originária do Supremo Tribunal Federal,\n                                 precisamente porque destituídas de caráter penal. Precedentes.\n                                            A COMPETÊNCIA DO SUPREMO TRIBUNAL FEDERAL\n                                 - CUJOS FUNDAMENTOS REPOUSAM NA CONSTITUIÇÃO\n                                 DA REPÚBLICA - SUBMETE-SE A REGIME DE DIREITO\n                                 ESTRITO.\n                                            - A competência originária do Supremo Tribunal Federal, por\n                                 qualificar-se como um complexo de atribuições jurisdicionais de\n                                 extração essencialmente constitucional - e ante o regime de direito\n                                 estrito a que se acha submetida - não comporta a possibilidade de ser\n                                 estendida a situações que extravasem os limites fixados, em numerus\n                                 clausus, pelo rol exaustivo inscrito no art. 102, I, da Constituição da\n                                 República. Precedentes.\n                                            O regime de direito estrito, a que se submete a definição dessa\n                                 competência institucional, tem levado o Supremo Tribunal Federal,\n                                 por efeito da taxatividade do rol constante da Carta Política, a afastar,\n                                 do âmbito de suas atribuições jurisdicionais originárias, o processo e o\n                                 julgamento de causas de natureza civil que não se acham inscritas no\n                                 texto constitucional (ações populares, ações civis públicas, ações\n                                 cautelares, ações ordinárias, ações declaratórias e medidas cautelares),\n                                 mesmo que instauradas contra o Presidente da República ou contra\n                                 qualquer das autoridades, que, em matéria penal (CF, art. 102, I, b e\n                                 c), dispõem de prerrogativa de foro perante a Corte Suprema ou que,\n                                 em sede de mandado de segurança, estão sujeitas à jurisdição imediata\n                                 do Tribunal (CF, art. 102, I, d). Precedentes”.\n\n           Afigura-se   paradoxal,   em   tema   de   direito   estrito,   conferir\ninterpretação   extensiva   para   abranger   no   rol   de   competências   do\nSupremo Tribunal hipóteses não sujeitas à sua jurisdição.\n\n           A prevalência do entendimento de que o Supremo Tribunal Federal\ndeve   conhecer   de                            habeas   corpus                    substitutivo   de   recurso   ordinário\nconstitucional contrasta com os meios de contenção de feitos, remota e\nrecentemente implementados - Súmula Vinculante e Repercussão Geral -\ncom o objetivo de viabilizar o exercício pleno, pelo Supremo Tribunal\nFederal, da nobre função de guardião da Constituição da República.\n\n          E nem se argumente com o que se convencionou chamar de\njurisprudência defensiva. Não é disso que se trata, mas de necessária,\nimperiosa   e   urgente   reviravolta   de   entendimento   em   prol   da\norganicidade do direito, especificamente no que tange às competências\noriginária e recursal do Supremo Tribunal Federal para processar e\njulgar                                                                                     habeas corpus                                     recurso\nextraordinário, valendo acrescer que essa ação nobre não pode e nem\ndeve ser banalizada a pretexto, em muitos casos, de pseudonulidades\nprocessuais com reflexos no direito de ir e vir.\n\n          A propósito da organicidade e dinâmica do direito, impondo-se a\ncorreção de rumos,                        bem discorreu o Ministro Marco Aurélio no voto\nproferido no HC n. 109.956, que capitaneou a mudança de entendimento\nna Segunda Turma,                         verbis      :\n\n\n                                          “O   Direito   é   orgânico   e   dinâmico   e   contém   princípios,\n                               expressões e vocábulos com sentido próprio. A definição do alcance da\n                               Carta da República há de fazer-se de forma integrativa, mas também\n                               considerada a regra de hermenêutica e aplicação do Direito que é\n                               sistemática. O habeas corpus substitutivo de recurso ordinário, além\n                               de não estar abrangido pela garantia constante do inciso LXVIII do\n                               artigo 5º do Diploma Maior, não existindo qualquer previsão legal,\n                               enfraquece este último documento, tornando-o desnecessário no que,\n                               nos artigos 102, inciso II, alínea ‘a’, e 105, inciso II, alínea ‘a’, tem-se\n                               a previsão de recurso ordinário constitucional a ser manuseado, em\n                               tempo, para o Supremo, contra decisão proferida por tribunal superior\n                               indeferindo ordem, e para o Superior Tribunal de Justiça, contra ato\n                               de tribunal regional federal e de tribunal de justiça. O Direito é avesso\n                               a sobreposições e impetrar-se novo habeas, embora para julgamento\n                               por tribunal diverso, impugnando pronunciamento em idêntica\n                               medida implica inviabilizar, em detrimento de outras situações em que\n                               requerida, a jurisdição.\n                                          Cumpre implementar – visando restabelecer a eficácia dessa ação\n                               maior, a valia da Carta Federal no que prevê não o habeas substitutivo,\n                               mas o recurso ordinário – a correção de rumos. Consigno que, no\n                                tocante a habeas já formalizado sob a óptica da substituição do recurso\n                                constitucional,   não   ocorrerá   prejuízo   para   o   paciente,   ante   a\n                                possibilidade de vir-se a conceder, se for o caso, a ordem de ofício.”\n\n          Ademais, no que concerne análise dos critérios de dosimetria da\npena e alteração do regime prisional, consigno que o conhecimento desta\nimpetração sem que a instância precedente tenha examinado o mérito do\nhabeas corpus                lá impetrado consubstancia indevida supressão de instância\ne, por conseguinte, violação das regras constitucionais definidoras da\ncompetência dos Tribunais Superiores, valendo conferir os seguintes\nprecedentes desta Corte:\n\n\n                                           “AGRAVO REGIMENTAL EM RECURSO ORDINÁRIO\n                                EM HABEAS CORPUS. ASSOCIAÇÃO CRIMINOSA. CRIME\n                                CONTRA      A       ECONOMIA       POPULAR.       EXTORSÃO.\n                                CORRUPÇÃO  ATIVA.   INÉPCIA   DA   DENÚNCIA.   PRISÃO\n                                PREVENTIVA.   NÃO   ESGOTAMENTO   DE   JURISDIÇÃO.\n                                INSTRUÇÃO   DEFICIENTE   DO   WRIT.   SUPRESSÃO   DE\n                                INSTÂNCIA. 1. Irretocável a decisão do Superior Tribunal de Justiça\n                                quanto à inviabilidade de apreciação do writ impetrado contra decisão\n                                monocrática da Corte Estadual, cuja jurisdição não se esgotou. 2. A\n                                jurisprudência deste Supremo Tribunal Federal orienta no sentido do\n                                não   conhecimento   de   habeas   corpus   quando   não   devidamente\n                                instruído o feito. 3. Inviável o exame das teses defensivas não\n                                analisada pelo Superior Tribunal de Justiça e pela Corte Estadual, sob\n                                pena de indevida supressão de instâncias. Precedentes. 4. Agravo\n                                regimental conhecido e não provido”.                                   (RHC 135.560 AgR, Primeira\n                                Turma, Relator Min. Rosa Weber, DJe 10/11/2016)\n\n\n                                           “Agravo regimental em habeas corpus. Penal e processual penal.\n                                Homicídios qualificados (CP, art. 121, § 2º, incisos I e IV).\n                                Trancamento da ação penal. Falta de  justa causa. Pretendida\n                                revogação da prisão preventiva. Impetração dirigida contra decisão\n                                monocrática com que o relator do habeas corpus no Superior Tribunal\n                                de Justiça não conheceu do writ com arrimo na Súmula nº 691 do\n                                Supremo   Tribunal   Federal.   Não   exaurimento   da   instância\n                                antecedente. Apreciação per saltum. Impossibilidade. Dupla supressão\n                                de instância. Precedentes. Regimental não provido. 1. É firme a\n                                jurisprudência da Corte no sentido de que não compete ao Supremo\n                                Tribunal Federal conhecer de habeas corpus impetrado contra decisão\n                                de relator que, em HC requerido a tribunal superior, indefere\n                               liminarmente o pedido com supedâneo na Súmula 691 do STF. Essa\n                               circunstância impede o exame da matéria pelo Supremo, sob pena de\n                               se   incorrer   em   dupla   supressão   de   instância,   com   evidente\n                               extravasamento dos limites da competência descritos no art. 102 da\n                               Carta Magna (v.g. HC nº 117.761/SP, Segunda Turma, Relator o\n                               Ministro Ricardo Lewandowski, DJe de 4/10/13). 2. Como se não\n                               bastasse, é inadmissível o habeas corpus que se volte contra decisão\n                               monocrática do relator da causa no Superior Tribunal de Justiça não\n                               submetida ao crivo do colegiado por intermédio do agravo interno, por\n                               falta de exaurimento da instância antecedente. Precedentes. 3. Agravo\n                               regimental  ao qual se  nega provimento”.                                               (HC 136.473 AgR,\n                               Segunda Turma, Relator Min. Dias Toffoli, DJe 21/11/2016)\n\n                                          “Agravo regimental em habeas corpus. 2. Tráfico e associação\n                               para o tráfico internacional de drogas. 3. Alegação de carência de\n                               fundamentação idônea na manutenção da prisão cautelar do paciente e\n                               excesso de prazo da custódia. 4. Supressão de instância: matéria não\n                               apreciada pelo STJ. 5. Decisão monocrática do STJ. Ausência de\n                               interposição de agravo regimental. Não exaurimento da jurisdição e\n                               inobservância do princípio da colegialidade. Precedentes. Writ não\n                               conhecido. 6. Afastada a possibilidade de concessão da ordem de ofício.\n                               Não configuração de patente constrangimento ilegal ou abuso de\n                               poder.   7.   Agravo   regimental   a   que   se   nega   provimento”.\n                               (HC 135.016 AgR, Segunda Turma, Relator Min. Gilmar Mendes,\n                               DJe 20/10/2016)\n\n          Por fim, impende considerar que no caso inexiste excepcionalidade\nque permita a concessão da ordem de ofício, ante a ausência de\nteratologia na decisão atacada, flagrante ilegalidade ou abuso de poder.\n\n          Destarte, no que diz respeito à dosimetria da pena pelo Juízo                                                                           a quo      ,\nnão procede a argumentação de que se trata de constrangimento ilegal,\nporquanto desfavoráveis as circunstâncias judiciais elencadas no artigo\n59, do Código Penal.\n\n\n          Portanto, como se depreende da fundamentação da decisão do\nTribunal            a quo      , a dosimetria da pena foi realizada com base em fatos e\nelementos existentes no caso em concreto, conforme se denota no trecho\ndo acórdão,               in verbis        :\n\n\n                                          “ As penas aplicadas aos crimes de estelionato tentado e\n                                formação de quadrilha, por outro lado, comportam abrandamento. A\n                                pena-base de ambos os crimes já foi exasperada em razão de a ré\n                                possuir 'maus antecedentes'. Para o crime de estelionato foi fixada a\n                                pena de 1 (um) ano e 3 (três) meses de reclusão, mais 12 (doze) dias-\n                                multa, piso, e para o crime de quadrilha 1 (um) ano e 3 (três) meses de\n                                reclusão. O acréscimo pela reincidência, no importe de 1/6, não pode\n                                prevalecer. A dupla exasperação a tal título enseja odioso bis in idem,\n                                visto que ambas as causas derivam da mesma fonte, a vida pregressa\n                                da ré, que não poderia ser valorada em oportunidades diversas da\n                                dosimetria. Assim, o segundo aumento, pela reincidência, deve ser\n                                extirpado. Pela tentativa, a pena do crime de estelionato é de ser\n                                reduzida de uma terça parte, critério da r. sentença, resultando em 9\n                                (nove) meses de reclusão, mais o pagamento de 8 (oito) dias-multa,\n                                piso. Diante do quantum da pena total, 2 (dois) anos e 1 (um) mês de\n                                reclusão, mais o pagamento de 8 (oito) dias-multa, piso, o regime\n                                prisional deve ser abrandado. Não sendo viável o aberto, incompatível\n                                com a nódoa recidiva, é de ser fixado o regime intermediário, mantida\n                                no mais a r. sentença\"                   .\n\n\n          A propósito, o Supremo Tribunal Federal fixou entendimento no\nsentido de que, sendo desfavoráveis as circunstâncias judiciais elencadas\nno artigo 59 do Código Penal, é possível o regime mais gravoso. Decidiu,\nainda, que              “a dosimetria da pena, bem como os critérios subjetivos considerados\npelos órgãos inferiores para a sua realização, não são passíveis de aferição na via\nestreita do habeas corpus, por demandar minucioso exame fático e probatório\ninerente a meio processual diverso”                                        (HC nº 114.650, Primeira Turma, Rel.\nMin. Luiz Fux, DJe de 14/08/2013). No mesmo sentido, os seguintes\njulgados:\n\n\n                                           “Penal.   Recurso   ordinário   em   habeas   corpus.   Tráfico   e\n                                associação para o tráfico de entorpecentes – arts. 12 e 14 da Lei\n                                6.368/76.          Dosimetria da pena. Pena-base exacerbada de forma\n                                fundamentada. Reanálise das circunstâncias judiciais. Não\n                                cabimento   em   sede   de   habeas   corpus   Constrangimento\n                                inexistente. 1. O habeas corpus não é cabível para reanálise das\n                                circunstâncias judiciais do art. 59 do Código Penal, sopesadas\n                                desfavoravelmente                        (HC 98.900/MS, Relator Min. Dias Toffoli,\n                                Primeira Turma, DJe 30/11/2010; HC 94.882/RS, Relator Min.\n                                Menezes Direito, Primeira Turma, DJe 21/05/2009; HC 90.045/RJ,\n                                Relator Min. Joaquim Barbosa, Segunda Turma, DJe 20/3/2009). 2. In\n                                casu, o recorrente, condenado por tráfico de entorpecentes e associação\npara o narcotráfico (arts. 12 e 14 da Lei 6.368/76), é reincidente\nespecífico no crime de tráfico de entorpecentes e principal líder de\nestruturada quadrilha com a qual foram apreendidas quase duas\ntoneladas de maconha (precisamente, 1.920,95kg), por isso a pena de\n19 (dezenove) anos de reclusão, posteriormente reduzida para 15\n(quinze) anos e 9 (nove) meses, mostra-se suficiente à prevenção e\nreprovação do crime. 3. É relevante anotar, ademais, o que consignado\nno acórdão recorrido, no sentido de que ‘As características pessoais do\npaciente que, beneficiado com a progressão para o regime semiaberto,\naproveitava os momentos que estava fora da penitenciária em que se\nencontrava cumprindo pena pena por idêntico delito – tráfico de\nentorpecentes – para comandar a quadrilha envolvida na prática dos\ncrimes em comento, igualmente autorizam o aumento da reprimenda\nna primeira fase da dosimetria’. 4. A fixação da pena-base acima do\nmínimo legal deu-se em razão de as circunstâncias judiciais do art. 59\ndo Código Penal terem sido consideradas desfavoráveis, de forma\nfundamentada, não cabendo a esta Corte, como é cediço, o reexame dos\nelementos fáticos que formaram a convicção do Magistrado. 5.\nRecurso ordinário em habeas corpus desprovido” - Sem grifos no\noriginal.\n          (RHC nº 115.213, Primeira Turma, Rel. Min. Luiz Fux, DJe\nde 26/06/2013).\n\n          “RECURSO ORDINÁRIO EM HABEAS CORPUS. ROUBO\nTRIPLAMENTE   CIRCUNSTANCIADO.   DOSIMETRIA   DA\nPENA. FRAÇÃO SUPERIOR AO MÍNIMO LEGAL. REGIME\nINICIAL DE CUMPRIMENTO DE PENA MAIS GRAVOSO.\nPOSSIBILIDADE. MOTIVAÇÃO IDÔNEA. 1.                                                             A dosimetria da\npena submete-se a certa discricionariedade judicial. O Código\nPenal não estabelece rígidos esquemas matemáticos ou regras\nabsolutamente objetivas para a fixação da pena. Cabe às\ninstâncias ordinárias, mais próximas dos fatos e das provas,\nfixar as penas. Às Cortes Superiores, no exame da dosimetria\ndas penas em grau recursal, compete o controle da legalidade e\nda constitucionalidade dos critérios empregados, bem como a\ncorreção de eventuais discrepâncias, se gritantes ou arbitrárias,\nnas   frações   de   aumento   ou   diminuição   adotadas   pelas\ninstâncias anteriores.                       2. Pertinente à dosimetria da pena, encontra-\nse a aplicação das causas de aumento do art. 157, § 2º, incisos I, II e V,\ndo Código Penal. Justificada a fixação da majorante além do mínimo\nlegal em razão das circunstâncias concretas do fato e não apenas no\nnúmero de majorantes. 3. A fixação do regime inicial de cumprimento\n                                da pena não está condicionada somente ao quantum da reprimenda,\n                                mas também ao exame das circunstâncias judiciais. Não se verifica\n                                constrangimento ilegal no regime fechado estabelecido quando há\n                                motivação idônea, fundamentada na gravidade concreta da conduta.\n                                Precedentes 4 . Recurso ordinário em habeas corpus a que se nega\n                                provimento” - Sem grifos no original.\n                                           (RHC nº 114.965, Primeira Turma, Rel. Min. Rosa Weber,\n                                DJe de 27/06/2013).\n\n\n                                           “HABEAS CORPUS. PROCESSO PENAL. TRÁFICO DE\n                                DROGAS.   DOSIMETRIA   DA   PENA.   EXASPERAÇÃO   DA\n                                PENA-BASE. CAUSA DE DIMINUIÇÃO DO ART. 33, § 4º, DA\n                                LEI 11.343/06. CAUSA DE AUMENTO DE PENA DOS INCISOS\n                                II e III DO ART. 40 DA LEI 11.343/06. REGIME INICIAL DE\n                                CUMPRIMENTO   DE   PENA.   SUBSTITUIÇÃO   DA   PENA.\n                                CIRCUNSTÂNCIAS DESFAVORÁVEIS. 1.                                                       A dosimetria da pena\n                                é matéria sujeita a certa discricionariedade judicial. O Código\n                                Penal não estabelece rígidos esquemas matemáticos ou regras\n                                absolutamente objetivas para a fixação da pena. Cabe às\n                                instâncias ordinárias, mais próximas dos fatos e das provas,\n                                fixar as penas. Às Cortes Superiores, no exame da dosimetria\n                                das penas em grau recursal, compete o controle da legalidade e\n                                da constitucionalidade dos critérios empregados, bem como a\n                                correção de eventuais discrepâncias, se gritantes ou arbitrárias,\n                                nas   frações   de   aumento   ou   diminuição   adotadas   pelas\n                                instâncias anteriores.                        2. Pertinente à dosimetria da pena, encontra-\n                                se a aplicação da causa de diminuição da pena objeto do §4º do art. 33\n                                da Lei 11.343/2006. Cabe às instâncias anteriores decidir sobre a\n                                aplicação ou não do benefício e, se aplicável, a fração pertinente, não se\n                                mostrando hábil o habeas corpus para revisão, salvo se presente\n                                manifesta ilegalidade ou arbitrariedade. 3. O quantum da pena\n                                aplicada não enseja possibilidade de imposição de regime inicial mais\n                                brando que o fechado, nem tampouco a substituição da pena privativa\n                                por restritiva de direitos, à luz dos requisitos legais gerais dos arts. 33,\n                                § 2º, a, e 44, ambos do Código Penal. 4. Habeas corpus denegado” -\n                                Sem grifos no original.\n                                           (HC nº 116.531, Primeira Turma, Rel. Min. Rosa Weber,\n                                DJe de 11/06/2013)\n\n\n          Impende consignar, ainda, que o exame da matéria, com vistas a\nsub-rogar o entendimento das instâncias inferiores, enseja, de igual\nmaneira, o revolvimento do conjunto fático-probatório engendrado nos\nautos. Destarte, não se revela cognoscível a insurgência que não se\namolda à estreita via eleita. Nesse sentido:\n\n                                           “PENAL       E       PROCESSUAL       PENAL.      AGRAVO\n                                REGIMENTAL   NO   RECURSO   ORDINÁRIO   EM   HABEAS\n                                CORPUS. RECORRENTE CONDENADO PELA PRÁTICA DOS\n                                CRIMES DE FALSIDADE IDEOLÓGICA (ART. 299, C/C ART.\n                                61, II, ALÍNEA “G”, DO CÓDIGO PENAL), PECULATO (ART.\n                                312, CAPUT, C/C ART. 61, II, ALÍNEA “G”, DO CÓDIGO\n                                PENAL) E PREVARICAÇÃO (ART. 319, C/C ART. 61, II, ALÍNEA\n                                “G”,       DO       CÓDIGO       PENAL).       INTERCEPTAÇÕES\n                                TELEFÔNICAS.   ALEGAÇÃO   DE   NULIDADES.   RAZÕES\n                                APRECIADAS   NO   JULGAMENTO   DE   IMPETRAÇÕES\n                                ANTERIORES. MERA REITERAÇÃO. INADMISSIBILIDADE\n                                DE     NOVO     WRIT.     REAPRECIAÇÃO     DE     ACERVO\n                                PROBATÓRIO     EM     SEDE     DE     HABEAS     CORPUS.\n                                IMPOSSIBILIDADE. AGRAVO REGIMENTAL DESPROVIDO.\n                                1. O habeas corpus é inadmissível quando se trata de mera reiteração\n                                das   razões   de   medida   anteriormente   impetrada   nesta   Corte.\n                                Precedentes: HC 103693-AGR, rel. min. Dias Toffoli, 1ªTurma, DJ de\n                                2/12/2010; HC 100279-AGR, rel. min. Cezar Peluso, 2ª Turma, DJ de\n                                27/11/2009; HC 82587/RJ, rel. min. Cezar Peluso, 2ªTurma, DJ de\n                                7/8/2009; HC 97475-AGR/MG, rel. min. Cezar Peluso, 2ªTurma, DJ\n                                de 3/2/2009. 2. In casu, o recorrente reitera a alegação de nulidade das\n                                interceptações telefônicas que compuseram o acervo probatório dos\n                                autos da ação penal de origem e embasaram a sua condenação pela\n                                prática dos crimes de falsidade ideológica, peculato e prevaricação,\n                                cuja legalidade já foi confirmada em julgamentos anteriores desta\n                                Corte. 3. A pretensão de apreciação do acervo probatório é vedada na\n                                via estreita do habeas corpus. Precedentes: HC 106393, Relator(a):\n                                Min. CÁRMEN LÚCIA, Primeira Turma, julgado em 15/02/2011;\n                                RHC 98731, Relator(a): Min. CÁRMEN LÚCIA, Primeira Turma,\n                                julgado em 02/12/2010; HC 72979, Relator(a): Min. MOREIRA\n                                ALVES, Primeira  Turma,  julgado em 23/02/1996; HC  93369,\n                                Relator(a): Min. CELSO DE MELLO, Segunda Turma, julgado em\n                                15/09/2009. 4. No caso, o conteúdo dos áudios mencionados na\n                                denúncia e que serviram de fundamento para a condenação é matéria\n                                cuja análise se revela inviável na via do writ. 5. Agravo regimental\n                                desprovido.”\n                                           (RHC 113.089-AgR,    Primeira Turma, Rel. Min. Luiz Fux,\n                                DJe de 05/09/2014).\n                                “AGRAVO   REGIMENTAL    EM   HABEAS   CORPUS.\n                     DIREITO   PROCESSUAL   PENAL   E   DIREITO   PENAL.\n                     VIOLAÇÃO DE DIREITO AUTORAL. ARTIGO 184, § 2º, DO\n                     CÓDIGO   PENAL.   LAUDO   PERICIAL.   MATERIALIDADE\n                     DELITIVA.       REEXAME       DO       CONJUNTO       FÁTICO-\n                     PROBATÓRIO. INVIABILIDADE. 1. Não se presta o habeas corpus,\n                     enquanto não permite ampla avaliação e valoração das provas, como\n                     instrumento hábil ao reexame do conjunto fático-probatório ensejador\n                     da condenação criminal. Precedentes. 2. Este Supremo Tribunal\n                     Federal não vem admitindo a utilização de habeas corpus com o fim de\n                     desconstituir o laudo pericial que atestou a falsidade dos objetos\n                     apreendidos para fins da persecução penal do crime art. 184, § 2º, do\n                     Código Penal, sob pena de indevido revolvimento do conjunto\n                     probatório (HC 121.355/MG, Rel. Min. Ricardo Lewandowski, 2ª\n                     Turma, DJe 26.5.2014; e HC 118.265/MG, Rel. Min. Dias Toffoli, 1ª\n                     Turma, DJe 18.11.2013). 3. O vasto acervo fático-probatório ensejador\n                     do édito condenatório, além de submetido ao crivo do contraditório e\n                     da ampla defesa, foi amplamente apreciado por órgão julgador\n                     imparcial e reexaminado pelo Tribunal de Apelação, soberanos na\n                     análise de provas, quanto à autoria e materialidade delitivas. 4.\n                     Agravo regimental conhecido e não provido.”\n                                (RHC   125.391-AgR,   Primeira   Turma,   Rel.   Min.   Rosa\n                     Weber, DJe de 26/05/2015).\n\n\nEx positis         , NEGO PROVIMENTO                                        ao agravo regimental.\n\nÉ como voto."
           },
           "Voto Vogal": {
             "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4263922",
-            "text": null
+            "text": "V    O    T   O\n\n          O SENHOR MINISTRO MARCO AURÉLIO – O                                                                      habeas corpus               é ação\nconstitucional voltada a preservar a liberdade de ir e vir do cidadão. O\nprocesso que o veicule, devidamente aparelhado, deve ser submetido ao\njulgamento de Colegiado. Descabe observar quer o disposto no artigo 21\ndo Regimento Interno, no que revela a possibilidade de o relator negar\nseguimento a pedido manifestamente improcedente, quer o artigo 932 do\nCódigo de Processo Civil. Provejo o agravo para que o                                                                habeas corpus              tenha\nsequência."
           }
         },
         "julgamento_item_titulo": "AG.REG. NO HABEAS CORPUS 128377"
@@ -281,72 +303,90 @@
         "guia": "6/2021",
         "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
         "data_recebido": "30/01/2021",
+        "data_recebido_iso": "2021-01-30",
         "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
-        "data_enviado": "30/01/2021"
+        "data_enviado": "30/01/2021",
+        "data_enviado_iso": "2021-01-30"
       },
       {
         "index_num": 8,
         "guia": "404/2019",
         "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
         "data_recebido": "15/06/2019",
+        "data_recebido_iso": "2019-06-15",
         "enviado_por": "SEÇÃO DE ARQUIVO",
-        "data_enviado": "15/06/2019"
+        "data_enviado": "15/06/2019",
+        "data_enviado_iso": "2019-06-15"
       },
       {
         "index_num": 7,
         "guia": "9471/2017",
         "recebido_por": "SEÇÃO DE ARQUIVO",
         "data_recebido": "02/05/2017",
+        "data_recebido_iso": "2017-05-02",
         "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_enviado": "02/05/2017"
+        "data_enviado": "02/05/2017",
+        "data_enviado_iso": "2017-05-02"
       },
       {
         "index_num": 6,
         "guia": "632/2017",
         "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
         "data_recebido": "20/04/2017",
+        "data_recebido_iso": "2017-04-20",
         "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
-        "data_enviado": "20/04/2017"
+        "data_enviado": "20/04/2017",
+        "data_enviado_iso": "2017-04-20"
       },
       {
         "index_num": 5,
         "guia": "2222/2017",
         "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
         "data_recebido": "17/04/2017",
+        "data_recebido_iso": "2017-04-17",
         "enviado_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_enviado": "17/04/2017"
+        "data_enviado": "17/04/2017",
+        "data_enviado_iso": "2017-04-17"
       },
       {
         "index_num": 4,
         "guia": "11789/2015",
         "recebido_por": "GABINETE MINISTRO LUIZ FUX",
         "data_recebido": "10/08/2015",
+        "data_recebido_iso": "2015-08-10",
         "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_enviado": "10/08/2015"
+        "data_enviado": "10/08/2015",
+        "data_enviado_iso": "2015-08-10"
       },
       {
         "index_num": 3,
         "guia": "4762/2015",
         "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
         "data_recebido": "03/08/2015",
+        "data_recebido_iso": "2015-08-03",
         "enviado_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_enviado": "03/08/2015"
+        "data_enviado": "03/08/2015",
+        "data_enviado_iso": "2015-08-03"
       },
       {
         "index_num": 2,
         "guia": "4898/2015",
         "recebido_por": "GABINETE MINISTRO LUIZ FUX",
         "data_recebido": "21/05/2015",
+        "data_recebido_iso": "2015-05-21",
         "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-        "data_enviado": "21/05/2015"
+        "data_enviado": "21/05/2015",
+        "data_enviado_iso": "2015-05-21"
       },
       {
         "index_num": 1,
         "guia": "1365827/2015",
         "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
         "data_recebido": "21/05/2015",
+        "data_recebido_iso": "2015-05-21",
         "enviado_por": "DIVERSOS",
-        "data_enviado": "21/05/2015"
+        "data_enviado": "21/05/2015",
+        "data_enviado_iso": "2015-05-21"
       }
     ],
     "peticoes": [
@@ -354,14 +394,21 @@
         "index": 1,
         "id": "38146/2015",
         "data": "10/08/2015",
+        "data_iso": "2015-08-10",
         "recebido_data": "10/08/2015 16:26:58",
+        "recebido_data_iso": "2015-08-10",
         "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS"
       }
     ],
     "recursos": [],
     "pautas": [],
-    "outcome": "nao_provido",
-    "status": 200,
-    "extraido": "2026-04-18T13:06:08.795306"
+    "outcome": {
+      "verdict": "nao_provido",
+      "source": "sessao_virtual",
+      "source_index": 0,
+      "date_iso": "2017-03-17"
+    },
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.788159"
   }
 ]

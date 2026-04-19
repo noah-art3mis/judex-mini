@@ -71,3 +71,11 @@ def test_extract_andamentos_link_is_none_when_no_anchor():
     [row] = extract_andamentos(SINGLE_ROW_NO_LINK)
     assert row["link"] is None
     assert row["link_descricao"] is None
+
+
+def test_extract_andamentos_emits_data_iso():
+    # Every date-bearing row carries a companion ISO field so consumers
+    # don't re-parse DD/MM/YYYY.
+    [row] = extract_andamentos(SINGLE_ROW_WITH_LINK)
+    assert row["data"] == "17/08/2020"
+    assert row["data_iso"] == "2020-08-17"

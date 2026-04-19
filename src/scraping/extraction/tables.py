@@ -23,6 +23,7 @@ from src.scraping.extraction._shared import (
     clean_nome,
     iter_lista_dados,
     strip_actor_boiler,
+    to_iso,
 )
 from src.utils.text_utils import normalize_spaces
 
@@ -70,6 +71,7 @@ def extract_andamentos(
             {
                 "index_num": index,
                 "data": data,
+                "data_iso": to_iso(data),
                 "nome": nome.upper(),
                 "complemento": complemento,
                 "julgador": julgador,
@@ -141,8 +143,10 @@ def extract_deslocamentos(deslocamentos_html: str) -> list[dict]:
                 "guia": guia,
                 "recebido_por": recebido_por,
                 "data_recebido": data_recebido,
+                "data_recebido_iso": to_iso(data_recebido),
                 "enviado_por": enviado_por,
                 "data_enviado": data_enviado,
+                "data_enviado_iso": to_iso(data_enviado),
             }
         )
     return out
@@ -177,7 +181,9 @@ def extract_peticoes(peticoes_html: str) -> list[dict]:
                 "index": index,
                 "id": petic_id,
                 "data": data,
+                "data_iso": to_iso(data),
                 "recebido_data": recebido_data,
+                "recebido_data_iso": to_iso(recebido_data),
                 "recebido_por": recebido_por,
             }
         )
@@ -185,9 +191,12 @@ def extract_peticoes(peticoes_html: str) -> list[dict]:
 
 
 def extract_recursos(recursos_html: str) -> list[dict]:
+    # NB: `data` here is a recurso-type label ("AG.REG. NA MEDIDA
+    # CAUTELAR NO HABEAS CORPUS"), not a date — historical misnaming.
+    # No *_iso companion.
     out: list[dict] = []
     for index, row in iter_lista_dados(recursos_html):
         m = P_DETAIL_BOLD.search(str(row))
         data = normalize_spaces(m.group(1)) if m else None
-        out.append({"id": index, "data": data})  # GT schema uses `id`, not `index`
+        out.append({"id": index, "data": data})
     return out

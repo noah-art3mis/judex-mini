@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 5774696,
     "classe": "RE",
     "processo_id": 1234567,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=5774696",
     "numero_unico": "5003396-27.2010.4.04.7201",
     "meio": "ELETRONICO",
     "publicidade": "PUBLICO",
@@ -17,6 +19,7 @@
       "DIREITO PREVIDENCIÁRIO | Pedidos Genéricos Relativos aos Benefícios em Espécie | Data de Início de Benefício (DIB)"
     ],
     "data_protocolo": "20/09/2019",
+    "data_protocolo_iso": "2019-09-20",
     "orgao_origem": "TRIBUNAL REGIONAL FEDERAL DA 4ª REGIÃO",
     "origem": "RS - RIO GRANDE DO SUL",
     "numero_origem": [
@@ -53,6 +56,7 @@
       {
         "index_num": 13,
         "data": "27/01/2023",
+        "data_iso": "2023-01-27",
         "nome": "PROCESSO RECEBIDO NA ORIGEM",
         "complemento": "TRIBUNAL REGIONAL FEDERAL DA 4ª REGIÃO",
         "julgador": null,
@@ -62,6 +66,7 @@
       {
         "index_num": 12,
         "data": "01/08/2022",
+        "data_iso": "2022-08-01",
         "nome": "AUTOS DISPONIBILIZADOS À ORIGEM",
         "complemento": null,
         "julgador": null,
@@ -71,6 +76,7 @@
       {
         "index_num": 11,
         "data": "04/11/2019",
+        "data_iso": "2019-11-04",
         "nome": "INTIMADO ELETRONICAMENTE",
         "complemento": "PROCURADOR-GERAL FEDERAL",
         "julgador": null,
@@ -80,6 +86,7 @@
       {
         "index_num": 10,
         "data": "04/11/2019",
+        "data_iso": "2019-11-04",
         "nome": "INTIMADO ELETRONICAMENTE",
         "complemento": "PROCURADOR-GERAL FEDERAL",
         "julgador": null,
@@ -89,6 +96,7 @@
       {
         "index_num": 9,
         "data": "22/10/2019",
+        "data_iso": "2019-10-22",
         "nome": "REMESSA EXTERNA DOS AUTOS",
         "complemento": "Guia: 38828/2019 - TRIBUNAL REGIONAL FEDERAL DA 4ª REGIÃO",
         "julgador": null,
@@ -101,6 +109,7 @@
       {
         "index_num": 8,
         "data": "22/10/2019",
+        "data_iso": "2019-10-22",
         "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
         "complemento": "Intimação de Despacho, Decisão ou Acórdão - PROCURADOR-GERAL FEDERAL",
         "julgador": null,
@@ -110,6 +119,7 @@
       {
         "index_num": 7,
         "data": "22/10/2019",
+        "data_iso": "2019-10-22",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "DJE nº 229, divulgado em 21/10/2019",
         "julgador": null,
@@ -122,6 +132,7 @@
       {
         "index_num": 6,
         "data": "18/10/2019",
+        "data_iso": "2019-10-18",
         "nome": "DETERMINADA A DEVOLUÇÃO PELO REGIME DA REPERCUSSÃO GERAL",
         "complemento": "Tema nº 334 - RE 630501, Tema nº 1023 - ARE 1172622",
         "julgador": "PRESIDÊNCIA",
@@ -131,6 +142,7 @@
       {
         "index_num": 5,
         "data": "26/09/2019",
+        "data_iso": "2019-09-26",
         "nome": "CONCLUSOS À PRESIDÊNCIA",
         "complemento": null,
         "julgador": null,
@@ -140,6 +152,7 @@
       {
         "index_num": 4,
         "data": "26/09/2019",
+        "data_iso": "2019-09-26",
         "nome": "REGISTRADO À PRESIDÊNCIA",
         "complemento": null,
         "julgador": null,
@@ -152,6 +165,7 @@
       {
         "index_num": 3,
         "data": "20/09/2019",
+        "data_iso": "2019-09-20",
         "nome": "AUTUADO",
         "complemento": null,
         "julgador": null,
@@ -161,6 +175,7 @@
       {
         "index_num": 2,
         "data": "20/09/2019",
+        "data_iso": "2019-09-20",
         "nome": "CERTIDÃO",
         "complemento": "VISUALIZADOR DE PEÇAS - LOTE",
         "julgador": null,
@@ -170,6 +185,7 @@
       {
         "index_num": 1,
         "data": "17/09/2019",
+        "data_iso": "2019-09-17",
         "nome": "PROTOCOLADO",
         "complemento": "PROCESSO PROTOCOLADO VIA WEB SERVICE.",
         "julgador": null,
@@ -177,102 +193,114 @@
         "link": null
       }
     ],
-    "sessao_virtual": [
-      {
-        "data": null,
-        "tipo": null,
-        "numero": null,
-        "relator": null,
-        "status": null,
-        "participantes": []
-      }
-    ],
+    "sessao_virtual": [],
     "deslocamentos": [
       {
         "index_num": 10,
         "guia": "38828/2019",
         "recebido_por": "TRIBUNAL REGIONAL FEDERAL DA 4ª REGIÃO",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "GERÊNCIA DE RECURSOS EXTRAORDINÁRIOS",
-        "data_enviado": "22/10/2019"
+        "data_enviado": "22/10/2019",
+        "data_enviado_iso": "2019-10-22"
       },
       {
         "index_num": 9,
         "guia": "19394/2019",
         "recebido_por": "GERÊNCIA DE RECURSOS EXTRAORDINÁRIOS",
         "data_recebido": "18/10/2019",
+        "data_recebido_iso": "2019-10-18",
         "enviado_por": "PRESIDÊNCIA",
-        "data_enviado": "18/10/2019"
+        "data_enviado": "18/10/2019",
+        "data_enviado_iso": "2019-10-18"
       },
       {
         "index_num": 8,
         "guia": "14889/2019",
         "recebido_por": "PRESIDÊNCIA",
         "data_recebido": "18/10/2019",
+        "data_recebido_iso": "2019-10-18",
         "enviado_por": "NÚCLEO DE REPERCUSSÃO GERAL",
-        "data_enviado": "18/10/2019"
+        "data_enviado": "18/10/2019",
+        "data_enviado_iso": "2019-10-18"
       },
       {
         "index_num": 7,
         "guia": "5065/2019",
         "recebido_por": "NÚCLEO DE REPERCUSSÃO GERAL",
         "data_recebido": "26/09/2019",
+        "data_recebido_iso": "2019-09-26",
         "enviado_por": "GERÊNCIA DE ANÁLISE DE REPERCUSSÃO GERAL",
-        "data_enviado": "26/09/2019"
+        "data_enviado": "26/09/2019",
+        "data_enviado_iso": "2019-09-26"
       },
       {
         "index_num": 6,
         "guia": "3062/2019",
         "recebido_por": "GERÊNCIA DE ANÁLISE DE REPERCUSSÃO GERAL",
         "data_recebido": "24/09/2019",
+        "data_recebido_iso": "2019-09-24",
         "enviado_por": "GERÊNCIA DE ANÁLISE DE PRESSUPOSTOS OBJETIVOS",
-        "data_enviado": "24/09/2019"
+        "data_enviado": "24/09/2019",
+        "data_enviado_iso": "2019-09-24"
       },
       {
         "index_num": 5,
         "guia": "34831/2019",
         "recebido_por": "GERÊNCIA DE ANÁLISE DE PRESSUPOSTOS OBJETIVOS",
         "data_recebido": "23/09/2019",
+        "data_recebido_iso": "2019-09-23",
         "enviado_por": "AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE RECURSOS CÍVEIS E CRIMINAIS",
-        "data_enviado": "23/09/2019"
+        "data_enviado": "23/09/2019",
+        "data_enviado_iso": "2019-09-23"
       },
       {
         "index_num": 4,
         "guia": "3773/2019",
         "recebido_por": "AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE RECURSOS CÍVEIS E CRIMINAIS",
         "data_recebido": "20/09/2019",
+        "data_recebido_iso": "2019-09-20",
         "enviado_por": "RECEBIMENTO DE RECURSOS",
-        "data_enviado": "20/09/2019"
+        "data_enviado": "20/09/2019",
+        "data_enviado_iso": "2019-09-20"
       },
       {
         "index_num": 3,
         "guia": "543/2019",
         "recebido_por": "RECEBIMENTO DE RECURSOS",
         "data_recebido": "20/09/2019",
+        "data_recebido_iso": "2019-09-20",
         "enviado_por": "DIGITALIZAÇÃO E CONVERSÃO DE PROCESSOS",
-        "data_enviado": "20/09/2019"
+        "data_enviado": "20/09/2019",
+        "data_enviado_iso": "2019-09-20"
       },
       {
         "index_num": 2,
         "guia": "3541/2019",
         "recebido_por": "DIGITALIZAÇÃO E CONVERSÃO DE PROCESSOS",
         "data_recebido": "17/09/2019",
+        "data_recebido_iso": "2019-09-17",
         "enviado_por": "RECEBIMENTO DE RECURSOS",
-        "data_enviado": "17/09/2019"
+        "data_enviado": "17/09/2019",
+        "data_enviado_iso": "2019-09-17"
       },
       {
         "index_num": 1,
         "guia": "2175581/2019",
         "recebido_por": "RECEBIMENTO DE RECURSOS",
         "data_recebido": "17/09/2019",
+        "data_recebido_iso": "2019-09-17",
         "enviado_por": "TRIBUNAL REGIONAL FEDERAL DA 4ª REGIÃO",
-        "data_enviado": "17/09/2019"
+        "data_enviado": "17/09/2019",
+        "data_enviado_iso": "2019-09-17"
       }
     ],
     "peticoes": [],
     "recursos": [],
     "pautas": [],
-    "status": 200,
-    "extraido": "2025-10-19T02:27:40.642753Z"
+    "outcome": null,
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.999457"
   }
 ]

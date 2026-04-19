@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 1480399,
     "classe": "MI",
     "processo_id": 12,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=1480399",
     "numero_unico": "0004129-39.1988.0.01.0000",
     "meio": "FISICO",
     "publicidade": "PUBLICO",
@@ -11,6 +13,7 @@
       "ASSUNTO PARA PROCESSO ANTIGO | | PROCESSO ANTIGO"
     ],
     "data_protocolo": "17/10/1988",
+    "data_protocolo_iso": "1988-10-17",
     "orgao_origem": "FÓRUM DA COMARCA DE RANCHARIA",
     "origem": "DF - DISTRITO FEDERAL",
     "numero_origem": [
@@ -42,6 +45,7 @@
       {
         "index_num": 10,
         "data": "05/12/1990",
+        "data_iso": "1990-12-05",
         "nome": "BAIXA DOS AUTOS",
         "complemento": "AO ARQUIVO",
         "julgador": null,
@@ -51,6 +55,7 @@
       {
         "index_num": 9,
         "data": "20/11/1990",
+        "data_iso": "1990-11-20",
         "nome": "REMESSA DOS AUTOS",
         "complemento": "A SE AO DE BAIXA",
         "julgador": null,
@@ -60,6 +65,7 @@
       {
         "index_num": 8,
         "data": "20/11/1990",
+        "data_iso": "1990-11-20",
         "nome": "DECORRIDO O PRAZO",
         "complemento": null,
         "julgador": null,
@@ -69,6 +75,7 @@
       {
         "index_num": 7,
         "data": "12/11/1990",
+        "data_iso": "1990-11-12",
         "nome": "PUBLICADO DESPACHO NO DJ",
         "complemento": "12.11.90",
         "julgador": null,
@@ -78,6 +85,7 @@
       {
         "index_num": 6,
         "data": "30/10/1990",
+        "data_iso": "1990-10-30",
         "nome": "JULG. POR DESPACHO - NAO CONHECIDO",
         "complemento": "NEGANDO SEGUIMENTO AO PEDIDO",
         "julgador": null,
@@ -87,6 +95,7 @@
       {
         "index_num": 5,
         "data": "18/10/1989",
+        "data_iso": "1989-10-18",
         "nome": "CONCLUSAO",
         "complemento": "C/PARECER DA PGR",
         "julgador": null,
@@ -96,6 +105,7 @@
       {
         "index_num": 4,
         "data": "28/03/1989",
+        "data_iso": "1989-03-28",
         "nome": "VISTA AO PROCURADOR-GERAL DA REPUBLICA",
         "complemento": null,
         "julgador": null,
@@ -105,6 +115,7 @@
       {
         "index_num": 3,
         "data": "17/03/1989",
+        "data_iso": "1989-03-17",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "ABRINDO VISTA A PGR",
         "julgador": null,
@@ -114,6 +125,7 @@
       {
         "index_num": 2,
         "data": "18/10/1988",
+        "data_iso": "1988-10-18",
         "nome": "CONCLUSAO",
         "complemento": null,
         "julgador": null,
@@ -123,6 +135,7 @@
       {
         "index_num": 1,
         "data": "18/10/1988",
+        "data_iso": "1988-10-18",
         "nome": "DISTRIBUIDO",
         "complemento": "MIN. ALDIR PASSARINHO",
         "julgador": null,
@@ -130,46 +143,44 @@
         "link": null
       }
     ],
-    "sessao_virtual": [
-      {
-        "data": null,
-        "tipo": null,
-        "numero": null,
-        "relator": null,
-        "status": null,
-        "participantes": []
-      }
-    ],
+    "sessao_virtual": [],
     "deslocamentos": [
       {
         "index_num": 3,
         "guia": "832/9990",
         "recebido_por": "SEÇÃO DE BAIXA",
         "data_recebido": "22/11/1990",
+        "data_recebido_iso": "1990-11-22",
         "enviado_por": "DIVISAO DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "22/11/1990"
+        "data_enviado": "22/11/1990",
+        "data_enviado_iso": "1990-11-22"
       },
       {
         "index_num": 2,
         "guia": "833/9990",
         "recebido_por": "DIVISAO DE PUBLICACOES E INTIMACOES",
         "data_recebido": "08/11/1990",
+        "data_recebido_iso": "1990-11-08",
         "enviado_por": "DIVISAO DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "08/11/1990"
+        "data_enviado": "08/11/1990",
+        "data_enviado_iso": "1990-11-08"
       },
       {
         "index_num": 1,
         "guia": "4190/9990",
         "recebido_por": "DIVISAO DE PROCESSOS ORIGINARIOS",
         "data_recebido": "08/11/1990",
+        "data_recebido_iso": "1990-11-08",
         "enviado_por": "DIVISAO DE PUBLICACOES E INTIMACOES",
-        "data_enviado": "08/11/1990"
+        "data_enviado": "08/11/1990",
+        "data_enviado_iso": "1990-11-08"
       }
     ],
     "peticoes": [],
     "recursos": [],
     "pautas": [],
-    "status": 200,
-    "extraido": "2025-10-19T02:27:40.642753Z"
+    "outcome": null,
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.950023"
   }
 ]

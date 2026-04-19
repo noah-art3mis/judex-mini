@@ -27,8 +27,9 @@ from bs4 import BeautifulSoup
 
 from src.scraping.extraction import http as ex
 from src.scraping.extraction import sessao as sessao_ex
+from src.scraping.extraction._shared import to_iso as _to_iso
 from src.config import ScraperConfig
-from src.data.types import StfItem
+from src.data.types import SCHEMA_VERSION, StfItem
 from src.scraping.http_session import (
     RetryableHTTPError,
     _decode,
@@ -69,6 +70,10 @@ TABS: tuple[str, ...] = (
 # a small pool is plenty and stays polite under STF's progressive rate
 # limiting.
 _TAB_WORKERS = 4
+
+
+def _canonical_url(incidente: Optional[int]) -> Optional[str]:
+    return None if incidente is None else f"{BASE}/detalhe.asp?incidente={incidente}"
 
 
 @dataclass
@@ -470,16 +475,20 @@ def scrape_processo_http(
             sessao_session.close()
 
     andamentos = ex.extract_andamentos(fetched.tabs.get(TAB_ANDAMENTOS, ""))
+    data_protocolo = ex.extract_data_protocolo(info_soup)
     return StfItem(
+        schema_version=SCHEMA_VERSION,
         incidente=fetched.incidente,
         classe=classe,
         processo_id=processo,
+        url=_canonical_url(fetched.incidente),
         numero_unico=ex.extract_numero_unico(detalhe_soup),
         meio=ex.extract_meio(detalhe_soup),
         publicidade=ex.extract_publicidade(detalhe_soup),
         badges=ex.extract_badges(detalhe_soup),
         assuntos=ex.extract_assuntos(info_soup),
-        data_protocolo=ex.extract_data_protocolo(info_soup),
+        data_protocolo=data_protocolo,
+        data_protocolo_iso=_to_iso(data_protocolo),
         orgao_origem=ex.extract_orgao_origem(info_soup),
         origem=ex.extract_origem(info_soup),
         numero_origem=ex.extract_numero_origem(info_soup),
@@ -499,6 +508,6 @@ def scrape_processo_http(
             "sessao_virtual": sessao_virtual,
             "andamentos": andamentos,
         }),
-        status=200,
+        status_http=200,
         extraido=datetime.now().isoformat(),
     )

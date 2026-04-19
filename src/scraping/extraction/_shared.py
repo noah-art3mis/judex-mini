@@ -9,11 +9,34 @@ or raw HTML strings — no driver dependency.
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from typing import Iterable, Optional
 
 from bs4 import BeautifulSoup, Tag
 
 from src.utils.text_utils import normalize_spaces
+
+
+_DDMMYYYY = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
+
+
+def to_iso(br_date: Optional[str]) -> Optional[str]:
+    """Extract the first DD/MM/YYYY in a string and return YYYY-MM-DD.
+
+    Tolerant of trailing time (``"17/08/2020 às 11:51"``,
+    ``"20/08/2020 11:51:26"``) and leading boilerplate. Returns None
+    when no DD/MM/YYYY is present or the date is not a valid calendar
+    day. Designed to be called on the already-extracted display fields
+    (``andamento.data``, ``peticao.recebido_data``, etc.).
+    """
+    if not br_date:
+        return None
+    m = _DDMMYYYY.search(br_date)
+    if not m:
+        return None
+    d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if not (1 <= mo <= 12 and 1 <= d <= 31 and 1900 <= y <= 2100):
+        return None
+    return f"{y:04d}-{mo:02d}-{d:02d}"
 
 
 _GUIA_SUFFIX = re.compile(r",\s*GUIA\s*N[ºOo0]?[^,]*$", re.IGNORECASE)

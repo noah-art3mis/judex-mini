@@ -32,8 +32,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def _load_fixture(path: Path) -> dict[str, Any]:
-    data = json.load(path.open())
-    return data[0] if isinstance(data, list) else data
+    return json.load(path.open())
 
 
 def _split_filename(path: Path) -> tuple[str, int]:

@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 2083816,
     "classe": "ADI",
     "processo_id": 2820,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=2083816",
     "numero_unico": "0000115-30.2003.1.00.0000",
     "meio": "ELETRONICO",
     "publicidade": "PUBLICO",
@@ -15,6 +17,7 @@
       "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
     ],
     "data_protocolo": "07/01/2003",
+    "data_protocolo_iso": "2003-01-07",
     "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
     "origem": "ES - ESPÍRITO SANTO",
     "numero_origem": [
@@ -76,6 +79,7 @@
       {
         "index_num": 124,
         "data": "14/12/2023",
+        "data_iso": "2023-12-14",
         "nome": "INTIMADO ELETRONICAMENTE",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
         "julgador": null,
@@ -85,6 +89,7 @@
       {
         "index_num": 123,
         "data": "13/12/2023",
+        "data_iso": "2023-12-13",
         "nome": "BAIXA AO ARQUIVO DO STF",
         "complemento": null,
         "julgador": null,
@@ -94,6 +99,7 @@
       {
         "index_num": 122,
         "data": "13/12/2023",
+        "data_iso": "2023-12-13",
         "nome": "CERTIDÃO",
         "complemento": "Certifico que os acórdãos publicados em 13/07/2023 e 04/12/2023, foram agendados para fins de publicação no DOU e DJE, em atendimento ao disposto na Lei n. 9.868/99.",
         "julgador": null,
@@ -103,6 +109,7 @@
       {
         "index_num": 121,
         "data": "13/12/2023",
+        "data_iso": "2023-12-13",
         "nome": "TRANSITADO(A) EM JULGADO",
         "complemento": "13/12/2023",
         "julgador": null,
@@ -115,6 +122,7 @@
       {
         "index_num": 120,
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "nome": "PETIÇÃO",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 136374 - Data: 06/12/2023, às 21:40:42, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -124,6 +132,7 @@
       {
         "index_num": 119,
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "nome": "PETIÇÃO",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 136307 - Data: 06/12/2023, às 19:50:32, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -133,6 +142,7 @@
       {
         "index_num": 118,
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "nome": "PETIÇÃO",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 136264 - Data: 06/12/2023, às 19:25:32, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -142,6 +152,7 @@
       {
         "index_num": 117,
         "data": "04/12/2023",
+        "data_iso": "2023-12-04",
         "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
         "complemento": null,
         "julgador": null,
@@ -154,6 +165,7 @@
       {
         "index_num": 116,
         "data": "04/12/2023",
+        "data_iso": "2023-12-04",
         "nome": "PUBLICADO ACÓRDÃO, DJE",
         "complemento": "DJE publicado em 04/12/2023. Divulgado em 01/12/2023",
         "julgador": null,
@@ -166,6 +178,7 @@
       {
         "index_num": 115,
         "data": "14/11/2023",
+        "data_iso": "2023-11-14",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "Divulgado em 13/11/2023",
         "julgador": null,
@@ -175,6 +188,7 @@
       {
         "index_num": 114,
         "data": "03/11/2023",
+        "data_iso": "2023-11-03",
         "nome": "EXPEDIDO(A)",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -184,6 +198,7 @@
       {
         "index_num": 113,
         "data": "03/11/2023",
+        "data_iso": "2023-11-03",
         "nome": "EXPEDIDO(A)",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -193,6 +208,7 @@
       {
         "index_num": 112,
         "data": "03/11/2023",
+        "data_iso": "2023-11-03",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -202,6 +218,7 @@
       {
         "index_num": 111,
         "data": "03/11/2023",
+        "data_iso": "2023-11-03",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - SEJ (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -211,6 +228,7 @@
       {
         "index_num": 110,
         "data": "03/11/2023",
+        "data_iso": "2023-11-03",
         "nome": "CERTIDÃO",
         "complemento": "Certifico a elaboração de 2 ofícios eletrônicos. Plenário, Sessão Virtual de 20.10.2023 a 27.10.2023.",
         "julgador": null,
@@ -220,6 +238,7 @@
       {
         "index_num": 109,
         "data": "31/10/2023",
+        "data_iso": "2023-10-31",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -229,6 +248,7 @@
       {
         "index_num": 108,
         "data": "30/10/2023",
+        "data_iso": "2023-10-30",
         "nome": "EMBARGOS RECEBIDOS EM PARTE",
         "complemento": "Decisão: O Tribunal, por unanimidade, conheceu dos embargos de declaração e deu-lhes parcial provimento para, retificando o item 2 da ementa, declarar a constitucionalidade do § 5º do art. 122 da Constituição do Estado do Espírito Santo, introduzido pela Emenda de n. 35, de 14 de dezembro de 2001, e conferir-lhe interpretação conforme à Constituição Federal, de maneira a assentar que competem à Procuradoria-Geral da Assembleia Legislativa as atividades de consultoria e assessoramento jurídicos, bem como a representação judicial e extrajudicial nos feitos em que o Legislativo, em nome próprio, esgrima na defesa de sua autonomia, independência, prerrogativas e competências frente aos Poderes Executivo e Judiciário e aos órgãos de envergadura constitucional independentes, como Ministério Público, Defensoria Pública e Tribunal de Contas. Tudo nos termos do voto do Relator. Plenário, Sessão Virtual de 20.10.2023 a 27.10.2023.",
         "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
@@ -241,6 +261,7 @@
       {
         "index_num": 107,
         "data": "28/10/2023",
+        "data_iso": "2023-10-28",
         "nome": "FINALIZADO JULGAMENTO VIRTUAL",
         "complemento": "Finalizado Julgamento Virtual em 27 de Outubro de 2023 (Sexta-feira), às 23:59 .",
         "julgador": null,
@@ -250,6 +271,7 @@
       {
         "index_num": 106,
         "data": "20/10/2023",
+        "data_iso": "2023-10-20",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -259,6 +281,7 @@
       {
         "index_num": 105,
         "data": "11/10/2023",
+        "data_iso": "2023-10-11",
         "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
         "complemento": "Divulgado em 10/10/2023",
         "julgador": null,
@@ -268,6 +291,7 @@
       {
         "index_num": 104,
         "data": "10/10/2023",
+        "data_iso": "2023-10-10",
         "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
         "complemento": "Julgamento Virtual: ADI-ED. Incluído na Lista 386-2023.NM - Agendado para: 20/10/2023 a 27/10/2023.",
         "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
@@ -277,6 +301,7 @@
       {
         "index_num": 103,
         "data": "20/09/2023",
+        "data_iso": "2023-09-20",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -286,6 +311,7 @@
       {
         "index_num": 102,
         "data": "20/09/2023",
+        "data_iso": "2023-09-20",
         "nome": "CERTIDÃO",
         "complemento": "CERTIDÃO DE AUSÊNCIA DE MANIFESTAÇÃO",
         "julgador": null,
@@ -295,6 +321,7 @@
       {
         "index_num": 101,
         "data": "12/09/2023",
+        "data_iso": "2023-09-12",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "Divulgado em 11/09/2023",
         "julgador": null,
@@ -304,6 +331,7 @@
       {
         "index_num": 100,
         "data": "11/09/2023",
+        "data_iso": "2023-09-11",
         "nome": "DESPACHO",
         "complemento": "1. A Mesa Diretora da Assembleia Legislativa do Estado do Espírito Santo opôs embargos de declaração (petição/STF n. 80.385/2023) contra acórdão mediante o qual o Plenário do Supremo julgou parcialmente procedente o pedido formulado na ação direta de inconstitucionalidade. 2. Intime-se o embargado para, querendo, se manifestar (CPC, art. 1.023, § 2º). 3. Publique-se.",
         "julgador": "MIN. NUNES MARQUES",
@@ -316,6 +344,7 @@
       {
         "index_num": 99,
         "data": "09/08/2023",
+        "data_iso": "2023-08-09",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -325,6 +354,7 @@
       {
         "index_num": 98,
         "data": "02/08/2023",
+        "data_iso": "2023-08-02",
         "nome": "OPOSTOS EMBARGOS DE DECLARAÇÃO",
         "complemento": "Juntada Petição: 80385/2023",
         "julgador": null,
@@ -334,6 +364,7 @@
       {
         "index_num": 97,
         "data": "02/08/2023",
+        "data_iso": "2023-08-02",
         "nome": "PETIÇÃO",
         "complemento": "Embargos de Declaração - Petição: 80385 Data: 02/08/2023, às 11:48:17",
         "julgador": null,
@@ -343,6 +374,7 @@
       {
         "index_num": 96,
         "data": "31/07/2023",
+        "data_iso": "2023-07-31",
         "nome": "PETIÇÃO",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 79634 - Data: 31/07/2023, às 19:06:09, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -352,6 +384,7 @@
       {
         "index_num": 95,
         "data": "24/07/2023",
+        "data_iso": "2023-07-24",
         "nome": "INTIMADO ELETRONICAMENTE",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
         "julgador": null,
@@ -361,6 +394,7 @@
       {
         "index_num": 94,
         "data": "13/07/2023",
+        "data_iso": "2023-07-13",
         "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
         "complemento": null,
         "julgador": null,
@@ -373,6 +407,7 @@
       {
         "index_num": 93,
         "data": "13/07/2023",
+        "data_iso": "2023-07-13",
         "nome": "PUBLICADO ACÓRDÃO, DJE",
         "complemento": "DJE publicado em 13/07/2023. Divulgado em 12/07/2023",
         "julgador": null,
@@ -385,6 +420,7 @@
       {
         "index_num": 92,
         "data": "15/06/2023",
+        "data_iso": "2023-06-15",
         "nome": "EXPEDIDO(A)",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -394,6 +430,7 @@
       {
         "index_num": 91,
         "data": "15/06/2023",
+        "data_iso": "2023-06-15",
         "nome": "EXPEDIDO(A)",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -403,6 +440,7 @@
       {
         "index_num": 90,
         "data": "14/06/2023",
+        "data_iso": "2023-06-14",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -412,6 +450,7 @@
       {
         "index_num": 89,
         "data": "14/06/2023",
+        "data_iso": "2023-06-14",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "PLENÁRIO - COMUNICA JULGAMENTO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -421,6 +460,7 @@
       {
         "index_num": 88,
         "data": "14/06/2023",
+        "data_iso": "2023-06-14",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "Divulgado em 13/06/2023",
         "julgador": null,
@@ -430,6 +470,7 @@
       {
         "index_num": 87,
         "data": "13/06/2023",
+        "data_iso": "2023-06-13",
         "nome": "CERTIDÃO",
         "complemento": "Certifico a elaboração de 2 ofícios eletrônicos. Plenário, Sessão Virtual de 26/05/2023 a 02/06/2023.",
         "julgador": null,
@@ -439,6 +480,7 @@
       {
         "index_num": 86,
         "data": "09/06/2023",
+        "data_iso": "2023-06-09",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -448,6 +490,7 @@
       {
         "index_num": 85,
         "data": "05/06/2023",
+        "data_iso": "2023-06-05",
         "nome": "PROCEDENTE EM PARTE",
         "complemento": "Decisão: O Tribunal conheceu desta ação e julgou procedente, em parte, o pedido nela formulado, para: (i) por unanimidade, declarar a inconstitucionalidade dos §§ 4º e 7º do art. 122 da Constituição do Estado do Espírito Santo, acrescidos pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, na redação dada pela Emenda de n. 108, de 22 de maio de 2017; (ii) por maioria, reconhecer a constitucionalidade do § 6º do art. 122 da Constituição do Espírito Santo, alterada pela Emenda Constitucional n. 108/2017, julgando improcedente o pedido com relação a essa norma, vencidos, no ponto, os Ministros Nunes Marques (Relator), Alexandre de Moraes e Dias Toffoli; (iii) por unanimidade, declarar a constitucionalidade do § 5º do art. 122 da Constituição do Estado do Espírito Santo, introduzido pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, conferindo-lhe interpretação conforme à Constituição Federal de maneira a assentar que a representação judicial e extrajudicial da Asse",
         "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
@@ -460,6 +503,7 @@
       {
         "index_num": 84,
         "data": "03/06/2023",
+        "data_iso": "2023-06-03",
         "nome": "FINALIZADO JULGAMENTO VIRTUAL",
         "complemento": "Finalizado Julgamento Virtual em 02 de Junho de 2023 (Sexta-feira), às 23:59 .",
         "julgador": null,
@@ -469,6 +513,7 @@
       {
         "index_num": 83,
         "data": "26/05/2023",
+        "data_iso": "2023-05-26",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -478,6 +523,7 @@
       {
         "index_num": 82,
         "data": "11/05/2023",
+        "data_iso": "2023-05-11",
         "nome": "VISTA - DEVOLUÇÃO DOS AUTOS PARA JULGAMENTO",
         "complemento": "11/05/2023 14:48:54 - Julgamento Virtual: ADI. Incluído na Lista 25-2023.NM - Agendado para: 26/05/2023 a 02/06/2023.",
         "julgador": "MIN. CÁRMEN LÚCIA",
@@ -487,6 +533,7 @@
       {
         "index_num": 81,
         "data": "11/05/2023",
+        "data_iso": "2023-05-11",
         "nome": "INCLUÍDO NA LISTA DE JULGAMENTO",
         "complemento": "Julgamento Virtual: ADI. Incluído na Lista 25-2023.NM - Agendado para: 26/05/2023 a 02/06/2023.",
         "julgador": "MIN. CÁRMEN LÚCIA",
@@ -496,6 +543,7 @@
       {
         "index_num": 80,
         "data": "09/03/2023",
+        "data_iso": "2023-03-09",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "Divulgado em 08/03/2023",
         "julgador": null,
@@ -505,6 +553,7 @@
       {
         "index_num": 79,
         "data": "07/03/2023",
+        "data_iso": "2023-03-07",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -514,6 +563,7 @@
       {
         "index_num": 78,
         "data": "06/03/2023",
+        "data_iso": "2023-03-06",
         "nome": "VISTA AO(À) MINISTRO(A)",
         "complemento": "Decisão: Após os votos dos Ministros Nunes Marques (Relator) e Alexandre de Moraes, que conheciam desta ação e julgavam procedente, em parte, o pedido nela formulado, para: (i) declarar a inconstitucionalidade dos §§ 4º, 6º e 7º do art. 122 da Constituição do Estado do Espírito Santo, acrescidos pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, na redação dada pela Emenda de n. 108, de 22 de maio de 2017; (ii) declarar a constitucionalidade do § 5º do art. 122 da Constituição do Estado do Espírito Santo, introduzido pela Emenda Constitucional n. 35, de 14 de dezembro de 2001, conferindo-lhe interpretação conforme à Constituição Federal de maneira a assentar que a representação judicial e extrajudicial da Assembleia Legislativa, a cargo de sua Procuradoria-Geral, encontra limite naqueles feitos em que o Legislativo, em nome próprio, esgrima na defesa de sua autonomia e independência frente aos demais Poderes; (iii) modular os efeitos da decisão a fim de: (iii.1) afastar a necessidade de devolução de valores recebidos a título de remuneração por integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa com base no art. 122, § 6º dispositivo declarado inconstitucional; (iii.2) assentar que a remuneração dos procuradores estaduais e dos procuradores legislativos é aquela fixada em lei no mesmo patamar; ou, se a lei fixar a remuneração para apenas uma das carreiras, que a remuneração da outra é igual até lei posterior regular o quadro de modo diverso, vedado qualquer tipo de reajuste automático da remuneração de uma delas quando for modificada a da outra; e (iii.3) conferir eficácia ex nunc à declaração de inconstitucionalidade do § 7º do art. 122 da Constituição do Estado do Espírito Santo, de modo a preservar a validade de processos judiciais, bem como das decisões neles lançadas, que tenham tramitado à luz do foro privilegiado previsto no § 7º do art. 122, ora declarado inconstitucional, pediu vista dos autos a Ministra Cármen Lúcia. Plenário, Sessão Virtual de 24.2.2023 a 3.3.2023.",
         "julgador": "MIN. CÁRMEN LÚCIA",
@@ -526,6 +576,7 @@
       {
         "index_num": 77,
         "data": "02/03/2023",
+        "data_iso": "2023-03-02",
         "nome": "SUSPENSO O JULGAMENTO",
         "complemento": "Pedido de Vista",
         "julgador": "MIN. CÁRMEN LÚCIA",
@@ -535,6 +586,7 @@
       {
         "index_num": 76,
         "data": "24/02/2023",
+        "data_iso": "2023-02-24",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -544,6 +596,7 @@
       {
         "index_num": 75,
         "data": "14/02/2023",
+        "data_iso": "2023-02-14",
         "nome": "PAUTA PUBLICADA NO DJE - PLENÁRIO",
         "complemento": "Divulgado em 13/02/2023",
         "julgador": null,
@@ -553,6 +606,7 @@
       {
         "index_num": 74,
         "data": "13/02/2023",
+        "data_iso": "2023-02-13",
         "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
         "complemento": "Julgamento Virtual: ADI. Incluído na Lista 25-2023.NM - Agendado para: 24/02/2023 a 03/03/2023.",
         "julgador": "TRIBUNAL PLENO - SESSÃO VIRTUAL",
@@ -562,6 +616,7 @@
       {
         "index_num": 73,
         "data": "23/11/2022",
+        "data_iso": "2022-11-23",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -571,6 +626,7 @@
       {
         "index_num": 72,
         "data": "23/11/2022",
+        "data_iso": "2022-11-23",
         "nome": "MANIFESTAÇÃO DA PGR",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 91981 - Data: 23/11/2022, às 18:47:21, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -580,6 +636,7 @@
       {
         "index_num": 71,
         "data": "27/10/2022",
+        "data_iso": "2022-10-27",
         "nome": "PROCESSO RECEBIDO NA PGR",
         "complemento": null,
         "julgador": null,
@@ -589,6 +646,7 @@
       {
         "index_num": 70,
         "data": "27/10/2022",
+        "data_iso": "2022-10-27",
         "nome": "VISTA À PGR",
         "complemento": null,
         "julgador": null,
@@ -601,6 +659,7 @@
       {
         "index_num": 69,
         "data": "27/10/2022",
+        "data_iso": "2022-10-27",
         "nome": "MANIFESTAÇÃO DA AGU",
         "complemento": "ADVOGADO-GERAL DA UNIÃO - Petição: 85028 - Data: 27/10/2022, às 19:52:51, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -610,6 +669,7 @@
       {
         "index_num": 68,
         "data": "05/10/2022",
+        "data_iso": "2022-10-05",
         "nome": "PROCESSO RECEBIDO NA AGU",
         "complemento": null,
         "julgador": null,
@@ -619,6 +679,7 @@
       {
         "index_num": 67,
         "data": "05/10/2022",
+        "data_iso": "2022-10-05",
         "nome": "VISTA AO AGU",
         "complemento": null,
         "julgador": null,
@@ -631,6 +692,7 @@
       {
         "index_num": 66,
         "data": "05/10/2022",
+        "data_iso": "2022-10-05",
         "nome": "CERTIDÃO",
         "complemento": "CERTIDÃO DE AUSÊNCIA DE MANIFESTAÇÃO",
         "julgador": null,
@@ -640,6 +702,7 @@
       {
         "index_num": 65,
         "data": "13/09/2022",
+        "data_iso": "2022-09-13",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "DJE nº 182, divulgado em 12/09/2022",
         "julgador": null,
@@ -652,6 +715,7 @@
       {
         "index_num": 64,
         "data": "12/09/2022",
+        "data_iso": "2022-09-12",
         "nome": "DESPACHO",
         "complemento": "\"(...) 3. Intime-se o requerente para, querendo, proceder ao aditamento da peça primeira, no prazo de quinze dias (CPC, art. 321). Depois, colham-se a manifestação da Advocacia-Geral da União e o parecer da Procuradoria-Geral da República. 4. Publique-se. Brasília, 1º de setembro de 2022. \"",
         "julgador": null,
@@ -661,6 +725,7 @@
       {
         "index_num": 63,
         "data": "07/12/2020",
+        "data_iso": "2020-12-07",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "DJE nº 287, divulgado em 04/12/2020",
         "julgador": null,
@@ -670,6 +735,7 @@
       {
         "index_num": 62,
         "data": "04/12/2020",
+        "data_iso": "2020-12-04",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -679,6 +745,7 @@
       {
         "index_num": 61,
         "data": "04/12/2020",
+        "data_iso": "2020-12-04",
         "nome": "CONVERTIDO EM ELETRÔNICO",
         "complemento": null,
         "julgador": null,
@@ -691,6 +758,7 @@
       {
         "index_num": 60,
         "data": "05/11/2020",
+        "data_iso": "2020-11-05",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -700,6 +768,7 @@
       {
         "index_num": 59,
         "data": "05/11/2020",
+        "data_iso": "2020-11-05",
         "nome": "SUBSTITUIÇÃO DO RELATOR, ART. 38 DO RISTF",
         "complemento": "MIN. NUNES MARQUES",
         "julgador": null,
@@ -709,6 +778,7 @@
       {
         "index_num": 58,
         "data": "05/10/2020",
+        "data_iso": "2020-10-05",
         "nome": "PETIÇÃO",
         "complemento": "Procuração/Substabelecimento - Petição: 82310 Data: 05/10/2020, às 12:34:04",
         "julgador": null,
@@ -718,6 +788,7 @@
       {
         "index_num": 57,
         "data": "07/08/2013",
+        "data_iso": "2013-08-07",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -727,6 +798,7 @@
       {
         "index_num": 56,
         "data": "06/08/2013",
+        "data_iso": "2013-08-06",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "Despacho de 01/08/2013 (DJE nº 151, divulgado em 05/08/2013)",
         "julgador": null,
@@ -739,6 +811,7 @@
       {
         "index_num": 55,
         "data": "02/08/2013",
+        "data_iso": "2013-08-02",
         "nome": "DESPACHO",
         "complemento": "Em 1º/08/2013- \" (...)Sendo assim, em face das razões expostas, admito, na condição de “amicus curiae”, a Associação Nacional dos Procuradores de Estado – ANAPE, eis que se acham atendidas, na espécie, as condições fixadas no art. 7º, § 2º, da Lei nº 9.868/99. Proceda-se, em consequência, às anotações pertinentes.Assinalo, por necessário, em face de precedentes desta Corte, notadamente daquele firmado na ADI 2.777-QO/SP, que o “amicus curiae”, uma vez formalmente admitido no processo de fiscalização normativa abstrata, tem o direito de proceder à sustentação oral de suas razões, observado, no que couber, o § 3º do art. 131 do RISTF, na redação conferida pela Emenda Regimental nº 15/20042. Voltem-me conclusos, a seguir, os presentes autos.Publique-se.\"",
         "julgador": null,
@@ -748,6 +821,7 @@
       {
         "index_num": 54,
         "data": "24/06/2013",
+        "data_iso": "2013-06-24",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": "Com 2 volumes e 2 juntadas por linha",
         "julgador": null,
@@ -757,6 +831,7 @@
       {
         "index_num": 53,
         "data": "21/06/2013",
+        "data_iso": "2013-06-21",
         "nome": "JUNTADA A PETIÇÃO Nº",
         "complemento": "30070/2013. Da, Associação Nacional dos Procuradores de Estado - ANAPE, requerendo sua admissão no feito na qualidade de \"amicus curiae.\"",
         "julgador": null,
@@ -766,6 +841,7 @@
       {
         "index_num": 52,
         "data": "19/06/2013",
+        "data_iso": "2013-06-19",
         "nome": "PETIÇÃO",
         "complemento": "Amicus curiae - Petição: 30070 Data: 19/06/2013 20:23:22.158 GMT-03:00",
         "julgador": null,
@@ -775,6 +851,7 @@
       {
         "index_num": 51,
         "data": "20/03/2009",
+        "data_iso": "2009-03-20",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": "em 18.02.2009",
         "julgador": null,
@@ -784,6 +861,7 @@
       {
         "index_num": 50,
         "data": "25/02/2009",
+        "data_iso": "2009-02-25",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "Despacho de 17.02.2009. (DJE nº 36, divulgado em 20/02/2009)",
         "julgador": null,
@@ -796,6 +874,7 @@
       {
         "index_num": 49,
         "data": "18/02/2009",
+        "data_iso": "2009-02-18",
         "nome": "DESPACHO",
         "complemento": "Em 17.02.2009: \"Admito, na condição de \"amicus curiae\", a Associação dos Procuradores de Estado do Poder Legislativo do Estado do Espírito Santo - APROLEGES, eis que se acham atendidas, na espécie, as condições fixadas no art. 7°, § 2°, da Lei n° 9.868/99. Proceda-se, em consequência, às anotações pertinentes(...). Publique-se.\"",
         "julgador": null,
@@ -805,6 +884,7 @@
       {
         "index_num": 48,
         "data": "17/02/2009",
+        "data_iso": "2009-02-17",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -814,6 +894,7 @@
       {
         "index_num": 47,
         "data": "17/02/2009",
+        "data_iso": "2009-02-17",
         "nome": "JUNTADA",
         "complemento": "PG Nº 14002/2009, da Associação dos Procuradores de Estado do Poder Legislativo do Estado do Espírito Santo - APROLEGES, requerendo seu ingresso no feito na qualidade de \"amicus curiae\".",
         "julgador": null,
@@ -823,6 +904,7 @@
       {
         "index_num": 46,
         "data": "12/02/2009",
+        "data_iso": "2009-02-12",
         "nome": "PETIÇÃO",
         "complemento": "PG Nº 14002/2009, da Associação dos Procuradores de Estado do Poder Legislativo do Estado do Espírito Santo - APROLEGES, requerendo seu ingresso no feito na qualidade de \"amicus curiae\".",
         "julgador": null,
@@ -832,6 +914,7 @@
       {
         "index_num": 45,
         "data": "03/05/2006",
+        "data_iso": "2006-05-03",
         "nome": "PUBLICACAO, DJ:",
         "complemento": "DECISÃO DE 26/04/06 NO PG Nº 52998/06",
         "julgador": null,
@@ -841,6 +924,7 @@
       {
         "index_num": 44,
         "data": "28/04/2006",
+        "data_iso": "2006-04-28",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -850,6 +934,7 @@
       {
         "index_num": 43,
         "data": "28/04/2006",
+        "data_iso": "2006-04-28",
         "nome": "EXPEDIDO OFÍCIO Nº",
         "complemento": "2134/R, AO RELATOR DO INCIDENTE DE INCONSTITUCIONAL Nº 100050037207 DO TRIBUNAL DE JUSTIÇA DO ESTADO DO ESPÍRITO SANTO, ENCAMINHANDO CÓPIA DA DECISÃO.",
         "julgador": null,
@@ -859,6 +944,7 @@
       {
         "index_num": 42,
         "data": "27/04/2006",
+        "data_iso": "2006-04-27",
         "nome": "REMESSA DOS AUTOS",
         "complemento": "À SEÇÃO CARTORÁRIA",
         "julgador": null,
@@ -868,6 +954,7 @@
       {
         "index_num": 41,
         "data": "27/04/2006",
+        "data_iso": "2006-04-27",
         "nome": "JUNTADA POR LINHA",
         "complemento": "DO PG Nº 52998/06 DE JOSÉ CARLOS GRATZ REQUERENDO A SUSPENSÃO DO JULGAMENTO DO INCIDENTE DE INCONSTITUCIONALIDADE NO HC Nº 024040248932, EM TRÂMITE NO TRIBUNAL DE JUSTIÇA DO ESTADO DO ESPÍRITO SANTO, UMA VEZ QUE A INCONSTITUCIONALIDADE SUSCITADA NO INCIDENTE VERSA SOBRE UM DOS DISPOSITIVOS CUJA INCONSTITUCIONALIDADE FOI SUSCITADA NA PRESENTE ADI.",
         "julgador": null,
@@ -877,6 +964,7 @@
       {
         "index_num": 40,
         "data": "27/04/2006",
+        "data_iso": "2006-04-27",
         "nome": "DECISÃO DO RELATOR",
         "complemento": "EM 26.04.2006 NO PG 52998/06 \"J., POR LINHA. INCABÍVEL A PRETENDIDA SUSPENSÃO PREJUDICIAL, TAL COMO ORA REQUERIDA POR JOSÉ CARLOS GRATZ (...) A JURISPRUDÊNCIA QUE O STF FIRMOU NA MATÉRIA VEICULADA NA POSTULAÇÃO ORA DEDUZIDA POR JOSÉ CARLOS GRATZ SUPÕE A EXISTÊNCIA SIMULTÂNEA - TANDO NESTA CORTE SUPREMA, QUANTO PERANTE O TJ LOCAL - DE ADINS NAS QUAIS SE QUESTIONE, \"IN ABSTRACTO\", E EM SEDE DE FISCALIZAÇÃO CONCENTRADA, O MESMO ATO NORMATIVO. O EXAME DO PLEITO EM QUESTÃO, NO ENTANTO, REVELA QUE A SITUAÇÃO EXIGIDA PELO MAGISTÉRIO JURISPRUDENCIAL DESTA CORTE NÃO OCORRE NA ESPÉCIE EM CAUSA, POIS INEXISTEM, INSTAURADOS PERANTE O STF E O TJ LOCAL, EM CURSO DE SIMULTÂMEA TRAMITAÇÃO, PROCESSOS DE FISCALIZAÇÃO NORMATIVA ABSTRATA PERTINENTES AO MESMO ATO ESTATAL. (...) COMO PRECEDENTEMENTE POR MIM SALIENTADO, NÃO SE REGISTRA NA ESPÉCIE, O PRESSUPOSTO LEGITIMADOR DA SUSPENSÃO PREJUDICIAL ORA POSTULADA POR JOSÉ CARLOS GRATZ (PG/STF-52998/06), RAZÃO PELA QUAL INDEFIRO O PEDIDO POR ELE FORMULADO.\"",
         "julgador": null,
@@ -886,6 +974,7 @@
       {
         "index_num": 39,
         "data": "25/04/2006",
+        "data_iso": "2006-04-25",
         "nome": "PETIÇÃO",
         "complemento": "PG Nº 52998/06 DE JOSÉ CARLOS GRATZ REQUERENDO A SUSPENSÃO DO JULGAMENTO DO INCIDENTE DE INCONSTITUCIONALIDADE NO HC Nº 024040248932, EM TRÂMITE NO TRIBUNAL DE JUSTIÇA DO ESTADO DO ESPÍRITO SANTO, UMA VEZ QUE A INCONSTITUCIONALIDADE SUSCITADA NO INCIDENTE VERSA SOBRE UM DOS DISPOSITIVOS CUJA INCONSTITUCIONALIDADE FOI SUSCITADA NA PRESENTE ADI. AO MINISTRO RELATOR, SEM OS AUTOS.",
         "julgador": null,
@@ -895,6 +984,7 @@
       {
         "index_num": 38,
         "data": "02/02/2004",
+        "data_iso": "2004-02-02",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -904,6 +994,7 @@
       {
         "index_num": 37,
         "data": "19/12/2003",
+        "data_iso": "2003-12-19",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 19/12/03 \"ENCAMINHE-SE ESTES AUTOS À SECRETARIA, VOLTANDO-ME CONCLUSOS EM 02 DE FEVEREIRO DE 2004\"",
         "julgador": null,
@@ -913,6 +1004,7 @@
       {
         "index_num": 36,
         "data": "02/09/2003",
+        "data_iso": "2003-09-02",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -922,6 +1014,7 @@
       {
         "index_num": 35,
         "data": "02/09/2003",
+        "data_iso": "2003-09-02",
         "nome": "RECEBIMENTO DOS AUTOS",
         "complemento": "DA PROCURADORIA-GERAL DA REPÚBLICA COM PARECER NO SENTIDO DA CONCESSÃO PARCIAL DA MEDIDA ACAUTELADORA, SUSPENDENDO-SE A EFICÁCIA DOS §§ 4º, 6º E 7º DO ART. 122 DA CONSTITUIÇÃO CAPIXABA, E, NO MÉRITO, PELA PROCEDÊNCIA PARCIAL DA PRESENTE AÇÃO DIRETA, EXPUNGINDO-SE DA ORDEM JURÍDICA OS MESMOS §§ 4º, 6º E 7º, INTRODUZIDOS AO ART. 122 DA CONSTITUIÇÃO ESTADUAL PELO ART. 1º DA EMENDA CONSTITUCIONAL N.º 35, DE 14 DE DEZEMBRO DE 2001.",
         "julgador": null,
@@ -931,6 +1024,7 @@
       {
         "index_num": 34,
         "data": "18/08/2003",
+        "data_iso": "2003-08-18",
         "nome": "VISTA AO PROCURADOR-GERAL DA REPUBLICA",
         "complemento": null,
         "julgador": null,
@@ -940,6 +1034,7 @@
       {
         "index_num": 33,
         "data": "18/08/2003",
+        "data_iso": "2003-08-18",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 13/08/03 \"OUÇA-SE A DOUTA PROCURADORIA-GERAL DA REPÚBLICA, PARA OS FINS E EFEITOS A QUE SE REFERE O ART. 10, § 1º DA LEI N.º 9.868/99.\"",
         "julgador": null,
@@ -949,6 +1044,7 @@
       {
         "index_num": 32,
         "data": "06/06/2003",
+        "data_iso": "2003-06-06",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -958,6 +1054,7 @@
       {
         "index_num": 31,
         "data": "06/06/2003",
+        "data_iso": "2003-06-06",
         "nome": "JUNTADA",
         "complemento": "PG 76885/03 DO GOVERNADOR DO ESTADO DO ESPÍRITO SANTO, REAPRESENTANDO A PG 53292/03, DEVIDAMENTE SUBSCRITA, EM CUMPRIMENTO AO DESPACHO DE 22.05.2003.",
         "julgador": null,
@@ -967,6 +1064,7 @@
       {
         "index_num": 30,
         "data": "27/05/2003",
+        "data_iso": "2003-05-27",
         "nome": "PUBLICACAO, DJ:",
         "complemento": "DO DESPACHO DO DIA 09/05/03.",
         "julgador": null,
@@ -976,6 +1074,7 @@
       {
         "index_num": 29,
         "data": "22/05/2003",
+        "data_iso": "2003-05-22",
         "nome": "JUNTADA POR LINHA",
         "complemento": "PG N.º 47744/03. DOS PROCURADORES DA PROCURADORIA JURÍDICA DO INSTITUTO ESTADUAL DE SAÚDE PÚBLICA - IESPO, APRESENTAM OS DOCUMENTOS QUE SUSTENTAM A CONSTITUCIONALIDADE E A NECESSIDADE DA REUNIÃO DAS ADIN'S2839, 2840,2820 À ADI 2711.",
         "julgador": null,
@@ -985,6 +1084,7 @@
       {
         "index_num": 28,
         "data": "22/05/2003",
+        "data_iso": "2003-05-22",
         "nome": "JUNTADA",
         "complemento": "PG Nº 53292/03, DO GOVERNADOR DO ESTADO DO ESPÍRITO SANTO, REQUERENDO O NÃO CONHECIMENTO DAS PETIÇÕES JUNTADAS POR LINHA, SUBSCRITAS PELOS PROCURADORES DO IESP.",
         "julgador": null,
@@ -994,6 +1094,7 @@
       {
         "index_num": 27,
         "data": "22/05/2003",
+        "data_iso": "2003-05-22",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 9.5.03- NA PG 47744: JUNTE-SE, POR LINHA, CONSIDERADOS OS TERMOS DO DESPACHO EXARADO NA PETIÇÃO PROTOCOLADA, NESTA CORTE, SOB N.º 53292/03.",
         "julgador": null,
@@ -1003,6 +1104,7 @@
       {
         "index_num": 26,
         "data": "22/05/2003",
+        "data_iso": "2003-05-22",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 9.5.03- NA PG 53292/03: OBSERVO QUE A PETIÇÃO PROTOCOLADA SOB O Nº 53292/03 NÃO SE ACHA SUBSCRITA POR SEU AUTOR, OU PELA EMINENETE PROCURADORA-GERAL/ES ., O QUE A TORNA UM ATO PROCESSUAL INEXISTENTE. DESSE MODO, ASSINO, AO AUTOR, O PRAZO DE 10 DIAS PARA SUPRIR A OMISSÃO ORA APONTADA. DETERMINEI A JUNTADA, POR LINHA, AOS AUTOS DA ADI 2820/ES, DA PETIÇÃO PROTOCOLADA, NESTA CORTE, SOB O Nº 47744/03, EIS QUE AS PROVIDÊNCIAS NELA POSTULADAS FORAM REQUERIDAS POR QUEM NÃO DISPÕE DE LEGITIMIDADE PARA INTERVIR NO PROCESSO DE FISCALIZAÇÃO ABSTRATA DE CONSTITUCIONALIDADE, AINDA QUE OS SUBSCRITORES DESSA PEÇA PROCESSUAL POSSAM TITULARIZAR INTERESSES CONCRETOS CUJA PRESERVAÇÃO DEPENDA, EVENTUALMENTE, DO JULGAMENTO DA PRESENTE ADI. O FATO IRRECUSÁVEL, TENDO EM VISTA OS SUBSCRITORES DESSA PETIÇÃO (PG/STF Nº 47744/03), RESIDE NA CIRCUNSTÂNCIA DE QUE SITUAÇÕES INDIVIDUAIS NÃO PODEM SER CONSIDERADAS NO ÂMBITO DO CONTROLE ABSTRATO DE NORMAS (RTJ 164/506-509 - RTJ 170/801-802, V.G.).",
         "julgador": null,
@@ -1012,6 +1114,7 @@
       {
         "index_num": 25,
         "data": "22/05/2003",
+        "data_iso": "2003-05-22",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 9.5.03- NA PG 53292/03: JUNTE-SE. DESPACHO EM SEPARADO.",
         "julgador": null,
@@ -1021,6 +1124,7 @@
       {
         "index_num": 24,
         "data": "24/04/2003",
+        "data_iso": "2003-04-24",
         "nome": "PETICAO AVULSA",
         "complemento": "PG Nº 53292/03, DO GOVERNADOR DO ESTADO DO ESPÍRITO SANTO, REQUERENDO O NÃO CONHECIMENTO DAS PETIÇÕES JUNTADAS POR LINHA, SUBSCRITAS PELOS PROCURADORES DO IESP. AO MINISTRO RELATOR, SEM OS AUTOS.",
         "julgador": null,
@@ -1030,6 +1134,7 @@
       {
         "index_num": 23,
         "data": "07/04/2003",
+        "data_iso": "2003-04-07",
         "nome": "PETICAO AVULSA",
         "complemento": "PG N.º 47744/03. DOS PROCURADORES DA PROCURADORIA JURÍDICA DO INSTITUTO ESTADUAL DE SAÚDE PÚBLICA - IESPO, APRESENTAM OS DOCUMENTOS QUE SUSTENTAM A CONSTITUCIONALIDADE E A NECESSIDADE DA REUNIÃO DAS ADIN'S2839, 2840,2820 À ADI 2711. AO MINISTRO RELATOR, SEM OS AUTOS.",
         "julgador": null,
@@ -1039,6 +1144,7 @@
       {
         "index_num": 22,
         "data": "26/03/2003",
+        "data_iso": "2003-03-26",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -1048,6 +1154,7 @@
       {
         "index_num": 21,
         "data": "26/03/2003",
+        "data_iso": "2003-03-26",
         "nome": "JUNTADA",
         "complemento": "PG Nº 41970 DO ESTADO DO ESPÍRITO SANTO, REQUERENDO PREFERÊNCIA NA APRECIAÇÃO DA MATÉRIA, OBJETO DA PRESENTE AÇÃO DIRETA.",
         "julgador": null,
@@ -1057,6 +1164,7 @@
       {
         "index_num": 20,
         "data": "26/03/2003",
+        "data_iso": "2003-03-26",
         "nome": "RECEBIMENTO DOS AUTOS",
         "complemento": "EM 25.03.2003, DA ADVOCACIA GERAL DA UNIÃO, COM MANIFESTAÇÃO (PG Nº 42733).",
         "julgador": null,
@@ -1066,6 +1174,7 @@
       {
         "index_num": 19,
         "data": "25/03/2003",
+        "data_iso": "2003-03-25",
         "nome": "PETICAO AVULSA",
         "complemento": "PG 41970 DO ESTADO DO ESPÍRITO SANTO, REQUERENDO PREFERÊNCIA NA APRECIAÇÃO DA MATÉRIA, OBJETO DA PRESENTE ADI. AO MINISTRO RELATOR, SEM OS AUTOS.",
         "julgador": null,
@@ -1075,6 +1184,7 @@
       {
         "index_num": 18,
         "data": "17/03/2003",
+        "data_iso": "2003-03-17",
         "nome": "JUNTADA",
         "complemento": "PG 11682 (FAX) DA ASSEMBLÉIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO, PRESTANDO INFORMAÇÕES.",
         "julgador": null,
@@ -1084,6 +1194,7 @@
       {
         "index_num": 17,
         "data": "17/03/2003",
+        "data_iso": "2003-03-17",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 13.03.2003 - NA PG 11682: JUNTE-SE.",
         "julgador": null,
@@ -1093,6 +1204,7 @@
       {
         "index_num": 16,
         "data": "17/03/2003",
+        "data_iso": "2003-03-17",
         "nome": "VISTA AO ADVOGADO-GERAL DA UNIAO",
         "complemento": null,
         "julgador": null,
@@ -1102,6 +1214,7 @@
       {
         "index_num": 15,
         "data": "17/03/2003",
+        "data_iso": "2003-03-17",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 13.03.2003 - CONSIDERANDO-SE A EXTREMA RELEVÂNCIA DA MATÉRIA EM EXAME, OUÇA-SE O EMINENTE ADVOGADO-GERAL DA UNIÃO (LEI Nº 9.868/99, ART. 10, §1º)",
         "julgador": null,
@@ -1111,6 +1224,7 @@
       {
         "index_num": 14,
         "data": "06/02/2003",
+        "data_iso": "2003-02-06",
         "nome": "LANÇAMENTO INDEVIDO",
         "complemento": "CONCLUSOS AO RELATOR",
         "julgador": null,
@@ -1120,6 +1234,7 @@
       {
         "index_num": 13,
         "data": "06/02/2003",
+        "data_iso": "2003-02-06",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -1129,6 +1244,7 @@
       {
         "index_num": 12,
         "data": "06/02/2003",
+        "data_iso": "2003-02-06",
         "nome": "JUNTADA",
         "complemento": "PG 13457 (ORIGINAL DO FAX PG 11682) DA ASSEMBLÉIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO, PRESTANDO INFORMAÇÕES.",
         "julgador": null,
@@ -1138,6 +1254,7 @@
       {
         "index_num": 11,
         "data": "04/02/2003",
+        "data_iso": "2003-02-04",
         "nome": "CONCLUSOS AO RELATOR",
         "complemento": null,
         "julgador": null,
@@ -1147,6 +1264,7 @@
       {
         "index_num": 10,
         "data": "04/02/2003",
+        "data_iso": "2003-02-04",
         "nome": "DISTRIBUIDO",
         "complemento": "MIN. CELSO DE MELLO",
         "julgador": null,
@@ -1156,6 +1274,7 @@
       {
         "index_num": 9,
         "data": "04/02/2003",
+        "data_iso": "2003-02-04",
         "nome": "REMESSA DOS AUTOS",
         "complemento": "À COORDENADORIA DE CLASSIFICAÇÃO E DISTRIBUIÇÃO DE PROCESSOS.",
         "julgador": null,
@@ -1165,6 +1284,7 @@
       {
         "index_num": 8,
         "data": "04/02/2003",
+        "data_iso": "2003-02-04",
         "nome": "PETICAO AVULSA",
         "complemento": "EM 30/01/03 - PG 13457 (ORIGINAL DO FAX PG 11682) DA ASSEMBLÉIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO, PRESTANDO INFORMAÇÕES.",
         "julgador": null,
@@ -1174,6 +1294,7 @@
       {
         "index_num": 7,
         "data": "04/02/2003",
+        "data_iso": "2003-02-04",
         "nome": "PUBLICACAO, DJ:",
         "complemento": "DESPACHO DE 07.01.2003 -",
         "julgador": null,
@@ -1183,6 +1304,7 @@
       {
         "index_num": 6,
         "data": "27/01/2003",
+        "data_iso": "2003-01-27",
         "nome": "INFORMACOES RECEBIDAS, OFICIO NRO.:",
         "complemento": "107/P (FAX) (PG 11682) DA ASSEMBLÉIA LEGISLATIVA DO ESPÍRITO SANTO - NA CONTRACAPA DOS AUTOS.",
         "julgador": null,
@@ -1192,6 +1314,7 @@
       {
         "index_num": 5,
         "data": "20/01/2003",
+        "data_iso": "2003-01-20",
         "nome": "REMESSA DOS AUTOS",
         "complemento": "AO COMITÊ DE ASSUNTOS JUDICIÁRIOS.",
         "julgador": null,
@@ -1201,6 +1324,7 @@
       {
         "index_num": 4,
         "data": "17/01/2003",
+        "data_iso": "2003-01-17",
         "nome": "PEDIDO DE INFORMACOES",
         "complemento": "OFÍCIO Nº 107/P, AO PRESIDENTE DA ASSEMBLÉIA LEGISLATIVA/ES. (PRAZO DE CINCO DIAS)",
         "julgador": null,
@@ -1210,6 +1334,7 @@
       {
         "index_num": 3,
         "data": "08/01/2003",
+        "data_iso": "2003-01-08",
         "nome": "REMESSA DOS AUTOS",
         "complemento": "À SEÇÃO CARTORÁRIA",
         "julgador": null,
@@ -1219,6 +1344,7 @@
       {
         "index_num": 2,
         "data": "08/01/2003",
+        "data_iso": "2003-01-08",
         "nome": "DESPACHO ORDINATORIO",
         "complemento": "EM 07.01.03 - SOLICITEM-SE INFORMAÇÕES À ASSEMBLÉIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO, NA FORMA DO CAPUT DO ART. 10 DA LEI 9868/99.",
         "julgador": null,
@@ -1228,6 +1354,7 @@
       {
         "index_num": 1,
         "data": "07/01/2003",
+        "data_iso": "2003-01-07",
         "nome": "CONCLUSOS AO VICE-PRESIDENTE",
         "complemento": "ART. 13, VIII C/C ART. 37 I DO RISTF",
         "julgador": null,
@@ -1366,480 +1493,600 @@
         "guia": "24202/2023",
         "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
         "data_recebido": "13/12/2023",
+        "data_recebido_iso": "2023-12-13",
         "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-        "data_enviado": "13/12/2023"
+        "data_enviado": "13/12/2023",
+        "data_enviado_iso": "2023-12-13"
       },
       {
         "index_num": 59,
         "guia": "4199/2023",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
         "data_recebido": "04/12/2023",
+        "data_recebido_iso": "2023-12-04",
         "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-        "data_enviado": "04/12/2023"
+        "data_enviado": "04/12/2023",
+        "data_enviado_iso": "2023-12-04"
       },
       {
         "index_num": 58,
         "guia": "6203/2023",
         "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
         "data_recebido": "01/12/2023",
+        "data_recebido_iso": "2023-12-01",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "01/12/2023"
+        "data_enviado": "01/12/2023",
+        "data_enviado_iso": "2023-12-01"
       },
       {
         "index_num": 57,
         "guia": "16382/2023",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "20/09/2023",
+        "data_recebido_iso": "2023-09-20",
         "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-        "data_enviado": "20/09/2023"
+        "data_enviado": "20/09/2023",
+        "data_enviado_iso": "2023-09-20"
       },
       {
         "index_num": 56,
         "guia": "4353/2023",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
         "data_recebido": "11/09/2023",
+        "data_recebido_iso": "2023-09-11",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "11/09/2023"
+        "data_enviado": "11/09/2023",
+        "data_enviado_iso": "2023-09-11"
       },
       {
         "index_num": 55,
         "guia": "12274/2023",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "09/08/2023",
+        "data_recebido_iso": "2023-08-09",
         "enviado_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
-        "data_enviado": "09/08/2023"
+        "data_enviado": "09/08/2023",
+        "data_enviado_iso": "2023-08-09"
       },
       {
         "index_num": 54,
         "guia": "3437/2023",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS",
         "data_recebido": "13/07/2023",
+        "data_recebido_iso": "2023-07-13",
         "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-        "data_enviado": "13/07/2023"
+        "data_enviado": "13/07/2023",
+        "data_enviado_iso": "2023-07-13"
       },
       {
         "index_num": 53,
         "guia": "2962/2023",
         "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
         "data_recebido": "19/06/2023",
+        "data_recebido_iso": "2023-06-19",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "19/06/2023"
+        "data_enviado": "19/06/2023",
+        "data_enviado_iso": "2023-06-19"
       },
       {
         "index_num": 52,
         "guia": "2555/2023",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "19/06/2023",
+        "data_recebido_iso": "2023-06-19",
         "enviado_por": "GABINETE MINISTRA CÁRMEN LÚCIA",
-        "data_enviado": "19/06/2023"
+        "data_enviado": "19/06/2023",
+        "data_enviado_iso": "2023-06-19"
       },
       {
         "index_num": 51,
         "guia": "587/2023",
         "recebido_por": "GABINETE MINISTRA CÁRMEN LÚCIA",
         "data_recebido": "02/03/2023",
+        "data_recebido_iso": "2023-03-02",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "02/03/2023"
+        "data_enviado": "02/03/2023",
+        "data_enviado_iso": "2023-03-02"
       },
       {
         "index_num": 50,
         "guia": "20250/2022",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "23/11/2022",
+        "data_recebido_iso": "2022-11-23",
         "enviado_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "23/11/2022"
+        "data_enviado": "23/11/2022",
+        "data_enviado_iso": "2022-11-23"
       },
       {
         "index_num": 49,
         "guia": "2799879/2022",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "23/11/2022",
+        "data_recebido_iso": "2022-11-23",
         "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-        "data_enviado": "23/11/2022"
+        "data_enviado": "23/11/2022",
+        "data_enviado_iso": "2022-11-23"
       },
       {
         "index_num": 48,
         "guia": "18615/2022",
         "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "27/10/2022"
+        "data_enviado": "27/10/2022",
+        "data_enviado_iso": "2022-10-27"
       },
       {
         "index_num": 47,
         "guia": "2788161/2022",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "27/10/2022",
+        "data_recebido_iso": "2022-10-27",
         "enviado_por": "ADVOGADO-GERAL DA UNIÃO",
-        "data_enviado": "27/10/2022"
+        "data_enviado": "27/10/2022",
+        "data_enviado_iso": "2022-10-27"
       },
       {
         "index_num": 46,
         "guia": "17192/2022",
         "recebido_por": "ADVOGADO-GERAL DA UNIÃO",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "05/10/2022"
+        "data_enviado": "05/10/2022",
+        "data_enviado_iso": "2022-10-05"
       },
       {
         "index_num": 45,
         "guia": "5050/2022",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "12/09/2022",
+        "data_recebido_iso": "2022-09-12",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "12/09/2022"
+        "data_enviado": "12/09/2022",
+        "data_enviado_iso": "2022-09-12"
       },
       {
         "index_num": 44,
         "guia": "21916/2020",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "04/12/2020",
+        "data_recebido_iso": "2020-12-04",
         "enviado_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "04/12/2020"
+        "data_enviado": "04/12/2020",
+        "data_enviado_iso": "2020-12-04"
       },
       {
         "index_num": 43,
         "guia": "74/2020",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "23/11/2020",
+        "data_recebido_iso": "2020-11-23",
         "enviado_por": "GABINETE MINISTRO NUNES MARQUES",
-        "data_enviado": "23/11/2020"
+        "data_enviado": "23/11/2020",
+        "data_enviado_iso": "2020-11-23"
       },
       {
         "index_num": 42,
         "guia": "5990/2020",
         "recebido_por": "GABINETE MINISTRO NUNES MARQUES",
         "data_recebido": "05/11/2020",
+        "data_recebido_iso": "2020-11-05",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "05/11/2020"
+        "data_enviado": "05/11/2020",
+        "data_enviado_iso": "2020-11-05"
       },
       {
         "index_num": 41,
         "guia": "6777/2013",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "07/08/2013",
+        "data_recebido_iso": "2013-08-07",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "07/08/2013"
+        "data_enviado": "07/08/2013",
+        "data_enviado_iso": "2013-08-07"
       },
       {
         "index_num": 40,
         "guia": "4178/2013",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "02/08/2013",
+        "data_recebido_iso": "2013-08-02",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "02/08/2013"
+        "data_enviado": "02/08/2013",
+        "data_enviado_iso": "2013-08-02"
       },
       {
         "index_num": 39,
         "guia": "5749/2013",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "24/06/2013",
+        "data_recebido_iso": "2013-06-24",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO E RECLAMAÇÕES",
-        "data_enviado": "24/06/2013"
+        "data_enviado": "24/06/2013",
+        "data_enviado_iso": "2013-06-24"
       },
       {
         "index_num": 38,
         "guia": "3686/2013",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO E RECLAMAÇÕES",
         "data_recebido": "21/06/2013",
+        "data_recebido_iso": "2013-06-21",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "21/06/2013"
+        "data_enviado": "21/06/2013",
+        "data_enviado_iso": "2013-06-21"
       },
       {
         "index_num": 37,
         "guia": "207/2009",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "18/02/2009",
+        "data_recebido_iso": "2009-02-18",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
-        "data_enviado": "18/02/2009"
+        "data_enviado": "18/02/2009",
+        "data_enviado_iso": "2009-02-18"
       },
       {
         "index_num": 36,
         "guia": "189/2009",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
         "data_recebido": "18/02/2009",
+        "data_recebido_iso": "2009-02-18",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "18/02/2009"
+        "data_enviado": "18/02/2009",
+        "data_enviado_iso": "2009-02-18"
       },
       {
         "index_num": 35,
         "guia": "192/2009",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "17/02/2009",
+        "data_recebido_iso": "2009-02-17",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
-        "data_enviado": "17/02/2009"
+        "data_enviado": "17/02/2009",
+        "data_enviado_iso": "2009-02-17"
       },
       {
         "index_num": 34,
         "guia": "161/2009",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
         "data_recebido": "13/02/2009",
+        "data_recebido_iso": "2009-02-13",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "13/02/2009"
+        "data_enviado": "13/02/2009",
+        "data_enviado_iso": "2009-02-13"
       },
       {
         "index_num": 33,
         "guia": "722/2006",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "28/04/2006",
+        "data_recebido_iso": "2006-04-28",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
-        "data_enviado": "28/04/2006"
+        "data_enviado": "28/04/2006",
+        "data_enviado_iso": "2006-04-28"
       },
       {
         "index_num": 32,
         "guia": "1303/2006",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
         "data_recebido": "28/04/2006",
+        "data_recebido_iso": "2006-04-28",
         "enviado_por": "SEÇÃO DE EXPEDIÇÃO",
-        "data_enviado": "28/04/2006"
+        "data_enviado": "28/04/2006",
+        "data_enviado_iso": "2006-04-28"
       },
       {
         "index_num": 31,
         "guia": "875/2006",
         "recebido_por": "SEÇÃO DE EXPEDIÇÃO",
         "data_recebido": "27/04/2006",
+        "data_recebido_iso": "2006-04-27",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "27/04/2006"
+        "data_enviado": "27/04/2006",
+        "data_enviado_iso": "2006-04-27"
       },
       {
         "index_num": 30,
         "guia": "2744/2006",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "27/04/2006",
+        "data_recebido_iso": "2006-04-27",
         "enviado_por": "SEÇÃO CARTORÁRIA E DE COMUNICAÇÕES",
-        "data_enviado": "27/04/2006"
+        "data_enviado": "27/04/2006",
+        "data_enviado_iso": "2006-04-27"
       },
       {
         "index_num": 29,
         "guia": "714/2006",
         "recebido_por": "SEÇÃO CARTORÁRIA E DE COMUNICAÇÕES",
         "data_recebido": "27/04/2006",
+        "data_recebido_iso": "2006-04-27",
         "enviado_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
-        "data_enviado": "27/04/2006"
+        "data_enviado": "27/04/2006",
+        "data_enviado_iso": "2006-04-27"
       },
       {
         "index_num": 28,
         "guia": "861/2006",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO",
         "data_recebido": "27/04/2006",
+        "data_recebido_iso": "2006-04-27",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "27/04/2006"
+        "data_enviado": "27/04/2006",
+        "data_enviado_iso": "2006-04-27"
       },
       {
         "index_num": 27,
         "guia": "1039/2004",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "25/07/2004",
+        "data_recebido_iso": "2004-07-25",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "25/07/2004"
+        "data_enviado": "25/07/2004",
+        "data_enviado_iso": "2004-07-25"
       },
       {
         "index_num": 26,
         "guia": "696/2004",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "02/02/2004",
+        "data_recebido_iso": "2004-02-02",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "02/02/2004"
+        "data_enviado": "02/02/2004",
+        "data_enviado_iso": "2004-02-02"
       },
       {
         "index_num": 25,
         "guia": "2047/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "18/12/2003",
+        "data_recebido_iso": "2003-12-18",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "18/12/2003"
+        "data_enviado": "18/12/2003",
+        "data_enviado_iso": "2003-12-18"
       },
       {
         "index_num": 24,
         "guia": "11719/2003",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "02/09/2003",
+        "data_recebido_iso": "2003-09-02",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "02/09/2003"
+        "data_enviado": "02/09/2003",
+        "data_enviado_iso": "2003-09-02"
       },
       {
         "index_num": 23,
         "guia": "176587/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "02/09/2003",
+        "data_recebido_iso": "2003-09-02",
         "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-        "data_enviado": "02/09/2003"
+        "data_enviado": "02/09/2003",
+        "data_enviado_iso": "2003-09-02"
       },
       {
         "index_num": 22,
         "guia": "10767/2003",
         "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "19/08/2003"
+        "data_enviado": "19/08/2003",
+        "data_enviado_iso": "2003-08-19"
       },
       {
         "index_num": 21,
         "guia": "1170/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "18/08/2003",
+        "data_recebido_iso": "2003-08-18",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "18/08/2003"
+        "data_enviado": "18/08/2003",
+        "data_enviado_iso": "2003-08-18"
       },
       {
         "index_num": 20,
         "guia": "7515/2003",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "09/06/2003",
+        "data_recebido_iso": "2003-06-09",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "09/06/2003"
+        "data_enviado": "09/06/2003",
+        "data_enviado_iso": "2003-06-09"
       },
       {
         "index_num": 19,
         "guia": "732/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "22/05/2003",
+        "data_recebido_iso": "2003-05-22",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "22/05/2003"
+        "data_enviado": "22/05/2003",
+        "data_enviado_iso": "2003-05-22"
       },
       {
         "index_num": 18,
         "guia": "3849/2003",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "28/03/2003",
+        "data_recebido_iso": "2003-03-28",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "27/03/2003"
+        "data_enviado": "27/03/2003",
+        "data_enviado_iso": "2003-03-27"
       },
       {
         "index_num": 17,
         "guia": "124505/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "25/03/2003",
+        "data_recebido_iso": "2003-03-25",
         "enviado_por": "ADVOGADO-GERAL DA UNIÃO",
-        "data_enviado": "25/03/2003"
+        "data_enviado": "25/03/2003",
+        "data_enviado_iso": "2003-03-25"
       },
       {
         "index_num": 16,
         "guia": "3339/2003",
         "recebido_por": "ADVOGADO-GERAL DA UNIÃO",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "19/03/2003"
+        "data_enviado": "19/03/2003",
+        "data_enviado_iso": "2003-03-19"
       },
       {
         "index_num": 15,
         "guia": "274/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "14/03/2003",
+        "data_recebido_iso": "2003-03-14",
         "enviado_por": "GABINETE MINISTRO CELSO DE MELLO",
-        "data_enviado": "14/03/2003"
+        "data_enviado": "14/03/2003",
+        "data_enviado_iso": "2003-03-14"
       },
       {
         "index_num": 14,
         "guia": "1177/2003",
         "recebido_por": "GABINETE MINISTRO CELSO DE MELLO",
         "data_recebido": "07/02/2003",
+        "data_recebido_iso": "2003-02-07",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "07/02/2003"
+        "data_enviado": "07/02/2003",
+        "data_enviado_iso": "2003-02-07"
       },
       {
         "index_num": 13,
         "guia": "105/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "05/02/2003",
+        "data_recebido_iso": "2003-02-05",
         "enviado_por": "COORDENADORIA DE CLASSIFICACAO E DISTRIBUICAO DE PROCESSOS",
-        "data_enviado": "05/02/2003"
+        "data_enviado": "05/02/2003",
+        "data_enviado_iso": "2003-02-05"
       },
       {
         "index_num": 12,
         "guia": "902/2003",
         "recebido_por": "COORDENADORIA DE CLASSIFICACAO E DISTRIBUICAO DE PROCESSOS",
         "data_recebido": "04/02/2003",
+        "data_recebido_iso": "2003-02-04",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "04/02/2003"
+        "data_enviado": "04/02/2003",
+        "data_enviado_iso": "2003-02-04"
       },
       {
         "index_num": 11,
         "guia": "160/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "21/01/2003",
+        "data_recebido_iso": "2003-01-21",
         "enviado_por": "COMITÊ DE ASSUNTOS JUDICIÁRIOS",
-        "data_enviado": "21/01/2003"
+        "data_enviado": "21/01/2003",
+        "data_enviado_iso": "2003-01-21"
       },
       {
         "index_num": 10,
         "guia": "446/2003",
         "recebido_por": "COMITÊ DE ASSUNTOS JUDICIÁRIOS",
         "data_recebido": "21/01/2003",
+        "data_recebido_iso": "2003-01-21",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "21/01/2003"
+        "data_enviado": "21/01/2003",
+        "data_enviado_iso": "2003-01-21"
       },
       {
         "index_num": 9,
         "guia": "92/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "20/01/2003",
+        "data_recebido_iso": "2003-01-20",
         "enviado_por": "SEÇÃO DE EXPEDICAO",
-        "data_enviado": "20/01/2003"
+        "data_enviado": "20/01/2003",
+        "data_enviado_iso": "2003-01-20"
       },
       {
         "index_num": 8,
         "guia": "67/2003",
         "recebido_por": "SEÇÃO DE EXPEDICAO",
         "data_recebido": "16/01/2003",
+        "data_recebido_iso": "2003-01-16",
         "enviado_por": "GABINETE MINISTRO ILMAR GALVAO",
-        "data_enviado": "16/01/2003"
+        "data_enviado": "16/01/2003",
+        "data_enviado_iso": "2003-01-16"
       },
       {
         "index_num": 7,
         "guia": "203/2003",
         "recebido_por": "GABINETE MINISTRO ILMAR GALVAO",
         "data_recebido": "09/01/2003",
+        "data_recebido_iso": "2003-01-09",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "09/01/2003"
+        "data_enviado": "09/01/2003",
+        "data_enviado_iso": "2003-01-09"
       },
       {
         "index_num": 6,
         "guia": "27/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "09/01/2003",
+        "data_recebido_iso": "2003-01-09",
         "enviado_por": "SEÇÃO CARTORARIA E DE COMUNIC. PROCESSUAIS - CPOR",
-        "data_enviado": "09/01/2003"
+        "data_enviado": "09/01/2003",
+        "data_enviado_iso": "2003-01-09"
       },
       {
         "index_num": 5,
         "guia": "172/2003",
         "recebido_por": "SEÇÃO CARTORARIA E DE COMUNIC. PROCESSUAIS - CPOR",
         "data_recebido": "08/01/2003",
+        "data_recebido_iso": "2003-01-08",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "08/01/2003"
+        "data_enviado": "08/01/2003",
+        "data_enviado_iso": "2003-01-08"
       },
       {
         "index_num": 4,
         "guia": "40/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "08/01/2003",
+        "data_recebido_iso": "2003-01-08",
         "enviado_por": "GABINETE MINISTRO ILMAR GALVAO",
-        "data_enviado": "08/01/2003"
+        "data_enviado": "08/01/2003",
+        "data_enviado_iso": "2003-01-08"
       },
       {
         "index_num": 3,
         "guia": "90/2003",
         "recebido_por": "GABINETE MINISTRO ILMAR GALVAO",
         "data_recebido": "07/01/2003",
+        "data_recebido_iso": "2003-01-07",
         "enviado_por": "GABINETE DO SECRETARIO - SPJ",
-        "data_enviado": "07/01/2003"
+        "data_enviado": "07/01/2003",
+        "data_enviado_iso": "2003-01-07"
       },
       {
         "index_num": 2,
         "guia": "130/2003",
         "recebido_por": "GABINETE DO SECRETARIO - SPJ",
         "data_recebido": "07/01/2003",
+        "data_recebido_iso": "2003-01-07",
         "enviado_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
-        "data_enviado": "07/01/2003"
+        "data_enviado": "07/01/2003",
+        "data_enviado_iso": "2003-01-07"
       },
       {
         "index_num": 1,
         "guia": "115/2003",
         "recebido_por": "COORDENADORIA DE PROCESSOS ORIGINARIOS",
         "data_recebido": "07/01/2003",
+        "data_recebido_iso": "2003-01-07",
         "enviado_por": "COORDENADORIA DE AUTUACAO DE PROCESSOS",
-        "data_enviado": "07/01/2003"
+        "data_enviado": "07/01/2003",
+        "data_enviado_iso": "2003-01-07"
       }
     ],
     "peticoes": [
@@ -1847,132 +2094,174 @@
         "index": 18,
         "id": "136374/2023",
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "recebido_data": "06/12/2023 21:40:44",
+        "recebido_data_iso": "2023-12-06",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
       },
       {
         "index": 17,
         "id": "136307/2023",
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "recebido_data": "06/12/2023 19:50:33",
+        "recebido_data_iso": "2023-12-06",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
       },
       {
         "index": 16,
         "id": "136264/2023",
         "data": "06/12/2023",
+        "data_iso": "2023-12-06",
         "recebido_data": "06/12/2023 19:25:34",
+        "recebido_data_iso": "2023-12-06",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
       },
       {
         "index": 15,
         "id": "80385/2023",
         "data": "02/08/2023",
+        "data_iso": "2023-08-02",
         "recebido_data": "02/08/2023 11:48:20",
+        "recebido_data_iso": "2023-08-02",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
       },
       {
         "index": 14,
         "id": "79634/2023",
         "data": "31/07/2023",
+        "data_iso": "2023-07-31",
         "recebido_data": "31/07/2023 19:06:19",
+        "recebido_data_iso": "2023-07-31",
         "recebido_por": "GERÊNCIA DE PROCESSOS ORIGINÁRIOS CÍVEIS"
       },
       {
         "index": 13,
         "id": "91981/2022",
         "data": "23/11/2022",
+        "data_iso": "2022-11-23",
         "recebido_data": "23/11/2022 17:47:25",
+        "recebido_data_iso": "2022-11-23",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES"
       },
       {
         "index": 12,
         "id": "85028/2022",
         "data": "27/10/2022",
+        "data_iso": "2022-10-27",
         "recebido_data": "27/10/2022 19:52:59",
+        "recebido_data_iso": "2022-10-27",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES"
       },
       {
         "index": 11,
         "id": "82310/2020",
         "data": "05/10/2020",
+        "data_iso": "2020-10-05",
         "recebido_data": "05/10/2020 12:34:05",
+        "recebido_data_iso": "2020-10-05",
         "recebido_por": "GERÊNCIA DE CONTROLE CONCENTRADO E RECLAMAÇÕES"
       },
       {
         "index": 10,
         "id": "30070/2013",
         "data": "19/06/2013",
+        "data_iso": "2013-06-19",
         "recebido_data": "20/06/2013 13:28:53",
+        "recebido_data_iso": "2013-06-20",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO E RECLAMAÇÕES"
       },
       {
         "index": 9,
         "id": "14002/2009",
         "data": "12/02/2009",
+        "data_iso": "2009-02-12",
         "recebido_data": "12/02/2009 18:30:45",
+        "recebido_data_iso": "2009-02-12",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO"
       },
       {
         "index": 8,
         "id": "52998/2006",
         "data": "25/04/2006",
+        "data_iso": "2006-04-25",
         "recebido_data": "27/04/2006 13:31:49",
+        "recebido_data_iso": "2006-04-27",
         "recebido_por": "SEÇÃO DE PROCESSOS DO CONTROLE CONCENTRADO"
       },
       {
         "index": 7,
         "id": "76885/2003",
         "data": "06/06/2003",
+        "data_iso": "2003-06-06",
         "recebido_data": "25/07/2004 17:36:22",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 6,
         "id": "53292/2003",
         "data": "24/04/2003",
+        "data_iso": "2003-04-24",
         "recebido_data": "25/07/2004 17:37:03",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 5,
         "id": "47744/2003",
         "data": "04/04/2003",
+        "data_iso": "2003-04-04",
         "recebido_data": "25/07/2004 17:36:46",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 4,
         "id": "42733/2003",
         "data": "25/03/2003",
+        "data_iso": "2003-03-25",
         "recebido_data": "25/07/2004 17:36:31",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 3,
         "id": "41970/2003",
         "data": "25/03/2003",
+        "data_iso": "2003-03-25",
         "recebido_data": "25/07/2004 17:36:46",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 2,
         "id": "13457/2003",
         "data": "30/01/2003",
+        "data_iso": "2003-01-30",
         "recebido_data": "25/07/2004 17:36:46",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       },
       {
         "index": 1,
         "id": "11682/2003",
         "data": "27/01/2003",
+        "data_iso": "2003-01-27",
         "recebido_data": "25/07/2004 17:37:20",
+        "recebido_data_iso": "2004-07-25",
         "recebido_por": "COORDENADORIA DE PROCESSAMENTO DO PLENÁRIO"
       }
     ],
     "recursos": [],
     "pautas": [],
-    "status": 200,
-    "extraido": "2025-10-25T22:13:24.791409"
+    "outcome": {
+      "verdict": "procedente_parcial",
+      "source": "andamentos",
+      "source_index": 100,
+      "date_iso": "2023-09-11"
+    },
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.665312"
   }
 ]

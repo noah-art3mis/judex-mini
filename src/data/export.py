@@ -109,23 +109,15 @@ def _save_to_jsonl(item: StfItem, out_file: str) -> str:
 
 
 def _save_to_json(item: StfItem, out_file: str) -> str:
-    """Save item to JSON file and return the file path."""
+    """Save item to JSON file and return the file path.
+
+    Per-process case JSONs are single-record by construction
+    (one file per (classe, processo)), so we write a bare dict
+    and overwrite on every call. Use ``.jsonl`` for multi-record
+    batch output.
+    """
     json_file = out_file + ".json"
-
-    # Always append to file (or create new if doesn't exist)
-    if os.path.exists(json_file):
-        # Read existing data, append new item, write back
-        with open(json_file, "r", encoding="utf-8") as f:
-            existing_data = json.load(f)
-
-        existing_data.append(item)
-
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(existing_data, f, ensure_ascii=False, indent=2)
-    else:
-        # Create new file with array format
-        with open(json_file, "w", encoding="utf-8") as f:
-            json.dump([item], f, ensure_ascii=False, indent=2)
-
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump(item, f, ensure_ascii=False, indent=2)
     logging.debug(f"Saved to JSON: {json_file}")
     return json_file

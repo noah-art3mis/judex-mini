@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 5494703,
     "classe": "HC",
     "processo_id": 158802,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=5494703",
     "numero_unico": "0073563-11.2018.1.00.0000",
     "meio": "ELETRONICO",
     "publicidade": "PUBLICO",
@@ -15,6 +17,7 @@
       "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
     ],
     "data_protocolo": "21/06/2018",
+    "data_protocolo_iso": "2018-06-21",
     "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
     "origem": "RJ - RIO DE JANEIRO",
     "numero_origem": [
@@ -72,6 +75,7 @@
       {
         "index_num": 60,
         "data": "28/08/2020",
+        "data_iso": "2020-08-28",
         "nome": "BAIXA AO ARQUIVO DO STF",
         "complemento": null,
         "julgador": null,
@@ -81,6 +85,7 @@
       {
         "index_num": 59,
         "data": "28/08/2020",
+        "data_iso": "2020-08-28",
         "nome": "TRANSITADO(A) EM JULGADO",
         "complemento": "25/08/2020",
         "julgador": null,
@@ -93,6 +98,7 @@
       {
         "index_num": 58,
         "data": "20/08/2020",
+        "data_iso": "2020-08-20",
         "nome": "PETIÇÃO",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 66119 - Data: 20/08/2020, às 11:51:25, via Web Service MNI 2.2.2.",
         "julgador": null,
@@ -102,6 +108,7 @@
       {
         "index_num": 57,
         "data": "18/08/2020",
+        "data_iso": "2020-08-18",
         "nome": "INTIMADO ELETRONICAMENTE",
         "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
         "julgador": null,
@@ -111,6 +118,7 @@
       {
         "index_num": 56,
         "data": "17/08/2020",
+        "data_iso": "2020-08-17",
         "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO",
         "complemento": null,
         "julgador": null,
@@ -123,6 +131,7 @@
       {
         "index_num": 55,
         "data": "17/08/2020",
+        "data_iso": "2020-08-17",
         "nome": "PUBLICADO ACÓRDÃO, DJE",
         "complemento": "DATA DE PUBLICAÇÃO DJE 17/08/2020 - ATA Nº 132/2020. DJE nº 204, divulgado em 14/08/2020",
         "julgador": null,
@@ -135,6 +144,7 @@
       {
         "index_num": 54,
         "data": "03/06/2020",
+        "data_iso": "2020-06-03",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "ATA Nº 16, de 29/05/2020. DJE nº 137, divulgado em 02/06/2020",
         "julgador": null,
@@ -144,6 +154,7 @@
       {
         "index_num": 53,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "EXPEDIDO(A)",
         "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -153,6 +164,7 @@
       {
         "index_num": 52,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "PETIÇÃO",
         "complemento": "Manifestação - Petição: 38960 Data: 01/06/2020, às 16:06:57",
         "julgador": null,
@@ -162,6 +174,7 @@
       {
         "index_num": 51,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "EXPEDIDO(A)",
         "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -171,6 +184,7 @@
       {
         "index_num": 50,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -180,6 +194,7 @@
       {
         "index_num": 49,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
         "julgador": null,
@@ -189,6 +204,7 @@
       {
         "index_num": 48,
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "nome": "CERTIDÃO",
         "complemento": "Certifico a elaboração de 2 ofícios eletrônicos. 2ª Turma, Sessão Virtual de 22 a 28/05/2020.",
         "julgador": null,
@@ -198,6 +214,7 @@
       {
         "index_num": 47,
         "data": "29/05/2020",
+        "data_iso": "2020-05-29",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -207,6 +224,7 @@
       {
         "index_num": 46,
         "data": "29/05/2020",
+        "data_iso": "2020-05-29",
         "nome": "AGRAVO REGIMENTAL PROVIDO",
         "complemento": "Decisão: A Turma, por maioria, deu provimento ao agravo regimental, para cassar a liminar deferida, nos termos do voto do Ministro Edson Fachin, vencidos os Ministros Gilmar Mendes (Relator) e Ricardo Lewandowski. Redigirá o acórdão o Ministro Edson Fachin. Segunda Turma, Sessão Virtual de 22.5.2020 a 28.5.2020.",
         "julgador": "2ª TURMA - SESSÃO VIRTUAL",
@@ -219,6 +237,7 @@
       {
         "index_num": 45,
         "data": "29/05/2020",
+        "data_iso": "2020-05-29",
         "nome": "FINALIZADO JULGAMENTO VIRTUAL",
         "complemento": "Finalizado Julgamento Virtual em 28 de Maio de 2020 (Quinta-feira), às 23:59 .",
         "julgador": null,
@@ -228,6 +247,7 @@
       {
         "index_num": 44,
         "data": "22/05/2020",
+        "data_iso": "2020-05-22",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -237,6 +257,7 @@
       {
         "index_num": 43,
         "data": "12/05/2020",
+        "data_iso": "2020-05-12",
         "nome": "VISTA - DEVOLUÇÃO DOS AUTOS PARA JULGAMENTO",
         "complemento": "12/05/2020 19:10:35 - Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 22/05/2020.",
         "julgador": "MIN. EDSON FACHIN",
@@ -246,6 +267,7 @@
       {
         "index_num": 42,
         "data": "12/05/2020",
+        "data_iso": "2020-05-12",
         "nome": "INCLUÍDO NA LISTA DE JULGAMENTO",
         "complemento": "Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 22/05/2020.",
         "julgador": "MIN. EDSON FACHIN",
@@ -255,6 +277,7 @@
       {
         "index_num": 41,
         "data": "24/04/2020",
+        "data_iso": "2020-04-24",
         "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
         "complemento": "ATA Nº 10, de 20/04/2020. DJE nº 99, divulgado em 23/04/2020",
         "julgador": null,
@@ -264,6 +287,7 @@
       {
         "index_num": 40,
         "data": "21/04/2020",
+        "data_iso": "2020-04-21",
         "nome": "JUNTADA",
         "complemento": "Certidão de Julgamento da Sessão Virtual",
         "julgador": null,
@@ -273,6 +297,7 @@
       {
         "index_num": 39,
         "data": "20/04/2020",
+        "data_iso": "2020-04-20",
         "nome": "VISTA AO(À) MINISTRO(A)",
         "complemento": "Decisão: Após o voto do Ministro Relator, que negava provimento ao agravo regimental do Ministério Público Federal, pediu vista o Ministro Edson Fachin. Não participou deste julgamento, por motivo de licença médica no início da sessão, o Ministro Celso de Mello (art. 2º, § 5º, da Res. 642/2019). Segunda Turma, Sessão Virtual de 10.4.2020 a 17.4.2020.",
         "julgador": "MIN. EDSON FACHIN",
@@ -285,6 +310,7 @@
       {
         "index_num": 38,
         "data": "15/04/2020",
+        "data_iso": "2020-04-15",
         "nome": "SUSPENSO O JULGAMENTO",
         "complemento": "Pedido de Vista",
         "julgador": "MIN. EDSON FACHIN",
@@ -294,6 +320,7 @@
       {
         "index_num": 37,
         "data": "10/04/2020",
+        "data_iso": "2020-04-10",
         "nome": "INICIADO JULGAMENTO VIRTUAL",
         "complemento": null,
         "julgador": null,
@@ -303,6 +330,7 @@
       {
         "index_num": 36,
         "data": "31/03/2020",
+        "data_iso": "2020-03-31",
         "nome": "PAUTA PUBLICADA NO DJE - 2ª TURMA",
         "complemento": "PAUTA Nº 28/2020. DJE nº 78, divulgado em 30/03/2020",
         "julgador": null,
@@ -312,6 +340,7 @@
       {
         "index_num": 35,
         "data": "27/03/2020",
+        "data_iso": "2020-03-27",
         "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
         "complemento": "Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 10/04/2020.",
         "julgador": "2ª TURMA - SESSÃO VIRTUAL",
@@ -321,6 +350,7 @@
       {
         "index_num": 34,
         "data": "27/03/2020",
+        "data_iso": "2020-03-27",
         "nome": "RETIRADO DE MESA",
         "complemento": "2ª Turma em 27/03/2020 16:05:26 - HC-MC-AgR",
         "julgador": null,
@@ -330,6 +360,7 @@
       {
         "index_num": 33,
         "data": "13/03/2020",
+        "data_iso": "2020-03-13",
         "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO",
         "complemento": "Data de Julgamento: 17/03/2020",
         "julgador": null,
@@ -339,6 +370,7 @@
       {
         "index_num": 32,
         "data": "09/03/2020",
+        "data_iso": "2020-03-09",
         "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO",
         "complemento": "Data de Julgamento: 10/03/2020",
         "julgador": null,
@@ -348,6 +380,7 @@
       {
         "index_num": 31,
         "data": "06/03/2020",
+        "data_iso": "2020-03-06",
         "nome": "CERTIDÃO",
         "complemento": "Informamos a Vossa Senhoria que, PROVAVELMENTE, este Habeas Corpus-AgR será levado a julgamento na Sessão da 2ª Turma deste Supremo Tribunal Federal do dia 10.03.2020 (terça-feira), a partir das 14h00min.",
         "julgador": null,
@@ -357,6 +390,7 @@
       {
         "index_num": 30,
         "data": "06/03/2020",
+        "data_iso": "2020-03-06",
         "nome": "APRESENTADO EM MESA PARA JULGAMENTO",
         "complemento": "2ª Turma em 06/03/2020 17:29:56 - HC-MC-AgR",
         "julgador": "2ª TURMA",
@@ -366,6 +400,7 @@
       {
         "index_num": 29,
         "data": "14/05/2019",
+        "data_iso": "2019-05-14",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -375,6 +410,7 @@
       {
         "index_num": 28,
         "data": "14/05/2019",
+        "data_iso": "2019-05-14",
         "nome": "MANIFESTAÇÃO DA PGR",
         "complemento": null,
         "julgador": null,
@@ -387,6 +423,7 @@
       {
         "index_num": 27,
         "data": "04/09/2018",
+        "data_iso": "2018-09-04",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -396,6 +433,7 @@
       {
         "index_num": 26,
         "data": "04/09/2018",
+        "data_iso": "2018-09-04",
         "nome": "MANIFESTAÇÃO DA PGR",
         "complemento": null,
         "julgador": null,
@@ -408,6 +446,7 @@
       {
         "index_num": 25,
         "data": "22/08/2018",
+        "data_iso": "2018-08-22",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -417,6 +456,7 @@
       {
         "index_num": 24,
         "data": "22/08/2018",
+        "data_iso": "2018-08-22",
         "nome": "PETIÇÃO",
         "complemento": "Sustentação oral - Petição: 54910 Data: 22/08/2018 às 12:23:34",
         "julgador": null,
@@ -426,6 +466,7 @@
       {
         "index_num": 23,
         "data": "16/08/2018",
+        "data_iso": "2018-08-16",
         "nome": "JUNTADA DE AR",
         "complemento": "Referente ao Ofício 14844/2018 - 7ª VARA FEDERAL CRIMINAL DO RIO DE JANEIRO SEÇÃO JUDICIÁRIA DO RIO DE JANEIRO - Com cópia da Petição Inicial, da decisão e do ofício eletrônico n°176/2018 -URGENTE JT538618321BR",
         "julgador": null,
@@ -435,6 +476,7 @@
       {
         "index_num": 22,
         "data": "14/08/2018",
+        "data_iso": "2018-08-14",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -444,6 +486,7 @@
       {
         "index_num": 21,
         "data": "13/08/2018",
+        "data_iso": "2018-08-13",
         "nome": "INTERPOSTO AGRAVO REGIMENTAL",
         "complemento": "Juntada Petição: 52211/2018",
         "julgador": null,
@@ -453,6 +496,7 @@
       {
         "index_num": 20,
         "data": "13/08/2018",
+        "data_iso": "2018-08-13",
         "nome": "RECEBIMENTO DOS AUTOS",
         "complemento": "PROCURADORIA-GERAL DA REPÚBLICA - Guia 1898770/1898770",
         "julgador": null,
@@ -462,6 +506,7 @@
       {
         "index_num": 19,
         "data": "13/08/2018",
+        "data_iso": "2018-08-13",
         "nome": "PETIÇÃO",
         "complemento": "52211/2018 - 13/08/2018 - (Petição Eletrônica com Certificação Digital) - MINISTÉRIO PÚBLICO FEDERAL - Ag. Reg.",
         "julgador": null,
@@ -471,6 +516,7 @@
       {
         "index_num": 18,
         "data": "07/08/2018",
+        "data_iso": "2018-08-07",
         "nome": "VISTA À PGR",
         "complemento": null,
         "julgador": null,
@@ -480,6 +526,7 @@
       {
         "index_num": 17,
         "data": "07/08/2018",
+        "data_iso": "2018-08-07",
         "nome": "PETIÇÃO",
         "complemento": "50606/2018 - 07/08/2018 - (Via Malote Digital) OFÍCIO Nº TRF2-OFI-2018/12593, Juiz Federal da 7ª Vara Criminal SJRJ - Presta informações.",
         "julgador": null,
@@ -489,6 +536,7 @@
       {
         "index_num": 16,
         "data": "03/08/2018",
+        "data_iso": "2018-08-03",
         "nome": "EXPEDIDO(A)",
         "complemento": "Ofício 14844/2018 - 7ª VARA FEDERAL CRIMINAL DO RIO DE JANEIRO SEÇÃO JUDICIÁRIA DO RIO DE JANEIRO - Com cópia da Petição Inicial, da decisão e do ofício eletrônico n°176/2018 -URGENTE JT538618321BR - Data da Remessa: 03/08/2018",
         "julgador": null,
@@ -498,6 +546,7 @@
       {
         "index_num": 15,
         "data": "01/08/2018",
+        "data_iso": "2018-08-01",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "REITERAÇÃO - RESOLUÇÃO/STF 478/2011 - SEJ",
         "julgador": null,
@@ -507,6 +556,7 @@
       {
         "index_num": 14,
         "data": "01/08/2018",
+        "data_iso": "2018-08-01",
         "nome": "CERTIDÃO",
         "complemento": "Certifico haver elaborado 1 ofício.Nos termos da Resolução STF nº 478/2011.",
         "julgador": null,
@@ -516,6 +566,7 @@
       {
         "index_num": 13,
         "data": "01/08/2018",
+        "data_iso": "2018-08-01",
         "nome": "CERTIDÃO",
         "complemento": "Certifico que, até 1º/08/2018, não foram recebidas as informações solicitadas por intermédio do Ofício nº 176/2018. Faço remessa à Seção de Comunicações para os fins do art. 1º, VI da Resolução nº 478/2011/STF.",
         "julgador": null,
@@ -525,6 +576,7 @@
       {
         "index_num": 12,
         "data": "28/06/2018",
+        "data_iso": "2018-06-28",
         "nome": "PETIÇÃO",
         "complemento": "Informações - Petição: 43954 Data: 28/06/2018 às 17:08:19",
         "julgador": null,
@@ -534,6 +586,7 @@
       {
         "index_num": 11,
         "data": "27/06/2018",
+        "data_iso": "2018-06-27",
         "nome": "PUBLICAÇÃO, DJE",
         "complemento": "DJE nº 127, divulgado em 26/06/2018",
         "julgador": null,
@@ -546,6 +599,7 @@
       {
         "index_num": 10,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "EXPEDIDO(A)",
         "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
         "julgador": null,
@@ -555,6 +609,7 @@
       {
         "index_num": 9,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "EXPEDIDO(A)",
         "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
         "julgador": null,
@@ -564,6 +619,7 @@
       {
         "index_num": 8,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
         "julgador": null,
@@ -573,6 +629,7 @@
       {
         "index_num": 7,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "COMUNICAÇÃO ASSINADA",
         "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
         "julgador": null,
@@ -582,6 +639,7 @@
       {
         "index_num": 6,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "CERTIDÃO",
         "complemento": "Certifico que elaborei 2 ofícios (malote digital). Decisão de 25/6/18.",
         "julgador": null,
@@ -591,6 +649,7 @@
       {
         "index_num": 5,
         "data": "25/06/2018",
+        "data_iso": "2018-06-25",
         "nome": "LIMINAR DEFERIDA",
         "complemento": "\"(...) Ante o exposto, identificando adequação fática e jurídica com os argumentos e razões de decidir contidos nos acórdãos prolatados pela Segunda Turma, em 10.10.2017 e 18.12.2017, nos HCs 143.247/RJ, 146.666/RJ e 147.192/RJ, defiro o pedido de liminar para suspender a ordem de prisão preventiva decretada em desfavor do paciente ROBERTO RZEZINSKI, na data de 2.5.2018, pelo Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Auto n. 060662-28.2018.4.02.5101), se por outro motivo não estiver preso, pelas seguintes medidas cautelares diversas da prisão, na forma do art. 319 do CPP: a) proibição de manter contato com os demais investigados, por qualquer meio (inciso III); b) proibição de deixar o País, devendo entregar seu(s) passaporte(s) em até 48h (quarenta e oito) horas (inciso IV e artigo 320). Comunique-se, com urgência, ao Juízo de origem. Requisitem-se informações ao Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Autos n. 0060662-28.2018.4.02.5101). Após, dê-se vistas dos autos à Procuradoria-Geral da República. Publique-se.\"",
         "julgador": "MIN. GILMAR MENDES",
@@ -600,6 +659,7 @@
       {
         "index_num": 4,
         "data": "21/06/2018",
+        "data_iso": "2018-06-21",
         "nome": "CONCLUSOS AO(À) RELATOR(A)",
         "complemento": null,
         "julgador": null,
@@ -609,6 +669,7 @@
       {
         "index_num": 3,
         "data": "21/06/2018",
+        "data_iso": "2018-06-21",
         "nome": "DISTRIBUÍDO POR PREVENÇÃO",
         "complemento": "MIN. GILMAR MENDES. Prevenção do Relator/Sucessor: MIN. GILMAR MENDES. Processo que justifica: HC 141478. Justificativa legal: RISTF, art. 77-D, caput",
         "julgador": null,
@@ -621,6 +682,7 @@
       {
         "index_num": 2,
         "data": "21/06/2018",
+        "data_iso": "2018-06-21",
         "nome": "AUTUADO",
         "complemento": null,
         "julgador": null,
@@ -630,6 +692,7 @@
       {
         "index_num": 1,
         "data": "21/06/2018",
+        "data_iso": "2018-06-21",
         "nome": "PROTOCOLADO",
         "complemento": null,
         "julgador": null,
@@ -724,160 +787,200 @@
         "guia": "6/2021",
         "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
         "data_recebido": "30/01/2021",
+        "data_recebido_iso": "2021-01-30",
         "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
-        "data_enviado": "30/01/2021"
+        "data_enviado": "30/01/2021",
+        "data_enviado_iso": "2021-01-30"
       },
       {
         "index_num": 19,
         "guia": "33852/2020",
         "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
         "data_recebido": "28/08/2020",
+        "data_recebido_iso": "2020-08-28",
         "enviado_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
-        "data_enviado": "28/08/2020"
+        "data_enviado": "28/08/2020",
+        "data_enviado_iso": "2020-08-28"
       },
       {
         "index_num": 18,
         "guia": "1215/2020",
         "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
         "data_recebido": "17/08/2020",
+        "data_recebido_iso": "2020-08-17",
         "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
-        "data_enviado": "17/08/2020"
+        "data_enviado": "17/08/2020",
+        "data_enviado_iso": "2020-08-17"
       },
       {
         "index_num": 17,
         "guia": "4923/2020",
         "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
         "data_recebido": "01/07/2020",
+        "data_recebido_iso": "2020-07-01",
         "enviado_por": "GABINETE MINISTRO EDSON FACHIN",
-        "data_enviado": "01/07/2020"
+        "data_enviado": "01/07/2020",
+        "data_enviado_iso": "2020-07-01"
       },
       {
         "index_num": 16,
         "guia": "2069/2020",
         "recebido_por": "GABINETE MINISTRO EDSON FACHIN",
         "data_recebido": "15/04/2020",
+        "data_recebido_iso": "2020-04-15",
         "enviado_por": "GABINETE MINISTRO GILMAR MENDES",
-        "data_enviado": "15/04/2020"
+        "data_enviado": "15/04/2020",
+        "data_enviado_iso": "2020-04-15"
       },
       {
         "index_num": 15,
         "guia": "17926/2019",
         "recebido_por": "GABINETE MINISTRO GILMAR MENDES",
         "data_recebido": "14/05/2019",
+        "data_recebido_iso": "2019-05-14",
         "enviado_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
-        "data_enviado": "14/05/2019"
+        "data_enviado": "14/05/2019",
+        "data_enviado_iso": "2019-05-14"
       },
       {
         "index_num": 14,
         "guia": "2048791/2019",
         "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
         "data_recebido": "14/05/2019",
+        "data_recebido_iso": "2019-05-14",
         "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-        "data_enviado": "14/05/2019"
+        "data_enviado": "14/05/2019",
+        "data_enviado_iso": "2019-05-14"
       },
       {
         "index_num": 13,
         "guia": "26109/2018",
         "recebido_por": "GABINETE MINISTRO GILMAR MENDES",
         "data_recebido": "04/09/2018",
+        "data_recebido_iso": "2018-09-04",
         "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "04/09/2018"
+        "data_enviado": "04/09/2018",
+        "data_enviado_iso": "2018-09-04"
       },
       {
         "index_num": 12,
         "guia": "1913574/2018",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
         "data_recebido": "04/09/2018",
+        "data_recebido_iso": "2018-09-04",
         "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-        "data_enviado": "04/09/2018"
+        "data_enviado": "04/09/2018",
+        "data_enviado_iso": "2018-09-04"
       },
       {
         "index_num": 11,
         "guia": "23024/2018",
         "recebido_por": "GABINETE MINISTRO GILMAR MENDES",
         "data_recebido": "14/08/2018",
+        "data_recebido_iso": "2018-08-14",
         "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "14/08/2018"
+        "data_enviado": "14/08/2018",
+        "data_enviado_iso": "2018-08-14"
       },
       {
         "index_num": 10,
         "guia": "5550/2018",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
         "data_recebido": "13/08/2018",
+        "data_recebido_iso": "2018-08-13",
         "enviado_por": "SEÇÃO DE ATENDIMENTO NÃO PRESENCIAL",
-        "data_enviado": "13/08/2018"
+        "data_enviado": "13/08/2018",
+        "data_enviado_iso": "2018-08-13"
       },
       {
         "index_num": 9,
         "guia": "1898770/2018",
         "recebido_por": "SEÇÃO DE ATENDIMENTO NÃO PRESENCIAL",
         "data_recebido": "13/08/2018",
+        "data_recebido_iso": "2018-08-13",
         "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
-        "data_enviado": "13/08/2018"
+        "data_enviado": "13/08/2018",
+        "data_enviado_iso": "2018-08-13"
       },
       {
         "index_num": 8,
         "guia": "21901/2018",
         "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA",
         "data_recebido": null,
+        "data_recebido_iso": null,
         "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "07/08/2018"
+        "data_enviado": "07/08/2018",
+        "data_enviado_iso": "2018-08-07"
       },
       {
         "index_num": 7,
         "guia": "7905/2018",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
         "data_recebido": "01/08/2018",
+        "data_recebido_iso": "2018-08-01",
         "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
-        "data_enviado": "01/08/2018"
+        "data_enviado": "01/08/2018",
+        "data_enviado_iso": "2018-08-01"
       },
       {
         "index_num": 6,
         "guia": "20426/2018",
         "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
         "data_recebido": "01/08/2018",
+        "data_recebido_iso": "2018-08-01",
         "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "01/08/2018"
+        "data_enviado": "01/08/2018",
+        "data_enviado_iso": "2018-08-01"
       },
       {
         "index_num": 5,
         "guia": "6703/2018",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
         "data_recebido": "25/06/2018",
+        "data_recebido_iso": "2018-06-25",
         "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
-        "data_enviado": "25/06/2018"
+        "data_enviado": "25/06/2018",
+        "data_enviado_iso": "2018-06-25"
       },
       {
         "index_num": 4,
         "guia": "17482/2018",
         "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
         "data_recebido": "25/06/2018",
+        "data_recebido_iso": "2018-06-25",
         "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "25/06/2018"
+        "data_enviado": "25/06/2018",
+        "data_enviado_iso": "2018-06-25"
       },
       {
         "index_num": 3,
         "guia": "4121/2018",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
         "data_recebido": "25/06/2018",
+        "data_recebido_iso": "2018-06-25",
         "enviado_por": "GABINETE MINISTRO GILMAR MENDES",
-        "data_enviado": "25/06/2018"
+        "data_enviado": "25/06/2018",
+        "data_enviado_iso": "2018-06-25"
       },
       {
         "index_num": 2,
         "guia": "11404/2018",
         "recebido_por": "GABINETE MINISTRO GILMAR MENDES",
         "data_recebido": "21/06/2018",
+        "data_recebido_iso": "2018-06-21",
         "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-        "data_enviado": "21/06/2018"
+        "data_enviado": "21/06/2018",
+        "data_enviado_iso": "2018-06-21"
       },
       {
         "index_num": 1,
         "guia": "1873279/2018",
         "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
         "data_recebido": "21/06/2018",
+        "data_recebido_iso": "2018-06-21",
         "enviado_por": "DIVERSOS",
-        "data_enviado": "21/06/2018"
+        "data_enviado": "21/06/2018",
+        "data_enviado_iso": "2018-06-21"
       }
     ],
     "peticoes": [
@@ -885,49 +988,63 @@
         "index": 7,
         "id": "66119/2020",
         "data": "20/08/2020",
+        "data_iso": "2020-08-20",
         "recebido_data": "20/08/2020 11:51:26",
+        "recebido_data_iso": "2020-08-20",
         "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
       },
       {
         "index": 6,
         "id": "38960/2020",
         "data": "01/06/2020",
+        "data_iso": "2020-06-01",
         "recebido_data": "01/06/2020 16:06:59",
+        "recebido_data_iso": "2020-06-01",
         "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
       },
       {
         "index": 5,
         "id": "54910/2018",
         "data": "22/08/2018",
+        "data_iso": "2018-08-22",
         "recebido_data": "22/08/2018 12:23:30",
+        "recebido_data_iso": "2018-08-22",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
       },
       {
         "index": 4,
         "id": "52211/2018",
         "data": "13/08/2018",
+        "data_iso": "2018-08-13",
         "recebido_data": "13/08/2018 17:36:59",
+        "recebido_data_iso": "2018-08-13",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
       },
       {
         "index": 3,
         "id": "50606/2018",
         "data": "07/08/2018",
+        "data_iso": "2018-08-07",
         "recebido_data": "07/08/2018 16:51:05",
+        "recebido_data_iso": "2018-08-07",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
       },
       {
         "index": 2,
         "id": "43954/2018",
         "data": "28/06/2018",
+        "data_iso": "2018-06-28",
         "recebido_data": "28/06/2018 17:07:26",
+        "recebido_data_iso": "2018-06-28",
         "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
       },
       {
         "index": 1,
         "id": "41926/2018",
         "data": "20/06/2018",
+        "data_iso": "2018-06-20",
         "recebido_data": "20/06/2018 21:51:46",
+        "recebido_data_iso": "2018-06-20",
         "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS"
       }
     ],
@@ -938,8 +1055,13 @@
       }
     ],
     "pautas": [],
-    "outcome": "provido",
-    "status": 200,
-    "extraido": "2026-04-17T15:21:01.322582"
+    "outcome": {
+      "verdict": "provido",
+      "source": "sessao_virtual",
+      "source_index": 1,
+      "date_iso": "2020-05-22"
+    },
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.917829"
   }
 ]

@@ -1,8 +1,10 @@
 [
   {
+    "schema_version": 3,
     "incidente": 3785234,
     "classe": "AI",
     "processo_id": 772309,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=3785234",
     "numero_unico": null,
     "meio": "FISICO",
     "publicidade": "PUBLICO",
@@ -11,6 +13,7 @@
       "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Servidor Público Civil | Licenças / Afastamentos | Licença-Prêmio"
     ],
     "data_protocolo": "23/03/2018",
+    "data_protocolo_iso": "2018-03-23",
     "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
     "origem": "AC - ACRE",
     "numero_origem": [
@@ -47,6 +50,7 @@
       {
         "index_num": 2,
         "data": "23/03/2018",
+        "data_iso": "2018-03-23",
         "nome": "CANCELAMENTO DE AUTUAÇÃO",
         "complemento": "Não consta nenhuma peça no processo.",
         "julgador": null,
@@ -56,6 +60,7 @@
       {
         "index_num": 1,
         "data": "23/03/2018",
+        "data_iso": "2018-03-23",
         "nome": "AUTUADO",
         "complemento": null,
         "julgador": null,
@@ -63,46 +68,44 @@
         "link": null
       }
     ],
-    "sessao_virtual": [
-      {
-        "data": null,
-        "tipo": null,
-        "numero": null,
-        "relator": null,
-        "status": null,
-        "participantes": []
-      }
-    ],
+    "sessao_virtual": [],
     "deslocamentos": [
       {
         "index_num": 3,
         "guia": "5247/2018",
         "recebido_por": "SEJ - ACERVO ELETRÔNICO INATIVO",
         "data_recebido": "04/12/2018",
+        "data_recebido_iso": "2018-12-04",
         "enviado_por": "RECEBIMENTO E APOIO AO PROCESSAMENTO INICIAL DE RECURSOS CÍVEIS E CRIMINAIS",
-        "data_enviado": "03/12/2018"
+        "data_enviado": "03/12/2018",
+        "data_enviado_iso": "2018-12-03"
       },
       {
         "index_num": 2,
         "guia": "72959/2018",
         "recebido_por": "RECEBIMENTO E APOIO AO PROCESSAMENTO INICIAL DE RECURSOS CÍVEIS E CRIMINAIS",
         "data_recebido": "04/11/2018",
+        "data_recebido_iso": "2018-11-04",
         "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE RECURSOS",
-        "data_enviado": "04/11/2018"
+        "data_enviado": "04/11/2018",
+        "data_enviado_iso": "2018-11-04"
       },
       {
         "index_num": 1,
         "guia": "1819270/2018",
         "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE RECURSOS",
         "data_recebido": "23/03/2018",
+        "data_recebido_iso": "2018-03-23",
         "enviado_por": "SUPERIOR TRIBUNAL DE JUSTIÇA",
-        "data_enviado": "23/03/2018"
+        "data_enviado": "23/03/2018",
+        "data_enviado_iso": "2018-03-23"
       }
     ],
     "peticoes": [],
     "recursos": [],
     "pautas": [],
-    "status": 200,
-    "extraido": "2025-10-19T02:27:40.642753Z"
+    "outcome": null,
+    "status_http": 200,
+    "extraido": "2026-04-18T21:14:57.702349"
   }
 ]
