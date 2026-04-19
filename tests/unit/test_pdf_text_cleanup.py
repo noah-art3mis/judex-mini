@@ -17,7 +17,7 @@ Behavior contract:
 
 from __future__ import annotations
 
-from src.scraping.ocr.cleanup import clean_pdf_text
+from judex.scraping.ocr.cleanup import clean_pdf_text
 
 
 def test_rejoins_split_caps_in_allcaps_header() -> None:

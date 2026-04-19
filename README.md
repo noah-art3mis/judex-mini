@@ -22,6 +22,8 @@ Você vai precisar de três coisas:
 
 ## 2. Instalação (passo a passo)
 
+> **Alternativa rápida — `pip` (requer Python 3.10+ já instalado):** se você já tem Python no sistema e quer só rodar o `judex` CLI sem clonar o repositório, `pip install git+https://github.com/noah-art3mis/judex-mini` — depois pule direto para a **[§ 3](#3-primeiro-uso)**. Para análise (notebooks Marimo, plots), use `pip install "git+https://github.com/noah-art3mis/judex-mini#egg=judex-mini[analysis]"`. O resto deste guia supõe instalação via `uv` (receita abaixo), que é o caminho recomendado para desenvolvimento e sweeps grandes.
+
 ### 2.1 (Só Windows) Instalar o WSL
 
 No PowerShell **como administrador**:
@@ -289,7 +291,7 @@ Desligar: `--janela-circuit 0`. Regime mais agressivo (parar mais cedo): `--limi
 | `unstructured` | `UNSTRUCTURED_API_KEY`   | https://platform.unstructured.io/  |
 | `chandra`      | `CHANDRA_API_KEY`        | dashboard Chandra                  |
 
-**Custo por 1 000 páginas** (fonte: `src/scraping/ocr/dispatch.py`):
+**Custo por 1 000 páginas** (fonte: `judex/scraping/ocr/dispatch.py`):
 
 | Provedor       | Tier              | USD / 1k páginas |
 |----------------|-------------------|------------------|

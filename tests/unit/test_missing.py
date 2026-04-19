@@ -15,8 +15,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.data.missing import check_missing_processes
-from src.data.output import OutputConfig
+from judex.data.missing import check_missing_processes
+from judex.data.output import OutputConfig
 
 
 def _json_only() -> OutputConfig:

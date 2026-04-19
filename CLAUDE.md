@@ -23,14 +23,17 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 Python project managed with **`uv`**. **Never** run bare `python`, `pip`, or `pytest`:
 
 ```bash
+uv sync --extra analysis                    # one-time: pulls core + analysis extras
 uv run pytest tests/unit/
 uv run python main.py ...
 uv add <pkg>
 ```
 
-Scripts import `src.*` directly — no `PYTHONPATH=.` needed. The repo
-is an editable install (hatchling `packages = ["src"]` in pyproject);
-`uv sync` puts `src` on the venv's import path. Pytest picks up the
+Scripts import `judex.*` directly — no `PYTHONPATH=.` needed. The repo
+is an editable install (hatchling `packages = ["judex"]` in pyproject);
+`uv sync` puts `judex` on the venv's import path. The `--extra analysis`
+flag is needed for tests because `judex/analysis/stats.py` pulls scipy
+transitively through hdbscan / umap-learn / seaborn. Pytest picks up the
 `scripts/` directory via `[tool.pytest.ini_options] pythonpath = ["."]`
 in pyproject, so tests that `from scripts.run_sweep import ...` also
 work with no env var.
@@ -42,8 +45,8 @@ uv run python scripts/run_sweep.py ...
 
 ## CLI (`judex`)
 
-User-facing surface lives in `src/cli.py` (Typer app, registered via
-`[project.scripts] judex = "src.cli:app"` in pyproject). `uv sync`
+User-facing surface lives in `judex/cli.py` (Typer app, registered via
+`[project.scripts] judex = "judex.cli:app"` in pyproject). `uv sync`
 installs the `judex` console entry; commands below also work as
 `uv run judex …`. Each subcommand is a thin Typer wrapper that
 rebuilds argv and calls the `main()` of an argparse-based script in
@@ -61,7 +64,7 @@ the picture.
 | `sondar-densidade`   | `scripts/class_density_probe.py` | Stratified density probe of process-id space per STF class (HC, ADI, RE, …).                         |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
-for flag names / defaults is `src/cli.py` (Typer decorators) + the
+for flag names / defaults is `judex/cli.py` (Typer decorators) + the
 underlying script's argparse.
 
 **Sharded sweeps.** For >1000-target sweeps with proxy rotation:
@@ -71,13 +74,13 @@ CSV range-wise, picks `proxies.{a..h}.txt` from `--proxy-pool-dir`,
 detaches N children, writes `out/shards.pids`. Monitor with
 `pgrep -af baixar_pecas` or read each `out/shard-<letter>/pdfs.state.json`.
 `xargs -a out/shards.pids kill -TERM` stops cleanly. The launcher lives
-in `src/sweeps/shard_launcher.py`; the older shell equivalent for
+in `judex/sweeps/shard_launcher.py`; the older shell equivalent for
 `run_sweep` is `scripts/launch_hc_backfill_sharded.sh`.
 
 ## Testing
 
 ```bash
-uv run pytest tests/unit/                               # fast, <3 s — run before every change
+uv run pytest tests/unit/                               # ~12 s, 475 tests — run before every change
 uv run python scripts/validate_ground_truth.py         # parity vs. hand-verified JSON
 ```
 
@@ -92,8 +95,8 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **PDF URLs live on `sistemas.stf.jus.br`**, not `portal.stf.jus.br`. Separate origin, separate throttle counter.
 - **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pecas`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pecas`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
 - **`varrer-pdfs` is split into two commands.** `baixar-pecas` is the only path that talks to STF (WAF-bound; throttle, proxy pool, circuit breaker all live here). `extrair-pecas --provedor {pypdf|mistral|chandra|unstructured}` reads cached bytes and writes text — zero HTTP, no throttle, no breaker. Switch providers / re-OCR a tier without re-downloading. See `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md` for the spec.
-- **Corpus is uniformly v8 on disk (as of 2026-04-19).** `SCHEMA_VERSION = 8` in `src/data/types.py`; every file under `data/cases/HC/` carries `_meta.schema_version = 8` and dict-shaped (or `None`) `outcome`. The renormalizer (`scripts/renormalize_cases.py`) has been run full-corpus twice — bare-string `outcome` no longer exists in production data. The warehouse builder's `_unpack_outcome` and the pre-v8 inline-text fallback in `_flatten_documentos` are retained as legacy-tolerant guards for cold checkouts / old backups, not because current data needs them. See [`docs/data-dictionary.md § Schema history`](docs/data-dictionary.md#schema-history) for the v1→v8 changelog.
-- **`src/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
+- **Corpus is uniformly v8 on disk (as of 2026-04-19).** `SCHEMA_VERSION = 8` in `judex/data/types.py`; every file under `data/cases/HC/` carries `_meta.schema_version = 8` and dict-shaped (or `None`) `outcome`. The renormalizer (`scripts/renormalize_cases.py`) has been run full-corpus twice — bare-string `outcome` no longer exists in production data. The warehouse builder's `_unpack_outcome` and the pre-v8 inline-text fallback in `_flatten_documentos` are retained as legacy-tolerant guards for cold checkouts / old backups, not because current data needs them. See [`docs/data-dictionary.md § Schema history`](docs/data-dictionary.md#schema-history) for the v1→v8 changelog.
+- **`judex/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
 - **`sessao_virtual[].documentos` entries with `url=None` are capture gaps, not inline-text documents.** Every `Relatório` / `Voto` row *is* a URL-linked PDF — a null URL means the scrape didn't capture the link (older scrape versions, or the link wasn't live yet on STF). Consequence: a year-scoped warehouse's `pdfs` table count reflects *captured URLs*, not the total PDF population for that year. If a `--year 2026` warehouse comes out with `pdfs=0`, investigate the scraper's link-capture path before assuming those cases genuinely have no PDFs.
 
@@ -102,8 +105,8 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - `tests/ground_truth/*.json` — 5 hand-verified cases; source of truth for `validate_ground_truth.py`.
 - `tests/fixtures/sessao_virtual/*.json` — captured JSON for the sessao_virtual unit tests.
 - `tests/unit/*.py` — run before every change.
-- `src/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
-- `src/sweeps/process_store.py` + `src/sweeps/peca_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
+- `judex/data/types.py` — `StfItem` TypedDict. Fields are Optional for a reason; don't make them non-Optional again.
+- `judex/sweeps/process_store.py` + `judex/sweeps/peca_store.py` — atomic write contracts are load-bearing; don't add non-atomic state updates.
 
 ## Conventions
 

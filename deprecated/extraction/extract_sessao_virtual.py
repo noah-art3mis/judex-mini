@@ -9,9 +9,9 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from src.utils.pdf_utils import extract_document_text
-from src.utils.text_utils import normalize_spaces
-from src.utils.timing import track_extraction_timing
+from judex.utils.pdf_utils import extract_document_text
+from judex.utils.text_utils import normalize_spaces
+from judex.utils.timing import track_extraction_timing
 
 
 def _parse_sessao_virtual_item(sessao_element: WebElement) -> Dict:

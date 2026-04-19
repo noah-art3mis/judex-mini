@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bs4 import BeautifulSoup
 
-from src.scraping.extraction.detalhe import extract_badges
+from judex.scraping.extraction.detalhe import extract_badges
 
 
 def _soup(inner: str) -> BeautifulSoup:

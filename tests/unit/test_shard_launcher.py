@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from src.sweeps.shard_launcher import (
+from judex.sweeps.shard_launcher import (
     ProxyPoolShortage,
     discover_proxy_pools,
     launch_sharded_download,

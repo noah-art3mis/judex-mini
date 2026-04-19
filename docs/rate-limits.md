@@ -13,7 +13,7 @@ See also:
 
 ## What the WAF does
 
-- **Returns HTTP 403, not 429.** Standard rate-limit codes don't apply; `abaX.asp` 403s also look identical whether they're auth-triad failures (permanent) or WAF blocks (transient). The retry logic must distinguish by context (see `src/scraping/scraper._http_get_with_retry`).
+- **Returns HTTP 403, not 429.** Standard rate-limit codes don't apply; `abaX.asp` 403s also look identical whether they're auth-triad failures (permanent) or WAF blocks (transient). The retry logic must distinguish by context (see `judex/scraping/scraper._http_get_with_retry`).
 - **Blocks are session-agnostic.** New session cookies don't clear a block. The limit is per-IP behavior, not per-session.
 - **Blocks lift within minutes.** Empirically 1–5 minutes; the reactive-retry loop (`cfg.retry_403=True`) rides this out transparently with tenacity backoff.
 - **Non-browser User-Agents are permanently blocked.** `curl/*`, anything with "bot" or "python". Our default Chrome UA is fine.
@@ -112,7 +112,7 @@ didn't change between sweeps; layer 2 did.
   0.2 → 0.3 → 2.4 cycles/100 escalation argues against a 4th paper-era
   sweep on the same IP in the same session. Schedule paper-era sweeps
   with multi-hour gaps between them.
-- **Circuit breaker blind spot.** `src/sweeps/shared.py` trips on
+- **Circuit breaker blind spot.** `judex/sweeps/shared.py` trips on
   `status=error`, but tenacity-absorbed 403s keep `status=ok` regardless
   of how long they took. V's degradation would have been caught by a
   secondary breaker on "median `wall_s` of recent N processes > X" —
@@ -267,7 +267,7 @@ reference and for environments without a proxy pool.
    - A different IP presents as a cold WAF state — both layers are
      per-IP. 2–4 IPs round-robining sweeps reduces effective layer-2
      pressure linearly.
-   - Integration point: `src/scraping/http_session.new_session()`.
+   - Integration point: `judex/scraping/http_session.new_session()`.
      Add a `--proxy` flag to `run_sweep.py` that passes
      `proxies={"https": "http://user:pass@host:port"}` into the
      session, and an env-var-based pool if we want rotation.
@@ -493,14 +493,14 @@ Narrow PDF-sweep run from
 
 ## Retry semantics
 
-`src/scraping/scraper._http_get_with_retry` wraps every GET in tenacity:
+`judex/scraping/scraper._http_get_with_retry` wraps every GET in tenacity:
 
 - 429 / 5xx / connection errors → always retriable.
 - 4xx non-429 → fail fast (unless 403 + `cfg.retry_403=True`).
 - 403 + `cfg.retry_403=True` → retriable; tenacity backoff rides out the WAF block cycle.
 - Budget: `driver_max_retries` attempts, exponential backoff capped at `driver_backoff_max` seconds.
 
-The circuit breaker (`src/sweeps/shared.CircuitBreaker`) is an orthogonal
+The circuit breaker (`judex/sweeps/shared.CircuitBreaker`) is an orthogonal
 outer layer — it aborts the *sweep* if error rate crosses a threshold
 in a rolling window. Retry-403 handles individual-request resilience;
 the breaker handles pathological runaway.

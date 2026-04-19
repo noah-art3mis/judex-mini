@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from src.sweeps.process_store import (
+from judex.sweeps.process_store import (
     AttemptRecord,
     SweepStore,
     load_retry_list,

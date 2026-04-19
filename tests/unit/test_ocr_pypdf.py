@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from src.scraping.ocr import OCRConfig, ExtractResult
-from src.scraping.ocr import pypdf as p
+from judex.scraping.ocr import OCRConfig, ExtractResult
+from judex.scraping.ocr import pypdf as p
 
 
 class _FakePage:
@@ -62,7 +62,7 @@ def test_dispatcher_routes_pypdf_provider(monkeypatch) -> None:
     Guards the registry wiring: if someone registers pypdf under a
     different key (e.g. "pypdf_plain"), the CLI surface breaks silently.
     """
-    from src.scraping.ocr import dispatch, extract_pdf
+    from judex.scraping.ocr import dispatch, extract_pdf
 
     assert "pypdf" in dispatch._REGISTRY  # positive assertion, not just routing
 

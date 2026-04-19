@@ -19,7 +19,7 @@ from pathlib import Path
 
 import duckdb
 
-from src.warehouse import builder
+from judex.warehouse import builder
 
 
 def _write_case(root: Path, item: dict) -> None:

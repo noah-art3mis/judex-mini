@@ -43,13 +43,13 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 from urllib.parse import urlparse
 
-from src.sweeps.diff_harness import diff_item
-from src.sweeps import shared as _shared
-from src.config import ScraperConfig
-from src.scraping.http_session import RetryableHTTPError, new_session
-from src.scraping.proxy_pool import ProxyPool
-from src.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
-from src.scraping.scraper import NoIncidenteError, scrape_processo_http
+from judex.sweeps.diff_harness import diff_item
+from judex.sweeps import shared as _shared
+from judex.config import ScraperConfig
+from judex.scraping.http_session import RetryableHTTPError, new_session
+from judex.scraping.proxy_pool import ProxyPool
+from judex.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
+from judex.scraping.scraper import NoIncidenteError, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -1017,7 +1017,7 @@ def main(argv: list[str]) -> int:
         avg_bytes = int(os.environ.get("PROCESS_AVG_BYTES", AVG_BYTES_PER_PROCESS))
     except ValueError:
         avg_bytes = AVG_BYTES_PER_PROCESS
-    from src.utils.pricing import estimate_proxy_cost
+    from judex.utils.pricing import estimate_proxy_cost
     pool_was_active = pool is not None and pool.size() > 0
     cost = estimate_proxy_cost(
         bytes_downloaded=totals["ok"] * avg_bytes,

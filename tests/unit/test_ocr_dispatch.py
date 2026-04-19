@@ -6,15 +6,15 @@ from typing import Any
 
 import pytest
 
-from src.scraping.ocr import (
+from judex.scraping.ocr import (
     ExtractResult,
     OCRConfig,
     cheapest_provider,
     estimate_cost,
     extract_pdf,
 )
-from src.scraping.ocr import dispatch as d
-from src.scraping.ocr.dispatch import estimate_wall
+from judex.scraping.ocr import dispatch as d
+from judex.scraping.ocr.dispatch import estimate_wall
 
 
 def test_extract_pdf_routes_by_provider_name(monkeypatch):

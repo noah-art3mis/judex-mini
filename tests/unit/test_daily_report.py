@@ -8,7 +8,7 @@ handling of None-valued optional fields.
 
 from __future__ import annotations
 
-from src.reports.daily import render_daily_markdown
+from judex.reports.daily import render_daily_markdown
 
 
 def _bare_case(**overrides: object) -> dict:

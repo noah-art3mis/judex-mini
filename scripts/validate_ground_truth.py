@@ -24,9 +24,9 @@ import urllib3
 from pathlib import Path
 from typing import Any
 
-from src.sweeps.diff_harness import diff_item
-from src.scraping.http_session import new_session
-from src.scraping.scraper import scrape_processo_http
+from judex.sweeps.diff_harness import diff_item
+from judex.scraping.http_session import new_session
+from judex.scraping.scraper import scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

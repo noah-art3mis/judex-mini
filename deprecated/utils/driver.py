@@ -12,9 +12,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.config import ScraperConfig
+from judex.config import ScraperConfig
 from deprecated.utils.get_element import find_element_by_xpath
-from src.utils.timing import track_extraction_timing
+from judex.utils.timing import track_extraction_timing
 
 
 def setup_driver(user_agent: str) -> WebDriver:

@@ -10,7 +10,7 @@ captures the schema + pipeline shape for review before we build.
   (e.g. "all HCs where relator is Min. X and impte is AGU", "all
   andamentos whose PDF text mentions Y").
 - Join cases ↔ PDFs in one SQL query — today that join lives in
-  ad-hoc Python via `src.utils.pdf_cache.read(url)`.
+  ad-hoc Python via `judex.utils.pdf_cache.read(url)`.
 - Stay **derived**: the scraper never writes to the warehouse.
   `data/cases/*.json` remains the single source of truth; the
   warehouse is a rebuildable artifact.
@@ -296,7 +296,7 @@ ORDER BY n_votes DESC;
 
 1. **`outcome` normalization.** Current `derive_outcome` returns
    free-form strings. Warehouse users will want an enum. Promote
-   the enum to `src/data/types.py` first, then mirror it in the
+   the enum to `judex/data/types.py` first, then mirror it in the
    schema. Doing this during the build adds coupling.
 2. **Are sessao_virtual `votes[]` first-class?** Probably yes —
    one vote per (case, ministro) is the natural fact for "how does

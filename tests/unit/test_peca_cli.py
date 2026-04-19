@@ -19,15 +19,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.sweeps import peca_cli as _pdf_cli
-from src.sweeps.peca_targets import PecaTarget
-from src.utils import peca_cache
+from judex.sweeps import peca_cli as _pdf_cli
+from judex.sweeps.peca_targets import PecaTarget
+from judex.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
+        "judex.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 

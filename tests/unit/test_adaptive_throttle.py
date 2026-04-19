@@ -13,7 +13,7 @@ import time
 
 import pytest
 
-from src.utils.adaptive_throttle import AdaptiveThrottle
+from judex.utils.adaptive_throttle import AdaptiveThrottle
 
 
 def test_current_delay_starts_at_start_delay() -> None:

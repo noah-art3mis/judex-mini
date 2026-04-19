@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from src.scraping.ocr import OCRConfig, ExtractResult
-from src.scraping.ocr import chandra as c
+from judex.scraping.ocr import OCRConfig, ExtractResult
+from judex.scraping.ocr import chandra as c
 
 
 def test_parse_complete_payload_picks_markdown_field():

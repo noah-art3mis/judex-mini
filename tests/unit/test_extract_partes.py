@@ -8,7 +8,7 @@ want the latter.
 
 from __future__ import annotations
 
-from src.scraping.extraction.partes import extract_partes, extract_primeiro_autor
+from judex.scraping.extraction.partes import extract_partes, extract_primeiro_autor
 
 
 HC_158802_PARTES_HTML = """

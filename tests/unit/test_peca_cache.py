@@ -7,7 +7,7 @@ layout stays flat.
 
 from __future__ import annotations
 
-from src.utils import peca_cache
+from judex.utils import peca_cache
 
 
 def test_read_miss_returns_none(tmp_path, monkeypatch) -> None:

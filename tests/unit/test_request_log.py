@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from src.utils.request_log import RequestLog
+from judex.utils.request_log import RequestLog
 
 
 @pytest.fixture

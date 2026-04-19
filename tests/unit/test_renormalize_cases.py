@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from scripts import renormalize_cases as rc
-from src.utils import html_cache
+from judex.utils import html_cache
 
 
 @pytest.fixture

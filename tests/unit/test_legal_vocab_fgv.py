@@ -14,7 +14,7 @@ the tests fail loudly.
 
 from __future__ import annotations
 
-from src.analysis.legal_vocab import (
+from judex.analysis.legal_vocab import (
     FGV_FAVORABLE_OUTCOMES,
     FGV_UNFAVORABLE_OUTCOMES,
     OUTCOME_VALUES,

@@ -1,4 +1,4 @@
-from src.utils.peca_utils import detect_file_type, extract_rtf_text
+from judex.utils.peca_utils import detect_file_type, extract_rtf_text
 
 
 # Minimal STF-shaped RTF: font/color tables, a paragraph with accented

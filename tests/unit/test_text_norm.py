@@ -7,7 +7,7 @@ case, collapses whitespace, and produces a surname-based group key so
 
 from __future__ import annotations
 
-from src.analysis.text_norm import normalize_name, surname_key
+from judex.analysis.text_norm import normalize_name, surname_key
 
 
 def test_normalize_strips_accents():

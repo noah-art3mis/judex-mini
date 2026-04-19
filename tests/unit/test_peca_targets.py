@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from src.sweeps.peca_targets import PecaTarget, collect_peca_targets
+from judex.sweeps.peca_targets import PecaTarget, collect_peca_targets
 
 
 def _write_item(path: Path, rec: dict) -> None:

@@ -29,9 +29,9 @@ import logging
 import sys
 from pathlib import Path
 
-from src.scraping.proxy_pool import ProxyPool
-from src.sweeps import peca_cli as _pdf_cli
-from src.sweeps.download_driver import run_download_sweep
+from judex.scraping.proxy_pool import ProxyPool
+from judex.sweeps import peca_cli as _pdf_cli
+from judex.sweeps.download_driver import run_download_sweep
 
 
 def main(argv: list[str] | None = None) -> int:

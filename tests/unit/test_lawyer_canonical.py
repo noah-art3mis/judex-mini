@@ -10,7 +10,7 @@ notebooks. Three jobs:
    and inflate per-lawyer counts if left in.
 """
 
-from src.analysis.lawyer_canonical import canonical_lawyer
+from judex.analysis.lawyer_canonical import canonical_lawyer
 
 
 # ----- 1. OAB parenthetical extraction --------------------------------

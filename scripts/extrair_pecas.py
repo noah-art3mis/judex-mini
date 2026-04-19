@@ -28,9 +28,9 @@ import os
 import sys
 from pathlib import Path
 
-from src.sweeps import peca_cli as _pdf_cli
-from src.scraping.ocr import OCRConfig
-from src.sweeps.extract_driver import run_extract_sweep
+from judex.sweeps import peca_cli as _pdf_cli
+from judex.scraping.ocr import OCRConfig
+from judex.sweeps.extract_driver import run_extract_sweep
 
 
 _PROVIDERS = ("pypdf", "mistral", "chandra", "unstructured")

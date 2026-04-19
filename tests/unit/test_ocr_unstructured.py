@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.scraping.ocr import OCRConfig, ExtractResult
-from src.scraping.ocr import unstructured as u
+from judex.scraping.ocr import OCRConfig, ExtractResult
+from judex.scraping.ocr import unstructured as u
 
 
 def test_concat_elements_joins_text_fields_in_order():

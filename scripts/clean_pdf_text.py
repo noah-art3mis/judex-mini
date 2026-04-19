@@ -27,7 +27,7 @@ import gzip
 import sys
 from pathlib import Path
 
-from src.scraping.ocr.cleanup import clean_pdf_text
+from judex.scraping.ocr.cleanup import clean_pdf_text
 
 
 def _clean_one(path: Path, *, dry_run: bool) -> tuple[bool, int, int]:

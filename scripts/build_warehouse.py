@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from src.warehouse import builder
+from judex.warehouse import builder
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.year is not None:
         if args.classe != ["HC"]:
             parser.error("--year requires --classe HC (calendar is HC-only)")
-        from src.utils.hc_calendar import year_to_id_range
+        from judex.utils.hc_calendar import year_to_id_range
         id_range = year_to_id_range(args.year)
         print(f"  year {args.year} → id_range {id_range[0]}..{id_range[1]}")
 

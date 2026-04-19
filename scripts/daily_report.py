@@ -22,17 +22,17 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.config import ScraperConfig
-from src.reports.daily import render_daily_markdown
-from src.reports.state import DailyState
-from src.scraping.http_session import new_session
-from src.scraping.proxy_pool import ProxyPool
-from src.scraping.scraper import (
+from judex.config import ScraperConfig
+from judex.reports.daily import render_daily_markdown
+from judex.reports.state import DailyState
+from judex.scraping.http_session import new_session
+from judex.scraping.proxy_pool import ProxyPool
+from judex.scraping.scraper import (
     NoIncidenteError,
     resolve_incidente,
     scrape_processo_http,
 )
-from src.sweeps.discovery import discover_new_numeros
+from judex.sweeps.discovery import discover_new_numeros
 
 
 _WAREHOUSE_PATH = Path("data/warehouse/judex.duckdb")

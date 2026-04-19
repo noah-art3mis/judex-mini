@@ -9,9 +9,9 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.config import ScraperConfig
-from src.utils.text_utils import normalize_spaces
-from src.utils.timing import track_extraction_timing
+from judex.config import ScraperConfig
+from judex.utils.text_utils import normalize_spaces
+from judex.utils.timing import track_extraction_timing
 
 
 # def _clean_nome(nome: str) -> str:
