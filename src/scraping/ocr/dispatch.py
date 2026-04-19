@@ -50,7 +50,7 @@ PRICING: dict[tuple[str, str], float] = {
 }
 
 
-def extract_pdf(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
+def extract_pdf(pdf_bytes: bytes, config: OCRConfig) -> ExtractResult:
     if config.provider not in _REGISTRY:
         raise ValueError(
             f"unknown OCR provider {config.provider!r}; "
