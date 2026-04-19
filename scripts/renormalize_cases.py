@@ -314,7 +314,7 @@ def _process_file(
 
     if mode == "shape-only":
         try:
-            new_item = reshape_to_v6(existing)
+            new_item = reshape_to_v8(existing)
         except Exception as e:
             return RenormResult(path, "error", f"reshape: {type(e).__name__}: {e}")
         if dry_run:

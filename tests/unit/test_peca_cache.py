@@ -141,6 +141,36 @@ def test_write_overwrites_extractor_sidecar_when_provided(tmp_path, monkeypatch)
     assert peca_cache.read_extractor("https://example.test/a.pdf") == "unstructured"
 
 
+# ----- Text presence check (v8: cheap "was this URL extracted?") ----------
+
+
+def test_has_text_false_when_missing(tmp_path, monkeypatch) -> None:
+    """has_text is an O(1) file-stat — no read, no decompress."""
+    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+
+    assert peca_cache.has_text("https://example.test/a.pdf") is False
+
+
+def test_has_text_true_after_write(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    peca_cache.write("https://example.test/a.pdf", "body")
+
+    assert peca_cache.has_text("https://example.test/a.pdf") is True
+
+
+def test_has_text_independent_of_bytes_cache(tmp_path, monkeypatch) -> None:
+    """The text + bytes caches are independent — `has_text` must only
+    react to `.txt.gz`, not to `.pdf.gz` presence. This matters because
+    the `baixar-pecas` / `extrair-pecas` split writes them at different
+    stages (bytes first, text later)."""
+    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\n...")
+
+    # Bytes are there, but nothing was extracted yet.
+    assert peca_cache.has_bytes("https://example.test/a.pdf") is True
+    assert peca_cache.has_text("https://example.test/a.pdf") is False
+
+
 # ----- Bytes cache (raw PDF storage for the download/extract split) --------
 
 

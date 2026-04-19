@@ -71,6 +71,20 @@ def _bytes_path(url: str) -> Path:
     return CACHE_ROOT / f"{_hash(url)}.pdf.gz"
 
 
+def has_text(url: str) -> bool:
+    """Cheap "was this URL extracted?" — O(1) file stat, no decompress.
+
+    Under v8 the case JSON no longer carries inline text, so callers
+    that just need a boolean should reach for this instead of
+    `read(url) is not None` (which reads + gzip-decompresses the
+    whole body only to discard it). Independent of `has_bytes` —
+    `baixar-pecas` writes bytes first, `extrair-pecas` writes text
+    later, so a URL can have bytes without text (and vice versa
+    for pre-split legacy entries).
+    """
+    return _text_path(url).exists()
+
+
 def read(url: str) -> Optional[str]:
     p = _text_path(url)
     if not p.exists():
