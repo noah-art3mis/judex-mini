@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.analysis.stats import (
+from judex.analysis.stats import (
     beta_binomial_posterior,
     fit_beta_prior_mom,
     wilson_ci,

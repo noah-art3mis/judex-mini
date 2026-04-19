@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.data.export import _save_to_json
+from judex.data.export import _save_to_json
 
 
 def _minimal_item(processo: int) -> dict:

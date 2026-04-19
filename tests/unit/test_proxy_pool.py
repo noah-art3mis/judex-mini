@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.scraping.proxy_pool import ProxyPool, _normalize_proxy_url
+from judex.scraping.proxy_pool import ProxyPool, _normalize_proxy_url
 
 
 def test_empty_pool_returns_none():

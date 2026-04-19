@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from src.scraping.ocr import OCRConfig, ExtractResult
-from src.scraping.ocr import mistral as m
+from judex.scraping.ocr import OCRConfig, ExtractResult
+from judex.scraping.ocr import mistral as m
 
 
 # ---------------------------------------------------------------------------

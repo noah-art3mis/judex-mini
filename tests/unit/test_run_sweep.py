@@ -16,8 +16,8 @@ from scripts.run_sweep import (
     parse_selenium_row,
     parse_sweep_csv,
 )
-from src.sweeps.shared import CircuitBreaker, classify_exception
-from src.scraping.http_session import RetryableHTTPError
+from judex.sweeps.shared import CircuitBreaker, classify_exception
+from judex.scraping.http_session import RetryableHTTPError
 
 
 def test_parse_sweep_csv_minimal_columns():

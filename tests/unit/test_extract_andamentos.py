@@ -12,7 +12,7 @@ lost on broken STF markup.
 
 from __future__ import annotations
 
-from src.scraping.extraction.tables import extract_andamentos
+from judex.scraping.extraction.tables import extract_andamentos
 
 
 SINGLE_ROW_WITH_LINK = """

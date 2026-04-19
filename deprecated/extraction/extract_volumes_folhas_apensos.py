@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from deprecated.utils.get_element import find_element_by_xpath
-from src.utils.timing import track_extraction_timing
+from judex.utils.timing import track_extraction_timing
 
 
 def _get_info_boxes(driver: WebDriver) -> list:

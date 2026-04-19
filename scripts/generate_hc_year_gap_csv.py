@@ -22,7 +22,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from src.utils.hc_calendar import year_to_id_range
+from judex.utils.hc_calendar import year_to_id_range
 
 
 def captured_ids(cases_dir: Path) -> set[int]:

@@ -68,7 +68,7 @@ Halt and diagnose before launching the next tier if any of:
 
 1. **Read** `runs/active/<date>-hc-$YYYY/shard-*/sweep.state.json`.
 2. **Consolidated REPORT** — promote to `docs/reports/<date>-hc-$YYYY.md`.
-3. **Refresh `src/utils/hc_id_to_date.json`** — append new `(processo_id, data_protocolo)` anchors from the captured cases. Tightens the next tier's range derivation.
+3. **Refresh `judex/utils/hc_id_to_date.json`** — append new `(processo_id, data_protocolo)` anchors from the captured cases. Tightens the next tier's range derivation.
 4. **Archive** `runs/active/<date>-hc-$YYYY/` → `runs/archive/`.
 5. **Launch next tier** if gates passed and ScrapeGW quota ≥ 1 GB.
 
@@ -84,7 +84,7 @@ pgrep -af "run_sweep.*hc_full_backfill_shard"   # verify no children linger
 mv runs/active/2026-04-17-hc-full-backfill-sharded runs/archive/
 ```
 
-All atomic-state contracts in `src/sweeps/process_store.py` guarantee zero data loss on SIGTERM. The captured HCs stay on disk under `data/cases/HC/`.
+All atomic-state contracts in `judex/sweeps/process_store.py` guarantee zero data loss on SIGTERM. The captured HCs stay on disk under `data/cases/HC/`.
 
 ## Launch scripts (to be written)
 
@@ -96,7 +96,7 @@ Produces the gap CSV for one year. Essentially:
 # args: --year YYYY --out tests/sweep/hc_YYYY_gap.csv
 import csv, argparse
 from pathlib import Path
-from src.utils.hc_calendar import year_to_id_range
+from judex.utils.hc_calendar import year_to_id_range
 
 def have_ids(hc_dir: Path) -> set[int]:
     out: set[int] = set()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bs4 import BeautifulSoup
 
-from src.scraping.extraction.info import extract_numero_origem
+from judex.scraping.extraction.info import extract_numero_origem
 
 
 def _soup_with_field(value: str) -> BeautifulSoup:

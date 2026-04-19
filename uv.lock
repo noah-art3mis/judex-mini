@@ -1132,28 +1132,32 @@ wheels = [
 
 [[package]]
 name = "judex-mini"
-version = "1.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "altair", extra = ["all"] },
     { name = "beautifulsoup4" },
     { name = "duckdb" },
-    { name = "hdbscan" },
     { name = "lxml" },
-    { name = "marimo" },
     { name = "openai" },
     { name = "pandas" },
-    { name = "plotly" },
+    { name = "pyarrow" },
     { name = "pypdf" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "striprtf" },
     { name = "tenacity" },
     { name = "typer" },
-    { name = "umap-learn" },
 ]
 
 [package.optional-dependencies]
+analysis = [
+    { name = "altair", extra = ["all"] },
+    { name = "hdbscan" },
+    { name = "marimo" },
+    { name = "matplotlib" },
+    { name = "plotly" },
+    { name = "seaborn" },
+    { name = "umap-learn" },
+]
 selenium-legacy = [
     { name = "selenium" },
 ]
@@ -1162,51 +1166,46 @@ selenium-legacy = [
 dev = [
     { name = "black" },
     { name = "ipykernel" },
-    { name = "matplotlib" },
     { name = "mypy" },
-    { name = "pandas" },
     { name = "pandas-stubs" },
-    { name = "pyarrow" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "seaborn" },
     { name = "types-requests" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "altair", extras = ["all"], specifier = ">=5.5.0" },
+    { name = "altair", extras = ["all"], marker = "extra == 'analysis'", specifier = ">=5.5.0" },
     { name = "beautifulsoup4", specifier = ">=4.14.2" },
     { name = "duckdb", specifier = ">=1.5.2" },
-    { name = "hdbscan", specifier = ">=0.8.40" },
+    { name = "hdbscan", marker = "extra == 'analysis'", specifier = ">=0.8.40" },
     { name = "lxml", specifier = ">=6.0.2" },
-    { name = "marimo", specifier = ">=0.23.1" },
+    { name = "marimo", marker = "extra == 'analysis'", specifier = ">=0.23.1" },
+    { name = "matplotlib", marker = "extra == 'analysis'", specifier = ">=3.10.7" },
     { name = "openai", specifier = ">=2.6.1" },
     { name = "pandas", specifier = ">=2.3.3" },
-    { name = "plotly", specifier = ">=6.7.0" },
+    { name = "plotly", marker = "extra == 'analysis'", specifier = ">=6.7.0" },
+    { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pypdf", specifier = ">=6.1.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "requests", specifier = ">=2.32.5" },
+    { name = "seaborn", marker = "extra == 'analysis'", specifier = ">=0.13.2" },
     { name = "selenium", marker = "extra == 'selenium-legacy'", specifier = ">=4.37.0" },
     { name = "striprtf", specifier = ">=0.0.29" },
     { name = "tenacity", specifier = ">=9.1.2" },
     { name = "typer", specifier = ">=0.19.2" },
-    { name = "umap-learn", specifier = ">=0.5.9.post2" },
+    { name = "umap-learn", marker = "extra == 'analysis'", specifier = ">=0.5.9.post2" },
 ]
-provides-extras = ["selenium-legacy"]
+provides-extras = ["analysis", "selenium-legacy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=25.9.0" },
     { name = "ipykernel", specifier = ">=7.0.1" },
-    { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "mypy", specifier = ">=1.18.2" },
-    { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandas-stubs", specifier = ">=2.3.2.250926" },
-    { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.14.1" },
-    { name = "seaborn", specifier = ">=0.13.2" },
     { name = "types-requests", specifier = ">=2.32.4.20250913" },
 ]
 

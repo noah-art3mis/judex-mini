@@ -7,7 +7,7 @@ for ADI, RECTE for RE, IMPTE for MS/MI, PACTE for HC, AGTE for AI, …).
 
 from __future__ import annotations
 
-from src.scraping.extraction.http import extract_primeiro_autor
+from judex.scraping.extraction.http import extract_primeiro_autor
 
 
 def test_aco_autor():

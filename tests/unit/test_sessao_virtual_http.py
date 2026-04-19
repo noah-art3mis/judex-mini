@@ -12,14 +12,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.scraping.extraction.sessao import (
+from judex.scraping.extraction.sessao import (
     extract_sessao_virtual_from_json,
     parse_oi_listing,
     parse_sessao_virtual,
     parse_tema,
     resolve_documentos,
 )
-from src.scraping.scraper import _extract_tema_from_abasessao
+from judex.scraping.scraper import _extract_tema_from_abasessao
 
 FIX = Path(__file__).parent.parent / "fixtures" / "sessao_virtual"
 

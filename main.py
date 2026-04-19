@@ -6,7 +6,7 @@ script wired via ``[project.scripts]`` in ``pyproject.toml``). This
 file keeps ``uv run python main.py …`` working as an alias.
 """
 
-from src.cli import app
+from judex.cli import app
 
 
 if __name__ == "__main__":

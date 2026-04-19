@@ -48,35 +48,65 @@ behave, class sizes, perf numbers, where data lives), read:
 
 # Active task — lab notebook
 
-*No active task. Populate this section when a new cycle starts:*
-
 ## Task
 
-*(one-paragraph description of the goal)*
+Collect all HCs + PDF bytes + extracted text for 12 marquee criminal-defense lawyers (Toron 80, Pedro M. de Almeida Castro 42, Bottini 41, Mudrovitsch 21, Badaró 21, Podval 14, Marcelo Leonardo 14, Vilardi 11, Reinaldet 10, Arruda Botelho 10, Nilo Batista 8, Gerber 7 — 279 HCs from `data/exports/famous_lawyers_cases.csv`). Along the way, fill in missing infrastructure: proxy rotation + sharded launch for `baixar-pecas`, cost reporting on the three main commands, document the `judex` CLI in CLAUDE.md, postprocess noisy pypdf output. End-state goal is a per-lawyer Marimo report (Portuguese, for practicing lawyers) driven by a new `relatorio-advogado` skill — **not built yet; paused mid-design** because the user is renaming the top-level package `src.*` → `judex.*`.
 
 ## Plan
 
-*(numbered steps — include bail-out conditions)*
+1. **Phase 0** — re-scrape the 279 HCs to v8 schema (surface any capture-gap PDF links). Bail-out: if no URL delta, skip.
+2. **Phase 2** — download PDF bytes. Start direct-IP; switch to 8-shard proxy rotation once `--shards N --proxy-pool-dir D` is wired. Bail-out: 403 storm → rotate pool + reduce concurrency.
+3. **Phase 3** — pypdf text extraction (zero HTTP). Bail-out: > 5 % provider_error → investigate before full run.
+4. **Phase 4** — verify per-lawyer coverage (cases × urls × bytes × text).
+5. **Phase 5** — postprocessor `scripts/clean_pdf_text.py` over `data/cache/pdf/*.txt.gz` to fix pypdf's split-letter artifacts.
+6. **Phase 6 (designed, not built)** — `relatorio-advogado` skill: aggregate stats → LLM-summarise per PDF → render Marimo notebook.
 
 ## Expectations / hypotheses
 
-*(H1 / H0 / H2 framing — what would confirm, what would falsify, what would surprise)*
+- **H1 (confirmed):** 8-shard proxy rotation holds zero 403s at this scale; matches `docs/rate-limits.md § 4-shard proxy-rotation validation (2026-04-18)`. Aggregate ~2 rec/s across 8 shards.
+- **H1 (confirmed):** `cleanup.clean_pdf_text` fixes 90 % of split-capital-letter artifacts (`S ÃO` → `SÃO`) without damaging Portuguese articles; stop-list `{A, E, O, À}` preserves `TORON E OUTRO` in all-caps party-list headers.
+- **H0 (surprise, open):** cleanup is not strictly idempotent — second pass still rewrites 3,415 / 31,737 files for −10,814 chars. Root cause not yet diagnosed (investigation interrupted by the `src.*` → `judex.*` rename; `uv run python -c "from src.*"` stopped resolving).
+- **H0 (confirmed, bug fixed):** `dispatch.extract_pdf(pdf_bytes, *, config)` was called positionally by `extract_driver.py:149` (matching `DispatcherFn = Callable[[bytes, OCRConfig], ExtractResult]`) — the keyword-only `*` broke every PDF extract in production. Tests passed because they inject a positional dispatcher. Fixed by dropping the `*`.
 
 ## Observations
 
-*(timestamped log — newest at the bottom; record the actual commands run and the actual numbers seen)*
+- **Input profile**: 279 unique (classe, processo_id) HC pairs across 12 lawyers, dates 1974–2026. All 279 case JSONs already present on disk at session start — Phase 2 skipped case scraping entirely.
+- **Phase 0 refresh** (`runs/active/2026-04-19-marquee-refresh/`): 279/279 ok, zero errors. BUT: `--items-dir data/cases/HC` wrote each file as `[{item}]` (1-element list wrapper) per `_write_item_json`'s intent — clobbered the canonical bare-dict shape. Fixed with a one-shot unwrap. Post-refresh: 1,373 unique PDF URLs (up from 1,213 pre-refresh; +160 URLs surfaced by fresh capture).
+- **Phase 2 direct-IP** (`runs/active/2026-04-19-marquee-bytes/`): 347/1,105 ok @ ~0.29 tgt/s before SIGTERM to pivot to sharded. Content-addressed cache preserves bytes across sweeps.
+- **Phase 2 sharded** (`runs/active/2026-04-19-marquee-bytes-sharded/`, 8 shards `a..h`): final 1,105/1,105 = 739 newly `ok` + 366 `cached` (dedup on SHA from direct-IP bytes). Zero errors, zero 403s across ~20 min wall-clock. ~116 MB via proxy → est. **$0.93** at default $8/GB. Shard-a lagged at ~0.08 rec/s (pool-a proxy quality).
+- **Phase 3 pypdf** (`runs/active/2026-04-19-marquee-text/`): first run failed on ALL 981 PDFs with `TypeError: extract_pdf() takes 1 positional argument but 2 were given` (dispatch bug above). One-char fix, relaunch: 953 extracted + 124 cached (RTF path) + 28 `unknown_type` (STF-served non-PDF bytes, genuinely unextractable) = 1,105. Cost: **$0.00 (6,053 pages via pypdf, local)**.
+- **Phase 4 coverage**: 98.1 % text cached across all lawyers; per-lawyer range 94–100 %. Toron 99 % (432 / 436), Bottini 99 % (186 / 188), Pedro M. de Almeida Castro 97 % (256 / 263).
+- **Phase 5 cleanup** first pass: rewrote 29,807 / 31,737 files, `chars_after = 197,722,778` (−22 % size). Dry-run predicted −55,796,634 chars; actual was −55,762,231 — +34 k char preservation exactly equal to the `{A, E, O, À}` stop-list sparing `TORON E OUTRO` patterns. **Second pass rewrote 3,415 files for −10,814 chars** — the non-idempotency that's the open question.
+- **Sample text quality (post-cleanup), Toron HC 195830 DECISÃO MONOCRÁTICA**: `HABEAS CORPUS 195.830 SÃO PAULO / RELATOR : MIN. MARCO AURÉLIO / … IMPTE.(S) :ALBERTO ZACHARIAS TORON E OUTRO(A/S) / COATOR(A/S)(ES) :RELATOR DO HC Nº 632.905 DO SUPERIOR TRIBUNAL DE JUSTIÇA` — clean.
 
 ## Decisions
 
-*(load-bearing choices worth remembering)*
+- **Sharded PDF launch is a CLI primitive, not a shell script.** `judex baixar-pecas --shards N --proxy-pool-dir D` detaches N children via `subprocess.Popen(start_new_session=True)`, writes `<saida>/shards.pids`, prints monitoring commands, returns. Partition is range-based (reuses `scripts/shard_csv.shard_csv`). Per-shard `driver.log` captured via injected `_real_spawn`. Replaces the inline bash loop we used the first time around.
+- **Reactive rotation ported to `download_driver`** (was only in `run_sweep`). Time-based primary (270 s); `CliffDetector`-driven secondary that trips on `p95 > 30` OR `fail_rate > 20 %`, with a 30 s floor to prevent cascade. Full parity with `varrer-processos` now, minus the regime-change log line being slightly less verbose.
+- **Cost reporting is opinionated but env-overridable.** `PROXY_PRICE_USD_PER_GB` (default 8.0), `OCR_PRICE_<PROVIDER>_USD_PER_1K_PAGES`. Byte-accurate for `baixar-pecas` (sums `chars` per `pdfs.state.json` `status=ok`). Chars/2000-based page estimate for `extrair-pecas`. Coarse ~200 KB/process heuristic for `varrer-processos` (bytes-per-response isn't tracked in that driver; deferred until it matters).
+- **Cleanup stop-list is hand-curated, not derived.** `{A, E, O, À}` covers the Portuguese singletons that appear in STF all-caps party-list headers. Any expansion should come from corpus examples, not guesses.
+- **The `relatorio-advogado` skill should stage its work**, not run end-to-end. Staging: (1) aggregate case stats to parquet, (2) LLM-summarise each PDF to jsonl (resumable on SHA), (3) render Marimo template. Intermediate artifacts persist under `data/reports/<slug>/` so re-renders don't re-pay LLM cost. Exact command shape still in design.
 
 ## Open questions
 
-*(numbered; strike through when resolved — don't delete, so the archive preserves the reasoning trail)*
+1. **Why is `clean_pdf_text` not strictly idempotent?** Second pass rewrites ~10 % of files. Likely cascading: a safe-token fix on pass 1 changes the all-caps ratio of a line, unlocking new `_SPLIT_CAP_WORD` matches on pass 2. Pick one changed file, diff pass-1 vs pass-2, tighten or document as "run until fixed-point".
+2. **What cheap LLM for Phase 6 summaries?** Mistral small (already the project's OCR provider, Portuguese-native) vs Anthropic Haiku 4.5. Either is ~$0.20–$0.80 for Toron's 432 PDFs × 8 k chars avg.
+3. **Skill format — single-command or staged?** Leaning staged so the LLM call is cache-hit on re-renders. Need user input on the right command shape.
+4. **Should `extrair-pecas` call `clean_pdf_text` inline** so new extractions land pre-cleaned? Currently cleanup is a separate one-shot. Inlining makes the `.txt.gz` always-clean invariant strong; keeping it separate lets cleanup evolve without re-OCRing.
 
 ## Next steps
 
-*(ordered; each step should be re-entrant after a session crash)*
+1. **Wait for `src.*` → `judex.*` rename to settle.** All files touched this session should already reflect the rename (system-reminder diffs confirm). First re-entrant check: `uv run pytest tests/unit/` under the new name.
+2. **Diagnose cleanup non-idempotency.** Pick one of the ~3,415 second-pass-changed files; read under `judex.scraping.ocr.cleanup`; diff pass-1 vs pass-2; tighten regex or document as "run until fixed-point".
+3. **Design `relatorio-advogado` skill** before building. Proposal: `.claude/skills/relatorio-advogado/SKILL.md` + worker scripts (`aggregate_stats.py`, `summarize_pdfs.py`, `build_report.py`) + Marimo notebook template. Input: `--lawyer "Alberto Zacharias Toron"` (substring match on `partes[].nome`) + `--output data/reports/<slug>/`. Run on Toron first (highest-signal: 80 HCs, 436 URLs, 432 text-cached).
+4. **Decide LLM provider for summaries.** Probably Mistral small (narrows API surface; Portuguese-native).
+5. **Render the first report**; iterate on template.
+
+## Files touched this session (for the archive)
+
+- New: `judex/sweeps/shard_launcher.py`, `judex/utils/pricing.py`, `judex/scraping/ocr/cleanup.py`, `scripts/clean_pdf_text.py`, `scripts/baixar_pecas.py` (proxy-pool flags), tests `tests/unit/test_shard_launcher.py`, `test_pricing.py`, `test_pdf_text_cleanup.py`.
+- Edited: `judex/cli.py` (proxy + sharded flags on `baixar-pecas`), `judex/sweeps/download_driver.py` (pool + rotation + cost), `judex/sweeps/extract_driver.py` (cost line), `scripts/run_sweep.py` (cost line), `judex/scraping/ocr/dispatch.py` (positional `config` fix), `CLAUDE.md` (`## CLI` section), `tests/unit/test_download_driver.py` (+3 tests).
+- Test count: 441 → 475 (all green under the pre-rename `src.*` path; needs re-run post-rename).
 
 ---
 
@@ -120,7 +150,7 @@ behave, class sizes, perf numbers, where data lives), read:
   written to `cache/pdfs/*.bytes.gz`. Resume via `baixar-pecas ... --retomar`.
 - **`--sleep-throttle` flag deleted** (2026-04-19 17:15). Zero retries
   across 6,909 requests at 2.0 s validated the value as policy, not a
-  knob. Hardcoded `_THROTTLE_SLEEP_S = 2.0` in `src/sweeps/peca_cli.py`;
+  knob. Hardcoded `_THROTTLE_SLEEP_S = 2.0` in `judex/sweeps/peca_cli.py`;
   `run_download_sweep` keeps the kwarg for test-injection only.
 - **PDF pipeline split into `baixar-pecas` + `extrair-pecas`**
   (2026-04-19). WAF-bound bytes fetch separated from the zero-HTTP
@@ -134,12 +164,12 @@ behave, class sizes, perf numbers, where data lives), read:
 
 Nothing executing. Working-tree state to resolve before the next cycle:
 
-- **`src/analysis/lawyer_canonical.py` + `tests/unit/test_lawyer_canonical.py`**
+- **`judex/analysis/lawyer_canonical.py` + `tests/unit/test_lawyer_canonical.py`**
   — untracked. Looks like a start on TODO item *"check if new author
   info changes anything"*. Not yet committed.
 - **Uncommitted modifications** to `CLAUDE.md`, `README.md`, `TODO.md`,
-  `docs/hc-who-wins.md`, `scripts/baixar_pecas.py`, `src/cli.py`,
-  `src/sweeps/download_driver.py`, `tests/unit/test_download_driver.py`.
+  `docs/hc-who-wins.md`, `scripts/baixar_pecas.py`, `judex/cli.py`,
+  `judex/sweeps/download_driver.py`, `tests/unit/test_download_driver.py`.
   The three last likely correspond to the `--sleep-throttle` deletion
   already logged as landed (tests green) — worth a quick `git diff` to
   confirm before committing.
@@ -153,7 +183,7 @@ Carried over from the archived cycle's "Analytical readiness" section
 
 1. Check whether new author info (untruncated `#todas-partes` +
    re-derived `primeiro_autor`) changes outcome distributions.
-   `src/analysis/lawyer_canonical.py` is the in-flight start.
+   `judex/analysis/lawyer_canonical.py` is the in-flight start.
 2. Segmentation by year / government.
 3. Segmentation `primeiro_autor` × `autores` (does the head author
    dominate the roster, or is it a thin signal?).
@@ -228,7 +258,7 @@ Lean "fast sweep" floor: 8 GETs/case vs today's 12 on the no-DJe path.
 
 - **`sessao_virtual` ground-truth parity** — live code emits the ADI
   shape; older HC fixtures sometimes lacked `metadata` subkeys
-  entirely. `SKIP_FIELDS` in `src/sweeps/diff_harness.py` guards the
+  entirely. `SKIP_FIELDS` in `judex/sweeps/diff_harness.py` guards the
   diff harness against this.
 - **PDF enrichment status tracking** — no persisted field answers
   "has this case been through PDF enrichment?" Derivable from
@@ -247,7 +277,7 @@ uv run pytest tests/unit/
 uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run python -c "from src.scraping.scraper import scrape_processo_http; print(scrape_processo_http('HC', 128377, fetch_pdfs=False))"
+uv run python -c "from judex.scraping.scraper import scrape_processo_http; print(scrape_processo_http('HC', 128377, fetch_pdfs=False))"
 
 # Wipe all regenerable caches (case JSONs under data/cases/ survive)
 rm -rf data/cache/pdf data/cache/html
@@ -339,7 +369,7 @@ Access surfaces:
 cache filename to `<sha1>.pdf.gz`:
 
 ```python
-# src/utils/peca_cache.py:70
+# judex/utils/peca_cache.py:70
 def _bytes_path(url: str) -> Path:
     return CACHE_ROOT / f"{_hash(url)}.pdf.gz"
 ```
@@ -378,13 +408,13 @@ uv run python scripts/migrate_peca_cache_bytes.py --dry-run   # verify count
 uv run python scripts/migrate_peca_cache_bytes.py             # execute
 
 # 2) deploy the constant change
-#    edit src/utils/peca_cache.py:71  "pdf.gz" → "bytes.gz"
+#    edit judex/utils/peca_cache.py:71  "pdf.gz" → "bytes.gz"
 #    grep tests for any hardcoded `.pdf.gz` expectations (few)
 
 # 3) verify
 uv run pytest tests/unit/                                     # 423 expected
 uv run python scripts/validate_ground_truth.py                # 0 diffs expected
-uv run python -c "from src.utils import peca_cache; print(peca_cache.has_bytes('https://portal.stf.jus.br/processos/downloadPeca.asp?id=15386152898&ext=.pdf'))"
+uv run python -c "from judex.utils import peca_cache; print(peca_cache.has_bytes('https://portal.stf.jus.br/processos/downloadPeca.asp?id=15386152898&ext=.pdf'))"
 
 # 4) rebuild warehouse — pdfs.cache_path column embeds the old filename
 uv run python scripts/build_warehouse.py --year 2026

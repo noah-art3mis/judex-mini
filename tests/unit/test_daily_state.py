@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.reports.state import DailyState
+from judex.reports.state import DailyState
 
 
 def test_load_missing_file_returns_empty_default(tmp_path: Path) -> None:

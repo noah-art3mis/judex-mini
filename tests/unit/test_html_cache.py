@@ -13,7 +13,7 @@ import tarfile
 
 import pytest
 
-from src.utils import html_cache
+from judex.utils import html_cache
 
 
 def test_read_miss_returns_none(tmp_path, monkeypatch) -> None:

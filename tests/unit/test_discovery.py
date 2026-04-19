@@ -11,8 +11,8 @@ reset on mid-sequence gaps, and a safety cap on runaway probes.
 
 from __future__ import annotations
 
-from src.scraping.scraper import NoIncidenteError
-from src.sweeps.discovery import Discovered, discover_new_numeros
+from judex.scraping.scraper import NoIncidenteError
+from judex.sweeps.discovery import Discovered, discover_new_numeros
 
 
 def _make_resolver(allocated: dict[int, int]):

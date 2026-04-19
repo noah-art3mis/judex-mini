@@ -15,8 +15,8 @@ p. 50): every final decision that terminates a process is either
 explicitly including "negativa de admissão"); intermediate orders
 (liminares / interlocutórias) are excluded entirely.
 
-Mapped onto `src.extraction_http.derive_outcome` labels via
-`src.analysis.legal_vocab.FGV_FAVORABLE_OUTCOMES`:
+Mapped onto `judex.extraction_http.derive_outcome` labels via
+`judex.analysis.legal_vocab.FGV_FAVORABLE_OUTCOMES`:
 
 - **favorável**:    `concedido`, `concedido_parcial`
 - **desfavorável**: `denegado`, `nao_conhecido`, `prejudicado`, `extinto`
@@ -101,8 +101,8 @@ all ~15 ministers with modest confidence intervals. Rarer buckets
   currently done by hand — see open TODO below).
 - **Ancillary**: sweep H output for parser-sanity comparison across
   eras.
-- **Outcome labels**: derived by `src.extraction_http.derive_outcome`,
-  vocabulary in `src/analysis/legal_vocab.py::VERDICT_PATTERNS`. Known
+- **Outcome labels**: derived by `judex.extraction_http.derive_outcome`,
+  vocabulary in `judex/analysis/legal_vocab.py::VERDICT_PATTERNS`. Known
   limitation: the `andamentos`-fallback pattern fires on monocratic
   decisions (nego seguimento, denegada a ordem) but does not parse
   per-item accordão text. For 2023 matured cases that is fine; for
@@ -189,7 +189,7 @@ in criminal appeals than in HCs).
    driver: on each ok result, `json.dump(item, ...)` under
    `<out>/items/HC_<n>.json`. Tracked informally; no ticket yet.
 2. **Impetrante normalization module.** Put the ASCII-fold + surname
-   grouper in `src/analysis/text_norm.py` (new file). Unit-test with a handful
+   grouper in `judex/analysis/text_norm.py` (new file). Unit-test with a handful
    of known duplicate spellings pulled from the 2023 data.
 3. **Wilson CI helper.** Three-line function; does not warrant a
    dependency on `statsmodels`. Inline in the notebook or
@@ -200,7 +200,7 @@ in criminal appeals than in HCs).
 - **Stratified follow-up sweep B** (100 HCs / year × 15 years) is
   still on the table. If the 2023 slice shows meaningful era drift
   against the sweep H parser sanity check, B becomes more valuable.
-  Ranges are in `src/utils/hc_calendar.py::year_to_id_range`.
+  Ranges are in `judex/utils/hc_calendar.py::year_to_id_range`.
 - **Full HC backfill** (~216 k extant cases — see
   [`docs/process-space.md`](process-space.md)). Wall-time depends on
   shard count: **~2.5 days at 4-shard proxy rotation** (validated

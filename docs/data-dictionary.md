@@ -5,7 +5,7 @@ a case JSON (`data/cases/<CLASSE>/judex-mini_<CLASSE>_<N>.json`) —
 type, source, extraction logic, allowed values (where categorical),
 and preprocessing notes.
 
-Canonical schema: [`src/data/types.py`](../src/data/types.py).
+Canonical schema: [`judex/data/types.py`](../judex/data/types.py).
 Portal contract (URL flow, field → source tab): [`stf-portal.md`](stf-portal.md).
 Classification axes (HC vs ADI vs RE, órgão julgador, rito, etc.):
 [`stf-taxonomy.md`](stf-taxonomy.md).
@@ -19,7 +19,7 @@ Concrete examples: [`tests/ground_truth/*.json`](../tests/ground_truth)
 - **`Optional[X]`** — field can be `null` in the JSON output. Fields are Optional for a reason — see `CLAUDE.md § Don't break these`. Never make them non-Optional retroactively.
 - **`List[...]`** — never `null`; an empty list is `[]`.
 - **Source tab** — the portal fragment (`detalhe.asp`, `abaInformacoes.asp`, …) the field is parsed from. A single process involves 1 `detalhe` + 9 tab fragments; see [`stf-portal.md § URL flow`](stf-portal.md#url-flow).
-- **Extractor** — the pure-soup function that parses the field. Lives under `src/scraping/extraction/`.
+- **Extractor** — the pure-soup function that parses the field. Lives under `judex/scraping/extraction/`.
 - **Categorical values** are closed sets — every value emitted by the scraper is one of the listed labels (or `null`). Lists of values known to occur in practice (but not type-enforced) are marked "observed".
 
 ---
@@ -55,7 +55,7 @@ Concrete examples: [`tests/ground_truth/*.json`](../tests/ground_truth)
 | `peticoes`           | `List[Peticao]`          | abaPeticoes.asp      | `extract_peticoes`        |
 | `recursos`           | `List[Recurso]`          | abaRecursos.asp      | `extract_recursos`        |
 | `pautas`             | `Optional[List]`         | abaPautas.asp        | (not parsed; always `[]`) |
-| `publicacoes_dje`    | `List[PublicacaoDJe]`    | listarDiarioJustica.asp + verDiarioProcesso.asp + verDecisao.asp | `parse_dje_listing` + `parse_dje_detail` (src/scraping/extraction/dje.py) |
+| `publicacoes_dje`    | `List[PublicacaoDJe]`    | listarDiarioJustica.asp + verDiarioProcesso.asp + verDecisao.asp | `parse_dje_listing` + `parse_dje_detail` (judex/scraping/extraction/dje.py) |
 | `outcome`            | `Optional[OutcomeInfo]`  | derived              | `derive_outcome`          |
 | `status_http`        | `int` (HTTP)             | detalhe.asp response | —                         |
 | `extraido`           | `str` (ISO 8601)         | client clock         | —                         |
@@ -80,7 +80,7 @@ The procedural classe code (HC, ADI, RE, …). CNJ-standardised; see
 [`stf-taxonomy.md § classe`](stf-taxonomy.md) for the full taxonomy.
 
 - **Source:** primarily the input CSV. Also verifiable from `detalhe.asp` via `.processo-dados` div starting with "Classe:".
-- **Categorical levels (observed in the codebase):** Writ family — `HC`, `MS`, `MI`, `HD`, `Ext`. Appeal family — `RE`, `ARE`, `AI`, `RHC`, `RMS`, `AgR`, `ED`, `EDv`. Action family — `ADI`, `ADC`, `ADO`, `ADPF`, `ACO`, `AO`, `Rcl`, `AP`, `Inq`. STF uses ~53 CNJ codes total; these are the ones referenced by `src/analysis/legal_vocab.CLASSE_OUTCOME_MAP`.
+- **Categorical levels (observed in the codebase):** Writ family — `HC`, `MS`, `MI`, `HD`, `Ext`. Appeal family — `RE`, `ARE`, `AI`, `RHC`, `RMS`, `AgR`, `ED`, `EDv`. Action family — `ADI`, `ADC`, `ADO`, `ADPF`, `ACO`, `AO`, `Rcl`, `AP`, `Inq`. STF uses ~53 CNJ codes total; these are the ones referenced by `judex/analysis/legal_vocab.CLASSE_OUTCOME_MAP`.
 - **Preprocessing:** uppercase, no spaces. HC + trailing suffixes like `MC-AgR` live in the display identificacao, not in `classe`.
 
 ### `processo_id: int`
@@ -256,7 +256,7 @@ filings). Time-ordered by `data`, but **indexed newest-first**
   - `link` — `{"url": str, "text": Optional[str]}` or `None`. URL is joined against `https://portal.stf.jus.br`; `text` is populated later by the PDF-enrichment pass.
   - `link_descricao` — anchor text, uppercased.
 - **HC-specific:** The key events are `DECISÃO MONOCRÁTICA`, `ACÓRDÃO`, `BAIXA AO ARQUIVO DO STF`. Majority of HCs terminate with a monocrática. See [`andamentos-classifier-gaps.md`](andamentos-classifier-gaps.md) for the classifier gaps the HC analysis has to work around.
-- **PDF extraction:** `link` → PDF URL → downloaded by `scripts/baixar_pecas.py` to `data/cache/pdf/<sha1(url)>.pdf.gz` → text extracted by `scripts/extrair_pecas.py --provedor {pypdf|mistral|chandra|unstructured}` into `<sha1>.txt.gz` (+ `<sha1>.extractor` sidecar, + `<sha1>.elements.json.gz` for providers that emit element lists). Read text via `src.utils.pdf_cache.read(url)`.
+- **PDF extraction:** `link` → PDF URL → downloaded by `scripts/baixar_pecas.py` to `data/cache/pdf/<sha1(url)>.pdf.gz` → text extracted by `scripts/extrair_pecas.py --provedor {pypdf|mistral|chandra|unstructured}` into `<sha1>.txt.gz` (+ `<sha1>.extractor` sidecar, + `<sha1>.elements.json.gz` for providers that emit element lists). Read text via `judex.utils.pdf_cache.read(url)`.
 
 ### `deslocamentos: List[dict]`
 
@@ -376,7 +376,7 @@ with a different shape:
 Mixed-shape lists are unusual; consumers should check for `"tipo":
 "tema"` before assuming the ADI shape.
 
-### Why `sessao_virtual` is in `src.sweeps.diff_harness.SKIP_FIELDS`
+### Why `sessao_virtual` is in `judex.sweeps.diff_harness.SKIP_FIELDS`
 
 Captured ground-truth fixtures have inconsistent shapes (Selenium-era
 capture sometimes emits different keys), so parity diffs false-positive.
@@ -401,7 +401,7 @@ OutcomeInfo = TypedDict("OutcomeInfo", {
 
 Derived from two sources in order:
 
-1. **`sessao_virtual[-1].voto_relator`** — the last session's voto text. Regex-matched against `VERDICT_PATTERNS` in `src.analysis.legal_vocab`. `source_index` is the index within `sessao_virtual`; `date_iso` comes from `metadata.data_início`.
+1. **`sessao_virtual[-1].voto_relator`** — the last session's voto text. Regex-matched against `VERDICT_PATTERNS` in `judex.analysis.legal_vocab`. `source_index` is the index within `sessao_virtual`; `date_iso` comes from `metadata.data_início`.
 2. **Andamentos fallback** — concatenated `nome + complemento` of each event, scanned with the same patterns. `source_index` is the matching andamento's `index_num`; `date_iso` is the andamento's own `data_iso`.
 
 First match wins; `None` means no pattern matched (pending case, liminares only, or parser gap).
@@ -435,7 +435,7 @@ adopted 2026-04-17):
 - **Unfavourable:** everything else in `OUTCOME_VALUES`.
 - **Excluded from the denominator:** `None` outcomes (pending / parser gap).
 
-See `src/analysis/legal_vocab.FGV_FAVORABLE_OUTCOMES` and
+See `judex/analysis/legal_vocab.FGV_FAVORABLE_OUTCOMES` and
 [`hc-who-wins.md § Research question`](hc-who-wins.md).
 
 **Per-classe legal outcome universe** pinned in
@@ -605,7 +605,7 @@ extraido           "2026-04-17T15:21:01.322582"
 | FGV favourable                      | `item["outcome"] and item["outcome"]["verdict"] in FGV_FAVORABLE_OUTCOMES` |
 | Event date for sorting              | `datetime.fromisoformat(andamentos[i]["data_iso"])`         |
 | Open in browser                     | `item["url"]` (or reconstruct from `incidente`)             |
-| PDF text for andamento[i]           | `src.utils.pdf_cache.read(andamentos[i]["link"]["url"])`    |
+| PDF text for andamento[i]           | `judex.utils.pdf_cache.read(andamentos[i]["link"]["url"])`    |
 | Session vote tally                  | `{k: len(v) for k,v in sessao_virtual[-1]["votes"].items()}` |
 
 ---
@@ -621,7 +621,7 @@ extraido           "2026-04-17T15:21:01.322582"
 
 ## Schema history
 
-`SCHEMA_VERSION` lives in [`src/data/types.py`](../src/data/types.py) and is
+`SCHEMA_VERSION` lives in [`judex/data/types.py`](../judex/data/types.py) and is
 stamped onto every `StfItem` by the scraper. Bump on every breaking
 change; the renormalizer (`scripts/renormalize_cases.py`) dispatches on
 missing / lower values and re-runs the current extractors against the
@@ -670,7 +670,7 @@ outside the `abaX.asp` tab set.
 | new nested types  | `PublicacaoDJe` carries listing metadata (`numero`, `data`, `secao`, `subsecao`, `titulo`, `detail_url`, `incidente_linked`) + detail fields (`classe`, `procedencia`, `relator`, `partes: List[str]`, `materia: List[str]`, `decisoes: List[DecisaoDJe]`). `DecisaoDJe` bundles `{kind, texto, rtf: Documento}` where `kind ∈ {"decisao", "ementa"}` — EMENTA renders as a decisão-shaped `<p>+<a>` block on the Acórdão variant of the detail page; the prefix `"EMENTA:"` is the discriminator. |
 | `incidente_linked`| 3rd arg of the listing's `abreDetalheDiarioProcesso(dj, data, incidente, …)` onclick — may differ from the parent case's incidente because AG.REG./EMB.DECL. filings often file under their own incidente. Preserve as given; do not collapse to the parent's. |
 | RTF text storage  | `DecisaoDJe.rtf: Documento` — the standard `{tipo, url, text, extractor}` slot used everywhere else for PDFs/RTFs. `rtf.text` is populated via `peca_cache` (sha1(url) keying; `rtf` extractor via `striprtf`). |
-| UA fix (side effect) | `src/utils/peca_utils.extract_document_text` now sends a Chrome User-Agent. Previously its bare `requests.get` sent `python-requests/*`, which STF's WAF permanently 403s; fix was needed for the DJe RTF fetches and also unblocks any prior silent failures on andamento PDFs on the `portal.stf.jus.br` host. |
+| UA fix (side effect) | `judex/utils/peca_utils.extract_document_text` now sends a Chrome User-Agent. Previously its bare `requests.get` sent `python-requests/*`, which STF's WAF permanently 403s; fix was needed for the DJe RTF fetches and also unblocks any prior silent failures on andamento PDFs on the `portal.stf.jus.br` host. |
 | cache layout      | New pseudo-tab members in `data/cache/html/{classe}_{processo}.tar.gz`: `dje_listing.html` (one per case) and `dje_detail_<sha1[:16]>.html` (one per entry). |
 
 **v6 → v7 migration.** The renormalizer seeds `publicacoes_dje = []`
@@ -693,7 +693,7 @@ now a bare dict (not a 1-element list).
 
 | area                 | change                                               |
 |----------------------|------------------------------------------------------|
-| `partes` / `andamentos` / `deslocamentos` / `peticoes` / `recursos` | promoted from bare `List` to `List[Parte]` / `List[Andamento]` / … — see `src/data/types.py`. |
+| `partes` / `andamentos` / `deslocamentos` / `peticoes` / `recursos` | promoted from bare `List` to `List[Parte]` / `List[Andamento]` / … — see `judex/data/types.py`. |
 | dates                | `*_iso` companions on `andamentos[*].data`, `deslocamentos[*].data_recebido`, `deslocamentos[*].data_enviado`, `peticoes[*].data`, `peticoes[*].recebido_data`, plus top-level `data_protocolo_iso`. |
 | `outcome`            | `Optional[str]` → `Optional[OutcomeInfo]` = `{verdict, source, source_index, date_iso}`. Provenance lets consumers disambiguate HC-main vs HC-AgR verdicts and sort by verdict date. |
 | `status`             | **renamed** to `status_http` (HTTP-code semantics). |
@@ -754,9 +754,9 @@ and the raw `html` field inflates files by orders of magnitude.
 
 ## See also
 
-- [`src/data/types.py`](../src/data/types.py) — the canonical TypedDict.
-- [`src/scraping/extraction/`](../src/scraping/extraction/) — one module per fragment.
-- [`src/analysis/legal_vocab.py`](../src/analysis/legal_vocab.py) — party-type prefixes, verdict patterns, FGV favourability partition, classe→outcome map.
+- [`judex/data/types.py`](../judex/data/types.py) — the canonical TypedDict.
+- [`judex/scraping/extraction/`](../judex/scraping/extraction/) — one module per fragment.
+- [`judex/analysis/legal_vocab.py`](../judex/analysis/legal_vocab.py) — party-type prefixes, verdict patterns, FGV favourability partition, classe→outcome map.
 - [`docs/stf-portal.md`](stf-portal.md) — URL flow, auth triad, field→source tab.
 - [`docs/stf-taxonomy.md`](stf-taxonomy.md) — the 10 classification axes STF uses.
 - [`docs/hc-who-wins.md`](hc-who-wins.md) — how these fields feed the HC research question.

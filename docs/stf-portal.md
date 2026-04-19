@@ -59,7 +59,7 @@ requires three things, and only three:
 3. **`X-Requested-With: XMLHttpRequest`.** jQuery adds this by default; its absence is what 403s most bare-curl probes.
 
 A `requests.Session()` that has first GET'd `detalhe.asp`, plus those
-two headers on subsequent calls, is sufficient. `src/scraping/http_session.py`
+two headers on subsequent calls, is sufficient. `judex/scraping/http_session.py`
 encapsulates the session + headers.
 
 Non-browser User-Agents (`curl/*`, anything with "bot" or "python")
@@ -72,12 +72,12 @@ STF serves UTF-8 but **does not declare a charset** in the
 `Content-Type` header. `requests` falls back to Latin-1 in that case,
 which produces mojibake like `JosÃ©` instead of `José`. The fix is
 explicit: set `r.encoding = "utf-8"` before reading `r.text`.
-`src/scraping/scraper._decode` does this; never bypass it.
+`judex/scraping/scraper._decode` does this; never bypass it.
 
 ## Field → source map
 
 All fields the scraper extracts live in one of the fragments above.
-The parser layer (`src/scraping/extraction/http.py` + friends) takes
+The parser layer (`judex/scraping/extraction/http.py` + friends) takes
 `BeautifulSoup` fragments, so the only thing that matters is which
 tab each field comes from.
 
@@ -124,11 +124,11 @@ The `publicacoes_dje` field draws from a separate URL family under
 tabs, and they key on `(classe, numero)`, not `incidente`. Same
 origin as `/processos/*`, so they share the same WAF bucket.
 
-1. **Listing** — `GET /servicos/dje/listarDiarioJustica.asp?tipoPesquisaDJ=AP&classe=<C>&numero=<N>` → HTML with `<strong>` section headers and `<a onclick="abreDetalheDiarioProcesso(dj, data, incidente, capitulo, numMateria, codMateria)">…</a>` entries. Parsed by `parse_dje_listing` (`src/scraping/extraction/dje.py`). The 3rd onclick arg is the *linked* incidente, which can differ from the parent case's (AG.REG./EMB.DECL. file under their own).
+1. **Listing** — `GET /servicos/dje/listarDiarioJustica.asp?tipoPesquisaDJ=AP&classe=<C>&numero=<N>` → HTML with `<strong>` section headers and `<a onclick="abreDetalheDiarioProcesso(dj, data, incidente, capitulo, numMateria, codMateria)">…</a>` entries. Parsed by `parse_dje_listing` (`judex/scraping/extraction/dje.py`). The 3rd onclick arg is the *linked* incidente, which can differ from the parent case's (AG.REG./EMB.DECL. file under their own).
 
 2. **Detail** — `GET /servicos/dje/verDiarioProcesso.asp?numDj=…&dataPublicacaoDj=…&incidente=…&codCapitulo=…&numMateria=…&codMateria=…` (one per entry from step 1) → HTML with a `<dl>` of identity fields (Classe/Procedência/Relator/Partes/Matéria) followed by alternating `<p>` text / `<p.text-right> <a href=verDecisao.asp?…>` pairs. Parsed by `parse_dje_detail`. EMENTA renders as a decisão-shaped block; the `"EMENTA:"` prefix is the `kind` discriminator.
 
-3. **RTF** — `GET /servicos/dje/verDecisao.asp?numDj=…&dataPublicacao=…&incidente=…&capitulo=…&codigoMateria=…&numeroMateria=…&texto=<id>` → `application/rtf` binary. Extracted via `src/utils/peca_utils.extract_document_text` (striprtf branch), URL-keyed in `peca_cache`.
+3. **RTF** — `GET /servicos/dje/verDecisao.asp?numDj=…&dataPublicacao=…&incidente=…&capitulo=…&codigoMateria=…&numeroMateria=…&texto=<id>` → `application/rtf` binary. Extracted via `judex/utils/peca_utils.extract_document_text` (striprtf branch), URL-keyed in `peca_cache`.
 
 Per-case HTTP cost with DJe on: `1 + n + m` GETs to `portal.stf.jus.br`, where *n* = number of DJe entries (usually 1–20 over a case's lifetime; HC 158802 has 6) and *m* = number of RTF-bearing decisões across those entries (≈1–3 per acórdão-section entry, 0–2 per session entry). This roughly triples the per-case portal GET count — the `fetch_dje=True` kwarg (default on) lets sweeps turn it off when the WAF bucket is fragile. RTFs go through `peca_cache`, so re-scrapes are cheap.
 
@@ -142,7 +142,7 @@ GET https://sistemas.stf.jus.br/repgeral/votacao?tema=<N>        → JSON listin
 GET https://sistemas.stf.jus.br/repgeral/votacao/<id>             → JSON detail
 ```
 
-Extraction happens in `src/scraping/extraction/sessao.py`
+Extraction happens in `judex/scraping/extraction/sessao.py`
 (`parse_oi_listing`, `parse_sessao_virtual`, `parse_tema`,
 `extract_sessao_virtual_from_json`). Fetchers are dependency-injected
 so the parsers are unit-testable against captured fixtures.
@@ -160,7 +160,7 @@ carry three shapes (MI/RE/AI: `{data,tipo,numero,relator,status,participantes}`;
 ACO_2652: `{lista,relator,orgao_julgador,voto_texto,…}`;
 ADI_2820_reread: `{metadata,voto_relator,votes,documentos,julgamento_item_titulo}`).
 The HTTP path commits to the ADI shape. `sessao_virtual` is a SKIP
-field in `src.sweeps.diff_harness.SKIP_FIELDS` — unit tests validate the
+field in `judex.sweeps.diff_harness.SKIP_FIELDS` — unit tests validate the
 parsers instead.
 
 ## Document sources — the full universe of PDFs / RTFs / voto HTML

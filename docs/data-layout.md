@@ -103,8 +103,8 @@ data/cache/
 └── scraper-session-logs/                 ← per-session log files
 ```
 
-Read/write via `src.utils.html_cache` (classe/processo/tab-keyed)
-and `src.utils.pdf_cache` (URL-sha1-keyed, atomic writes).
+Read/write via `judex.utils.html_cache` (classe/processo/tab-keyed)
+and `judex.utils.pdf_cache` (URL-sha1-keyed, atomic writes).
 
 Cache-keying is content-addressed where possible: PDF bytes and
 extracted text share one URL-derived sha1, so two cases citing the
@@ -130,7 +130,7 @@ data/cases/
 ```
 
 One directory per `classe`; one JSON file per process. Schema at
-`src/data/types.py` (`StfItem` TypedDict). This is the final
+`judex/data/types.py` (`StfItem` TypedDict). This is the final
 output that downstream analyses (marimo notebooks, research
 papers) consume.
 
@@ -198,7 +198,7 @@ Reading it in code:
 ```python
 import json
 from pathlib import Path
-from src.utils import pdf_cache
+from judex.utils import pdf_cache
 
 record = json.loads(Path("data/cases/HC/judex-mini_HC_135041.json").read_text())
 for a in record[0]["andamentos"]:
@@ -226,11 +226,11 @@ gracefully fall back to flat text when `read_elements` returns `None`.
 
 ## Schema sources of truth
 
-- **Case JSON**: `src/data/types.py` defines `StfItem` as a
+- **Case JSON**: `judex/data/types.py` defines `StfItem` as a
   `TypedDict`. Fields are Optional for a reason — STF data is
   irregular; fields-that-can-be-absent must be nullable.
-- **Attempt records**: `src/sweeps/process_store.AttemptRecord` (process
-  sweeps) and `src/sweeps/pdf_store.PecaAttemptRecord` (PDF sweeps) are the
+- **Attempt records**: `judex/sweeps/process_store.AttemptRecord` (process
+  sweeps) and `judex/sweeps/pdf_store.PecaAttemptRecord` (PDF sweeps) are the
   dataclasses written into the `.jsonl` files.
 - **Ground-truth fixtures**: `tests/ground_truth/*.json` — five
   hand-validated cases that `scripts/validate_ground_truth.py`

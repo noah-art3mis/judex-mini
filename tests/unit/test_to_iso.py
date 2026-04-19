@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from src.scraping.extraction._shared import to_iso, to_iso_datetime
+from judex.scraping.extraction._shared import to_iso, to_iso_datetime
 
 
 def test_plain_ddmmyyyy():

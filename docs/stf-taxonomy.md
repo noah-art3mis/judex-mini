@@ -79,7 +79,7 @@ Not yet captured in `StfItem`. Gap worth filling before the backfill — a Tema 
 - **Segredo de justiça** — family law, minors, selected criminal. Restricts what partes / andamentos / PDFs show publicly.
 - **Sigilo decretado** — stronger variant in originária criminal (e.g. Inq 4781).
 
-Captured in `StfItem.publicidade` via `src/scraping/extraction/extract_publicidade.py`.
+Captured in `StfItem.publicidade` via `judex/scraping/extraction/extract_publicidade.py`.
 
 ## 8. `meio` — physical vs electronic
 
@@ -113,7 +113,7 @@ CNJ Tabela de Assuntos — hierarchical, up to 5 levels. STF usually tags 1–3 
 
 CNJ Tabela de Movimentos — coded events. Examples: *autuado*, *distribuído por sorteio*, *conclusos ao relator*, *vista a*, *julgado procedente*, *baixa definitiva*. Each andamento has `codigo`, `data`, `descricao`, optional `link` to a PDF.
 
-Rosevear 2024 extracts vote-level data *from andamentos* using "a deterministic algorithm" — the equivalent of our `src/scraping/extraction/http.py` andamento parser.
+Rosevear 2024 extracts vote-level data *from andamentos* using "a deterministic algorithm" — the equivalent of our `judex/scraping/extraction/http.py` andamento parser.
 
 Captured in `StfItem.andamentos` list.
 

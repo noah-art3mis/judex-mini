@@ -10,8 +10,8 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from src.scraping import http_session as scraper_http
-from src.config import ScraperConfig
+from judex.scraping import http_session as scraper_http
+from judex.config import ScraperConfig
 
 
 def _fake_response(status_code: int, text: str = "") -> Mock:
@@ -168,7 +168,7 @@ def test_http_get_retries_on_403_by_default(fast_config: ScraperConfig) -> None:
 def test_resolve_incidente_raises_with_location_when_redirect_lacks_incidente(
     fast_config: ScraperConfig,
 ) -> None:
-    from src.scraping.scraper import NoIncidenteError, resolve_incidente
+    from judex.scraping.scraper import NoIncidenteError, resolve_incidente
 
     # STF's dead-zone response: 302 with a Location that redirects to an
     # error page instead of carrying `incidente=<n>`.
@@ -190,7 +190,7 @@ def test_resolve_incidente_raises_with_location_when_redirect_lacks_incidente(
 
 
 def test_resolve_incidente_returns_int_on_match(fast_config: ScraperConfig) -> None:
-    from src.scraping.scraper import resolve_incidente
+    from judex.scraping.scraper import resolve_incidente
 
     redirect = Mock()
     redirect.status_code = 302

@@ -19,18 +19,18 @@ from pathlib import Path
 
 import pytest
 
-from src.scraping.ocr import ExtractResult, OCRConfig
-from src.sweeps import shared as _shared
-from src.sweeps.extract_driver import run_extract_sweep
-from src.sweeps.peca_store import PecaStore
-from src.sweeps.peca_targets import PecaTarget
-from src.utils import peca_cache
+from judex.scraping.ocr import ExtractResult, OCRConfig
+from judex.sweeps import shared as _shared
+from judex.sweeps.extract_driver import run_extract_sweep
+from judex.sweeps.peca_store import PecaStore
+from judex.sweeps.peca_targets import PecaTarget
+from judex.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
+        "judex.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 

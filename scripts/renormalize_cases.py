@@ -65,11 +65,11 @@ from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
-from src.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
-from src.scraping.extraction import http as ex
-from src.scraping.extraction import sessao as sessao_ex
-from src.scraping.extraction import dje as dje_ex
-from src.scraping.scraper import (
+from judex.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
+from judex.scraping.extraction import http as ex
+from judex.scraping.extraction import sessao as sessao_ex
+from judex.scraping.extraction import dje as dje_ex
+from judex.scraping.scraper import (
     DETALHE,
     TAB_ANDAMENTOS,
     TAB_DECISOES,
@@ -85,8 +85,8 @@ from src.scraping.scraper import (
     _dje_detail_cache_key,
     _extract_tema_from_abasessao,
 )
-from src.data.reshape import reshape_to_v8
-from src.utils import html_cache, peca_cache
+from judex.data.reshape import reshape_to_v8
+from judex.utils import html_cache, peca_cache
 
 CASES_ROOT = Path("data/cases")
 

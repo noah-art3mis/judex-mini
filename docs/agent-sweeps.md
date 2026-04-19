@@ -56,7 +56,7 @@ pieces make it work:
    `runs/active/<dir>/shards.pids`. On reconnect, `pgrep -af run_sweep`
    finds them, but the pids file is authoritative when multiple sweeps
    overlap.
-3. **Atomic state per record.** `src/sweeps/process_store.py` writes
+3. **Atomic state per record.** `judex/sweeps/process_store.py` writes
    `sweep.state.json` via `tempfile → os.replace` (atomic on POSIX) and
    appends to `sweep.log.jsonl` with `fsync` after each record. A
    process killed mid-record loses at most the in-flight record;
@@ -89,4 +89,4 @@ xargs -a runs/active/<dir>/shards.pids kill -TERM
   so monitoring outlives the window that scheduled it.
 - Any state the driver held in memory but hadn't yet flushed to disk.
   With the current atomic contracts this is <1 record; don't break the
-  contract (see `src/sweeps/process_store.py`).
+  contract (see `judex/sweeps/process_store.py`).

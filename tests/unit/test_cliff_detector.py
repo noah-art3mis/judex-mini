@@ -8,7 +8,7 @@ regime definitions.
 
 from __future__ import annotations
 
-from src.sweeps.shared import CliffDetector
+from judex.sweeps.shared import CliffDetector
 
 
 def _feed(det: CliffDetector, statuses: list[str], wall_s: float = 1.0) -> None:

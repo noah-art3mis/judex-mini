@@ -22,7 +22,7 @@ Tests verify two real invariants (not ceremonial structure checks):
 
 from __future__ import annotations
 
-from src.analysis.legal_vocab import (
+from judex.analysis.legal_vocab import (
     CLASSE_OUTCOME_MAP,
     OUTCOME_VALUES,
 )

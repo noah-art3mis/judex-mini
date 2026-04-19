@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.sweeps.peca_targets import (
+from judex.sweeps.peca_targets import (
     PecaTarget,
     targets_from_csv,
     targets_from_errors_jsonl,

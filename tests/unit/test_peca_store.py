@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.sweeps.peca_store import (
+from judex.sweeps.peca_store import (
     PecaAttemptRecord,
     PecaStore,
     load_retry_list,

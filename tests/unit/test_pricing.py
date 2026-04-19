@@ -1,4 +1,4 @@
-"""src.utils.pricing — cost estimation.
+"""judex.utils.pricing — cost estimation.
 
 Covers the two cost surfaces (proxy bandwidth + OCR) and env-var
 overrides. Deliberately thin: the arithmetic is a few multiplies;
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.utils.pricing import (
+from judex.utils.pricing import (
     estimate_ocr_cost,
     estimate_proxy_cost,
     ocr_usd_per_1k_pages,

@@ -4,7 +4,7 @@ Extract liminar from process data
 
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.utils.timing import track_extraction_timing
+from judex.utils.timing import track_extraction_timing
 
 
 @track_extraction_timing

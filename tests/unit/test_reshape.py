@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data.reshape import reshape_to_v8
+from judex.data.reshape import reshape_to_v8
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "reshape"
 

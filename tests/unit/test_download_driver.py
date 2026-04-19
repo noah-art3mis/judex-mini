@@ -16,18 +16,18 @@ from pathlib import Path
 
 import pytest
 
-from src.scraping.proxy_pool import ProxyPool
-from src.sweeps import shared as _shared
-from src.sweeps.download_driver import run_download_sweep
-from src.sweeps.peca_store import PecaStore
-from src.sweeps.peca_targets import PecaTarget
-from src.utils import peca_cache
+from judex.scraping.proxy_pool import ProxyPool
+from judex.sweeps import shared as _shared
+from judex.sweeps.download_driver import run_download_sweep
+from judex.sweeps.peca_store import PecaStore
+from judex.sweeps.peca_targets import PecaTarget
+from judex.utils import peca_cache
 
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
+        "judex.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
     )
 
 
@@ -191,7 +191,7 @@ def test_proxy_pool_rotates_session_after_rotate_seconds(
     """
     clock = [1000.0]
     monkeypatch.setattr(
-        "src.sweeps.download_driver.time.monotonic", lambda: clock[0]
+        "judex.sweeps.download_driver.time.monotonic", lambda: clock[0]
     )
     pool = ProxyPool(
         ["http://a.proxy:1", "http://b.proxy:1"], _now=lambda: clock[0]
@@ -230,17 +230,17 @@ def test_proxy_pool_reactive_rotation_on_approaching_collapse(
     """
     clock = [1000.0]
     monkeypatch.setattr(
-        "src.sweeps.download_driver.time.monotonic", lambda: clock[0]
+        "judex.sweeps.download_driver.time.monotonic", lambda: clock[0]
     )
     # on_item measures `wall = time.perf_counter() - t0` and feeds it to
     # CliffDetector. Mock perf_counter to match the fake-monotonic clock
     # so the detector sees p95 > 30 and promotes to approaching_collapse.
     monkeypatch.setattr(
-        "src.sweeps.download_driver.time.perf_counter", lambda: clock[0]
+        "judex.sweeps.download_driver.time.perf_counter", lambda: clock[0]
     )
     # Pool-exhaustion branch calls the real time.sleep(); neuter it so
     # the test doesn't hang waiting for a 4-minute cooldown.
-    monkeypatch.setattr("src.sweeps.download_driver.time.sleep", lambda _s: None)
+    monkeypatch.setattr("judex.sweeps.download_driver.time.sleep", lambda _s: None)
     pool = ProxyPool(
         ["http://a.proxy:1", "http://b.proxy:1", "http://c.proxy:1"],
         _now=lambda: clock[0],

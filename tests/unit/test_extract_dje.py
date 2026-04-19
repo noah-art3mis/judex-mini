@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.scraping.extraction.dje import parse_dje_detail, parse_dje_listing
+from judex.scraping.extraction.dje import parse_dje_detail, parse_dje_listing
 
 FIX = Path(__file__).parent.parent / "fixtures" / "dje"
 

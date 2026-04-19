@@ -28,7 +28,7 @@ andamentos nome+complemento.
 
 from __future__ import annotations
 
-from src.scraping.extraction.http import derive_outcome
+from judex.scraping.extraction.http import derive_outcome
 
 
 def _make_item(**kwargs):
