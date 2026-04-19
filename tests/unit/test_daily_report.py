@@ -8,7 +8,8 @@ handling of None-valued optional fields.
 
 from __future__ import annotations
 
-from judex.reports.daily import render_daily_markdown
+from judex.reports.daily import WatchedCaseChange, render_daily_markdown
+from judex.reports.watch_diff import WatchChange
 
 
 def _bare_case(**overrides: object) -> dict:
@@ -106,6 +107,70 @@ def test_handles_none_valued_optional_fields() -> None:
     assert "HC 271140" in md
     # No crash implies graceful rendering; no assertion on exact placeholder
     # text since that's presentation, not behavior.
+
+
+def test_watched_section_omitted_when_param_is_none() -> None:
+    """Existing callers that don't pass watched_changes get no new section."""
+    md = render_daily_markdown([], date="2026-04-20", classe="HC", stats={})
+    assert "watched" not in md.lower()
+
+
+def test_watched_section_shown_with_placeholder_when_empty_list() -> None:
+    """Passing [] (empty but non-None) means 'we checked; nothing changed'."""
+    md = render_daily_markdown(
+        [], date="2026-04-20", classe="HC", stats={}, watched_changes=[]
+    )
+    assert "watched" in md.lower() or "monitorad" in md.lower()
+
+
+def test_watched_section_lists_new_andamento() -> None:
+    change = WatchChange(
+        items_added={
+            "andamentos": [
+                {"index": 5, "data": "2026-04-19", "nome": "Decisão monocrática"}
+            ]
+        }
+    )
+    item = _bare_case(processo_id=158802, relator="Min. Fulano")
+    md = render_daily_markdown(
+        [], date="2026-04-20", classe="HC", stats={},
+        watched_changes=[
+            WatchedCaseChange(classe="HC", numero=158802, item=item, change=change)
+        ],
+    )
+
+    assert "HC 158802" in md
+    assert "Decisão monocrática" in md
+    assert "2026-04-19" in md
+
+
+def test_watched_section_shows_scalar_change() -> None:
+    change = WatchChange(fields_changed={"relator": (None, "Min. Nova")})
+    item = _bare_case(processo_id=158802, relator="Min. Nova")
+    md = render_daily_markdown(
+        [], date="2026-04-20", classe="HC", stats={},
+        watched_changes=[
+            WatchedCaseChange(classe="HC", numero=158802, item=item, change=change)
+        ],
+    )
+
+    assert "Min. Nova" in md
+    # Old → new arrow or similar transition marker
+    assert "→" in md or "->" in md or "None" in md
+
+
+def test_watched_first_time_case_labelled_new() -> None:
+    change = WatchChange(is_new=True)
+    item = _bare_case(processo_id=158802)
+    md = render_daily_markdown(
+        [], date="2026-04-20", classe="HC", stats={},
+        watched_changes=[
+            WatchedCaseChange(classe="HC", numero=158802, item=item, change=change)
+        ],
+    )
+
+    assert "HC 158802" in md
+    assert "new" in md.lower() or "novo" in md.lower() or "primeir" in md.lower()
 
 
 def test_summary_section_includes_basic_stats() -> None:

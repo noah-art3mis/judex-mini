@@ -23,8 +23,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from judex.config import ScraperConfig
-from judex.reports.daily import render_daily_markdown
+from judex.reports.daily import WatchedCaseChange, render_daily_markdown
 from judex.reports.state import DailyState
+from judex.reports.watch_diff import diff_watched
+from judex.reports.watchlist import load_snapshot, parse_watchlist, save_snapshot
 from judex.scraping.http_session import new_session
 from judex.scraping.proxy_pool import ProxyPool
 from judex.scraping.scraper import (
@@ -76,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-probes", type=int, default=1000)
     parser.add_argument("--seed-from-warehouse", action="store_true",
                         help="If state has no mark for --class, seed it from the warehouse.")
+    parser.add_argument("--watchlist", type=Path, default=None,
+                        help="Text file with one 'CLASSE NUMERO' per line; re-scrape and diff.")
+    parser.add_argument("--snapshot-root", type=Path,
+                        default=Path("state/watchlist"),
+                        help="Where per-case watch snapshots are read/written.")
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -131,16 +138,45 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as e:
             logging.exception("%s %d: scrape failed: %s", d.classe, d.numero, e)
 
+    watched_changes: list[WatchedCaseChange] | None = None
+    if args.watchlist is not None:
+        watchlist = parse_watchlist(args.watchlist)
+        logging.info("watchlist: %d cases to check", len(watchlist))
+        watched_changes = []
+        for w_classe, w_numero in watchlist:
+            old = load_snapshot(w_classe, w_numero, root=args.snapshot_root)
+            try:
+                item = scrape_processo_http(
+                    w_classe, w_numero,
+                    session=session, config=config,
+                    fetch_pdfs=True, fetch_dje=True,
+                )
+            except Exception as e:
+                logging.exception("watched %s %d: scrape failed: %s", w_classe, w_numero, e)
+                continue
+            change = diff_watched(old, item)
+            save_snapshot(w_classe, w_numero, item, root=args.snapshot_root)
+            watched_changes.append(
+                WatchedCaseChange(classe=w_classe, numero=w_numero, item=item, change=change)
+            )
+        n_actionable = sum(1 for wc in watched_changes if wc.change.has_changes)
+        logging.info("watched: %d of %d changed", n_actionable, len(watched_changes))
+
     duration_s = round(time.time() - t0, 1)
     today = datetime.now(timezone.utc).date().isoformat()
+    stats: dict = {
+        "n_probed": len(new) + args.stop_after_misses,
+        "duration_s": duration_s,
+    }
+    if watched_changes is not None:
+        stats["watched_total"] = len(watched_changes)
+
     md = render_daily_markdown(
         cases,
         date=today,
         classe=args.classe,
-        stats={
-            "n_probed": len(new) + args.stop_after_misses,
-            "duration_s": duration_s,
-        },
+        stats=stats,
+        watched_changes=watched_changes,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)

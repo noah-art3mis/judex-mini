@@ -1,0 +1,5 @@
+# Watchlist for daily report — one process per line, CLASSE NUMERO.
+# Lines starting with # and blank lines are ignored.
+# Inline trailing comments after `#` are also stripped.
+
+HC 158802    # ground-truth case, known-scrapeable

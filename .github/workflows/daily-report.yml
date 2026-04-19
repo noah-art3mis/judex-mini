@@ -49,21 +49,25 @@ jobs:
 
       - name: Run daily report
         run: |
-          PROXY_ARG=""
+          EXTRA_ARGS=""
           if [ -s /tmp/proxies.txt ]; then
-            PROXY_ARG="--proxy-pool /tmp/proxies.txt"
+            EXTRA_ARGS="$EXTRA_ARGS --proxy-pool /tmp/proxies.txt"
+          fi
+          # Watchlist is opt-in: repo-root `watchlist.txt` activates it.
+          if [ -f watchlist.txt ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --watchlist watchlist.txt"
           fi
           uv run python scripts/daily_report.py \
             --class HC \
             --state-file state/daily_report.json \
             --out-dir docs/reports/daily \
-            $PROXY_ARG
+            $EXTRA_ARGS
 
       - name: Commit results
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/daily_report.json docs/reports/daily/
+          git add state/daily_report.json state/watchlist/ docs/reports/daily/ 2>/dev/null || true
           if git diff --quiet --cached; then
             echo "no changes to commit"
           else

@@ -224,17 +224,9 @@ def varrer_processos(
         True, "--retry-403/--no-retry-403",
         help="Retry em 403 (o WAF do STF usa 403, não 429, como sinal de throttle).",
     ),
-    janela_circuit: int = typer.Option(
-        50, "--janela-circuit",
-        help="Janela rolante do disjuntor (circuit breaker). 0 desliga.",
-    ),
     diretorio_itens: Optional[Path] = typer.Option(
         None, "--diretorio-itens",
         help="Grava um judex-mini_<CLASSE>_<n>-<n>.json por processo ok aqui.",
-    ),
-    limiar_circuit: float = typer.Option(
-        0.8, "--limiar-circuit",
-        help="Fração não-ok da janela que dispara o disjuntor.",
     ),
     janela_cliff: int = typer.Option(
         50, "--janela-cliff",
@@ -247,14 +239,6 @@ def varrer_processos(
     proxy_pool: Optional[Path] = typer.Option(
         None, "--proxy-pool",
         help="Arquivo com uma URL de proxy por linha; habilita rotação proativa.",
-    ),
-    proxy_rotacao_segundos: float = typer.Option(
-        270.0, "--proxy-rotacao-segundos",
-        help="Segundos usando cada proxy antes de rotacionar (padrão 270 = 4,5 min).",
-    ),
-    proxy_cooldown_minutos: float = typer.Option(
-        4.0, "--proxy-cooldown-minutos",
-        help="Minutos que um proxy recém-usado permanece fora de rotação.",
     ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
@@ -363,14 +347,10 @@ def varrer_processos(
     _push(argv, "--progress-every", progresso_cada)
     if not retry_403:  # argparse do script usa a negação --no-retry-403
         argv.append("--no-retry-403")
-    _push(argv, "--circuit-window", janela_circuit)
     _push(argv, "--items-dir", diretorio_itens)
-    _push(argv, "--circuit-threshold", limiar_circuit)
     _push(argv, "--cliff-window", janela_cliff)
     _push(argv, "--no-stop-on-collapse", ignorar_collapse)
     _push(argv, "--proxy-pool", proxy_pool)
-    _push(argv, "--proxy-rotate-seconds", proxy_rotacao_segundos)
-    _push(argv, "--proxy-cooldown-minutes", proxy_cooldown_minutos)
 
     from scripts.run_sweep import main as _run_sweep_main
 
@@ -481,15 +461,6 @@ def baixar_pecas(
              "proativa. Sem este flag, a varredura roda em IP direto "
              "(comportamento atual).",
     ),
-    proxy_rotacao_segundos: float = typer.Option(
-        270.0, "--proxy-rotacao-segundos",
-        help="Segundos usando cada proxy antes de rotacionar (padrão 270 = "
-             "4,5 min). Ignorado quando --proxy-pool é omitido.",
-    ),
-    proxy_cooldown_minutos: float = typer.Option(
-        4.0, "--proxy-cooldown-minutos",
-        help="Minutos que um proxy recém-usado permanece fora de rotação.",
-    ),
     shards: int = typer.Option(
         0, "--shards",
         help="Se > 1, particiona o CSV em N shards e dispara N processos "
@@ -516,9 +487,8 @@ def baixar_pecas(
 
     Rotação de proxy é opcional e espelha ``varrer-processos``: sem
     ``--proxy-pool``, roda em IP direto (comportamento padrão). Com
-    ``--proxy-pool``, o driver troca de sessão/IP a cada
-    ``--proxy-rotacao-segundos`` para nunca encostar no limite do WAF
-    do STF em um único IP.
+    ``--proxy-pool``, o driver troca de sessão/IP proativamente — janela
+    alinhada com o tempo que o WAF do STF leva para esquecer um IP.
     """
     if shards > 1:
         if csv is None:
@@ -543,8 +513,6 @@ def baixar_pecas(
         _push(extra, "--retomar", retomar)
         _push(extra, "--forcar", forcar)
         _push(extra, "--nao-perguntar", nao_perguntar)
-        _push(extra, "--proxy-rotate-seconds", proxy_rotacao_segundos)
-        _push(extra, "--proxy-cooldown-minutes", proxy_cooldown_minutos)
 
         try:
             pids_path = launch_sharded_download(
@@ -573,8 +541,6 @@ def baixar_pecas(
     )
     _push(argv, "--forcar", forcar)
     _push(argv, "--proxy-pool", proxy_pool)
-    _push(argv, "--proxy-rotate-seconds", proxy_rotacao_segundos)
-    _push(argv, "--proxy-cooldown-minutes", proxy_cooldown_minutos)
 
     from scripts.baixar_pecas import main as _baixar_main
     raise typer.Exit(code=_baixar_main(argv))
@@ -740,6 +706,14 @@ def relatorio_diario(
         False, "--semente-warehouse",
         help="Na 1ª execução para uma classe, usa MAX(processo_id) do warehouse.",
     ),
+    arquivo_lista: Optional[Path] = typer.Option(
+        None, "--arquivo-lista",
+        help="TXT com uma linha 'CLASSE NUMERO' por processo monitorado; diff a cada rodada.",
+    ),
+    raiz_snapshots: Path = typer.Option(
+        Path("state/watchlist"), "--raiz-snapshots",
+        help="Diretório onde os snapshots por processo monitorado são guardados.",
+    ),
 ) -> None:
     """Gera o relatório diário de novas distribuições."""
     argv: list[str] = ["daily_report", "--class", classe]
@@ -748,6 +722,8 @@ def relatorio_diario(
     _push(argv, "--proxy-pool", proxy_pool)
     _push(argv, "--stop-after-misses", paradas_apos_misses)
     _push(argv, "--seed-from-warehouse", semente_warehouse)
+    _push(argv, "--watchlist", arquivo_lista)
+    _push(argv, "--snapshot-root", raiz_snapshots)
 
     from scripts import daily_report as _dr
 

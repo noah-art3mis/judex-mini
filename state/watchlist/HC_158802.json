@@ -1,0 +1,1161 @@
+{
+  "_meta": {
+    "extraido": "2026-04-19T19:40:16.700366",
+    "schema_version": 8,
+    "status_http": 200
+  },
+  "andamentos": [
+    {
+      "complemento": null,
+      "data": "2020-08-28",
+      "index": 60,
+      "julgador": null,
+      "link": null,
+      "nome": "BAIXA AO ARQUIVO DO STF"
+    },
+    {
+      "complemento": "25/08/2020",
+      "data": "2020-08-28",
+      "index": 59,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15344239074&ext=.pdf"
+      },
+      "nome": "TRANSITADO(A) EM JULGADO"
+    },
+    {
+      "complemento": "PROCURADOR-GERAL DA REPÚBLICA - Petição: 66119 - Data: 20/08/2020, às 11:51:25, via Web Service MNI 2.2.2.",
+      "data": "2020-08-20",
+      "index": 58,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": "PROCURADOR-GERAL DA REPÚBLICA",
+      "data": "2020-08-18",
+      "index": 57,
+      "julgador": null,
+      "link": null,
+      "nome": "INTIMADO ELETRONICAMENTE"
+    },
+    {
+      "complemento": null,
+      "data": "2020-08-17",
+      "index": 56,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "INTEIRO TEOR DO ACÓRDÃO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15344016231&ext=.pdf"
+      },
+      "nome": "VISTA À PGR PARA FINS DE INTIMAÇÃO"
+    },
+    {
+      "complemento": "DATA DE PUBLICAÇÃO DJE 17/08/2020 - ATA Nº 132/2020. DJE nº 204, divulgado em 14/08/2020",
+      "data": "2020-08-17",
+      "index": 55,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "INTEIRO TEOR DO ACÓRDÃO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15344016231&ext=.pdf"
+      },
+      "nome": "PUBLICADO ACÓRDÃO, DJE"
+    },
+    {
+      "complemento": "ATA Nº 16, de 29/05/2020. DJE nº 137, divulgado em 02/06/2020",
+      "data": "2020-06-03",
+      "index": 54,
+      "julgador": null,
+      "link": null,
+      "nome": "ATA DE JULGAMENTO PUBLICADA, DJE"
+    },
+    {
+      "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
+      "data": "2020-06-01",
+      "index": 53,
+      "julgador": null,
+      "link": null,
+      "nome": "EXPEDIDO(A)"
+    },
+    {
+      "complemento": "Manifestação - Petição: 38960 Data: 01/06/2020, às 16:06:57",
+      "data": "2020-06-01",
+      "index": 52,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
+      "data": "2020-06-01",
+      "index": 51,
+      "julgador": null,
+      "link": null,
+      "nome": "EXPEDIDO(A)"
+    },
+    {
+      "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
+      "data": "2020-06-01",
+      "index": 50,
+      "julgador": null,
+      "link": null,
+      "nome": "COMUNICAÇÃO ASSINADA"
+    },
+    {
+      "complemento": "2ª TURMA - COMUNICA DECISÃO - PRESIDENTE (ENVIO ELETRÔNICO)",
+      "data": "2020-06-01",
+      "index": 49,
+      "julgador": null,
+      "link": null,
+      "nome": "COMUNICAÇÃO ASSINADA"
+    },
+    {
+      "complemento": "Certifico a elaboração de 2 ofícios eletrônicos. 2ª Turma, Sessão Virtual de 22 a 28/05/2020.",
+      "data": "2020-06-01",
+      "index": 48,
+      "julgador": null,
+      "link": null,
+      "nome": "CERTIDÃO"
+    },
+    {
+      "complemento": "Certidão de Julgamento da Sessão Virtual",
+      "data": "2020-05-29",
+      "index": 47,
+      "julgador": null,
+      "link": null,
+      "nome": "JUNTADA"
+    },
+    {
+      "complemento": "Decisão: A Turma, por maioria, deu provimento ao agravo regimental, para cassar a liminar deferida, nos termos do voto do Ministro Edson Fachin, vencidos os Ministros Gilmar Mendes (Relator) e Ricardo Lewandowski. Redigirá o acórdão o Ministro Edson Fachin. Segunda Turma, Sessão Virtual de 22.5.2020 a 28.5.2020.",
+      "data": "2020-05-29",
+      "index": 46,
+      "julgador": "2ª TURMA - SESSÃO VIRTUAL",
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "DECISÃO DE JULGAMENTO",
+        "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5097474&ext=RTF"
+      },
+      "nome": "AGRAVO REGIMENTAL PROVIDO"
+    },
+    {
+      "complemento": "Finalizado Julgamento Virtual em 28 de Maio de 2020 (Quinta-feira), às 23:59 .",
+      "data": "2020-05-29",
+      "index": 45,
+      "julgador": null,
+      "link": null,
+      "nome": "FINALIZADO JULGAMENTO VIRTUAL"
+    },
+    {
+      "complemento": null,
+      "data": "2020-05-22",
+      "index": 44,
+      "julgador": null,
+      "link": null,
+      "nome": "INICIADO JULGAMENTO VIRTUAL"
+    },
+    {
+      "complemento": "12/05/2020 19:10:35 - Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 22/05/2020.",
+      "data": "2020-05-12",
+      "index": 43,
+      "julgador": "MIN. EDSON FACHIN",
+      "link": null,
+      "nome": "VISTA - DEVOLUÇÃO DOS AUTOS PARA JULGAMENTO"
+    },
+    {
+      "complemento": "Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 22/05/2020.",
+      "data": "2020-05-12",
+      "index": 42,
+      "julgador": "MIN. EDSON FACHIN",
+      "link": null,
+      "nome": "INCLUÍDO NA LISTA DE JULGAMENTO"
+    },
+    {
+      "complemento": "ATA Nº 10, de 20/04/2020. DJE nº 99, divulgado em 23/04/2020",
+      "data": "2020-04-24",
+      "index": 41,
+      "julgador": null,
+      "link": null,
+      "nome": "ATA DE JULGAMENTO PUBLICADA, DJE"
+    },
+    {
+      "complemento": "Certidão de Julgamento da Sessão Virtual",
+      "data": "2020-04-21",
+      "index": 40,
+      "julgador": null,
+      "link": null,
+      "nome": "JUNTADA"
+    },
+    {
+      "complemento": "Decisão: Após o voto do Ministro Relator, que negava provimento ao agravo regimental do Ministério Público Federal, pediu vista o Ministro Edson Fachin. Não participou deste julgamento, por motivo de licença médica no início da sessão, o Ministro Celso de Mello (art. 2º, § 5º, da Res. 642/2019). Segunda Turma, Sessão Virtual de 10.4.2020 a 17.4.2020.",
+      "data": "2020-04-20",
+      "index": 39,
+      "julgador": "MIN. EDSON FACHIN",
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "DECISÃO DE JULGAMENTO",
+        "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=5064563&ext=RTF"
+      },
+      "nome": "VISTA AO(À) MINISTRO(A)"
+    },
+    {
+      "complemento": "Pedido de Vista",
+      "data": "2020-04-15",
+      "index": 38,
+      "julgador": "MIN. EDSON FACHIN",
+      "link": null,
+      "nome": "SUSPENSO O JULGAMENTO"
+    },
+    {
+      "complemento": null,
+      "data": "2020-04-10",
+      "index": 37,
+      "julgador": null,
+      "link": null,
+      "nome": "INICIADO JULGAMENTO VIRTUAL"
+    },
+    {
+      "complemento": "PAUTA Nº 28/2020. DJE nº 78, divulgado em 30/03/2020",
+      "data": "2020-03-31",
+      "index": 36,
+      "julgador": null,
+      "link": null,
+      "nome": "PAUTA PUBLICADA NO DJE - 2ª TURMA"
+    },
+    {
+      "complemento": "Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 10/04/2020.",
+      "data": "2020-03-27",
+      "index": 35,
+      "julgador": "2ª TURMA - SESSÃO VIRTUAL",
+      "link": null,
+      "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA"
+    },
+    {
+      "complemento": "2ª Turma em 27/03/2020 16:05:26 - HC-MC-AgR",
+      "data": "2020-03-27",
+      "index": 34,
+      "julgador": null,
+      "link": null,
+      "nome": "RETIRADO DE MESA"
+    },
+    {
+      "complemento": "Data de Julgamento: 17/03/2020",
+      "data": "2020-03-13",
+      "index": 33,
+      "julgador": null,
+      "link": null,
+      "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO"
+    },
+    {
+      "complemento": "Data de Julgamento: 10/03/2020",
+      "data": "2020-03-09",
+      "index": 32,
+      "julgador": null,
+      "link": null,
+      "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO"
+    },
+    {
+      "complemento": "Informamos a Vossa Senhoria que, PROVAVELMENTE, este Habeas Corpus-AgR será levado a julgamento na Sessão da 2ª Turma deste Supremo Tribunal Federal do dia 10.03.2020 (terça-feira), a partir das 14h00min.",
+      "data": "2020-03-06",
+      "index": 31,
+      "julgador": null,
+      "link": null,
+      "nome": "CERTIDÃO"
+    },
+    {
+      "complemento": "2ª Turma em 06/03/2020 17:29:56 - HC-MC-AgR",
+      "data": "2020-03-06",
+      "index": 30,
+      "julgador": "2ª TURMA",
+      "link": null,
+      "nome": "APRESENTADO EM MESA PARA JULGAMENTO"
+    },
+    {
+      "complemento": null,
+      "data": "2019-05-14",
+      "index": 29,
+      "julgador": null,
+      "link": null,
+      "nome": "CONCLUSOS AO(À) RELATOR(A)"
+    },
+    {
+      "complemento": null,
+      "data": "2019-05-14",
+      "index": 28,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "MANIFESTAÇÃO DA PGR",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15340143483&ext=.pdf"
+      },
+      "nome": "MANIFESTAÇÃO DA PGR"
+    },
+    {
+      "complemento": null,
+      "data": "2018-09-04",
+      "index": 27,
+      "julgador": null,
+      "link": null,
+      "nome": "CONCLUSOS AO(À) RELATOR(A)"
+    },
+    {
+      "complemento": null,
+      "data": "2018-09-04",
+      "index": 26,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "MANIFESTAÇÃO DA PGR",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=315201271&ext=.pdf"
+      },
+      "nome": "MANIFESTAÇÃO DA PGR"
+    },
+    {
+      "complemento": null,
+      "data": "2018-08-22",
+      "index": 25,
+      "julgador": null,
+      "link": null,
+      "nome": "CONCLUSOS AO(À) RELATOR(A)"
+    },
+    {
+      "complemento": "Sustentação oral - Petição: 54910 Data: 22/08/2018 às 12:23:34",
+      "data": "2018-08-22",
+      "index": 24,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": "Referente ao Ofício 14844/2018 - 7ª VARA FEDERAL CRIMINAL DO RIO DE JANEIRO SEÇÃO JUDICIÁRIA DO RIO DE JANEIRO - Com cópia da Petição Inicial, da decisão e do ofício eletrônico n°176/2018 -URGENTE JT538618321BR",
+      "data": "2018-08-16",
+      "index": 23,
+      "julgador": null,
+      "link": null,
+      "nome": "JUNTADA DE AR"
+    },
+    {
+      "complemento": null,
+      "data": "2018-08-14",
+      "index": 22,
+      "julgador": null,
+      "link": null,
+      "nome": "CONCLUSOS AO(À) RELATOR(A)"
+    },
+    {
+      "complemento": "Juntada Petição: 52211/2018",
+      "data": "2018-08-13",
+      "index": 21,
+      "julgador": null,
+      "link": null,
+      "nome": "INTERPOSTO AGRAVO REGIMENTAL"
+    },
+    {
+      "complemento": "PROCURADORIA-GERAL DA REPÚBLICA - Guia 1898770/1898770",
+      "data": "2018-08-13",
+      "index": 20,
+      "julgador": null,
+      "link": null,
+      "nome": "RECEBIMENTO DOS AUTOS"
+    },
+    {
+      "complemento": "52211/2018 - 13/08/2018 - (Petição Eletrônica com Certificação Digital) - MINISTÉRIO PÚBLICO FEDERAL - Ag. Reg.",
+      "data": "2018-08-13",
+      "index": 19,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": null,
+      "data": "2018-08-07",
+      "index": 18,
+      "julgador": null,
+      "link": null,
+      "nome": "VISTA À PGR"
+    },
+    {
+      "complemento": "50606/2018 - 07/08/2018 - (Via Malote Digital) OFÍCIO Nº TRF2-OFI-2018/12593, Juiz Federal da 7ª Vara Criminal SJRJ - Presta informações.",
+      "data": "2018-08-07",
+      "index": 17,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": "Ofício 14844/2018 - 7ª VARA FEDERAL CRIMINAL DO RIO DE JANEIRO SEÇÃO JUDICIÁRIA DO RIO DE JANEIRO - Com cópia da Petição Inicial, da decisão e do ofício eletrônico n°176/2018 -URGENTE JT538618321BR - Data da Remessa: 03/08/2018",
+      "data": "2018-08-03",
+      "index": 16,
+      "julgador": null,
+      "link": null,
+      "nome": "EXPEDIDO(A)"
+    },
+    {
+      "complemento": "REITERAÇÃO - RESOLUÇÃO/STF 478/2011 - SEJ",
+      "data": "2018-08-01",
+      "index": 15,
+      "julgador": null,
+      "link": null,
+      "nome": "COMUNICAÇÃO ASSINADA"
+    },
+    {
+      "complemento": "Certifico haver elaborado 1 ofício.Nos termos da Resolução STF nº 478/2011.",
+      "data": "2018-08-01",
+      "index": 14,
+      "julgador": null,
+      "link": null,
+      "nome": "CERTIDÃO"
+    },
+    {
+      "complemento": "Certifico que, até 1º/08/2018, não foram recebidas as informações solicitadas por intermédio do Ofício nº 176/2018. Faço remessa à Seção de Comunicações para os fins do art. 1º, VI da Resolução nº 478/2011/STF.",
+      "data": "2018-08-01",
+      "index": 13,
+      "julgador": null,
+      "link": null,
+      "nome": "CERTIDÃO"
+    },
+    {
+      "complemento": "Informações - Petição: 43954 Data: 28/06/2018 às 17:08:19",
+      "data": "2018-06-28",
+      "index": 12,
+      "julgador": null,
+      "link": null,
+      "nome": "PETIÇÃO"
+    },
+    {
+      "complemento": "DJE nº 127, divulgado em 26/06/2018",
+      "data": "2018-06-27",
+      "index": 11,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "DESPACHO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=314697787&ext=.pdf"
+      },
+      "nome": "PUBLICAÇÃO, DJE"
+    },
+    {
+      "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
+      "data": "2018-06-25",
+      "index": 10,
+      "julgador": null,
+      "link": null,
+      "nome": "EXPEDIDO(A)"
+    },
+    {
+      "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
+      "data": "2018-06-25",
+      "index": 9,
+      "julgador": null,
+      "link": null,
+      "nome": "EXPEDIDO(A)"
+    },
+    {
+      "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
+      "data": "2018-06-25",
+      "index": 8,
+      "julgador": null,
+      "link": null,
+      "nome": "COMUNICAÇÃO ASSINADA"
+    },
+    {
+      "complemento": "OFÍCIO - COMUNICA DESPACHO/DECISÃO - SEJ (MALOTE DIGITAL)",
+      "data": "2018-06-25",
+      "index": 7,
+      "julgador": null,
+      "link": null,
+      "nome": "COMUNICAÇÃO ASSINADA"
+    },
+    {
+      "complemento": "Certifico que elaborei 2 ofícios (malote digital). Decisão de 25/6/18.",
+      "data": "2018-06-25",
+      "index": 6,
+      "julgador": null,
+      "link": null,
+      "nome": "CERTIDÃO"
+    },
+    {
+      "complemento": "\"(...) Ante o exposto, identificando adequação fática e jurídica com os argumentos e razões de decidir contidos nos acórdãos prolatados pela Segunda Turma, em 10.10.2017 e 18.12.2017, nos HCs 143.247/RJ, 146.666/RJ e 147.192/RJ, defiro o pedido de liminar para suspender a ordem de prisão preventiva decretada em desfavor do paciente ROBERTO RZEZINSKI, na data de 2.5.2018, pelo Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Auto n. 060662-28.2018.4.02.5101), se por outro motivo não estiver preso, pelas seguintes medidas cautelares diversas da prisão, na forma do art. 319 do CPP: a) proibição de manter contato com os demais investigados, por qualquer meio (inciso III); b) proibição de deixar o País, devendo entregar seu(s) passaporte(s) em até 48h (quarenta e oito) horas (inciso IV e artigo 320). Comunique-se, com urgência, ao Juízo de origem. Requisitem-se informações ao Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Autos n. 0060662-28.2018.4.02.5101). Após, dê-se vistas dos autos à Procuradoria-Geral da República. Publique-se.\"",
+      "data": "2018-06-25",
+      "index": 5,
+      "julgador": "MIN. GILMAR MENDES",
+      "link": null,
+      "nome": "LIMINAR DEFERIDA"
+    },
+    {
+      "complemento": null,
+      "data": "2018-06-21",
+      "index": 4,
+      "julgador": null,
+      "link": null,
+      "nome": "CONCLUSOS AO(À) RELATOR(A)"
+    },
+    {
+      "complemento": "MIN. GILMAR MENDES. Prevenção do Relator/Sucessor: MIN. GILMAR MENDES. Processo que justifica: HC 141478. Justificativa legal: RISTF, art. 77-D, caput",
+      "data": "2018-06-21",
+      "index": 3,
+      "julgador": null,
+      "link": {
+        "extractor": null,
+        "text": null,
+        "tipo": "CERTIDÃO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=314674384&ext=.pdf"
+      },
+      "nome": "DISTRIBUÍDO POR PREVENÇÃO"
+    },
+    {
+      "complemento": null,
+      "data": "2018-06-21",
+      "index": 2,
+      "julgador": null,
+      "link": null,
+      "nome": "AUTUADO"
+    },
+    {
+      "complemento": null,
+      "data": "2018-06-21",
+      "index": 1,
+      "julgador": null,
+      "link": null,
+      "nome": "PROTOCOLADO"
+    }
+  ],
+  "apensos": null,
+  "assuntos": [
+    "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+  ],
+  "badges": [
+    "Criminal",
+    "Medida Liminar",
+    "Réu Preso"
+  ],
+  "classe": "HC",
+  "data_protocolo": "2018-06-21",
+  "deslocamentos": [
+    {
+      "data_enviado": "2021-01-30",
+      "data_recebido": "2021-01-30",
+      "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+      "guia": "6/2021",
+      "index": 20,
+      "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU"
+    },
+    {
+      "data_enviado": "2020-08-28",
+      "data_recebido": "2020-08-28",
+      "enviado_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
+      "guia": "33852/2020",
+      "index": 19,
+      "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL"
+    },
+    {
+      "data_enviado": "2020-08-17",
+      "data_recebido": "2020-08-17",
+      "enviado_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS",
+      "guia": "1215/2020",
+      "index": 18,
+      "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
+    },
+    {
+      "data_enviado": "2020-07-01",
+      "data_recebido": "2020-07-01",
+      "enviado_por": "GABINETE MINISTRO EDSON FACHIN",
+      "guia": "4923/2020",
+      "index": 17,
+      "recebido_por": "GERÊNCIA DE PUBLICAÇÃO DE ACÓRDÃOS"
+    },
+    {
+      "data_enviado": "2020-04-15",
+      "data_recebido": "2020-04-15",
+      "enviado_por": "GABINETE MINISTRO GILMAR MENDES",
+      "guia": "2069/2020",
+      "index": 16,
+      "recebido_por": "GABINETE MINISTRO EDSON FACHIN"
+    },
+    {
+      "data_enviado": "2019-05-14",
+      "data_recebido": "2019-05-14",
+      "enviado_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
+      "guia": "17926/2019",
+      "index": 15,
+      "recebido_por": "GABINETE MINISTRO GILMAR MENDES"
+    },
+    {
+      "data_enviado": "2019-05-14",
+      "data_recebido": "2019-05-14",
+      "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
+      "guia": "2048791/2019",
+      "index": 14,
+      "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
+    },
+    {
+      "data_enviado": "2018-09-04",
+      "data_recebido": "2018-09-04",
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "guia": "26109/2018",
+      "index": 13,
+      "recebido_por": "GABINETE MINISTRO GILMAR MENDES"
+    },
+    {
+      "data_enviado": "2018-09-04",
+      "data_recebido": "2018-09-04",
+      "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
+      "guia": "1913574/2018",
+      "index": 12,
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data_enviado": "2018-08-14",
+      "data_recebido": "2018-08-14",
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "guia": "23024/2018",
+      "index": 11,
+      "recebido_por": "GABINETE MINISTRO GILMAR MENDES"
+    },
+    {
+      "data_enviado": "2018-08-13",
+      "data_recebido": "2018-08-13",
+      "enviado_por": "SEÇÃO DE ATENDIMENTO NÃO PRESENCIAL",
+      "guia": "5550/2018",
+      "index": 10,
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data_enviado": "2018-08-13",
+      "data_recebido": "2018-08-13",
+      "enviado_por": "PROCURADORIA-GERAL DA REPÚBLICA",
+      "guia": "1898770/2018",
+      "index": 9,
+      "recebido_por": "SEÇÃO DE ATENDIMENTO NÃO PRESENCIAL"
+    },
+    {
+      "data_enviado": "2018-08-07",
+      "data_recebido": null,
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "guia": "21901/2018",
+      "index": 8,
+      "recebido_por": "PROCURADORIA-GERAL DA REPÚBLICA"
+    },
+    {
+      "data_enviado": "2018-08-01",
+      "data_recebido": "2018-08-01",
+      "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
+      "guia": "7905/2018",
+      "index": 7,
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data_enviado": "2018-08-01",
+      "data_recebido": "2018-08-01",
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "guia": "20426/2018",
+      "index": 6,
+      "recebido_por": "SEÇÃO DE COMUNICAÇÕES"
+    },
+    {
+      "data_enviado": "2018-06-25",
+      "data_recebido": "2018-06-25",
+      "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
+      "guia": "6703/2018",
+      "index": 5,
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data_enviado": "2018-06-25",
+      "data_recebido": "2018-06-25",
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "guia": "17482/2018",
+      "index": 4,
+      "recebido_por": "SEÇÃO DE COMUNICAÇÕES"
+    },
+    {
+      "data_enviado": "2018-06-25",
+      "data_recebido": "2018-06-25",
+      "enviado_por": "GABINETE MINISTRO GILMAR MENDES",
+      "guia": "4121/2018",
+      "index": 3,
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data_enviado": "2018-06-21",
+      "data_recebido": "2018-06-21",
+      "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "guia": "11404/2018",
+      "index": 2,
+      "recebido_por": "GABINETE MINISTRO GILMAR MENDES"
+    },
+    {
+      "data_enviado": "2018-06-21",
+      "data_recebido": "2018-06-21",
+      "enviado_por": "DIVERSOS",
+      "guia": "1873279/2018",
+      "index": 1,
+      "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS"
+    }
+  ],
+  "folhas": null,
+  "incidente": 5494703,
+  "meio": "ELETRONICO",
+  "numero_origem": [
+    "158802",
+    "00735631120181000000",
+    "454745",
+    "00606622820184025101",
+    "201851010606624",
+    "00054223120184020000",
+    "201800000054223"
+  ],
+  "numero_unico": "0073563-11.2018.1.00.0000",
+  "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
+  "origem": "RJ - RIO DE JANEIRO",
+  "outcome": {
+    "date_iso": "2020-05-22",
+    "source": "sessao_virtual",
+    "source_index": 1,
+    "verdict": "provido"
+  },
+  "partes": [
+    {
+      "index": 1,
+      "nome": "ROBERTO RZEZINSKI",
+      "tipo": "PACTE.(S)"
+    },
+    {
+      "index": 2,
+      "nome": "CLAUDIO BIDINO DE SOUZA (145100/RJ, 298100/SP)",
+      "tipo": "IMPTE.(S)"
+    },
+    {
+      "index": 3,
+      "nome": "TATHIANA DE CARVALHO COSTA (119367/RJ)",
+      "tipo": "IMPTE.(S)"
+    },
+    {
+      "index": 4,
+      "nome": "BRUNO FERNANDES CARVALHO (204733/RJ, 436155/SP)",
+      "tipo": "IMPTE.(S)"
+    },
+    {
+      "index": 5,
+      "nome": "RELATOR DO HC Nº 454.745 DO SUPERIOR TRIBUNAL DE JUSTIÇA",
+      "tipo": "COATOR(A/S)(ES)"
+    },
+    {
+      "index": 6,
+      "nome": "MINISTÉRIO PÚBLICO FEDERAL",
+      "tipo": "INTDO.(A/S)"
+    },
+    {
+      "index": 7,
+      "nome": "PROCURADOR-GERAL DA REPÚBLICA",
+      "tipo": "PROC.(A/S)(ES)"
+    }
+  ],
+  "pautas": [
+    {
+      "complemento": "Julgamento Virtual: HC-MC-AgR. Incluído na Lista 137-2020.GM - Agendado para: 22/05/2020.",
+      "data": "2020-05-12",
+      "index": 4,
+      "julgador": "MIN. EDSON FACHIN",
+      "nome": "INCLUÍDO NA LISTA DE JULGAMENTO"
+    },
+    {
+      "complemento": "PAUTA Nº 28/2020. DJE nº 78, divulgado em 30/03/2020",
+      "data": "2020-03-31",
+      "index": 3,
+      "julgador": null,
+      "nome": "PAUTA PUBLICADA NO DJE - 2ª TURMA"
+    },
+    {
+      "complemento": "Data de Julgamento: 17/03/2020",
+      "data": "2020-03-13",
+      "index": 2,
+      "julgador": null,
+      "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO"
+    },
+    {
+      "complemento": "Data de Julgamento: 10/03/2020",
+      "data": "2020-03-09",
+      "index": 1,
+      "julgador": null,
+      "nome": "INCLUÍDO NO CALENDÁRIO DE JULGAMENTO"
+    }
+  ],
+  "peticoes": [
+    {
+      "data": "2020-08-20",
+      "id": "66119/2020",
+      "index": 7,
+      "recebido_data": "2020-08-20T11:51:26",
+      "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
+    },
+    {
+      "data": "2020-06-01",
+      "id": "38960/2020",
+      "index": 6,
+      "recebido_data": "2020-06-01T16:06:59",
+      "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS"
+    },
+    {
+      "data": "2018-08-22",
+      "id": "54910/2018",
+      "index": 5,
+      "recebido_data": "2018-08-22T12:23:30",
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data": "2018-08-13",
+      "id": "52211/2018",
+      "index": 4,
+      "recebido_data": "2018-08-13T17:36:59",
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data": "2018-08-07",
+      "id": "50606/2018",
+      "index": 3,
+      "recebido_data": "2018-08-07T16:51:05",
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data": "2018-06-28",
+      "id": "43954/2018",
+      "index": 2,
+      "recebido_data": "2018-06-28T17:07:26",
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS"
+    },
+    {
+      "data": "2018-06-20",
+      "id": "41926/2018",
+      "index": 1,
+      "recebido_data": "2018-06-20T21:51:46",
+      "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS"
+    }
+  ],
+  "primeiro_autor": "ROBERTO RZEZINSKI",
+  "processo_id": 158802,
+  "publicacoes_dje": [
+    {
+      "classe": "HC",
+      "data": "2020-08-17",
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=204&dataPublicacao=17/08/2020&incidente=5522739&capitulo=5&codigoMateria=3&numeroMateria=132&texto=8783507"
+          },
+          "texto": "Decisão: Após o voto do Ministro Relator, que negava provimento ao agravo regimental do Ministério Público Federal, pediu vista o Ministro Edson Fachin. Não participou deste julgamento, por motivo de licença médica no início da sessão, o Ministro Celso de Mello (art. 2º, § 5º, da Res. 642/2019). Segunda Turma, Sessão Virtual de 10.4.2020 a 17.4.2020."
+        },
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=204&dataPublicacao=17/08/2020&incidente=5522739&capitulo=5&codigoMateria=3&numeroMateria=132&texto=8857670"
+          },
+          "texto": "Decisão: A Turma, por maioria, deu provimento ao agravo regimental, para cassar a liminar deferida, nos termos do voto do Ministro Edson Fachin, vencidos os Ministros Gilmar Mendes (Relator) e Ricardo Lewandowski. Redigirá o acórdão o Ministro Edson Fachin. Segunda Turma, Sessão Virtual de 22.5.2020 a 28.5.2020."
+        },
+        {
+          "kind": "ementa",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=204&dataPublicacao=17/08/2020&incidente=5522739&capitulo=5&codigoMateria=3&numeroMateria=132&texto=8900854"
+          },
+          "texto": "EMENTA: AGRAVO REGIMENTAL NA MEDIDA CAUTELAR NO HABEAS CORPUS. SÚMULA N. 691 DO STF. MITIGAÇÃO. IMPOSSIBILIDADE. TERATOLOGIA OU FLAGRANTE ILEGALIDADE. INEXISTÊNCIA. PRISÃO PREVENTIVA. MANUTENÇÃO. DECISÃO EM CARATÉR PRECÁRIO. FUNDAMENTAÇÃO. IDONEIDADE. FUMUS COMISSI DELICTI E PERICULUM LIBERTATIS. REITERAÇÃO DELITIVA. ORGANIZAÇÃO CRIMINOSA. LAVAGEM DE DINHEIRO. EVASÃO DE DIVISAS. CRIMES PERMANENTES. AGRAVO REGIMENTAL PROVIDO PARA CASSAR A LIMINAR DEFERIDA NESTA SUPREMA CORTE. 1. A teor do art. 102, I, “i”, da Constituição da República, o Supremo Tribunal Federal não admite a impetração de habeas corpus contra decisão proferida, de forma unipessoal, por membro de Tribunal Superior. Precedentes. 2. Sob essa perspectiva, há muito reconhecido o descabimento de habeas corpus dirigido ao combate de decisão monocrática de indeferimento de liminar proferida no âmbito do STJ. Súmula n. 691 do Supremo Tribunal Federal. A mitigação desse verbete deve ocorrer apenas em casos absolutamente aberrantes e teratológicos, passíveis de constatação, de plano, de constrangimento ilegal, o que não ocorre na situação em exame. 3. Ao que se tem, a custódia cautelar do paciente foi mantida, em caráter precário, pela autoridade inquinada coatora, porquanto verificado que, ao ser decretada, junto a de diversos outros corréus, pela suposta prática dos delitos de organização criminosa, de lavagem de ativos e de evasão de divisas, observado que, “a um primeiro olhar, o Juiz indicou a fumaça do cometimento dos delitos. Além das palavras dos colaboradores, existe documentação juntada pelo MPF e vários aspectos fáticos da narrativa foram confirmados durante as investigações (relatórios de inteligência, afastamento telemático etc.)”, e que, quanto ao perigo da permanência do paciente em liberdade, “o Juiz fez referência à gravidade dos crimes sob apuração, haja vista as circunstâncias de seu cometimento, particularmente graves”. 4. Não bastasse, atentou-se, ainda, para o fato de que “A magnitude e a sofisticação dos ilícitos, o profissionalismo com que, em tese, o paciente atuava, o alto volume de dinheiro movimentado por ele e seu irmão durante anos [U$ 12.000.000,00], a peculiar densidade lesiva das condutas sob apuração, bem como a indicação de que o paciente operava para clientela própria (supostamente vinculada a partido político) e de que, mesmo após a prisão dos doleiros colaboradores, não teria cessado suas atividades, justificam o receio contemporâneo de proliferação delitiva”. Ponderado, também, que “o modo sub-reptício por meio do qual o réu, em tese, realizou operações ilegais de compra e venda de moeda estrangeira, com emprego de facilidades tecnológicas, contas no exterior e atuação conjunta com outros doleiros denotam, em análise precária, que a prisão preventiva (ao menos nesse momento inicial) é a única medida suficiente para garantir a ordem pública”. 5. Por fim, ressaltado, em ambiência perfunctória, tratar-se de caso de maior complexidade, a demandar a submissão da controvérsia ao colegiado, sobretudo por não haver “elementos seguros para afirmar, extreme de dúvidas, que não existe nenhum risco de reiteração de atos da mesma tipologia”. 6. O Supremo Tribunal Federal tem entendimento pacífico de que \"A necessidade de se interromper ou diminuir a atuação de integrantes de organização criminosa, enquadra-se no conceito de garantia da ordem pública, constituindo fundamentação cautelar idônea e suficiente para a prisão preventiva\" (HC n. 95.024/SP, Primeira Turma, Relator(a) Min. Cármen Lúcia, DJe de 20/2/2009). 7. Lado outro, assentado pelo Plenário desta Suprema Corte que o crime de lavagem de bens, direitos ou valores, quando praticado na modalidade ocultação, é de natureza permanente, protraindo-se sua execução até que os objetos materiais do branqueamento se tornem conhecidos. A persistência da ocultação, com a consequente ausência de recuperação dos valores objeto de escamoteamento, confere plausibilidade ao receio de novos atos de lavagem, bem como afasta a alegação de ausência de atualidade entre a conduta tida como ilícita e o implemento da medida cautelar gravosa (HC 143333/PR, de minha relatoria, julgado em 12.04.2018). 8. A existir elementos indicativos de que ao menos uma das condutas delitivas tem seus atos de desdobramento ainda persistentes, não há que se falar em ausência de contemporaneidade para imposição da cautela. 9. Assim, preenchidos, primo ictu oculi, os requisitos dos arts. 312, 313, 315, todos do CPP, e ainda demonstrado tratar-se a prisão da providência cautelar a melhor atender ao caso concreto, consoante o disposto no art. 282 do CPP, em especial, seus incisos I e II, bem como seu § 6º, não se mostra cabível a atuação per saltum desta Suprema Corte. 10. Agravo regimental provido, para cassar a liminar deferida."
+        }
+      ],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=204&dataPublicacaoDj=17/08/2020&incidente=5522739&codCapitulo=5&numMateria=132&codMateria=3",
+      "incidente_linked": 5522739,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 204,
+      "partes": [
+        "AGTE.(S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA",
+        "AGDO.(A/S) - ROBERTO RZEZINSKI",
+        "ADV.(A/S) - CLAUDIO BIDINO DE SOUZA"
+      ],
+      "procedencia": "DISTRITO FEDERAL",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Acórdãos",
+      "subsecao": "Acórdãos 2ª Turma",
+      "titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802"
+    },
+    {
+      "classe": "HC",
+      "data": "2020-06-03",
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=137&dataPublicacao=03/06/2020&incidente=5522739&capitulo=4&codigoMateria=12&numeroMateria=16&texto=8783507"
+          },
+          "texto": "Decisão: Após o voto do Ministro Relator, que negava provimento ao agravo regimental do Ministério Público Federal, pediu vista o Ministro Edson Fachin. Não participou deste julgamento, por motivo de licença médica no início da sessão, o Ministro Celso de Mello (art. 2º, § 5º, da Res. 642/2019). Segunda Turma, Sessão Virtual de 10.4.2020 a 17.4.2020."
+        },
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=137&dataPublicacao=03/06/2020&incidente=5522739&capitulo=4&codigoMateria=12&numeroMateria=16&texto=8857670"
+          },
+          "texto": "Decisão: A Turma, por maioria, deu provimento ao agravo regimental, para cassar a liminar deferida, nos termos do voto do Ministro Edson Fachin, vencidos os Ministros Gilmar Mendes (Relator) e Ricardo Lewandowski. Redigirá o acórdão o Ministro Edson Fachin. Segunda Turma, Sessão Virtual de 22.5.2020 a 28.5.2020."
+        }
+      ],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=137&dataPublicacaoDj=03/06/2020&incidente=5522739&codCapitulo=4&numMateria=16&codMateria=12",
+      "incidente_linked": 5522739,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 137,
+      "partes": [
+        "AGTE.(S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA",
+        "AGDO.(A/S) - ROBERTO RZEZINSKI",
+        "ADV.(A/S) - CLAUDIO BIDINO DE SOUZA"
+      ],
+      "procedencia": "DISTRITO FEDERAL",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Segunda Turma",
+      "subsecao": "Sessão Virtual",
+      "titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802"
+    },
+    {
+      "classe": "HC",
+      "data": "2020-04-24",
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=99&dataPublicacao=24/04/2020&incidente=5522739&capitulo=4&codigoMateria=12&numeroMateria=10&texto=8783507"
+          },
+          "texto": "Decisão: Após o voto do Ministro Relator, que negava provimento ao agravo regimental do Ministério Público Federal, pediu vista o Ministro Edson Fachin. Não participou deste julgamento, por motivo de licença médica no início da sessão, o Ministro Celso de Mello (art. 2º, § 5º, da Res. 642/2019). Segunda Turma, Sessão Virtual de 10.4.2020 a 17.4.2020."
+        }
+      ],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=99&dataPublicacaoDj=24/04/2020&incidente=5522739&codCapitulo=4&numMateria=10&codMateria=12",
+      "incidente_linked": 5522739,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 99,
+      "partes": [
+        "AGTE.(S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA",
+        "AGDO.(A/S) - ROBERTO RZEZINSKI",
+        "ADV.(A/S) - CLAUDIO BIDINO DE SOUZA"
+      ],
+      "procedencia": "DISTRITO FEDERAL",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Segunda Turma",
+      "subsecao": "Sessão Virtual",
+      "titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802"
+    },
+    {
+      "classe": "HC",
+      "data": "2020-03-31",
+      "decisoes": [],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=78&dataPublicacaoDj=31/03/2020&incidente=5522739&codCapitulo=4&numMateria=28&codMateria=1",
+      "incidente_linked": 5522739,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 78,
+      "partes": [
+        "AGTE.(S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA",
+        "AGDO.(A/S) - ROBERTO RZEZINSKI",
+        "ADV.(A/S) - CLAUDIO BIDINO DE SOUZA"
+      ],
+      "procedencia": "DISTRITO FEDERAL",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Segunda Turma",
+      "subsecao": "Pauta de Julgamentos",
+      "titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802"
+    },
+    {
+      "classe": "HC",
+      "data": "2018-06-27",
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "rtf": {
+            "extractor": null,
+            "text": null,
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=127&dataPublicacao=27/06/2018&incidente=5494713&capitulo=6&codigoMateria=2&numeroMateria=98&texto=7668115"
+          },
+          "texto": "Decisão: Trata-se de habeas corpus com pedido de medida liminar, impetrado por Cláudio Bidino de Souza e outros, em favor de Roberto Rezezinski, contra decisão proferida pelo Ministro Rogério Schietti Cruz, do Superior Tribunal de Justiça (STJ), que indeferiu liminarmente o HC 454.745/RJ. Consta dos autos que, com o desenrolar das investigações no âmbito das Operações Calicute, Eficiência e Hic et Ubique, todas em curso na 7ª Vara Federal Criminal, foi possível desbaratar uma gigantesca organização criminosa, à qual se atribui um desvio milionário de dinheiro dos cofres públicos do Governo do Estado do Rio de Janeiro, cuja liderança é atribuída ao ex-governador Sérgio Cabral. Segundo, ainda, o órgão ministerial, por meio das colaborações premiadas de Renato Chebar e Marcelo Chebar, foi revelado que grande parte da propina desviada pela organização criminosa instalada em administrações públicas no Estado do Rio de Janeiro, objeto de vários procedimentos criminais em curso no Juízo da 7ª VF/RJ, foi remetida para o exterior, principalmente por meio dos doleiros, Vinícius Claret e Cláudio Fernando. Dentre as pessoas e contas identificadas pelos doleiros colaboradores está o paciente ROBERTO RZEZINSKI que, juntamente com seu irmão Marcelo Rezinski, supostamente transferia dólares para contas no exterior e, na sequência, recebia reais no Brasil, entre os anos de 2013 e 2014 segundo o próprio MPF. A segregação preventiva do investigado foi decretada em 2 de maio de 2018, após representação do Parquet Federal, para garantir da ordem pública e por conveniência da instrução criminal. Irresignada, a defesa impetrou habeas corpus no Tribunal Regional da 2ª Região, postulando, em síntese, a concessão de liberdade provisória. A ordem foi denegada nos termos da ementa a seguir transcrita: “PROCESSO PENAL. HABEAS CORPUS. OPERAÇÃO CÂMBIO, DESLIGO. GRAVIDADE EM CONCRETO DOS FATOS. GARANTIA DA ORDEM PÚBLICA. NÃO CABIMENTO DE MEDIDAS CAUTELARES. ALTERNATIVAS. DENEGAÇÃO DA ORDEM. I – Pressupostos da prisão preventiva atendidos. Presença de elementos de convicção provisória sobre o fumus delicti commissi e indícios suficientes da autoria arrecadados no curso da investigação. Decisão fundamentada demonstrando a existência de concreta gravidade nas condutas do paciente. Representação ministerial amparada em múltiplos elementos de convicção reunidos na fase pré-processual. II – Há amparo legal para a medida extrema nos casos em que se projete a reiteração criminosa e/ou o crime tenha sido praticado em circunstâncias que indiquem concreta gravidade dos fatos, capazes de negar frontalmente a ordem pública. III- Paciente ao qual se atribui atuação próxima aos fatos que de alguma forma guarda elação com os delitos praticados antecedente ou concomitantemente à plausível lavagem de dinheiro nos moldes apontados por diversos colaboradores. Indicação da prática insistente ou habitual, possivelmente profissional, de lavagem de capitais e evasão de divisas. Gravidade concreta apontada. Extensa e sofisticada estrutura de compra e venda de recursos através de doleiros produzidos tanto numerário para empresários vinculados em tese a Pagamentos de propinas quanto auxiliando agentes públicos e políticos a dissimular e/ou ocultar as vantagens indevidas recebidas. Esquema que em dado momento teria sido também empregado para fomentar uma mesma organização criminosa, já objeto de investigação na órbita das denominadas Operações “Calicute” e “Eficiência”. IV – Paciente apontado como peça fundamental para a consecução da suposta lavagem de dinheiro e evasão de divisas operada em larga escala e por extenso período. Os montantes indicados, no caso do paciente, são importantes. As operações envolvendo o paciente, possivelmente sob contexto de lavagem de dinheiro, superam USD 12.000.000.000.,00 (doze milhões de dólares), tudo supostamente no período de 2011 a 2017. V – Paciente que já teve habeas corpus liminarmente indeferido no c. STJ, confirmando-se, monocraticamente a presença dos requisitos e necessidade da custódia preventiva. VI – Substituição por medidas cautelares alternativas (art. 319 do CPP) que se mostra insuficiente para garantia da Ordem Pública. Prisão preventiva de acordo com o art. 282, I e II c/c art. 312 do CPP. VII – Ordem denegada”. (eDOC 3, p. 23) Daí a impetração de novo habeas corpus no Superior Tribunal de Justiça. Na oportunidade, impugnou-se o decreto preventivo, haja vista ter sido lastreado somente nas palavras de delatores e em indícios extremamente frágeis e genéricos. O relator, Ministro Rogério Schietti Cruz, indeferiu o pedido liminar, pendente ainda o julgamento do mérito. (eDOC 4) Nesta Corte, a defesa reitera os pedidos pretéritos e enfatiza a ausência de argumentos idôneos aptos a ensejarem a manutenção da constrição cautelar, reputando ausentes os requisitos autorizadores da medida, previstos no artigo 312 do CPP. Destaca que não restou demonstrado no decreto preventivo e, tampouco, na denúncia, de que o acusado seja de fato autor dos delitos, isso porque as acusações do Ministério Públicos não estariam lastreadas em fatos e provas mas, apenas, em informações vagas fornecidas pelos colaboradores. Defende também a ausência de contemporaneidade das condutas a ensejar a prisão preventiva, pois os fatos teriam supostamente ocorridos entre anos de 2013 e 2014. Alega que o paciente e seu irmão já demonstraram, mediante prova segura, que encerraram as contas bancárias que mantinham no exterior para fins pessoais. Além disso, argumentam que houve a repatriação dos valores que nelas constavam, tendo em vista o recolhimento de aproximadamente R$ 1.300.000,00 (um milhão e trezentos mil reais) Requer, liminarmente, a expedição de alvará de soltura com imediata liberação do acusado, até o julgamento do mérito deste writ. Subsidiariamente, pede a substituição da prisão por medidas cautelares alternativas previstas no artigo 319 do CPP. Registre-se que o presente HC foi a mim distribuído por prevenção ao HC 141.478/RJ (certidão, eDOC 37). É o relatório. Passo a decidir. Preliminarmente, a jurisprudência desta Corte é no sentido da inadmissibilidade da impetração de habeas corpus , nas causas de sua competência originária, contra decisão denegatória de liminar em ação de mesma natureza articulada perante tribunal superior, antes do julgamento definitivo do writ . Conforme jurisprudência: HC (QO) 76.347/MS, Rel. Min. Moreira Alves, Primeira Turma, unânime, DJ 8.5.1998; HC 79.238/RS, Rel. Min. Moreira Alves, Primeira Turma, unânime, DJ 6.8.1999; HC 79.776/RS, Rel. Min. Moreira Alves, Primeira Turma, unânime, DJ 3.3.2000; HC 79.775/AP, Rel. Min. Maurício Corrêa, Segunda Turma, maioria, DJ 17.3.2000; e HC 79.748/RJ, Rel. Min. Celso de Mello, Segunda Turma, maioria, DJ 23.6.2000. E mais recentemente: HC-AgR 129.907/RJ, Rel. Min. Cármen Lúcia, Segunda Turma, unânime, DJe 13.10.2015; HC-AgR 132.185/SP, por mim relatado, Segunda Turma, unânime, DJe 9.3.2016; HC 133.158/DF, Rel. Min. Dias Toffoli, DJe 11.3.2016 e HC 133.287/DF, Rel. Min. Luiz Fux, DJe 7.3.2016. Essa conclusão está representada na Súmula 691 do STF, in verbis : Não compete ao Supremo Tribunal Federal conhecer de habeas corpus impetrado contra decisão do Relator que, em habeas corpus requerido a tribunal superior, indefere a liminar. É bem verdade que o rigor na aplicação de tal entendimento tem sido abrandado por julgados desta Corte em hipóteses excepcionais, em que: a) seja premente a necessidade de concessão do provimento cautelar para evitar flagrante constrangimento ilegal; ou b) a negativa de decisão concessiva de medida liminar pelo tribunal superior importe na caracterização ou na manutenção de situação que seja manifestamente contrária à jurisprudência do STF (cf. as decisões colegiadas: HC 84.014/MG, Primeira Turma, unânime, Rel. Min. Marco Aurélio, DJ 25.6.2004; HC 85.185/SP, Pleno, por maioria, Rel. Min. Cezar Peluso, DJ 1º.9.2006; e HC 88.229/SE, Rel. Min. Marco Aurélio, Redator para acórdão Min. Ricardo Lewandowski, Primeira Turma, maioria, DJ 23.2.2007; HC 129.554/SP, Primeira Turma, unânime, Rel. Min. Rosa Weber, DJe 14.10.2015 e HC 129.872/SP, Segunda Turma, unânime, de minha relatoria, DJe 29.9.2015; e a seguinte decisão monocrática: HC 85.826/SP (MC). Na hipótese dos autos, à primeira vista, entendo caracterizada situação ensejadora do afastamento da incidência da Súmula 691/STF. Explico. No presente caso, o magistrado de primeiro grau decretou a prisão preventiva do paciente, nos seguintes termos: “Dentre os agentes constantes nos sistemas dos colaboradores, há a indicação dos irmãos MARCELO REZINSKI e ROBERTO REZINSKI, cujas operações totalizaram R$ 12.000.000,00 (doze milhões de reais), entre os anos de 2011 e 2017. O colaborador CLAUDIO afirma que conheceu os irmãos pelo contato que o pai deles tinha com o Sr. MORDKO MESSER, na ANTUR TURISMO; repise-se, onde o colaborador trabalhou. Assim, quando o pai dos irmãos se afastou dos negócios, eles assumiram o controle das operações, o que intensificou a relação com CLAUDIO, em 2003, quando ele se mudou para o Uruguai. As informações trazidas por CLAUDIO foram corroboradas por VINICIUS que relatou saber das transações e valores efetuadas com os irmãos REZINSKI, a saber: “QUE conheceu primeiro o pai dos irmãos REZINSKI, que era cliente do Sr. MORDKO, na ANTUR, desde a década de 1990; QUE depois passou a conhecer os irmãos REZINSKI, que passaram a tomar conta dos negócios; QUE acredita que o irmão à frente dos negócios era o ROBERTO, mas como são gêmeos idênticos, era difícil distinguir um do outro; QUE não se recorda de imediato o nome do outro irmão; QUE os REZINSKI eram clientes da matriz da ANTUR, no centro do Rio, então, o colaborador não tinha contato muito direto com eles; QUE após irem para Montevideo (Uruguai), quem passou a atender os irmãos foi CLAUDIO, sócio do colaborador, de modo que o colaborador seguiu sem um contato muito direto com os irmãos REZINSKI; QUE sua relação com os irmãos REZINSKI se resume às informações que tem acesso pelo computador, uma vez que não tinha um contato de chat com eles, pois quem fazia esse contato era o CLAUDIO; QUE, contudo, tem ciência das operações e dos valores que eram objeto das operações, pois acompanhava os negócios...” De acordo com os colaboradores, a atividade dos irmãos consistia na transferência de dólares para conta no exterior e, em contrapartida, recebiam reais no Brasil. Frise-se que, segundo os doleiros, ROBERTO atuava como operador financeiro de pessoas ligadas ao PMDB, outro indicativo de que se trata de movimentação de valores provenientes de ilícitos de corrupção e lavagem de dinheiro. Colaciono trechos dos depoimentos: ‘QUE a maioria das operações feitas pelos irmãos consistia na venda de dólares, isto é, os irmãos REZINSKI transferiam dólares no exterior para uma conta indicada pelo colaborador e, em contrapartida, recebiam reais no Brasil, em operação típica de dólar cabo; Que o colaborador não indicava aos irmãos sempre a mesma conta para depósito, variando de acordo com as operações do momento; Que em mais de uma oportunidade, ROBERTO comentou com o colaborador que o seu cliente era do PMDB; Que, em razão disso, ROBERTO solicitou que as contas indicadas para recebimento dos dólares fossem “discretas”, isto é, que não corresse risco de prejudicar seu cliente...” - CLAUDIO BARBOZA. “QUE se recorda de CLAUDIO ter dito ao colaborador que os REZINSKI pediram que fossem utilizadas contas boas – e era o colaborador quem cuidava da parte das transações de dólar-cabo – porque seus clientes eram políticos do PMDB...” - VINICIUS CLARET’. De acordo com CLAUDIO, as entregas de montantes eram realizadas no Shopping Le Monde (Torre London) e no Hotel Sheraton (posteriormente Radissson, apartamento 109), ambos na Barra da Tijuca. A confirmar tal fato, foi obtido no endereço eletrônico de ROBERTO, por meio do afastamento telemático, fatura do Condomínio Sheraton Barra datada de abril de 2018, em nome do citado, exatamente do apartamento 109. Noutro giro, os colaboradores trouxeram os extratos dos sistemas utilizados (o ST e o Bankdrop), com os indicativos das operações realizadas pelos irmãos REZINSKI, cujo codinome era PEDRA. Além disso, o Relatório de Inteligência Financeira do COAF enumera algumas transações suspeitas envolvendo MARCELO e ROBERTO, bem como suas empresas. Conforme apurado pelo MPF, MARCELO é sócio de três pessoas jurídicas, já ROBERTO consta no quadro societário de onze empresas. Nesse sentido, o COAF aponta a tentativa de burlar a origem de recursos, em setembro de 2009, diante da movimentação feita pela Empresa Brasileira de Distribuição de Ingressos LTDA, da qual ROBERTO é sócio, na medida em que foram realizados 10 (dez) depósitos em espécie, no período de nove dias, em quantias de R$ 50.000,00 (cinquenta mil reais). No mesmo período, a empresa em comento recebeu outro depósito sem identificação de R$ 100.000,00. De igual modo, foram identificados depósitos atípicos na conta de MARCELO, entre 2008 e 2013, em valores variáveis de R$ 99.900,00 a R$ 170.000,00, aparentemente depositados pelo próprio em sua conta. Acrescente-se, também, a aquisição de apólice de seguro por ROBERTO no valor de R$ 2.131.300,00. Tal compra de título normalmente alerta o COAF, já que aparece como maneira rápida e usual de dissimular altas quantias e repassá-las facilmente. Ou seja, o relatório do COAF vem ao encontro das informações trazidas pelos colaboradores de que os irmãos REZINSKI recorriam aso serviços dos doleiros com o intuito de dissimular valores provenientes de vantagens indevidas recebidas por políticos do PMDB. No mais, cabe destacar o material obtido no Relatório de Análise de Interceptação n° 01/2018 elaborado pela Polícia Federal, no qual é possível verificar, em conversa de MARCELO com sua esposa CINTHIA, que eles se mostram preocupados com as prisões ocorridas no último mês de abril (Operação Rizoma). O casal comenta sobre DARIO MESSER e sua esposa, a quem chamam informalmente de “DADA” e “RO”, inclusive MARCELO afirma que tinha conversado com Dario pela manhã. Na agenda telefônica de MARCELO, obtida por meio da quebra telemática, o número salvo para “DADA” aparece relacionado a uma foto que confirma ser, de fato, DARIO MESSER. Prosseguindo no tema, o casal ainda analisa o caso de “LABER”, que vem a ser ALESSANDRO LABER, doleiro investigado na denominada Operação Rizoma, em andamento nesse Juízo. Em suma, ao que tudo indica os irmãos REZINSKI participam ativamente da rede transnacional de branqueamento e ocultação de capital operacionalizada no âmago da organização criminosa, tendo inclusive ciência dos operadores e contato direto, por meio de empresas, com demais pessoas investigadas. Ademais, pelos elementos probatórios obtidos, parece que os irmãos jamais cessaram suas atividades, mesmo após a prisão dos doleiros-colaboradores. Nesse diapasão, revela-se plausível a segregação cautelar de ambos”. Neste juízo prévio e provisório, entendo que os fundamentos usados pelo magistrado de origem, ao decretar a prisão preventiva em desfavor do paciente (Autos n. 060662-28.2018.4.02.5101) não se revelaram idôneos para manter a segregação cautelar ora em apreço, visto que a referida prisão preventiva não atendeu aos requisitos do art. 312 do CPP, especialmente no que diz respeito à indicação de elementos concretos, os quais, no momento da decretação, fossem imediatamente incidentes a ponto de ensejar o decreto cautelar. Os crimes foram praticados sem violência ou grave ameaça. Os fatos são consideravelmente distantes no tempo da decretação da prisão. Teriam acontecido em 2013-2014. Realmente, inexiste contemporaneidade das condutas atribuídas ao paciente, de modo que o periculum libertatis exigido para a decretação da prisão cautelar não se faz presente. Ainda, da leitura do decreto, verifico que o risco à aplicação da lei penal consistiria não em razões concretas para crer em evasão do imputado, mas na necessidade de assegurar a recuperação dos ativos supostamente desviados. Não vejo adequação da prisão preventiva a tal finalidade, na medida em que recursos ocultos podem ser movimentados sem a necessidade da presença física do perpetrador. Dessa forma, o perigo que a liberdade do paciente representa à ordem pública ou à aplicação da lei penal pode ser mitigado por medidas cautelares menos gravosas do que a prisão. No ponto, destaco que, com a entrada em vigor da Lei 12.403/2011, nos termos da nova redação do art. 319 do CPP, o juiz passa a dispor de outras medidas cautelares de natureza pessoal diversas da prisão, viabilizando, diante das circunstâncias do caso concreto, seja escolhida a medida mais ajustada às peculiaridades da espécie, permitindo, assim, a tutela do meio social, mas também servindo, mesmo que cautelarmente, de resposta justa e proporcional ao mal supostamente causado pelo acusado. Ante o exposto, identificando adequação fática e jurídica com os argumentos e razões de decidir contidos nos acórdãos prolatados pela Segunda Turma, em 10.10.2017 e 18.12.2017, nos HCs 143.247/RJ, 146.666/RJ e 147.192/RJ, defiro o pedido de liminar para suspender a ordem de prisão preventiva decretada em desfavor do paciente ROBERTO RZEZINSKI, na data de 2.5.2018, pelo Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Auto n. 060662-28.2018.4.02.5101), se por outro motivo não estiver preso, pelas seguintes medidas cautelares diversas da prisão, na forma do art. 319 do CPP: a) proibição de manter contato com os demais investigados, por qualquer meio (inciso III); b) proibição de deixar o País, devendo entregar seu(s) passaporte(s) em até 48h (quarenta e oito) horas (inciso IV e artigo 320). Comunique-se, com urgência, ao Juízo de origem. Requisitem-se informações ao Juízo da 7ª Vara Federal Criminal da Seção Judiciária do Rio de Janeiro (Autos n. 0060662-28.2018.4.02.5101). Após, dê-se vistas dos autos à Procuradoria-Geral da República. Publique-se. Brasília, 25 de junho de 2018. Ministro Gilmar Mendes Relator Documento assinado digitalmente"
+        }
+      ],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=127&dataPublicacaoDj=27/06/2018&incidente=5494713&codCapitulo=6&numMateria=98&codMateria=2",
+      "incidente_linked": 5494713,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 127,
+      "partes": [
+        "PACTE.(S) - ROBERTO RZEZINSKI",
+        "IMPTE.(S) - CLAUDIO BIDINO DE SOUZA",
+        "COATOR(A/S)(ES) - RELATOR DO HC Nº 454.745 DO SUPERIOR TRIBUNAL DE JUSTIÇA",
+        "INTDO.(A/S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA"
+      ],
+      "procedencia": "DISTRITO FEDERAL",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "MEDIDA CAUTELAR NO HABEAS CORPUS 158802"
+    },
+    {
+      "classe": "HC",
+      "data": "2018-06-26",
+      "decisoes": [],
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=126&dataPublicacaoDj=26/06/2018&incidente=5494703&codCapitulo=1&numMateria=145&codMateria=8",
+      "incidente_linked": 5494703,
+      "materia": [
+        "DIREITO PROCESSUAL PENAL | Prisão Preventiva | Revogação"
+      ],
+      "numero": 126,
+      "partes": [
+        "PACTE.(S) - ROBERTO RZEZINSKI",
+        "IMPTE.(S) - CLAUDIO BIDINO DE SOUZA",
+        "COATOR(A/S)(ES) - RELATOR DO HC Nº 454.745 DO SUPERIOR TRIBUNAL DE JUSTIÇA",
+        "INTDO.(A/S) - MINISTÉRIO PÚBLICO FEDERAL",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DA REPÚBLICA"
+      ],
+      "procedencia": "RIO DE JANEIRO",
+      "relator": "MIN. GILMAR MENDES",
+      "secao": "Presidência",
+      "subsecao": "Distribuição",
+      "titulo": "HABEAS CORPUS 158802"
+    }
+  ],
+  "publicidade": "PUBLICO",
+  "recursos": [
+    {
+      "index": 1,
+      "tipo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS"
+    }
+  ],
+  "relator": "GILMAR MENDES",
+  "sessao_virtual": [
+    {
+      "documentos": [
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Relatório",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5030888"
+        },
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Voto",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5030952"
+        }
+      ],
+      "julgamento_item_titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802",
+      "metadata": {
+        "data_fim_prevista": "2020-04-17",
+        "data_inicio": "2020-04-10",
+        "lista": "137-2020",
+        "orgao_julgador": "Segunda Turma",
+        "processo": "HC 158802 MC-AgR",
+        "relator": "MIN. GILMAR MENDES"
+      },
+      "votes": {
+        "acompanha_divergencia": [],
+        "acompanha_relator": [],
+        "diverge_relator": [],
+        "pedido_vista": [
+          "MIN. EDSON FACHIN"
+        ],
+        "relator": [
+          "MIN. GILMAR MENDES"
+        ]
+      },
+      "voto_relator": "Nega agravo regimental do MPF."
+    },
+    {
+      "documentos": [
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Relatório",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5030888"
+        },
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Voto",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5030952"
+        },
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Voto Vista",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5082259"
+        },
+        {
+          "extractor": null,
+          "text": null,
+          "tipo": "Voto Vogal",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=5035625"
+        }
+      ],
+      "julgamento_item_titulo": "AG.REG. NA MEDIDA CAUTELAR NO HABEAS CORPUS 158802",
+      "metadata": {
+        "data_fim_prevista": "2020-05-28",
+        "data_inicio": "2020-05-22",
+        "lista": "137-2020",
+        "orgao_julgador": "Segunda Turma",
+        "processo": "HC 158802 MC-AgR",
+        "relator": "MIN. GILMAR MENDES"
+      },
+      "votes": {
+        "acompanha_divergencia": [
+          "MIN. CÁRMEN LÚCIA",
+          "MIN. CELSO DE MELLO"
+        ],
+        "acompanha_relator": [
+          "MIN. RICARDO LEWANDOWSKI"
+        ],
+        "diverge_relator": [
+          "MIN. EDSON FACHIN"
+        ],
+        "pedido_vista": [],
+        "relator": [
+          "MIN. GILMAR MENDES"
+        ]
+      },
+      "voto_relator": "Nega agravo regimental do MPF. MINISTRO EDSON FACHIN (VOTO VISTA) - Divirjo do Relator. Dou provimento ao agravo regimental, para cassar a liminar deferida."
+    }
+  ],
+  "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=5494703",
+  "volumes": 1
+}
