@@ -1,4 +1,4 @@
-"""Behavioral tests for src/data/reshape.py — pure JSON v1/v2/v3 → v6.
+"""Behavioral tests for src/data/reshape.py — pure JSON v1/v2/v3 → v7.
 
 Inputs are real on-disk corpus snapshots captured at
 tests/fixtures/reshape/. We assert on the *transformations*, not on
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data.reshape import reshape_to_v6
+from src.data.reshape import reshape_to_v7
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "reshape"
 
@@ -34,21 +34,21 @@ def v3_input():
 
 
 @pytest.fixture
-def v6_control():
-    return _load("v6_control.json")
+def v7_control():
+    return _load("v7_control.json")
 
 
 # ----- Container + meta -----------------------------------------------------
 
 def test_unwraps_list_input(v1_v2_input):
     assert isinstance(v1_v2_input, list)
-    out = reshape_to_v6(v1_v2_input)
+    out = reshape_to_v7(v1_v2_input)
     assert isinstance(out, dict)
 
 
 def test_meta_slot_synthesised_for_v1_v2(v1_v2_input):
-    out = reshape_to_v6(v1_v2_input)
-    assert out["_meta"]["schema_version"] == 6
+    out = reshape_to_v7(v1_v2_input)
+    assert out["_meta"]["schema_version"] == 7
     assert out["_meta"]["status_http"] == 200
     assert isinstance(out["_meta"]["extraido"], str)
     # Top-level provenance keys must not coexist with the slot.
@@ -59,8 +59,8 @@ def test_meta_slot_synthesised_for_v1_v2(v1_v2_input):
 
 def test_meta_slot_carries_v3_extraido(v3_input):
     inp_extraido = v3_input[0]["extraido"]
-    out = reshape_to_v6(v3_input)
-    assert out["_meta"]["schema_version"] == 6
+    out = reshape_to_v7(v3_input)
+    assert out["_meta"]["schema_version"] == 7
     # Preserve the original scrape timestamp; don't fabricate a new one.
     assert out["_meta"]["extraido"] == inp_extraido
     assert out["_meta"]["status_http"] == 200
@@ -70,14 +70,14 @@ def test_meta_slot_carries_v3_extraido(v3_input):
 
 def test_data_protocolo_is_iso(v1_v2_input, v3_input):
     for inp in (v1_v2_input, v3_input):
-        out = reshape_to_v6(inp)
+        out = reshape_to_v7(inp)
         if out["data_protocolo"] is not None:
             assert _looks_iso_date(out["data_protocolo"]), out["data_protocolo"]
         assert "data_protocolo_iso" not in out
 
 
 def test_andamento_data_is_iso_no_companion(v1_v2_input):
-    out = reshape_to_v6(v1_v2_input)
+    out = reshape_to_v7(v1_v2_input)
     for a in out["andamentos"]:
         if a["data"] is not None:
             assert _looks_iso_date(a["data"]), a["data"]
@@ -85,7 +85,7 @@ def test_andamento_data_is_iso_no_companion(v1_v2_input):
 
 
 def test_peticao_data_is_iso_no_companion(v3_input):
-    out = reshape_to_v6(v3_input)
+    out = reshape_to_v7(v3_input)
     for p in out["peticoes"]:
         if p["data"] is not None:
             assert _looks_iso_date(p["data"]), p["data"]
@@ -99,7 +99,7 @@ def test_peticao_data_is_iso_no_companion(v3_input):
 # ----- Andamento link unification (v4 → v5) --------------------------------
 
 def test_andamento_link_descricao_folded_into_link(v1_v2_input):
-    out = reshape_to_v6(v1_v2_input)
+    out = reshape_to_v7(v1_v2_input)
     for a in out["andamentos"]:
         assert "link_descricao" not in a
         link = a["link"]
@@ -109,7 +109,7 @@ def test_andamento_link_descricao_folded_into_link(v1_v2_input):
 # ----- Index field unification ---------------------------------------------
 
 def test_andamento_index_renamed(v1_v2_input):
-    out = reshape_to_v6(v1_v2_input)
+    out = reshape_to_v7(v1_v2_input)
     for a in out["andamentos"]:
         assert "index_num" not in a
         assert "id" not in a
@@ -119,7 +119,7 @@ def test_andamento_index_renamed(v1_v2_input):
 def test_recurso_data_to_tipo_id_to_index(v3_input):
     # v3 sample may or may not have recursos — the assertion only fires
     # when the list is non-empty. Still pinned by v1/v2 below.
-    out = reshape_to_v6(v3_input)
+    out = reshape_to_v7(v3_input)
     for r in out["recursos"]:
         assert "data" not in r
         assert "id" not in r
@@ -131,7 +131,7 @@ def test_recurso_data_to_tipo_id_to_index(v3_input):
 # ----- sessao_virtual metadata ASCII snake_case ----------------------------
 
 def test_sessao_metadata_keys_ascii(v3_input):
-    out = reshape_to_v6(v3_input)
+    out = reshape_to_v7(v3_input)
     for sv in out["sessao_virtual"]:
         md = sv.get("metadata") or {}
         # Forbidden legacy spellings.
@@ -143,7 +143,7 @@ def test_sessao_metadata_keys_ascii(v3_input):
 
 def test_outcome_string_promoted_to_dict(v1_v2_input):
     inp_outcome = v1_v2_input[0].get("outcome")
-    out = reshape_to_v6(v1_v2_input)
+    out = reshape_to_v7(v1_v2_input)
     if isinstance(inp_outcome, str):
         assert isinstance(out["outcome"], dict)
         assert out["outcome"]["verdict"] == inp_outcome
@@ -155,7 +155,7 @@ def test_outcome_string_promoted_to_dict(v1_v2_input):
 
 def test_outcome_dict_passthrough(v3_input):
     inp_outcome = v3_input[0].get("outcome")
-    out = reshape_to_v6(v3_input)
+    out = reshape_to_v7(v3_input)
     if isinstance(inp_outcome, dict):
         assert out["outcome"] == inp_outcome
 
@@ -181,7 +181,7 @@ def test_primeiro_autor_rederived_from_partes_overrides_stale_value():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v6(raw)
+    out = reshape_to_v7(raw)
     assert out["primeiro_autor"] == "ALICE"
 
 
@@ -200,7 +200,7 @@ def test_primeiro_autor_preserved_when_partes_yield_no_author():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v6(raw)
+    out = reshape_to_v7(raw)
     assert out["primeiro_autor"] == "LEGACY"
 
 
@@ -213,22 +213,22 @@ def test_primeiro_autor_absent_when_partes_empty_and_no_prior_value():
         "andamentos": [], "peticoes": [], "recursos": [],
         "deslocamentos": [], "sessao_virtual": [], "pautas": [],
     }
-    out = reshape_to_v6(raw)
+    out = reshape_to_v7(raw)
     assert out.get("primeiro_autor") is None
 
 
 # ----- Idempotency + v6 control --------------------------------------------
 
-def test_v6_control_is_unchanged(v6_control):
-    expected = copy.deepcopy(v6_control)
-    out = reshape_to_v6(v6_control)
+def test_v7_control_is_unchanged(v7_control):
+    expected = copy.deepcopy(v7_control)
+    out = reshape_to_v7(v7_control)
     assert out == expected
 
 
 def test_reshape_is_idempotent(v1_v2_input, v3_input):
     for inp in (v1_v2_input, v3_input):
-        once = reshape_to_v6(copy.deepcopy(inp))
-        twice = reshape_to_v6(copy.deepcopy(once))
+        once = reshape_to_v7(copy.deepcopy(inp))
+        twice = reshape_to_v7(copy.deepcopy(once))
         assert twice == once
 
 

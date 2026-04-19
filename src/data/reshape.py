@@ -39,11 +39,11 @@ _SESSAO_METADATA_RENAMES = {
 }
 
 
-def reshape_to_v6(raw: Any) -> dict:
+def reshape_to_v7(raw: Any) -> dict:
     """Top-level entry. Accepts list-wrapped or bare-dict input."""
     rec = raw[0] if isinstance(raw, list) else raw
     if not isinstance(rec, dict):
-        raise TypeError(f"reshape_to_v6 expects dict or [dict], got {type(raw).__name__}")
+        raise TypeError(f"reshape_to_v7 expects dict or [dict], got {type(raw).__name__}")
     rec = dict(rec)  # shallow copy; nested mutators copy as needed
 
     rec = _migrate_meta(rec)
@@ -55,6 +55,9 @@ def reshape_to_v6(raw: Any) -> dict:
     rec["recursos"] = [_normalize_recurso(r) for r in rec.get("recursos") or []]
     rec["sessao_virtual"] = [_normalize_sessao(s) for s in rec.get("sessao_virtual") or []]
     rec["outcome"] = _promote_outcome(rec.get("outcome"), rec)
+    # v7: publicacoes_dje is a fresh-scrape-only field; renormalizer seeds
+    # an empty list so downstream code can assume the key exists.
+    rec["publicacoes_dje"] = rec.get("publicacoes_dje") or []
     # Re-derive primeiro_autor so AUTHOR_PARTY_TIPOS edits propagate to
     # corpus-on-disk. Fall back to whatever the record already carried
     # when partes can't surface an author (empty list or no matching tipo).

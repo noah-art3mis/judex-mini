@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "schema_version": 6,
+    "schema_version": 7,
     "status_http": 200,
     "extraido": "2026-04-19T00:20:01.230812"
   },
@@ -286,5 +286,6 @@
     "source": "andamentos",
     "source_index": 4,
     "date_iso": "2015-04-29"
-  }
+  },
+  "publicacoes_dje": []
 }

@@ -6,6 +6,19 @@ from typing import List, Literal, Optional, TypedDict
 # renormalizer (`scripts/renormalize_cases.py`) dispatches on missing
 # or lower-valued entries.
 #
+# v7 (2026-04-19) — DJe publicações added. Each case now carries a
+# `publicacoes_dje: List[PublicacaoDJe]` field sourced from two new
+# endpoints (`listarDiarioJustica.asp` + `verDiarioProcesso.asp`).
+# Each publicação bundles listing metadata (DJ number, date, secao,
+# subsecao, titulo, linked incidente) with detail-page content
+# (classe, procedencia, relator, partes, materia) plus a list of
+# `DecisaoDJe` blocks. Each block has a `kind` tag ("decisao" or
+# "ementa" — EMENTA renders as a decisao-shaped <p>+RTF on the
+# Acórdão variant of the detail page), the HTML-extracted paragraph
+# text, and an `rtf: Documento` with the `verDecisao.asp?...&texto=<id>`
+# URL whose `.text` is populated from peca_cache via the existing
+# RTF extractor. No backfill path — renormalizer seeds empty list;
+# only a fresh scrape fills it.
 # v6 (2026-04-18) — broad cleanup sweep. Dominant themes: reduce schema
 # variance, strip legacy naming, push scrape metadata out of the domain
 # payload.
@@ -43,7 +56,7 @@ from typing import List, Literal, Optional, TypedDict
 # `.bg-danger`; partes reads `#todas-partes`; `link`/`documentos` became
 # `{url, text}` dicts.
 # v1 — pre-2026-04-18; implicit default for files with no key.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class Documento(TypedDict):
@@ -141,6 +154,53 @@ class SessaoVirtual(TypedDict):
     julgamento_item_titulo: Optional[str]
 
 
+class DecisaoDJe(TypedDict):
+    """One decisao-shaped block from a DJe detail page (`verDiarioProcesso.asp`).
+
+    Both proper session decisões and the acórdão's EMENTA render with
+    the same `<p>` + `<a href=verDecisao.asp?...>` scaffolding on the
+    page; the `kind` tag disambiguates ("EMENTA:" text prefix on the
+    Acórdão variant maps to `kind="ementa"`, everything else is
+    `kind="decisao"`). Keeping them in one list matches the source and
+    avoids a downstream special case.
+    """
+    kind: Literal["decisao", "ementa"]
+    texto: str
+    rtf: Documento                   # verDecisao.asp?...&texto=<id>; .text from peca_cache
+
+
+class PublicacaoDJe(TypedDict):
+    """One DJe publication referencing the case.
+
+    Listing fields (`numero`, `data`, `secao`, `subsecao`, `titulo`,
+    `detail_url`, `incidente_linked`) come from the
+    `listarDiarioJustica.asp` grouped HTML. Detail fields come from
+    following `detail_url` (`verDiarioProcesso.asp`); they restate
+    some identity fields (`classe`, `relator`) as they appeared in
+    the DJe at publication time — kept as a temporal snapshot, not
+    deduped against the parent case's fields.
+
+    `incidente_linked` is the 3rd `abreDetalheDiarioProcesso` arg and
+    may differ from the parent case's incidente — STF often files
+    related filings (AG.REG., EMB.DECL.) under their own incidentes.
+    """
+    # Listing fields.
+    numero: int
+    data: Optional[str]              # ISO 8601 date.
+    secao: str                       # e.g. "Acórdãos", "Segunda Turma".
+    subsecao: str                    # e.g. "Acórdãos 2ª Turma", "Sessão Virtual".
+    titulo: str                      # anchor text from the listing.
+    detail_url: str                  # verDiarioProcesso.asp?...
+    incidente_linked: int
+    # Detail-page fields.
+    classe: Optional[str]
+    procedencia: Optional[str]
+    relator: Optional[str]
+    partes: List[str]                # raw "TIPO - NOME" strings as shown on the DJe.
+    materia: List[str]               # "DIREITO X | Subtema | Ramo"-style pipeline strings.
+    decisoes: List[DecisaoDJe]
+
+
 class OutcomeInfo(TypedDict):
     verdict: str
     source: Literal["sessao_virtual", "andamentos"]
@@ -196,6 +256,9 @@ class StfItem(TypedDict):
     peticoes: List[Peticao]
     recursos: List[Recurso]
     pautas: List[Pauta]
+
+    # DJe publications (new in v7).
+    publicacoes_dje: List[PublicacaoDJe]
 
     # Derived.
     outcome: Optional[OutcomeInfo]

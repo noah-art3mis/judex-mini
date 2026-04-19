@@ -7,6 +7,15 @@ import requests
 from striprtf.striprtf import rtf_to_text
 import urllib3
 
+# Must match the scraper session's User-Agent — STF's WAF permanently
+# 403s non-browser UAs (`python-requests/*`) per docs/stf-portal.md. This
+# previously bit any `portal.stf.jus.br` RTF/PDF silently; sistemas/digital
+# origins happen to be more permissive but the UA cost here is zero.
+_BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+)
+
 
 def _is_stf_host(url: str) -> bool:
     # WSL sandboxes lack a full CA bundle; *.stf.jus.br content is public,
@@ -101,7 +110,10 @@ def extract_document_text(
     try:
         # Download the document with SSL verification disabled for STF URLs
         verify_ssl = not _is_stf_host(url)
-        response = requests.get(url, timeout=timeout, verify=verify_ssl)
+        response = requests.get(
+            url, timeout=timeout, verify=verify_ssl,
+            headers={"User-Agent": _BROWSER_UA},
+        )
         response.raise_for_status()
 
         # Detect file type

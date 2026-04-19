@@ -14,6 +14,7 @@ mirrors extract_processo() from the Selenium path.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,7 @@ from bs4 import BeautifulSoup
 
 from src.scraping.extraction import http as ex
 from src.scraping.extraction import sessao as sessao_ex
+from src.scraping.extraction import dje as dje_ex
 from src.config import ScraperConfig
 from src.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
 from src.scraping.http_session import (
@@ -41,6 +43,8 @@ from src.utils.peca_utils import extract_document_text
 SESSAO_JSON_BASE = "https://sistemas.stf.jus.br/repgeral/votacao"
 
 BASE = "https://portal.stf.jus.br/processos"
+BASE_DJE = "https://portal.stf.jus.br/servicos/dje"
+TAB_DJE_LISTING = "dje_listing"
 
 DETALHE = "detalhe"
 TAB_INFORMACOES = "abaInformacoes"
@@ -249,6 +253,7 @@ def run_scraper_http(
     overwrite: bool,
     config: ScraperConfig,
     fetch_pdfs: bool = True,
+    fetch_dje: bool = True,
 ) -> None:
     """HTTP-backed equivalent of src.scraping.scraper.run_scraper.
 
@@ -281,6 +286,7 @@ def run_scraper_http(
                     timer,
                     export_item,
                     fetch_pdfs=fetch_pdfs,
+                    fetch_dje=fetch_dje,
                 )
             )
 
@@ -340,6 +346,7 @@ def _scrape_http_batch(
     export_item: Any,
     *,
     fetch_pdfs: bool = True,
+    fetch_dje: bool = True,
 ) -> list[str]:
     exported: list[str] = []
     for processo in processos:
@@ -354,6 +361,7 @@ def _scrape_http_batch(
                 session=session,
                 config=config,
                 fetch_pdfs=fetch_pdfs,
+                fetch_dje=fetch_dje,
             )
         except Exception as e:
             logging.error(f"{processo_name}: {type(e).__name__}: {e}")
@@ -448,6 +456,139 @@ def _make_sessao_fetcher(
     return fetcher
 
 
+def fetch_dje_listing(
+    session: requests.Session,
+    classe: str,
+    processo: int,
+    *,
+    config: Optional[ScraperConfig] = None,
+) -> str:
+    """GET the `listarDiarioJustica.asp` HTML for a (classe, processo).
+
+    This endpoint is keyed on `(classe, numero)` — not `incidente`
+    like the `abaX.asp` tabs — because the DJe indexes by the
+    publication identifier, which the portal maps to the case. Same
+    WAF bucket as `portal.stf.jus.br`.
+    """
+    r = _http_get_with_retry(
+        session,
+        f"{BASE_DJE}/listarDiarioJustica.asp",
+        params={"tipoPesquisaDJ": "AP", "classe": classe, "numero": processo},
+        headers={
+            "Referer": f"{BASE}/detalhe.asp",
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept": "text/html, */*; q=0.01",
+        },
+        config=config,
+    )
+    return _decode(r)
+
+
+def fetch_dje_detail(
+    session: requests.Session,
+    url: str,
+    *,
+    classe: str,
+    processo: int,
+    config: Optional[ScraperConfig] = None,
+) -> str:
+    """GET a `verDiarioProcesso.asp` detail page. `url` is absolute."""
+    r = _http_get_with_retry(
+        session,
+        url,
+        headers={
+            "Referer": (
+                f"{BASE_DJE}/listarDiarioJustica.asp"
+                f"?tipoPesquisaDJ=AP&classe={classe}&numero={processo}"
+            ),
+            "Accept": "text/html, */*; q=0.01",
+        },
+        config=config,
+    )
+    return _decode(r)
+
+
+def _dje_detail_cache_key(url: str) -> str:
+    """Tab-key for a DJe detail HTML in the per-case html_cache archive."""
+    h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
+    return f"dje_detail_{h}"
+
+
+def _make_dje_listing_fetcher(
+    classe: str,
+    processo: int,
+    session: requests.Session,
+    *,
+    cache_buf: _CacheBuf,
+    use_cache: bool,
+    config: Optional[ScraperConfig],
+) -> Any:
+    def fetcher() -> str:
+        tab = TAB_DJE_LISTING
+        if use_cache:
+            hit = html_cache.read(classe, processo, tab)
+            if hit is not None:
+                cache_buf.put(tab, hit, from_network=False)
+                return hit
+        html = fetch_dje_listing(session, classe, processo, config=config)
+        cache_buf.put(tab, html, from_network=True)
+        return html
+    return fetcher
+
+
+def _make_dje_detail_fetcher(
+    classe: str,
+    processo: int,
+    session: requests.Session,
+    *,
+    cache_buf: _CacheBuf,
+    use_cache: bool,
+    config: Optional[ScraperConfig],
+) -> Any:
+    def fetcher(url: str) -> str:
+        tab = _dje_detail_cache_key(url)
+        if use_cache:
+            hit = html_cache.read(classe, processo, tab)
+            if hit is not None:
+                cache_buf.put(tab, hit, from_network=False)
+                return hit
+        html = fetch_dje_detail(
+            session, url, classe=classe, processo=processo, config=config
+        )
+        cache_buf.put(tab, html, from_network=True)
+        return html
+    return fetcher
+
+
+def _resolve_publicacoes_dje(
+    entries: list[dict],
+    *,
+    detail_fetcher: Any,
+    pdf_fetcher: Optional[Any],
+) -> list[dict]:
+    """Fill each listing entry with detail-page fields + RTF text.
+
+    Mutates `entries` in place (same pattern as
+    `sessao_ex.resolve_documentos`) and returns the list for
+    chaining. If `pdf_fetcher` is None, RTF text stays at None — the
+    scrape can still record the URLs for a later sweep to extract.
+    """
+    for entry in entries:
+        detail_html = detail_fetcher(entry["detail_url"])
+        detail = dje_ex.parse_dje_detail(detail_html)
+        entry.update(detail)
+        if pdf_fetcher is None:
+            continue
+        for dec in entry["decisoes"]:
+            url = dec["rtf"].get("url")
+            if not url:
+                continue
+            text, extractor = pdf_fetcher(url)
+            dec["rtf"]["text"] = text
+            dec["rtf"]["extractor"] = extractor
+    return entries
+
+
 def scrape_processo_http(
     classe: str,
     processo: int,
@@ -456,6 +597,7 @@ def scrape_processo_http(
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
     fetch_pdfs: bool = True,
+    fetch_dje: bool = True,
 ) -> StfItem:
     """Full-process scrape via HTTP. Returns the same StfItem shape as the Selenium path.
 
@@ -500,6 +642,24 @@ def scrape_processo_http(
             fetcher=sessao_fetcher,
             pdf_fetcher=pdf_fetcher,
         )
+
+        publicacoes_dje: list[dict] = []
+        if fetch_dje:
+            listing_fetcher = _make_dje_listing_fetcher(
+                classe, processo, sessao_session,
+                cache_buf=cache_buf, use_cache=use_cache, config=config,
+            )
+            detail_fetcher = _make_dje_detail_fetcher(
+                classe, processo, sessao_session,
+                cache_buf=cache_buf, use_cache=use_cache, config=config,
+            )
+            listing_html = listing_fetcher()
+            publicacoes_dje = dje_ex.parse_dje_listing(listing_html)
+            _resolve_publicacoes_dje(
+                publicacoes_dje,
+                detail_fetcher=detail_fetcher,
+                pdf_fetcher=pdf_fetcher,
+            )
     finally:
         if owns_session:
             sessao_session.close()
@@ -544,6 +704,7 @@ def scrape_processo_http(
         peticoes=ex.extract_peticoes(fetched.tabs.get(TAB_PETICOES, "")),
         recursos=ex.extract_recursos(fetched.tabs.get(TAB_RECURSOS, "")),
         pautas=ex.extract_pautas(fetched.tabs.get(TAB_PAUTAS, "")),
+        publicacoes_dje=publicacoes_dje,
         outcome=ex.derive_outcome({
             "sessao_virtual": sessao_virtual,
             "andamentos": andamentos,

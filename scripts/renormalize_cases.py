@@ -82,7 +82,7 @@ from src.scraping.scraper import (
     _canonical_url,
     _extract_tema_from_abasessao,
 )
-from src.data.reshape import reshape_to_v6
+from src.data.reshape import reshape_to_v7
 from src.utils import html_cache, peca_cache
 
 CASES_ROOT = Path("data/cases")
