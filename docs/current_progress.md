@@ -874,6 +874,86 @@ Access surfaces:
   is named `pdfs` today but semantically holds all peças — a follow-up
   rename (`pdfs → pecas`) is on TODO for the next warehouse rebuild.
 
+### Known wart: bytes-file suffix `.pdf.gz` lies (queued fix)
+
+**What the wart is.** `peca_cache._bytes_path` hardcodes the bytes-
+cache filename to `<sha1>.pdf.gz`:
+
+```python
+# src/utils/peca_cache.py:70
+def _bytes_path(url: str) -> Path:
+    return CACHE_ROOT / f"{_hash(url)}.pdf.gz"
+```
+
+There is no format branch, no content sniff. Every URL's bytes land
+in `<sha1>.pdf.gz`, whether the body is PDF or RTF octets. After the
+RTF-first-class filter shipped (2026-04-19 commit `6ac64e9`), RTF
+andamento URLs (`downloadTexto.asp?ext=RTF`, ~372 per-year on HC)
+will start writing their bytes into `.pdf.gz`-named files too. The
+filename stops being accurate; the `.extractor` sidecar (`"rtf"` vs
+`"pypdf_plain"` / `"mistral"` / …) is the actual source of truth
+about format.
+
+**Why the data is still safe.** Binary formats are self-describing
+in their first few bytes. `peca_utils.detect_file_type()` dispatches
+on magic bytes (`%PDF` → pdf; `{\rtf` → rtf) and has never trusted
+the filename. Three independent recovery paths for any cache entry:
+
+1. Magic-byte sniff on the decompressed bytes (ground truth).
+2. `.extractor` sidecar (fast; requires extraction to have run).
+3. Warehouse `pdfs.extractor` column (same as path 2, bulk-scope).
+
+So the lie is a *readability* wart, not a *correctness* one. Nothing
+in production reads the filename as authoritative. A cold reader
+glancing at `data/cache/pdf/` gets misled; code does not.
+
+**Why it wasn't fixed in the `pdf→peca` rename.** The in-flight HC
+2026 sweep (pid 574055, ~5.5 h in at the time of the rename) holds
+`_bytes_path` in its in-memory module copy. Changing the constant
+on disk mid-sweep splits the cache across two naming conventions
+(old process keeps writing `.pdf.gz`; new processes look at
+`.bytes.gz`), which would break `has_bytes(url)` on every URL
+written post-change.
+
+**When + how to execute the fix.** After the sweep exits
+(`pgrep -af 'baixar_pecas|extrair_pecas'` returns empty):
+
+```bash
+# 1) migration: mv <sha1>.pdf.gz → <sha1>.bytes.gz across data/cache/pdf/
+#    write scripts/migrate_peca_cache_bytes.py first; walk the tree,
+#    rename atomically. Estimated ~36k files (30,387 pre-existing
+#    + whatever this sweep added, ~9,306 on full completion).
+uv run python scripts/migrate_peca_cache_bytes.py --dry-run   # verify count
+uv run python scripts/migrate_peca_cache_bytes.py             # execute
+
+# 2) deploy the constant change
+#    edit src/utils/peca_cache.py:71  "pdf.gz" → "bytes.gz"
+#    grep tests for any hardcoded `.pdf.gz` expectations (few)
+
+# 3) verify
+uv run pytest tests/unit/                                     # 393 expected
+uv run python scripts/validate_ground_truth.py                # 0 diffs expected
+# spot-check: a known URL from the 2026 sweep should still resolve
+uv run python -c "from src.utils import peca_cache; print(peca_cache.has_bytes('https://portal.stf.jus.br/processos/downloadPeca.asp?id=15386152898&ext=.pdf'))"
+
+# 4) rebuild warehouse — pdfs.cache_path column embeds the old filename
+uv run python scripts/build_warehouse.py --year 2026
+uv run python scripts/build_warehouse.py                      # full corpus
+
+# 5) commit
+#    chore(cache): rename bytes-cache suffix .pdf.gz → .bytes.gz
+```
+
+**Suffix choice.** `.bytes.gz` — literal, format-neutral, contrasts
+cleanly with `.txt.gz` (the derived text). Rejected alternatives:
+`.peca.gz` (not a known extension; extra cognitive load), `.raw.gz`
+(too generic), `.blob.gz` (opaque).
+
+**Tracked in TODO.md** under "Document-universe follow-ups" (the
+"sweep artifact filenames + cache-sidecar extension" entry). Queue:
+after HC 2026 download sweep completes (~21:00 local on 2026-04-19
+per the 16 URLs/min extrapolation).
+
 ## PDF sweeps + OCR
 
 ```bash
