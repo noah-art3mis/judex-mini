@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  partes       {summary.n_partes:>8,}")
     print(f"  andamentos   {summary.n_andamentos:>8,}")
     print(f"  documentos   {summary.n_documentos:>8,}")
+    print(f"  pautas       {summary.n_pautas:>8,}")
     print(f"  pdfs         {summary.n_pdfs:>8,}")
     return 0
 

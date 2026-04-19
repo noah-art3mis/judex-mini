@@ -450,6 +450,57 @@ def test_andamentos_v5_link_text_only_anchor(tmp_path: Path) -> None:
     assert row == ("Ver inteiro teor", None, None, None)
 
 
+def test_pautas_v6_flatten(tmp_path: Path) -> None:
+    """v6 — pautas list flattens to one row per entry; ISO `data`
+    lands in both `data` (VARCHAR) and `data_iso` (DATE), mirroring
+    the andamentos pattern."""
+    import datetime
+
+    cases = tmp_path / "cases"
+    _write_case(cases, _v1_case(pautas=[
+        {
+            "index": 2, "data": "2020-05-10", "nome": "PAUTA PUBLICADA",
+            "complemento": "DJE 80", "julgador": "1ª TURMA",
+        },
+        {
+            "index": 1, "data": "2020-06-15", "nome": "SESSÃO VIRTUAL",
+            "complemento": None, "julgador": None,
+        },
+    ]))
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+
+    with _connect(out) as con:
+        rows = con.execute(
+            "SELECT seq, data, data_iso, nome, complemento, julgador "
+            "FROM pautas WHERE classe='HC' AND processo_id=1 ORDER BY seq"
+        ).fetchall()
+    assert rows == [
+        (0, "2020-05-10", datetime.date(2020, 5, 10), "PAUTA PUBLICADA", "DJE 80", "1ª TURMA"),
+        (1, "2020-06-15", datetime.date(2020, 6, 15), "SESSÃO VIRTUAL", None, None),
+    ]
+
+
+def test_pautas_absent_or_empty_produces_no_rows(tmp_path: Path) -> None:
+    """Pre-v6 cases lack the pautas key; shape-only migrated cases have
+    pautas=None; v6 cases with no scheduled session have pautas=[].
+    All three yield zero rows without crashing the builder."""
+    cases = tmp_path / "cases"
+    _write_case(cases, _v1_case(n=1, pautas=None))
+    _write_case(cases, _v1_case(n=2, pautas=[]))
+    c3 = _v1_case(n=3)
+    c3.pop("pautas", None)
+    _write_case(cases, c3)
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+
+    with _connect(out) as con:
+        n = con.execute("SELECT COUNT(*) FROM pautas").fetchone()[0]
+    assert n == 0
+
+
 def test_pdfs_ingested_with_sha1_and_n_chars(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
     pdfs = tmp_path / "pdf"
@@ -547,9 +598,10 @@ def test_manifest_records_row_counts_and_commit(tmp_path: Path) -> None:
 
     with _connect(out) as con:
         row = con.execute(
-            "SELECT n_cases, n_andamentos, n_pdfs, classes FROM manifest"
+            "SELECT n_cases, n_andamentos, n_pdfs, classes, n_pautas FROM manifest"
         ).fetchone()
     assert row[0] == 2
     assert row[1] == 2               # one andamento per fixture
     assert row[2] == 0
     assert sorted(row[3]) == ["ADI", "HC"]
+    assert row[4] == 0               # fixtures have no pautas

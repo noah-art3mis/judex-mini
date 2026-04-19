@@ -104,6 +104,18 @@ CREATE TABLE documentos (
     PRIMARY KEY (classe, processo_id, session_idx, doc_seq)
 );
 
+CREATE TABLE pautas (
+    classe        VARCHAR NOT NULL,
+    processo_id   INTEGER NOT NULL,
+    seq           INTEGER NOT NULL,
+    data          VARCHAR,
+    data_iso      DATE,
+    nome          VARCHAR,
+    complemento   VARCHAR,
+    julgador      VARCHAR,
+    PRIMARY KEY (classe, processo_id, seq)
+);
+
 CREATE TABLE pdfs (
     sha1          VARCHAR PRIMARY KEY,
     n_chars       INTEGER NOT NULL,
@@ -119,6 +131,7 @@ CREATE TABLE manifest (
     n_partes      INTEGER,
     n_andamentos  INTEGER,
     n_documentos  INTEGER,
+    n_pautas      INTEGER,
     n_pdfs        INTEGER,
     build_wall_s  DOUBLE,
     judex_commit  VARCHAR
@@ -134,6 +147,8 @@ CREATE INDEX andamentos_nome_idx      ON andamentos (nome);
 CREATE INDEX andamentos_extractor_idx ON andamentos (link_extractor);
 CREATE INDEX documentos_sha1_idx      ON documentos (url_sha1);
 CREATE INDEX documentos_extractor_idx ON documentos (extractor);
+CREATE INDEX pautas_data_idx          ON pautas (data_iso);
+CREATE INDEX pautas_nome_idx          ON pautas (nome);
 """
 
 
@@ -143,6 +158,7 @@ class BuildSummary:
     n_partes: int
     n_andamentos: int
     n_documentos: int
+    n_pautas: int
     n_pdfs: int
     wall_s: float
     output_path: Path
@@ -267,6 +283,37 @@ def _flatten_andamentos(item: dict) -> list[dict]:
             "link_url_sha1":  sha1,
             "link_text":      text,
             "link_extractor": extractor,
+        })
+    return out
+
+
+def _flatten_pautas(item: dict) -> list[dict]:
+    """Flatten the v6 `pautas` top-level list into warehouse rows.
+
+    The `Pauta` TypedDict mirrors `Andamento` minus the `link` field
+    (pauta rows don't carry PDF anchors). The `data` field is ISO 8601
+    in v6; we carry both `data` (VARCHAR) and `data_iso` (DATE) to
+    stay consistent with the andamentos table. Pre-v6 case JSONs lack
+    the `pautas` key entirely — `.get(..., []) or []` short-circuits
+    to zero rows without special-casing.
+    """
+    out = []
+    for seq, p in enumerate(item.get("pautas") or []):
+        raw_data = p.get("data")
+        iso = (
+            raw_data
+            if raw_data and len(raw_data) == 10 and raw_data[4] == "-"
+            else None
+        )
+        out.append({
+            "classe":      item["classe"],
+            "processo_id": item["processo_id"],
+            "seq":         seq,
+            "data":        raw_data,
+            "data_iso":    iso,
+            "nome":        p.get("nome"),
+            "complemento": p.get("complemento"),
+            "julgador":    p.get("julgador"),
         })
     return out
 
@@ -499,6 +546,7 @@ def build(
     partes_rows: list[dict] = []
     andamentos_rows: list[dict] = []
     documentos_rows: list[dict] = []
+    pautas_rows: list[dict] = []
 
     for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
         item = _load_case(path)
@@ -508,6 +556,7 @@ def build(
         partes_rows.extend(_flatten_partes(item))
         andamentos_rows.extend(_flatten_andamentos(item))
         documentos_rows.extend(_flatten_documentos(item))
+        pautas_rows.extend(_flatten_pautas(item))
         if progress_every and (i + 1) % progress_every == 0:
             print(f"  scanned {i + 1:,} cases", flush=True)
 
@@ -516,6 +565,7 @@ def build(
     n_partes = len(partes_rows)
     n_andamentos = len(andamentos_rows)
     n_documentos = len(documentos_rows)
+    n_pautas = len(pautas_rows)
 
     con = duckdb.connect(str(tmp))
     try:
@@ -537,13 +587,14 @@ def build(
                 if d.get("url_sha1")
             }
         _bulk_insert(con, "documentos", documentos_rows); documentos_rows.clear()
+        _bulk_insert(con, "pautas", pautas_rows); pautas_rows.clear()
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pdf_cache_root, sha1_filter)
         )
         wall = time.monotonic() - t0
         con.execute(
-            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 datetime.now(),
                 classes_seen,
@@ -551,6 +602,7 @@ def build(
                 n_partes,
                 n_andamentos,
                 n_documentos,
+                n_pautas,
                 n_pdfs,
                 wall,
                 _git_commit(),
@@ -565,6 +617,7 @@ def build(
         n_partes=n_partes,
         n_andamentos=n_andamentos,
         n_documentos=n_documentos,
+        n_pautas=n_pautas,
         n_pdfs=n_pdfs,
         wall_s=time.monotonic() - t0,
         output_path=output_path,

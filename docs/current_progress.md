@@ -394,6 +394,41 @@ migration.
     rows** (0.07 %). Documentos are well-populated (session voto
     PDFs); andamento-linked PDFs were never bulk-downloaded until
     today's `baixar-pecas` run (PID 574055).
+- **2026-04-19 ~14:05 — `pautas` table shipped in builder, both
+  warehouses rebuilt.** Added `pautas` schema + `_flatten_pautas` +
+  insert call + manifest column (`n_pautas`) in
+  `src/warehouse/builder.py`. `BuildSummary` and the CLI grew a
+  `n_pautas` field. TDD: 2 new tests (v6 flatten + absent/empty
+  tolerance) + 1 updated manifest assertion; 395 / 395 unit tests
+  green. Rebuilds:
+
+  | warehouse           | cases  | partes  | andamentos | documentos | **pautas** | pdfs   | wall   | size     |
+  |---------------------|-------:|--------:|-----------:|-----------:|-----------:|-------:|--------|----------|
+  | `judex.duckdb`      | 79,742 | 268,157 | 1,086,647  | 30,504     | **7,463**  | 30,387 | 168 s  | 517.8 MB |
+  | `judex-2026.duckdb` |  3,098 |   9,645 |    35,681  |  1,302     |       0    |      0 |   4.5 s |   8.5 MB |
+
+  **Pautas sanity**: 7,463 rows across 6,737 distinct cases (8.5 %
+  of the corpus); date range 2016-04-12 → 2026-04-09; 0 NULL
+  `data_iso`. Top types: `PAUTA PUBLICADA NO DJE - 1ª TURMA`
+  (4,235), `2ª TURMA` (3,045), `PLENÁRIO` (82), `INCLUÍDO NA LISTA
+  DE JULGAMENTO` (55). 2026 sub-warehouse has 0 pautas — new
+  filings, too early for session scheduling.
+
+  **Full warehouse shrank 722 → 518 MB** (28 % smaller). No data
+  lost (fact-table counts identical). Likely DuckDB recompacted on
+  the atomic swap.
+- **2026-04-19 ~14:05 — PDF tracking gap confirmed.** Cache
+  inventory at rebuild time: 5,401 `.pdf.gz` (bytes-only), 30,387
+  `.txt.gz` (text-extracted). Warehouse's `_iter_pdf_rows` globs
+  only `.txt.gz`, so it tracks **30,387 / 35,788 = 84.9 %** of
+  on-disk PDF artifacts. The 5,401 gap is today's in-flight
+  `baixar-pecas` output that hasn't been through `extrair-pdfs`
+  yet. Join counts unchanged vs pre-rebuild: `andamentos` → `pdfs`
+  167; `documentos` → `pdfs` 13,075. To close the gap: after the
+  downloader finishes (~5 h more), run `extrair-pdfs --classe HC
+  --provedor mistral` over the 2026 scope, then rebuild. That step
+  turns `.pdf.gz` into `.txt.gz` + `.extractor` sidecar, which the
+  next builder pass ingests.
 
 ## Re-extraction status — what's v6, what isn't
 
@@ -787,6 +822,57 @@ nohup ./scripts/launch_hc_year_sharded.sh 2025 \
 # Stop all shards cleanly
 xargs -a runs/active/<label>/shards.pids kill -TERM
 ```
+
+## Data model — how pecas tie to cases
+
+**A "peça" is any downloadable case document, regardless of format.**
+Today that's PDFs (the majority — `downloadPeca.asp?ext=.pdf` plus
+voto PDFs from `sistemas.stf.jus.br/repgeral/` and
+`digital.stf.jus.br/…/conteudo.pdf`) and RTFs (`DECISÃO DE
+JULGAMENTO` via `downloadTexto.asp?ext=RTF`). Future formats land in
+the same cache + warehouse with no code change; format dispatch lives
+in `peca_utils.extract_document_text`, which detects magic bytes
+(`%PDF`, `{\rtf`) and routes to pypdf or striprtf.
+
+Three hops from a case to its extracted text, all deterministic:
+
+```text
+data/cases/HC/judex-mini_HC_270392-270392.json                  ← the case record
+  └── andamentos[i].link.url                                    ← portal.stf.jus.br URL
+       └── sha1(url) = "295772cbd5…"                            ← cache key (format-neutral)
+            ├── data/cache/pdf/295772cbd5….pdf.gz               ← raw bytes  (baixar-pecas)
+            ├── data/cache/pdf/295772cbd5….txt.gz               ← extracted text (extrair-pecas)
+            ├── data/cache/pdf/295772cbd5….elements.json.gz     ← PDF-OCR structure list (optional)
+            └── data/cache/pdf/295772cbd5….extractor            ← "pypdf_plain" | "mistral" | "chandra"
+                                                                   | "unstructured" | "rtf"   ← truth about format
+```
+
+**Key properties:**
+
+- **URL-keyed, not case-keyed.** Two cases citing the same peça share
+  **one** cache entry and **one** warehouse `pdfs` row. Counting
+  pecas-per-case needs walking `andamentos[].link.url` per case.
+- **Filename `.pdf.gz` is historical** — the bytes file may contain
+  RTF octets (from `downloadTexto.asp`) because we kept the legacy
+  extension when we renamed modules (`pdf → peca`) to avoid breaking
+  the in-flight sweep. The `.extractor` sidecar is the source of
+  truth for format: `"rtf"` → RTF bytes, any pypdf/mistral/chandra
+  label → PDF bytes. Ditto `.elements.json.gz` — only PDF-OCR
+  providers emit one, so its presence implies PDF.
+- **The quartet is re-entrant.** Re-running `extrair-pecas` with a
+  new `--provedor` reads the bytes off disk (no STF traffic) and
+  overwrites `.txt.gz` + `.extractor`. Switching providers is a
+  local operation; the bytes never change.
+
+Access surfaces:
+
+- **Python, case-centric**: `peca_cache.read(url)` / `has_bytes(url)` /
+  `read_extractor(url)` — hashes the URL internally, you never touch
+  sha1. One call per `andamentos[i].link.url`.
+- **SQL, cross-case**: warehouse `pdfs` table joins to `andamentos`
+  on `sha1 = link_url_sha1` (pre-computed at build time). The table
+  is named `pdfs` today but semantically holds all peças — a follow-up
+  rename (`pdfs → pecas`) is on TODO for the next warehouse rebuild.
 
 ## PDF sweeps + OCR
 
