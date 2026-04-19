@@ -4,6 +4,30 @@ Extração automatizada de dados de processos do STF (Supremo Tribunal Federal).
 
 Este README é o **guia prático para rodar a ferramenta**. Detalhes de arquitetura, testes e convenções para quem contribui com o código estão em [`CLAUDE.md`](CLAUDE.md).
 
+## Comandos
+
+Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhada com `--help`):
+
+| Comando              | O que faz                                                                  |
+|----------------------|----------------------------------------------------------------------------|
+| `varrer-processos`   | Raspa metadados de processos do STF (partes, andamentos, PDFs, etc.).      |
+| `baixar-pecas`       | Baixa os bytes dos PDFs anexados para o cache local.                       |
+| `extrair-pecas`      | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
+
+## Funcionalidades
+
+- **Retry automático em 403** — backoff exponencial via tenacity; o WAF do STF usa 403 (não 429) como sinal de throttle, e a janela abre em minutos.
+- **Rotação proativa de proxy** — troca de IP antes do WAF endurecer; cada proxy tem janela ativa e cooldown alinhados à memória do WAF.
+- **Sweeps shardeados** — particiona um CSV em N processos paralelos, um pool de proxy por shard, arquivo de PIDs para monitor/stop.
+- **Disjuntor (circuit breaker)** — janela rolante das últimas raspagens; quando a fração de falhas ultrapassa o limiar, o sweep para limpo (escreve estado e sai).
+- **Classificação de regime WAF** — `CliffDetector` acompanha em tempo real `healthy` → `approaching_collapse` → `engaged` → `collapse`, e rotaciona preventivamente.
+- **Retomada atômica** — `sweep.state.json` + arquivos por processo com renomeação atômica; `--retomar` pula o que já deu `ok`.
+- **Retentar só as falhas** — `--retentar-de sweep.errors.jsonl` para re-atacar apenas os processos que falharam.
+- **Cache de PDF versionado por provedor** — sidecar `.extractor` permite trocar OCR (pypdf → mistral → chandra) sem rebaixar bytes.
+- **Prévia de custo** — `--dry-run` em `extrair-pecas` estima páginas, USD e tempo antes de queimar chave de API.
+- **Validação contra gabarito** — fixtures hand-verified em `tests/ground_truth/` para evitar regressões em extractors.
+- **Watchlist no relatório diário** — lista de processos monitorados com diff estruturado por rodada.
+
 ---
 
 ## 1. Pré-requisitos
@@ -95,10 +119,6 @@ O que cada pedaço significa:
 
 Se tudo deu certo, o arquivo do processo fica em `runs/coletas/<timestamp>-<rótulo>/items/judex-mini_HC_135041-135041.json`. O timestamp e o rótulo são inferidos quando você passa só `-c/-i/-f`; para escolher, use `--saida caminho/` e `--rotulo meu-nome`.
 
-> **Sempre use `uv run judex ...`** (ou `uv run python main.py ...`), nunca `python main.py` direto. O `uv run` garante que o Python certo e as bibliotecas certas estão sendo usados. Rodar `python main.py` sem `uv run` vai dar `ModuleNotFoundError` ou pior.
->
-> A partir de 2026-04-18, o scraper virou o subcomando `varrer-processos` (o antigo `coletar` foi absorvido). Raspar um intervalo continua simples — `judex varrer-processos -c HC -i 135041 -f 135041` —, mas agora a mesma varredura escala para 100 mil processos via `--csv`, com retomada, disjuntor, rotação de proxy e relatório. O rótulo e o diretório de saída são auto-inferidos quando você passa só `-c/-i/-f`. Flags longas estão em português (`--classe`, `--processo-inicial`, `--saida`, `--rotulo` etc.); as curtas (`-c -i -f`) permanecem.
-
 ---
 
 ## 4. Comandos comuns
@@ -139,7 +159,7 @@ uv run judex --help
 
 O `varrer-processos` já coleta os **metadados** de cada processo, incluindo as URLs dos PDFs anexados (decisões, acórdãos, manifestações da PGR). Quando você quer o **texto** desses PDFs também, rode dois comandos em sequência — eles são independentes de propósito:
 
-1. **`baixar-pecas`** — baixa os bytes dos PDFs para `data/cache/pdf/<hash>.pdf.gz`. É a única parte que volta a falar com o STF, mas vai para um domínio diferente (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio orçamento de taxa — na prática, 403 aqui é bem mais raro que no `varrer-processos`, e o comando roda sempre direto (sem proxy).
+1. **`baixar-pecas`** — baixa os bytes dos PDFs para `data/cache/pdf/<hash>.pdf.gz`. É a única parte que volta a falar com o STF, mas vai para um domínio diferente (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio orçamento de taxa — na prática, 403 aqui é bem mais raro que no `varrer-processos`. Aceita `--proxy-pool` e tem modo shardeado (`--shards`) para sweeps grandes.
 2. **`extrair-pecas --provedor <X>`** — lê os bytes do disco e extrai o texto via o provedor escolhido. Nenhuma chamada ao STF. Provedores suportados: `pypdf` (local, grátis, camada de texto; padrão), `mistral`, `chandra`, `unstructured` (OCR pagos; exigem chave de API).
 
 Exemplo típico para os HCs que você acabou de varrer:
@@ -266,20 +286,15 @@ uv run judex varrer-processos --csv alvos.csv \
   --proxy-pool runs/proxies.txt
 ```
 
-O scraper rotaciona proativamente — cada IP é usado por `--proxy-rotacao-segundos` (padrão 270 s = 4,5 min), depois fica `--proxy-cooldown-minutos` (padrão 4,0 min) fora da fila. A janela bate com o tempo que o WAF precisa para "esquecer" um IP.
+O scraper rotaciona proativamente: cada IP é usado por ~4,5 min e fica ~4 min em cooldown, alinhado com o tempo que o WAF do STF leva para "esquecer" um IP.
 
 **Custo (referência prática).** Eu uso [ProxyScrape](https://proxyscrape.com/) residencial — **R$ 100 por 5 GB** de tráfego. Cada processo do STF custa ~30–50 KB de HTML, então 5 GB dão ordem de 100 k raspagens. Para rodar um processo isolado não compensa; para o backfill de uma classe inteira (HC ~216 k), compensa.
 
-**`baixar-pecas` não usa proxy.** Vive em `sistemas.stf.jus.br` — domínio separado, contador de reputação próprio, bem mais tolerante que `portal.stf.jus.br`. Roda sempre direto.
+**`baixar-pecas` também aceita `--proxy-pool`.** Vive em `sistemas.stf.jus.br` — domínio separado, contador de reputação próprio, bem mais tolerante que `portal.stf.jus.br`, então em volumes pequenos roda direto. Em sweeps grandes (milhares de PDFs), o modo shardeado (`--shards N --proxy-pool-dir D`) é o caminho: particiona o CSV e distribui um pool de proxies por shard.
 
 ### 7.4 Disjuntor (circuit breaker)
 
-Para evitar queimar proxy e IP quando o WAF entra em regime de bloqueio total, `varrer-processos` embute um disjuntor:
-
-- `--janela-circuit 50` (padrão) — janela rolante das últimas 50 raspagens.
-- `--limiar-circuit 0.8` (padrão) — se ≥ 80 % das últimas 50 **não** deram `ok`, o sweep para limpo (escreve estado, sai com código 2).
-
-Desligar: `--janela-circuit 0`. Regime mais agressivo (parar mais cedo): `--limiar-circuit 0.5`. Detalhes e classificação de regime WAF (healthy / approaching / engaged / collapse) em [`docs/rate-limits.md`](docs/rate-limits.md).
+Para evitar queimar proxy e IP quando o WAF entra em regime de bloqueio total, `varrer-processos` embute um disjuntor ligado por padrão: mantém uma janela rolante das últimas raspagens e, se a fração de falhas ultrapassa o limiar, o sweep para limpo (escreve estado, sai com código 2). Em paralelo, o `CliffDetector` classifica o regime WAF em tempo real (`healthy` / `approaching_collapse` / `engaged` / `collapse`) e dispara rotação preventiva de proxy antes da janela expirar. Detalhes em [`docs/rate-limits.md`](docs/rate-limits.md).
 
 ### 7.5 OCR pago: chaves de API e custo
 
@@ -289,7 +304,7 @@ Desligar: `--janela-circuit 0`. Regime mais agressivo (parar mais cedo): `--limi
 |----------------|--------------------------|------------------------------------|
 | `mistral`      | `MISTRAL_API_KEY`        | https://console.mistral.ai/        |
 | `unstructured` | `UNSTRUCTURED_API_KEY`   | https://platform.unstructured.io/  |
-| `chandra`      | `CHANDRA_API_KEY`        | dashboard Chandra                  |
+| `chandra`      | `CHANDRA_API_KEY`        | https://www.datalab.to/            |
 
 **Custo por 1 000 páginas** (fonte: `judex/scraping/ocr/dispatch.py`):
 
@@ -328,11 +343,7 @@ Menos usados, mas úteis em contextos específicos:
 
 ### `command not found: uv`
 
-Você instalou o `uv` mas não reabriu o terminal. Feche e abra de novo. Se persistir:
-
-```bash
-source ~/.bashrc     # ou ~/.zshrc no macOS
-```
+Você instalou o `uv` mas não reabriu o terminal. Feche e abra de novo.
 
 ### `ModuleNotFoundError` ou `No module named 'src'`
 
@@ -344,16 +355,8 @@ O portal do STF bloqueia IPs que fazem requisições demais em pouco tempo. O bl
 
 - **Espere 5 a 10 minutos** e tente de novo.
 - **Rode intervalos menores** (ex.: 50 processos por vez, não 1000).
-- Para varreduras de milhares de processos, use rotação de proxy + disjuntor — receita completa em **[§ 7.3](#73-rotação-de-proxy)** e **[§ 7.4](#74-disjuntor-circuit-breaker)**. O `baixar-pecas` vive em outro domínio (`sistemas.stf.jus.br`) com contador próprio e, em geral, não precisa de proxy.
+- Para varreduras de milhares de processos, use rotação de proxy + disjuntor — receita completa em **[§ 7.3](#73-rotação-de-proxy)** e **[§ 7.4](#74-disjuntor-circuit-breaker)**. O `baixar-pecas` vive em outro domínio (`sistemas.stf.jus.br`) com contador próprio e bem mais tolerante — em volumes pequenos roda direto; para milhares de PDFs, passe `--proxy-pool` ou use o modo shardeado.
 - Para detalhes técnicos (retry, pacing, regime WAF), ver [`docs/rate-limits.md`](docs/rate-limits.md) e [`CLAUDE.md`](CLAUDE.md).
-
-### O arquivo de saída não aparece
-
-Confira, nessa ordem:
-
-1. Qual pasta você passou em `--saida` (quando omitida, `varrer-processos` gera automaticamente um diretório em `runs/coletas/<timestamp>-<rótulo>/`).
-2. Se o processo existe mesmo no STF (tente abrir no navegador: `https://portal.stf.jus.br/processos/detalhe.asp?classe=HC&numero=135041`).
-3. O arquivo de log em `data/logs/` — ele diz exatamente o que deu errado.
 
 ---
 
