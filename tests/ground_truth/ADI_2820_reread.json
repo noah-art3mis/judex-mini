@@ -1925,5 +1925,307 @@
     "source_index": 100,
     "date_iso": "2023-09-11"
   },
-  "publicacoes_dje": []
+  "publicacoes_dje": [
+    {
+      "numero": 182,
+      "data": "2022-09-13",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=182&dataPublicacaoDj=13/09/2022&incidente=2083816&codCapitulo=6&numMateria=167&codMateria=2",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "DESPACHO 1. O Governador do Espírito Santo ajuizou, em 7 de janeiro de 2003, esta ação direta de inconstitucionalidade em face da Emenda de n. 35/2001, por meio da qual acrescentados os §§ 4º, 5º, 6º e 7º ao art. 122 da Constituição local, com o seguinte teor: Art. 122. A Procuradoria-Geral é o órgão que representa o Estado, judicial e extrajudicialmente, cabendo-lhe, ainda, nos termos da lei complementar, as atividades de consultoria e assessoramento jurídico do Poder Executivo Estadual. [...] § 4º Os integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa são remunerados por iguais subsídios. § 5º Compete à Procuradoria-Geral da Assembleia Legislativa a representação judicial e extrajudicial do Poder Legislativo nos atos praticados pelos seus representantes ou por sua administração interna. § 6º A Procuradoria-Geral do Estado e a Procuradoria-Geral da Assembleia Legislativa têm por chefe os respectivos Procuradores Gerais, nomeado dentre os integrantes ativos de suas carreira. § 7º Os membros integrantes da Procuradoria-Geral do Estado e da Procuradoria-Geral da Assembleia Legislativa serão julgados e processados perante o Tribunal de Justiça. O proponente articula a usurpação da iniciativa legislativa privativa do Chefe do Executivo (CF, arts. 61, § 1º, II, a, c e e, e 84, VI). Frisa violados os art. 37, XIII; 84, I, II e XVI; 131, § 1º; e 132, caput, da Carta da República. A Assembleia Legislativa defende a higidez constitucional das normas. O Advogado-Geral da União, remetendo a precedentes do Supremo, alega a inconstitucionalidade dos §§ 5º, 6º e 7º. O Procurador-Geral da República opina pela procedência parcial do pedido, apenas quanto ao § 5º. Foram admitidas, na condição de amici curiae, a Associação dos Procuradores de Estado do Poder Legislativo do Estado do Espírito Santo e a Associação Nacional dos Procuradores de Estado. É o relatório. 2. Constato a superveniência da Emenda de n. 108, de 22 de maio de 2017, à Constituição do Estado do Espírito Santo, por meio da qual foi dada nova redação ao § 6º do art. 122. Transcrevo o teor atualizado do dispositivo: Art. 122. […] […] § 6º A Procuradoria-Geral do Estado tem por chefe o Procurador-Geral, nomeado dentre os integrantes de sua carreira. Considerando a alteração de parte do objeto da ação, é caso de o requerente dizer se pretende aditar a petição inicial. Em seguida, deverá ser aberta vista ao Advogado-Geral da União e ao Procurador-Geral da República, para que se pronunciem. 3. Intime-se o requerente para, querendo, proceder ao aditamento da peça primeira, no prazo de quinze dias (CPC, art. 321). Depois, colham-se a manifestação da Advocacia-Geral da União e o parecer da Procuradoria-Geral da República. 4. Publique-se. Brasília, 1º de setembro de 2022. Ministro NUNES MARQUES Relator",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=182&dataPublicacao=13/09/2022&incidente=2083816&capitulo=6&codigoMateria=2&numeroMateria=167&texto=10059801",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 287,
+      "data": "2020-12-07",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Atos Ordinatórios / Processos convertidos para o meio eletrônico",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=287&dataPublicacaoDj=07/12/2020&incidente=2083816&codCapitulo=6&numMateria=273&codMateria=15",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "Certifico que os presentes autos físicos foram convertidos para o meio eletrônico nos termos da Resolução 574/2016-STF.",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=287&dataPublicacao=07/12/2020&incidente=2083816&capitulo=6&codigoMateria=15&numeroMateria=273&texto=84",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 151,
+      "data": "2013-08-06",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=151&dataPublicacaoDj=06/08/2013&incidente=2083816&codCapitulo=6&numMateria=104&codMateria=2",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "DECISÃO: As razões invocadas pela Associação Nacional dos Procuradores de Estado – ANAPE para justificar sua pretensão de ingresso neste processo ajustam-se aos objetivos subjacentes à regra legal que instituiu a figura do “amicus curiae”, conformando-se ao entendimento que expus em decisão proferida na ADI 2.130/SC, Rel. Min. CELSO DE MELLO (DJU de 02/02/2001): “AÇÃO DIRETA DE INCONSTITUCIONALIDADE. INTERVENÇÃO PROCESSUAL DO ‘AMICUS CURIAE’. POSSIBILIDADE. LEI Nº 9.868/99 (ART. 7º, § 2º). SIGNIFICADO POLÍTICO-JURÍDICO DA ADMISSÃO DO ‘AMICUS CURIAE’ NO SISTEMA DE CONTROLE NORMATIVO ABSTRATO DE CONSTITUCIONALIDADE. PEDIDO DE ADMISSÃO DEFERIDO. - No estatuto que rege o sistema de controle normativo abstrato de constitucionalidade, o ordenamento positivo brasileiro processualizou a figura do ‘amicus curiae’ (Lei nº 9.868/99, art. 7º, § 2º), permitindo que terceiros – desde que investidos de representatividade adequada – possam ser admitidos na relação processual, para efeito de manifestação sobre a questão de direito subjacente à própria controvérsia constitucional. - A admissão de terceiro, na condição de ‘amicus curiae’, no processo objetivo de controle normativo abstrato, qualifica-se como fator de legitimação social das decisões da Suprema Corte, enquanto Tribunal Constitucional, pois viabiliza, em obséquio ao postulado democrático, a abertura do processo de fiscalização concentrada de constitucionalidade, em ordem a permitir que nele se realize, sempre sob uma perspectiva eminentemente pluralística, a possibilidade de participação formal de entidades e de instituições que efetivamente representem os interesses gerais da coletividade ou que expressem os valores essenciais e relevantes de grupos, classes ou estratos sociais. Em suma: a regra inscrita no art. 7º, § 2º, da Lei nº 9.868/99 – que contém a base normativa legitimadora da intervenção processual do amicus curiae – tem por precípua finalidade pluralizar o debate constitucional.” Impende destacar, ainda, considerada a fase ritual em que se acha a presente causa, que se revela oportuno o ingresso, neste processo de controle abstrato, como “amicus curiae”, da associação civil requerente, eis que o pedido de intervenção processual em questão foi requerido antes da inclusão em pauta do processo em referência, para efeito de seu julgamento final (ADI 4.071-AgR/DF, Rel. Min. MENEZES DIREITO). Sendo assim, em face das razões expostas, admito, na condição de “amicus curiae”, a Associação Nacional dos Procuradores de Estado – ANAPE, eis que se acham atendidas, na espécie, as condições fixadas no art. 7º, § 2º, da Lei nº 9.868/99. Proceda-se, em consequência, às anotações pertinentes. Assinalo, por necessário, em face de precedentes desta Corte, notadamente daquele firmado na ADI 2.777-QO/SP, que o “amicus curiae”, uma vez formalmente admitido no processo de fiscalização normativa abstrata, tem o direito de proceder à sustentação oral de suas razões, observado, no que couber, o § 3º do art. 131 do RISTF, na redação conferida pela Emenda Regimental nº 15/2004. 2. Voltem-me conclusos, a seguir, os presentes autos. Publique-se. Brasília, 1º de agosto de 2013. Ministro CELSO DE MELLO Relator",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=151&dataPublicacao=06/08/2013&incidente=2083816&capitulo=6&codigoMateria=2&numeroMateria=104&texto=4494454",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 36,
+      "data": "2009-02-25",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=36&dataPublicacaoDj=25/02/2009&incidente=2083816&codCapitulo=6&numMateria=16&codMateria=2",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "DECISÃO: Admito, na condição de “amicus curiae”, a Associação dos Procuradores de Estado do Poder Legislativo do Estado do Espírito Santo - APROLEGES, eis que se acham atendidas, na espécie, as condições fixadas no art. 7º, § 2º, da Lei  nº 9.868/99. Proceda-se, em conseqüência, às anotações pertinentes. 2. Assinalo, por necessário, que, em face de precedentes desta Corte, notadamente daquele firmado na ADI 2.777-QO/SP, o “amicus curiae”, uma vez formalmente admitido no processo de fiscalização normativa abstrata, tem o direito de proceder à sustentação oral de suas razões, observado, no que couber, o § 3º do   art. 131 do RISTF, na redação conferida pela Emenda Regimental nº 15/2004. Publique-se, Brasília, 17 de fevereiro de 2009. Ministro CELSO DE MELLO Relator",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=36&dataPublicacao=25/02/2009&incidente=2083816&capitulo=6&codigoMateria=2&numeroMateria=16&texto=3080958",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 83,
+      "data": "2006-05-03",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=83&dataPublicacaoDj=03/05/2006&incidente=2083816&codCapitulo=6&numMateria=59&codMateria=2",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "(PG/STF-52998/2006) DECISÃO: Incabível a pretendida suspensão prejudicial, tal como ora requerida por José Carlos Gratz - a quem não assiste legitimidade para intervir na presente sede de controle normativo abstrato -, referente ao julgamento da argüição incidental de inconstitucionalidade do § 7º do art. 122 da Constituição do Estado do Espírito Santo, que foi suscitada nos autos do HC 024040248932, ora em tramitação perante o E. Tribunal de Justiça do Estado do Espírito Santo. A jurisprudência que o Supremo Tribunal Federal firmou na matéria veiculada na postulação ora deduzida por José Carlos Gratz supõe a existência simultânea - tanto nesta Corte Suprema, quanto perante o Tribunal de Justiça local - de ações diretas de inconstitucionalidade nas quais se questione, “in abstracto”, e em sede de fiscalização concentrada, o mesmo ato normativo. O exame do pleito em questão, no entanto, revela que a situação exigida pelo magistério jurisprudencial desta Corte não ocorre na espécie em causa, pois inexistem, instaurados perante o Supremo Tribunal Federal e o Tribunal de Justiça local, em curso de simultânea tramitação, processos de fiscalização normativa abstrata pertinentes ao mesmo ato estatal. Tive o ensejo de acentuar, no exame do tema em referência, que a instauração do processo de fiscalização normativa abstrata, perante o Supremo Tribunal Federal, em que se postule a invalidação de diploma normativo editado por Estado-membro ou pelo Distrito Federal, questionado em face da Constituição da República (CF, art. 102, I, “a”), qualifica-se como causa de suspensão prejudicial do processo de controle concentrado de constitucionalidade, que, promovido perante o Tribunal de Justiça local (CF, art. 125, § 2º), tenha, por objeto de impugnação “in abstracto”, exatamente os mesmos atos normativos emanados do Estado-membro ou do Distrito Federal, contestados, porém, em face da Constituição estadual ou, então, em face da Lei Orgânica do Distrito Federal. Proferi, então, a propósito de tal matéria, decisão que está assim ementada: “AJUIZAMENTO DE AÇÕES DIRETAS DE INCONSTITUCIONALIDADE TANTO PERANTE O SUPREMO TRIBUNAL FEDERAL (CF, ART. 102, I, ‘A’) QUANTO PERANTE TRIBUNAL DE JUSTIÇA LOCAL (CF, ART. 125, § 2º). PROCESSOS DE FISCALIZAÇÃO CONCENTRADA NOS QUAIS SE IMPUGNA O MESMO DIPLOMA NORMATIVO EMANADO DE ESTADO-MEMBRO OU DO DISTRITO FEDERAL, NÃO OBSTANTE CONTESTADO, PERANTE O TRIBUNAL DE JUSTIÇA, EM FACE DE PRINCÍPIOS INSCRITOS NA CARTA POLÍTICA LOCAL IMPREGNADOS DE PREDOMINANTE COEFICIENTE DE FEDERALIDADE (RTJ 147/404 - RTJ 152/371-373). OCORRÊNCIA DE ‘SIMULTANEUS PROCESSUS’. HIPÓTESE DE SUSPENSÃO PREJUDICIAL DO PROCESSO DE CONTROLE NORMATIVO ABSTRATO INSTAURADO PERANTE O TRIBUNAL DE JUSTIÇA LOCAL. NECESSIDADE DE SE AGUARDAR, EM TAL CASO, A CONCLUSÃO, PELO SUPREMO TRIBUNAL FEDERAL, DO JULGAMENTO DA AÇÃO DIRETA. DOUTRINA. PRECEDENTES (STF).” (ADI 3.482/DF, Rel. Min. CELSO DE MELLO, “in” Informativo/STF nº 419/2006) Como precedentemente por mim salientado, não se registra, na espécie, o pressuposto legitimador da suspensão prejudicial ora postulada por José Carlos Gratz (PG/STF-52998/2006), razão pela qual indefiro o pedido por ele formulado. Encaminhe-se cópia da presente decisão ao eminente Desembargador RONALDO GONÇALVES DE SOUSA, Relator do Incidente de Inconstitucionalidade nº 100050037207, incluído na pauta de julgamento do E. Plenário do Tribunal de Justiça do Estado do Espírito Santo. Publique-se. Brasília, 26 de abril de 2006 (21:00h). Ministro CELSO DE MELLO Relator",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=83&dataPublicacao=03/05/2006&incidente=2083816&capitulo=6&codigoMateria=2&numeroMateria=59&texto=1957671",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 99,
+      "data": "2003-05-27",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Processos Originários",
+      "titulo": "MEDIDA CAUTELAR NA AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=99&dataPublicacaoDj=27/05/2003&incidente=3700865&codCapitulo=6&numMateria=75&codMateria=2",
+      "incidente_linked": 3700865,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "(PG/STF-53292/03) DESPACHO: Observo que a petição protocolada sob o nº 53292/03 não se acha subscrita por seu autor, ou pela eminente Procuradora-Geral do Estado do Espírito Santo, o que a torna um ato processual inexistente. Desse modo, assino, ao autor, o prazo de 10 (dez) dias para suprir a omissão ora apontada. 2. Determinei a juntada, por linha, aos autos da ADI 2.820/ES, da petição protocolada, nesta Corte, sob o nº 47744/03, eis que as providências nela postuladas foram requeridas por quem não dispõe de legitimidade para intervir no processo de fiscalização abstrata de constitucionalidade, ainda que os subscritores dessa peça processual possam titularizar interesses concretos cuja preservação dependa, eventualmente, do julgamento da presente ação direta. O fato irrecusável, tendo em vista os subscritores dessa petição (PG/STF nº 47744/03), reside na circunstância de que situações individuais não podem ser consideradas no âmbito do controle abstrato de normas (RTJ 164/506-509 - RTJ 170/801-802, v.g.). Publique-se. Brasília, 09 de maio de 2003. Ministro CELSO DE MELLO Relator",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=99&dataPublicacao=27/05/2003&incidente=3700865&capitulo=6&codigoMateria=2&numeroMateria=75&texto=1357022",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    },
+    {
+      "numero": 34,
+      "data": "2003-02-18",
+      "secao": "Presidência",
+      "subsecao": "Distribuição",
+      "titulo": "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=34&dataPublicacaoDj=18/02/2003&incidente=2083816&codCapitulo=1&numMateria=1&codMateria=8",
+      "incidente_linked": 2083816,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": []
+    },
+    {
+      "numero": 24,
+      "data": "2003-02-04",
+      "secao": "Secretaria Judiciária",
+      "subsecao": "Despachos/Decisões do Presidente",
+      "titulo": "MEDIDA CAUTELAR NA AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820",
+      "detail_url": "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp?numDj=24&dataPublicacaoDj=04/02/2003&incidente=3700865&codCapitulo=6&numMateria=2&codMateria=10",
+      "incidente_linked": 3700865,
+      "classe": "ADI",
+      "procedencia": "ESPÍRITO SANTO",
+      "relator": "MIN. NUNES MARQUES",
+      "partes": [
+        "REQTE.(S) - GOVERNADOR DO ESTADO DO ESPÍRITO SANTO",
+        "PROC.(A/S)(ES) - PROCURADOR-GERAL DO ESTADO DO ESPÍRITO SANTO",
+        "INTDO.(A/S) - ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "ADV.(A/S) - PROCURADOR-GERAL DA ASSEMBLEIA LEGISLATIVA DO ESTADO DO ESPÍRITO SANTO",
+        "AM. CURIAE. - ASSOCIAÇÃO DOS PROCURADORES DE ESTADO DO PODER LEGISLATIVO DO ESTADO DO ESPÍRITO SANTO - APROLEGES",
+        "ADV.(A/S) - LUIS ALEXANDRE RASSI",
+        "AM. CURIAE. - ANAPE - ASSOCIAÇÃO NACIONAL DOS PROCURADORES DE ESTADO",
+        "ADV.(A/S) - VICENTE MARTINS PRATA BRAGA",
+        "ADV.(A/S) - CARLOS FREDERICO BRAGA MARTINS"
+      ],
+      "materia": [
+        "DIREITO PROCESSUAL CIVIL E DO TRABALHO | Ministério Público",
+        "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO | Organização Político-administrativa / Administração Pública | Criação / Extinção / Reestruturação de Orgãos ou Cargos Públicos"
+      ],
+      "decisoes": [
+        {
+          "kind": "decisao",
+          "texto": "DESPACHO: Vistos, etc. Solicitem-se informações à Assembléia Legislativa do Estado do Espírito Santo, na forma do caput do art. 10 da Lei n.º 9.868/99. Publique-se. Brasília, 7 de janeiro de 2003. Ministro ILMAR GALVÃO Vice-Presidente (art. 37, I, do RI/STF)",
+          "rtf": {
+            "tipo": "DJE",
+            "url": "https://portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=24&dataPublicacao=04/02/2003&incidente=3700865&capitulo=6&codigoMateria=10&numeroMateria=2&texto=1294734",
+            "text": null,
+            "extractor": null
+          }
+        }
+      ]
+    }
+  ]
 }
