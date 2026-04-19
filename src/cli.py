@@ -710,5 +710,55 @@ def sondar_densidade(
         sys.argv = argv_original
 
 
+# ---------------------------------------------------------------------------
+# `relatorio-diario` — sondagem de novas distribuições + Markdown
+
+
+@app.command(name="relatorio-diario")
+def relatorio_diario(
+    classe: str = typer.Option(
+        "HC", "--classe",
+        help="Classe a rastrear (HC, ADI, ADPF, RE, …).",
+    ),
+    arquivo_estado: Path = typer.Option(
+        Path("state/daily_report.json"), "--arquivo-estado",
+        help="JSON com a marca d'água por classe.",
+    ),
+    saida: Path = typer.Option(
+        Path("docs/reports/daily"), "--saida",
+        help="Diretório onde YYYY-MM-DD.md é escrito.",
+    ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo com URLs de proxy, uma por linha.",
+    ),
+    paradas_apos_misses: int = typer.Option(
+        20, "--paradas-apos-misses",
+        help="Quantos misses contíguos param a sondagem.",
+    ),
+    semente_warehouse: bool = typer.Option(
+        False, "--semente-warehouse",
+        help="Na 1ª execução para uma classe, usa MAX(processo_id) do warehouse.",
+    ),
+) -> None:
+    """Gera o relatório diário de novas distribuições."""
+    argv: list[str] = ["daily_report", "--class", classe]
+    _push(argv, "--state-file", arquivo_estado)
+    _push(argv, "--out-dir", saida)
+    _push(argv, "--proxy-pool", proxy_pool)
+    _push(argv, "--stop-after-misses", paradas_apos_misses)
+    _push(argv, "--seed-from-warehouse", semente_warehouse)
+
+    from scripts import daily_report as _dr
+
+    argv_original = sys.argv
+    sys.argv = argv
+    try:
+        code = _dr.main()
+    finally:
+        sys.argv = argv_original
+    raise typer.Exit(code=code or 0)
+
+
 if __name__ == "__main__":
     app()

@@ -1,0 +1,72 @@
+name: Daily STF Report
+
+# Runs the new-filings sweep once per day at 03:00 America/Sao_Paulo
+# (= 06:00 UTC; Brazil has no DST since 2019). Commits the Markdown
+# report + updated high-water mark back to main.
+#
+# First-run setup: `state/daily_report.json` is pre-seeded with the
+# warehouse max. Subsequent runs read/update it in place.
+#
+# Required secrets:
+#   STF_PROXY_POOL — newline-separated proxy URLs (scheme://user:pass@host:port)
+#                    The `--proxy-pool` flag rotates through them to dodge WAF.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Write proxy pool from secret
+        env:
+          STF_PROXY_POOL: ${{ secrets.STF_PROXY_POOL }}
+        run: |
+          if [ -z "$STF_PROXY_POOL" ]; then
+            echo "::warning::STF_PROXY_POOL secret is empty; running without proxy rotation"
+            : > /tmp/proxies.txt
+          else
+            printf '%s\n' "$STF_PROXY_POOL" > /tmp/proxies.txt
+          fi
+
+      - name: Run daily report
+        run: |
+          PROXY_ARG=""
+          if [ -s /tmp/proxies.txt ]; then
+            PROXY_ARG="--proxy-pool /tmp/proxies.txt"
+          fi
+          uv run python scripts/daily_report.py \
+            --class HC \
+            --state-file state/daily_report.json \
+            --out-dir docs/reports/daily \
+            $PROXY_ARG
+
+      - name: Commit results
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/daily_report.json docs/reports/daily/
+          if git diff --quiet --cached; then
+            echo "no changes to commit"
+          else
+            git commit -m "chore: daily HC report $(date -u +%Y-%m-%d)"
+            git push
+          fi
