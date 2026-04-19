@@ -145,6 +145,7 @@ question each and point back at the hub:
 | `hc_top_volume.py` | Who files the most HCs? HC-mill practices + Defensoria breakdown + OAB-state geography. |
 | `hc_minister_archetypes.py` | Stacked wins / losses / procedural bar per minister — grantor vs denier vs gatekeeper at a glance. |
 | `hc_admissibility.py` | Who reaches the merits? `nao_conhecido` rate per minister. |
+| `hc_2026_funnel.py` | **Safra 2026 only** (warehouse-backed, fast). Three-stage funnel — filed → merits → granted — with per-relator admissibility + merits-win split, time-to-disposition, coator-class segmentation, and `outcome_source` provenance. Complements the 2023-vintage hub for the near-current cohort. |
 
 `analysis/` is git-ignored scratch so these won't be on a fresh
 checkout — recreate from this doc if needed.
