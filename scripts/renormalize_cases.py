@@ -68,11 +68,13 @@ from bs4 import BeautifulSoup
 from src.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
 from src.scraping.extraction import http as ex
 from src.scraping.extraction import sessao as sessao_ex
+from src.scraping.extraction import dje as dje_ex
 from src.scraping.scraper import (
     DETALHE,
     TAB_ANDAMENTOS,
     TAB_DECISOES,
     TAB_DESLOCAMENTOS,
+    TAB_DJE_LISTING,
     TAB_INFORMACOES,
     TAB_PARTES,
     TAB_PAUTAS,
@@ -80,6 +82,7 @@ from src.scraping.scraper import (
     TAB_RECURSOS,
     TAB_SESSAO,
     _canonical_url,
+    _dje_detail_cache_key,
     _extract_tema_from_abasessao,
 )
 from src.data.reshape import reshape_to_v7
@@ -108,6 +111,43 @@ def _cache_only_sessao_fetcher(classe: str, processo: int):
             raise CacheMiss(f"sessao cache miss: {tab}")
         return hit
     return fetcher
+
+
+def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
+    """Reconstruct `publicacoes_dje` from html_cache + peca_cache.
+
+    Tolerant of missing cache because DJe is v7-new — pre-v7 archives
+    have no `dje_listing` member. In that case we emit an empty list,
+    matching what `reshape_to_v7` would seed; operators wanting real
+    DJe data should run a fresh scrape (`use_cache=False`). If the
+    listing is cached but some detail pages aren't, those entries are
+    skipped with a warning rather than emitted at half-populated shape.
+    """
+    listing_html = html_cache.read(classe, processo, TAB_DJE_LISTING)
+    if listing_html is None:
+        return []
+    entries = dje_ex.parse_dje_listing(listing_html)
+    pdf_fetcher = _cache_only_pdf_fetcher()
+    out: list[dict] = []
+    for entry in entries:
+        detail_html = html_cache.read(
+            classe, processo, _dje_detail_cache_key(entry["detail_url"])
+        )
+        if detail_html is None:
+            logging.warning(
+                f"{classe} {processo}: DJe detail cache miss for {entry['detail_url']}"
+            )
+            continue
+        entry.update(dje_ex.parse_dje_detail(detail_html))
+        for dec in entry["decisoes"]:
+            url = dec["rtf"].get("url")
+            if not url:
+                continue
+            text, extractor = pdf_fetcher(url)
+            dec["rtf"]["text"] = text
+            dec["rtf"]["extractor"] = extractor
+        out.append(entry)
+    return out
 
 
 def _cache_only_pdf_fetcher():
@@ -232,6 +272,7 @@ def _rebuild_item(classe: str, processo: int) -> Optional[StfItem]:
         peticoes=ex.extract_peticoes(tabs[TAB_PETICOES]),
         recursos=ex.extract_recursos(tabs[TAB_RECURSOS]),
         pautas=ex.extract_pautas(tabs[TAB_PAUTAS]),
+        publicacoes_dje=_rebuild_publicacoes_dje(classe, processo),
         outcome=ex.derive_outcome({
             "sessao_virtual": sessao_virtual,
             "andamentos": andamentos,
