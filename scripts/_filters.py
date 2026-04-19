@@ -41,7 +41,7 @@ def add_filter_args(ap: argparse.ArgumentParser) -> None:
     )
     ap.add_argument(
         "--doc-types", type=str, default="",
-        help="Comma-separated exact andamento.link_descricao values "
+        help="Comma-separated exact andamento.link.tipo values "
              '(e.g. "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO"). '
              "Empty = all doc types.",
     )

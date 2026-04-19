@@ -1,52 +1,89 @@
-"""
-On-disk HTML cache keyed by (classe, processo, tab).
+"""Per-case tar.gz HTML cache.
 
-Cache lives under `data/cache/html/{classe}_{processo}/{tab}.html.gz`.
-STF tab HTML compresses 8-10x so gzip costs almost nothing in CPU and
-keeps the cache practical for mass scrapes. Reads transparently fall
-back to legacy plain .html files if a gzip version is absent.
+Cache lives at `data/cache/html/{classe}_{processo}.tar.gz` — one
+archive per process containing every tab as a plain `.html` member
+plus `incidente.txt`. The outer gzip layer compresses across tabs
+(STF HTML shares a lot of boilerplate, and one case's ~30 KB of
+fragments fits inside gzip's 32 KB sliding window), so the total
+footprint is close to the previous per-file-gz layout at ~10× fewer
+inodes.
+
+Writes are atomic at the case granularity: `write_case` renders the
+whole archive in a tempfile and `os.replace`s it over the target, so
+a crash mid-scrape either leaves the archive absent (never scraped)
+or replaces a prior-complete archive — never partial.
 """
 
-import gzip
+from __future__ import annotations
+
+import io
+import os
+import tarfile
 from pathlib import Path
 
 CACHE_ROOT = Path("data/cache/html")
+_INCIDENTE_MEMBER = "incidente.txt"
 
 
-def _dir(classe: str, processo: int) -> Path:
-    return CACHE_ROOT / f"{classe}_{processo}"
+def _archive_path(classe: str, processo: int) -> Path:
+    return CACHE_ROOT / f"{classe}_{processo}.tar.gz"
 
 
-def _path(classe: str, processo: int, tab: str) -> Path:
-    return _dir(classe, processo) / f"{tab}.html.gz"
+def has_case(classe: str, processo: int) -> bool:
+    return _archive_path(classe, processo).exists()
 
 
 def read(classe: str, processo: int, tab: str) -> str | None:
-    gz = _path(classe, processo, tab)
-    if gz.exists():
-        return gzip.decompress(gz.read_bytes()).decode("utf-8")
-    plain = _dir(classe, processo) / f"{tab}.html"
-    if plain.exists():
-        return plain.read_text(encoding="utf-8")
-    return None
-
-
-def write(classe: str, processo: int, tab: str, html: str) -> None:
-    p = _path(classe, processo, tab)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_bytes(gzip.compress(html.encode("utf-8")))
+    archive = _archive_path(classe, processo)
+    if not archive.exists():
+        return None
+    member = f"{tab}.html"
+    with tarfile.open(archive, "r:gz") as tf:
+        try:
+            fp = tf.extractfile(member)
+        except KeyError:
+            return None
+        if fp is None:
+            return None
+        return fp.read().decode("utf-8")
 
 
 def read_incidente(classe: str, processo: int) -> int | None:
-    p = _dir(classe, processo) / "incidente.txt"
-    if p.exists():
-        text = p.read_text().strip()
-        if text.isdigit():
-            return int(text)
-    return None
+    archive = _archive_path(classe, processo)
+    if not archive.exists():
+        return None
+    with tarfile.open(archive, "r:gz") as tf:
+        try:
+            fp = tf.extractfile(_INCIDENTE_MEMBER)
+        except KeyError:
+            return None
+        if fp is None:
+            return None
+        text = fp.read().decode("utf-8").strip()
+    return int(text) if text.isdigit() else None
 
 
-def write_incidente(classe: str, processo: int, incidente: int) -> None:
-    p = _dir(classe, processo) / "incidente.txt"
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(str(incidente))
+def write_case(
+    classe: str,
+    processo: int,
+    *,
+    tabs: dict[str, str],
+    incidente: int,
+) -> None:
+    archive = _archive_path(classe, processo)
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    tmp = archive.with_name(archive.name + ".tmp")
+
+    with tarfile.open(tmp, "w:gz") as tf:
+        for tab, html in tabs.items():
+            payload = html.encode("utf-8")
+            info = tarfile.TarInfo(name=f"{tab}.html")
+            info.size = len(payload)
+            tf.addfile(info, io.BytesIO(payload))
+
+        inc_payload = str(incidente).encode("utf-8")
+        info = tarfile.TarInfo(name=_INCIDENTE_MEMBER)
+        info.size = len(inc_payload)
+        tf.addfile(info, io.BytesIO(inc_payload))
+
+    os.replace(tmp, archive)

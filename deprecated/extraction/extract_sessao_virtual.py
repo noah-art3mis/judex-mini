@@ -9,7 +9,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from src.utils.pdf_utils import extract_pdf_text
+from src.utils.pdf_utils import extract_document_text
 from src.utils.text_utils import normalize_spaces
 from src.utils.timing import track_extraction_timing
 
@@ -99,8 +99,11 @@ def _parse_sessao_virtual_item(sessao_element: WebElement) -> Dict:
             try:
                 url = link.get_attribute("href")
                 text_type = normalize_spaces(link.text)  # e.g., "Relatório", "Voto"
-                # Use the imported function to get PDF text
-                pdf_texts[text_type] = extract_pdf_text(url)
+                # Deprecated Selenium path: drop the extractor label returned
+                # by extract_document_text since the legacy `documentos` dict
+                # here is flat string-to-text (pre-v2 shape).
+                text, _ = extract_document_text(url)
+                pdf_texts[text_type] = text
             except Exception as e:
                 logging.warning(f"Could not extract PDF from {url}: {e}")
         data["documentos"] = pdf_texts

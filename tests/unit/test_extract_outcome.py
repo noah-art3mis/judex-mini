@@ -212,9 +212,10 @@ def test_sessao_virtual_without_voto_relator_returns_none():
 
 
 def test_sessao_source_carries_session_index_and_metadata_date():
+    # v6: metadata keys are ASCII snake_case; dates are ISO 8601 on emit.
     item = _make_item(sessao_virtual=[
-        {"voto_relator": "CONCEDO A ORDEM", "metadata": {"data_início": "10/04/2020"}},  # earlier
-        {"voto_relator": "DENEGO A ORDEM", "metadata": {"data_início": "17/04/2020"}},
+        {"voto_relator": "CONCEDO A ORDEM", "metadata": {"data_inicio": "2020-04-10"}},
+        {"voto_relator": "DENEGO A ORDEM", "metadata": {"data_inicio": "2020-04-17"}},
     ])
     out = derive_outcome(item)
     assert out == {
@@ -225,14 +226,15 @@ def test_sessao_source_carries_session_index_and_metadata_date():
     }
 
 
-def test_andamento_source_carries_index_num_and_iso_date():
+def test_andamento_source_carries_index_and_iso_date():
+    # v6: `index_num` → `index`; the raw DD/MM/YYYY display field is
+    # gone — `data` now carries ISO 8601 directly.
     item = _make_item(andamentos=[
         {
-            "index_num": 42,
+            "index": 42,
             "nome": "DENEGADA A ORDEM",
             "complemento": None,
-            "data": "28/08/2020",
-            "data_iso": "2020-08-28",
+            "data": "2020-08-28",
         },
     ])
     out = derive_outcome(item)
@@ -244,15 +246,14 @@ def test_andamento_source_carries_index_num_and_iso_date():
     }
 
 
-def test_andamento_source_fills_iso_from_data_when_missing():
-    # Tolerate andamentos whose data_iso was stripped by an old fixture:
-    # derive from data.
+def test_andamento_source_uses_data_as_date_iso():
+    # v6: no `data_iso` companion; the single `data` field is ISO.
     item = _make_item(andamentos=[
         {
-            "index_num": 7,
+            "index": 7,
             "nome": "PREJUDICADO",
             "complemento": None,
-            "data": "01/06/2021",
+            "data": "2021-06-01",
         },
     ])
     out = derive_outcome(item)

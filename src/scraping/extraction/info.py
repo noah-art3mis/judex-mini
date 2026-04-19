@@ -11,6 +11,7 @@ from typing import Optional
 
 from bs4 import BeautifulSoup
 
+from src.scraping.extraction._shared import to_iso
 from src.utils.text_utils import normalize_spaces
 
 
@@ -52,7 +53,8 @@ def extract_assuntos(info_soup: BeautifulSoup) -> list[str]:
 
 
 def extract_data_protocolo(info_soup: BeautifulSoup) -> Optional[str]:
-    return _labeled_value(info_soup, "Data de Protocolo")
+    """v6: returns ISO 8601 (YYYY-MM-DD), not the raw DD/MM/YYYY."""
+    return to_iso(_labeled_value(info_soup, "Data de Protocolo"))
 
 
 def extract_orgao_origem(info_soup: BeautifulSoup) -> Optional[str]:

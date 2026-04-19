@@ -5,6 +5,9 @@ dict (sessao_virtual + andamentos) and returns a small provenance
 record, so downstream analysis can tell HC-main-verdict from
 HC-AgR-verdict apart. Verdict vocabulary lives in
 `src.analysis.legal_vocab.VERDICT_PATTERNS`.
+
+v6: sessao metadata uses ASCII ISO dates (`data_inicio`); andamento
+date lives under `data` directly; row index is `index`.
 """
 
 from __future__ import annotations
@@ -13,7 +16,6 @@ from typing import Optional
 
 from src.analysis.legal_vocab import VERDICT_PATTERNS
 from src.data.types import OutcomeInfo
-from src.scraping.extraction._shared import to_iso
 
 
 def derive_outcome(item: dict) -> Optional[OutcomeInfo]:
@@ -43,8 +45,8 @@ def derive_outcome(item: dict) -> Optional[OutcomeInfo]:
             return OutcomeInfo(
                 verdict=verdict,
                 source="andamentos",
-                source_index=int(a.get("index_num") or 0),
-                date_iso=a.get("data_iso") or to_iso(a.get("data")),
+                source_index=int(a.get("index") or 0),
+                date_iso=a.get("data"),
             )
 
     return None
@@ -58,17 +60,10 @@ def _match_verdict(text: str) -> Optional[str]:
 
 
 def _outcome_from_sessao(session: dict, verdict: str, index: int) -> OutcomeInfo:
-    # sessao_virtual metadata uses Portuguese keys; the accented spelling
-    # is what the live scraper + fixtures emit (HC_158802 etc.).
     meta = session.get("metadata") or {}
-    raw = (
-        meta.get("data_início")
-        or meta.get("data_inicio")
-        or meta.get("data_prevista_fim")
-    )
     return OutcomeInfo(
         verdict=verdict,
         source="sessao_virtual",
         source_index=index,
-        date_iso=to_iso(raw),
+        date_iso=meta.get("data_inicio") or meta.get("data_fim_prevista"),
     )

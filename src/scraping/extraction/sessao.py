@@ -4,8 +4,8 @@ The STF `abaSessao.asp` fragment is a thin JavaScript template; all the
 actual data lives in two JSON endpoints on sistemas.stf.jus.br/repgeral.
 The Selenium path clicked through nested Bootstrap collapses to trigger
 the template and read the rendered DOM. Here we skip the browser and
-call the JSON endpoints directly, then assemble the same dict shape the
-Selenium extractor emits.
+call the JSON endpoints directly, then assemble the list shape consumed
+by StfItem (schema v4).
 
 Two endpoints are relevant:
 
@@ -15,11 +15,17 @@ Two endpoints are relevant:
   - ?tema=<N>                  → Tema/Repercussão Geral data
                                   (only for processes carrying a tema)
 
-The `documentos` field holds `{tipo: {"url": <pdf url>, "text": None}}`
-entries out of the box. Pass a `pdf_fetcher` callable to
-`extract_sessao_virtual_from_json` to fill in the `text` values from
-OCR/pypdf; without it, `text` stays None and the entry can be enriched
-later by running `resolve_documentos` separately.
+The `documentos` field holds a list of
+`{"tipo": str, "url": str, "text": None, "extractor": None}` entries.
+Order follows STF's JSON order and duplicate `tipo` values are
+preserved verbatim — the v3 dict shape silently deduplicated them,
+which dropped second votes from the same session. Consumers that want
+unique-by-tipo should group after the fact.
+
+Pass a `pdf_fetcher` callable to `extract_sessao_virtual_from_json`
+to fill in `text` + `extractor` from OCR/pypdf; without it, both
+stay None and the entry can be enriched later by running
+`resolve_documentos` separately.
 """
 
 from __future__ import annotations
@@ -30,6 +36,8 @@ import re
 from typing import Any, Callable, Iterable, Optional
 
 from bs4 import BeautifulSoup
+
+from src.scraping.extraction._shared import to_iso
 
 # tipoVoto.codigo → vote category in the final `votes` dict.
 # Mirrors what the Selenium extractor ends up collecting from the
@@ -42,12 +50,12 @@ _VOTE_CATEGORY = {
 }
 
 _METADATA_KEYS = (
-    "relatora",
-    "órgão_julgador",
+    "relator",
+    "orgao_julgador",
     "lista",
     "processo",
-    "data_início",
-    "data_prevista_fim",
+    "data_inicio",
+    "data_fim_prevista",
 )
 
 
@@ -78,17 +86,23 @@ def parse_oi_listing(response: str) -> list[dict]:
     return out
 
 
-def _build_metadata(lista: dict, processo_identificacao: str) -> dict[str, str]:
+def _build_metadata(lista: dict, processo_identificacao: str) -> dict[str, Optional[str]]:
+    """v6: ASCII snake_case keys; dates normalized to ISO 8601.
+
+    STF's JSON emits dates as DD/MM/YYYY strings — we convert at
+    extraction time so downstream code (e.g. `outcome.py`) doesn't
+    need both-shape fallbacks.
+    """
     sessao = lista.get("sessao") or {}
     colegiado = sessao.get("colegiado") or {}
     relator = lista.get("ministroRelator") or {}
     return {
-        "relatora": relator.get("descricao", ""),
-        "órgão_julgador": colegiado.get("descricao", ""),
+        "relator": relator.get("descricao", ""),
+        "orgao_julgador": colegiado.get("descricao", ""),
         "lista": lista.get("nomeLista", ""),
         "processo": processo_identificacao,
-        "data_início": sessao.get("dataInicio", ""),
-        "data_prevista_fim": sessao.get("dataPrevistaFim", ""),
+        "data_inicio": to_iso(sessao.get("dataInicio")),
+        "data_fim_prevista": to_iso(sessao.get("dataPrevistaFim")),
     }
 
 
@@ -120,19 +134,24 @@ def _build_votes(lista: dict) -> dict[str, list[str]]:
     return votes
 
 
-def _build_documentos(lista: dict) -> dict[str, dict[str, Optional[str]]]:
+def _build_documentos(lista: dict) -> list[dict[str, Optional[str]]]:
     """Collect PDF links from relator, vista, and each voto with textos.
 
-    Each entry is `{"url": <pdf url>, "text": None}`. `text` is populated
-    later by `resolve_documentos(fetcher)` once the PDF is OCR'd; leaving
-    it None here means the scraper output is structurally complete without
+    Each entry is `{"tipo": <label>, "url": <pdf url>, "text": None,
+    "extractor": None}`. `text` and `extractor` are populated later by
+    `resolve_documentos(fetcher)` once the PDF is extracted; leaving them
+    None here means the scraper output is structurally complete without
     blocking on PDF downloads.
-    """
-    docs: dict[str, dict[str, Optional[str]]] = {}
 
-    def add(key: str, url: Optional[str]) -> None:
-        if url and key not in docs:
-            docs[key] = {"url": url, "text": None}
+    Returns a list (schema v4): duplicate `tipo` values are preserved in
+    STF order. The v3 dict shape silently dedup'd on `tipo`, which ate
+    second-vote entries from the same session.
+    """
+    docs: list[dict[str, Optional[str]]] = []
+
+    def add(tipo: str, url: Optional[str]) -> None:
+        if url:
+            docs.append({"tipo": tipo, "url": url, "text": None, "extractor": None})
 
     relatorio = lista.get("relatorioRelator") or {}
     if isinstance(relatorio, dict):
@@ -150,8 +169,8 @@ def _build_documentos(lista: dict) -> dict[str, dict[str, Optional[str]]]:
     for voto_ in lista.get("votos") or []:
         for texto in voto_.get("textos") or []:
             if isinstance(texto, dict):
-                key = texto.get("descricao") or "Voto"
-                add(key, texto.get("link"))
+                tipo = texto.get("descricao") or "Voto"
+                add(tipo, texto.get("link"))
 
     return docs
 
@@ -204,8 +223,8 @@ def parse_tema(response: str) -> list[dict]:
                 "tipo": "tema",
                 "tema": proc.get("numeroTema"),
                 "titulo": proc.get("tituloTema"),
-                "data_inicio": proc.get("dataInicioJulgamento"),
-                "data_fim_prevista": proc.get("dataFimPrevistaJulgamento"),
+                "data_inicio": to_iso(proc.get("dataInicioJulgamento")),
+                "data_fim_prevista": to_iso(proc.get("dataFimPrevistaJulgamento")),
                 "classe": proc.get("siglaClasse"),
                 "numero": proc.get("numeroProcesso"),
                 "relator": proc.get("relator"),
@@ -228,28 +247,49 @@ def parse_tema(response: str) -> list[dict]:
 
 
 Fetcher = Callable[[str, int], str]
-PdfFetcher = Callable[[str], Optional[str]]
+PdfFetcher = Callable[[str], tuple[Optional[str], Optional[str]]]
+"""Given a PDF URL, return `(text, extractor_label)`.
+
+`extractor_label` is a member of the open set documented on
+`StfItem` / `Documento.extractor` ("rtf", "pypdf_plain",
+"pypdf_layout", "unstructured", "mistral", "chandra") or None when
+extraction failed.
+"""
 
 
 def resolve_documentos(
-    docs: dict[str, dict[str, Optional[str]]], *, fetcher: PdfFetcher
-) -> dict[str, dict[str, Optional[str]]]:
-    """Fill the `text` field on each `{url, text}` entry using `fetcher(url)`.
+    docs: list[dict[str, Optional[str]]], *, fetcher: PdfFetcher
+) -> list[dict[str, Optional[str]]]:
+    """Fill `text` + `extractor` on each documento using `fetcher(url)`.
 
-    The URL is always preserved. Entries whose `text` is already non-None
-    pass through untouched — rerunning enrich on an already-enriched dict
-    is free. If `fetcher` returns None the entry is kept as-is so a
+    Each entry is a `{"tipo", "url", "text", "extractor"}` dict. Tipo +
+    URL are preserved; text and extractor are only overwritten when
+    currently None. Entries whose text is already non-None pass through
+    untouched — rerunning enrich on an already-enriched list is free.
+    If `fetcher` returns `(None, _)` the entry is kept as-is so a
     future re-run can retry.
     """
-    out: dict[str, dict[str, Optional[str]]] = {}
-    for key, entry in docs.items():
+    out: list[dict[str, Optional[str]]] = []
+    for entry in docs:
+        tipo = entry.get("tipo")
         url = entry.get("url")
         text = entry.get("text")
+        extractor = entry.get("extractor")
         if text is None and url:
-            fetched = fetcher(url)
-            out[key] = {"url": url, "text": fetched}
+            fetched_text, fetched_extractor = fetcher(url)
+            out.append({
+                "tipo": tipo,
+                "url": url,
+                "text": fetched_text,
+                "extractor": fetched_extractor,
+            })
         else:
-            out[key] = {"url": url, "text": text}
+            out.append({
+                "tipo": tipo,
+                "url": url,
+                "text": text,
+                "extractor": extractor,
+            })
     return out
 
 
@@ -267,8 +307,9 @@ def extract_sessao_virtual_from_json(
     Exists as an injection seam so the orchestrator can layer caching
     and retries without this function caring how the bytes arrive.
 
-    When `pdf_fetcher` is provided, each entry's `documentos` dict has
-    its URL values swapped for extracted text (see resolve_documentos).
+    When `pdf_fetcher` is provided, each entry's `documentos` list is
+    enriched with extracted text + extractor label (see
+    `resolve_documentos`).
     """
     entries: list[dict] = []
 
@@ -295,7 +336,7 @@ def extract_sessao_virtual_from_json(
     if pdf_fetcher is not None:
         for entry in entries:
             docs = entry.get("documentos")
-            if isinstance(docs, dict):
+            if isinstance(docs, list):
                 entry["documentos"] = resolve_documentos(docs, fetcher=pdf_fetcher)
 
     return entries

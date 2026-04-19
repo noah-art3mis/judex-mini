@@ -1,382 +1,392 @@
-[
-  {
-    "incidente": 4826303,
-    "classe": "HC",
-    "processo_id": 129840,
-    "numero_unico": "0005594-81.2015.1.00.0000",
-    "meio": "ELETRONICO",
-    "publicidade": "PUBLICO",
-    "badges": [
-      "Maior de 60 anos ou portador de doença grave",
-      "Medida Liminar",
-      "Réu Preso"
-    ],
-    "assuntos": [
-      "DIREITO PROCESSUAL PENAL | Ação Penal | Nulidade",
-      "DIREITO PROCESSUAL PENAL | Ação Penal | Prisão Decorrente de Sentença Condenatória"
-    ],
-    "data_protocolo": "17/08/2015",
-    "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
-    "origem": "RJ - RIO DE JANEIRO",
-    "numero_origem": [
-      "315535",
-      "00007356220118190060"
-    ],
-    "volumes": 1,
-    "folhas": null,
-    "apensos": null,
-    "relator": "LUIZ FUX",
-    "primeiro_autor": "ROGER MAGNO DE CASTRO DIAS",
-    "partes": [
-      {
-        "index": 1,
-        "tipo": "PACTE.(S)",
-        "nome": "ROGER MAGNO DE CASTRO DIAS"
-      },
-      {
-        "index": 2,
-        "tipo": "IMPTE.(S)",
-        "nome": "WALLACE CAJUEIRO MARTINS DE PAIVA (0121422/RJ)"
-      },
-      {
-        "index": 3,
-        "tipo": "IMPTE.(S)",
-        "nome": "MIRELLA MONTAGNA"
-      },
-      {
-        "index": 4,
-        "tipo": "COATOR(A/S)(ES)",
-        "nome": "RELATOR DO HC Nº 315.535 DO SUPERIOR TRIBUNAL DE JUSTIÇA"
+{
+  "_meta": {
+    "schema_version": 6,
+    "status_http": 200,
+    "extraido": "2026-04-18T23:46:25.825083"
+  },
+  "incidente": 4826303,
+  "classe": "HC",
+  "processo_id": 129840,
+  "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=4826303",
+  "numero_unico": "0005594-81.2015.1.00.0000",
+  "meio": "ELETRONICO",
+  "publicidade": "PUBLICO",
+  "badges": [
+    "Maior de 60 anos ou portador de doença grave",
+    "Medida Liminar",
+    "Réu Preso"
+  ],
+  "assuntos": [
+    "DIREITO PROCESSUAL PENAL | Ação Penal | Nulidade",
+    "DIREITO PROCESSUAL PENAL | Ação Penal | Prisão Decorrente de Sentença Condenatória"
+  ],
+  "data_protocolo": "2015-08-17",
+  "orgao_origem": "SUPERIOR TRIBUNAL DE JUSTIÇA",
+  "origem": "RJ - RIO DE JANEIRO",
+  "numero_origem": [
+    "315535",
+    "00007356220118190060"
+  ],
+  "volumes": 1,
+  "folhas": null,
+  "apensos": null,
+  "relator": "LUIZ FUX",
+  "primeiro_autor": "ROGER MAGNO DE CASTRO DIAS",
+  "partes": [
+    {
+      "index": 1,
+      "tipo": "PACTE.(S)",
+      "nome": "ROGER MAGNO DE CASTRO DIAS"
+    },
+    {
+      "index": 2,
+      "tipo": "IMPTE.(S)",
+      "nome": "WALLACE CAJUEIRO MARTINS DE PAIVA (0121422/RJ)"
+    },
+    {
+      "index": 3,
+      "tipo": "IMPTE.(S)",
+      "nome": "MIRELLA MONTAGNA"
+    },
+    {
+      "index": 4,
+      "tipo": "COATOR(A/S)(ES)",
+      "nome": "RELATOR DO HC Nº 315.535 DO SUPERIOR TRIBUNAL DE JUSTIÇA"
+    }
+  ],
+  "andamentos": [
+    {
+      "index": 19,
+      "data": "2017-06-27",
+      "nome": "BAIXA AO ARQUIVO DO STF",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 18,
+      "data": "2017-06-27",
+      "nome": "TRANSITADO(A) EM JULGADO",
+      "complemento": "em 27/06/2017",
+      "julgador": null,
+      "link": {
+        "tipo": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312096239&ext=.pdf",
+        "text": null,
+        "extractor": null
       }
-    ],
-    "andamentos": [
-      {
-        "index_num": 19,
-        "data": "27/06/2017",
-        "nome": "BAIXA AO ARQUIVO DO STF",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 18,
-        "data": "27/06/2017",
-        "nome": "TRANSITADO(A) EM JULGADO",
-        "complemento": "em 27/06/2017",
-        "julgador": null,
-        "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
-        "link": {
-          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312096239&ext=.pdf",
-          "text": null
-        }
-      },
-      {
-        "index_num": 17,
-        "data": "20/06/2017",
-        "nome": "PUBLICADO ACÓRDÃO, DJE",
-        "complemento": "DATA DE PUBLICAÇÃO DJE 20/06/2017 - ATA Nº 92/2017. DJE nº 133, divulgado em 19/06/2017",
-        "julgador": null,
-        "link_descricao": "INTEIRO TEOR DO ACÓRDÃO",
-        "link": {
-          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312029152&ext=.pdf",
-          "text": null
-        }
-      },
-      {
-        "index_num": 16,
-        "data": "02/06/2017",
-        "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
-        "complemento": "ATA Nº 17, de 26/05/2017. DJE nº 116, divulgado em 01/06/2017",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 15,
-        "data": "26/05/2017",
-        "nome": "JUNTADA",
-        "complemento": "Certidão de Julgamento da Sessão Virtual",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 14,
-        "data": "26/05/2017",
-        "nome": "AGRAVO REGIMENTAL NÃO PROVIDO",
-        "complemento": "Decisão: A Turma, por maioria, negou provimento ao agravo, nos termos do voto do Relator, vencido o Ministro Marco Aurélio. Primeira Turma, Sessão Virtual de 19 a 25.5.2017.",
-        "julgador": "1ª TURMA - SESSÃO VIRTUAL",
-        "link_descricao": "DECISÃO DE JULGAMENTO",
-        "link": {
-          "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=4312936&ext=RTF",
-          "text": null
-        }
-      },
-      {
-        "index_num": 13,
-        "data": "26/05/2017",
-        "nome": "FINALIZADO JULGAMENTO VIRTUAL",
-        "complemento": "Finalizado julgamento virtual em 25 de Maio de 2017 (Quinta-feira), às 23:59 .",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 12,
-        "data": "19/05/2017",
-        "nome": "INICIADO JULGAMENTO VIRTUAL",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 11,
-        "data": "11/05/2017",
-        "nome": "PAUTA PUBLICADA NO DJE - 1ª TURMA",
-        "complemento": "PAUTA Nº 51/2017. DJE nº 98, divulgado em 10/05/2017",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 10,
-        "data": "09/05/2017",
-        "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
-        "complemento": "Julgamento Virtual - 1ª Turma em 09/05/2017 17:58:53 - HC-AgR",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 9,
-        "data": "26/08/2015",
-        "nome": "CONCLUSOS AO(À) RELATOR(A)",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 8,
-        "data": "26/08/2015",
-        "nome": "INTERPOSTO AGRAVO REGIMENTAL",
-        "complemento": "Juntada Petição: 42157/2015",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 7,
-        "data": "26/08/2015",
-        "nome": "PETIÇÃO",
-        "complemento": "Agravo Regimental - Petição: 42157 Data: 26/08/2015 14:34:04.174 GMT-03:00",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 6,
-        "data": "21/08/2015",
-        "nome": "PUBLICAÇÃO, DJE",
-        "complemento": "DJE nº 164, divulgado em 20/08/2015",
-        "julgador": null,
-        "link_descricao": "DECISÃO MONOCRÁTICA",
-        "link": {
-          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307517960&ext=.pdf",
-          "text": null
-        }
-      },
-      {
-        "index_num": 5,
-        "data": "19/08/2015",
-        "nome": "NEGADO SEGUIMENTO",
-        "complemento": null,
-        "julgador": "MIN. LUIZ FUX",
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 4,
-        "data": "17/08/2015",
-        "nome": "CONCLUSOS AO(À) RELATOR(A)",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 3,
-        "data": "17/08/2015",
-        "nome": "DISTRIBUÍDO",
-        "complemento": "MIN. LUIZ FUX",
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 2,
-        "data": "17/08/2015",
-        "nome": "AUTUADO",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
-      },
-      {
-        "index_num": 1,
-        "data": "17/08/2015",
-        "nome": "PROTOCOLADO",
-        "complemento": null,
-        "julgador": null,
-        "link_descricao": null,
-        "link": null
+    },
+    {
+      "index": 17,
+      "data": "2017-06-20",
+      "nome": "PUBLICADO ACÓRDÃO, DJE",
+      "complemento": "DATA DE PUBLICAÇÃO DJE 20/06/2017 - ATA Nº 92/2017. DJE nº 133, divulgado em 19/06/2017",
+      "julgador": null,
+      "link": {
+        "tipo": "INTEIRO TEOR DO ACÓRDÃO",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=312029152&ext=.pdf",
+        "text": null,
+        "extractor": null
       }
-    ],
-    "sessao_virtual": [
-      {
-        "metadata": {
-          "relatora": "MIN. LUIZ FUX",
-          "órgão_julgador": "Primeira Turma",
-          "lista": "LISTA1",
-          "processo": "HC 129840 AgR",
-          "data_início": "19/05/2017",
-          "data_prevista_fim": "25/05/2017"
+    },
+    {
+      "index": 16,
+      "data": "2017-06-02",
+      "nome": "ATA DE JULGAMENTO PUBLICADA, DJE",
+      "complemento": "ATA Nº 17, de 26/05/2017. DJE nº 116, divulgado em 01/06/2017",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 15,
+      "data": "2017-05-26",
+      "nome": "JUNTADA",
+      "complemento": "Certidão de Julgamento da Sessão Virtual",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 14,
+      "data": "2017-05-26",
+      "nome": "AGRAVO REGIMENTAL NÃO PROVIDO",
+      "complemento": "Decisão: A Turma, por maioria, negou provimento ao agravo, nos termos do voto do Relator, vencido o Ministro Marco Aurélio. Primeira Turma, Sessão Virtual de 19 a 25.5.2017.",
+      "julgador": "1ª TURMA - SESSÃO VIRTUAL",
+      "link": {
+        "tipo": "DECISÃO DE JULGAMENTO",
+        "url": "https://portal.stf.jus.br/processos/downloadTexto.asp?id=4312936&ext=RTF",
+        "text": null,
+        "extractor": null
+      }
+    },
+    {
+      "index": 13,
+      "data": "2017-05-26",
+      "nome": "FINALIZADO JULGAMENTO VIRTUAL",
+      "complemento": "Finalizado julgamento virtual em 25 de Maio de 2017 (Quinta-feira), às 23:59 .",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 12,
+      "data": "2017-05-19",
+      "nome": "INICIADO JULGAMENTO VIRTUAL",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 11,
+      "data": "2017-05-11",
+      "nome": "PAUTA PUBLICADA NO DJE - 1ª TURMA",
+      "complemento": "PAUTA Nº 51/2017. DJE nº 98, divulgado em 10/05/2017",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 10,
+      "data": "2017-05-09",
+      "nome": "INCLUA-SE EM PAUTA - MINUTA EXTRAÍDA",
+      "complemento": "Julgamento Virtual - 1ª Turma em 09/05/2017 17:58:53 - HC-AgR",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 9,
+      "data": "2015-08-26",
+      "nome": "CONCLUSOS AO(À) RELATOR(A)",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 8,
+      "data": "2015-08-26",
+      "nome": "INTERPOSTO AGRAVO REGIMENTAL",
+      "complemento": "Juntada Petição: 42157/2015",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 7,
+      "data": "2015-08-26",
+      "nome": "PETIÇÃO",
+      "complemento": "Agravo Regimental - Petição: 42157 Data: 26/08/2015 14:34:04.174 GMT-03:00",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 6,
+      "data": "2015-08-21",
+      "nome": "PUBLICAÇÃO, DJE",
+      "complemento": "DJE nº 164, divulgado em 20/08/2015",
+      "julgador": null,
+      "link": {
+        "tipo": "DECISÃO MONOCRÁTICA",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=307517960&ext=.pdf",
+        "text": null,
+        "extractor": null
+      }
+    },
+    {
+      "index": 5,
+      "data": "2015-08-19",
+      "nome": "NEGADO SEGUIMENTO",
+      "complemento": null,
+      "julgador": "MIN. LUIZ FUX",
+      "link": null
+    },
+    {
+      "index": 4,
+      "data": "2015-08-17",
+      "nome": "CONCLUSOS AO(À) RELATOR(A)",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 3,
+      "data": "2015-08-17",
+      "nome": "DISTRIBUÍDO",
+      "complemento": "MIN. LUIZ FUX",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 2,
+      "data": "2015-08-17",
+      "nome": "AUTUADO",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 1,
+      "data": "2015-08-17",
+      "nome": "PROTOCOLADO",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    }
+  ],
+  "sessao_virtual": [
+    {
+      "metadata": {
+        "relator": "MIN. LUIZ FUX",
+        "orgao_julgador": "Primeira Turma",
+        "lista": "LISTA1",
+        "processo": "HC 129840 AgR",
+        "data_inicio": "2017-05-19",
+        "data_fim_prevista": "2017-05-25"
+      },
+      "voto_relator": "AGRAVO REGIMENTAL NOS HABEAS CORPUS DECISÃO : NEGO PROVIMENTO AO AGRAVO.",
+      "votes": {
+        "relator": [
+          "MIN. LUIZ FUX"
+        ],
+        "acompanha_relator": [
+          "MIN. ALEXANDRE DE MORAES",
+          "MIN. LUÍS ROBERTO BARROSO",
+          "MIN. ROSA WEBER"
+        ],
+        "diverge_relator": [
+          "MIN. MARCO AURÉLIO"
+        ],
+        "acompanha_divergencia": [],
+        "pedido_vista": []
+      },
+      "documentos": [
+        {
+          "tipo": "Relatório",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4292715",
+          "text": "R E L A T Ó R I O\n\n\n\n            O S        ENHOR              M      INISTRO              L    UIZ       F    UX      (R     ELATOR             ):  Trata-se de agravo\nregimental interposto por ROGER MAGNO DE CASTRO DIAS contra\ndecisão de minha relatoria que negou seguimento a recurso ordinário em\nhabeas corpus                 , ementada nos seguintes termos:\n\n\n                                                “ O    IMPETRANTE                  NÃO        SE    DESINCUMBIU                   DO      ÔNUS         DE     INTERPOR\n                                    AGRAVO             REGIMENTAL                   DA       DECISÃO              QUE         NEGOU            SEGUIMENTO                    AO\n                                    HABEAS           CORPUS            NO      S  UPERIOR            T  RIBUNAL             DE     JUSTIÇA          , OU      SEJA     , NÃO\n                                    EXAURIU               A      JURISDIÇÃO                 NO        ÂMBITO              DAQUELA                C    ORTE      . D      ESSA\n                                    FORMA          , NÃO          COMPETE               AO     S   UPREMO             T   RIBUNAL            F   EDERAL             JULGAR\n                                    HABEAS            CORPUS             QUANDO               NÃO        ESGOTADA                A    INSTÂNCIA                INFERIOR           ,\n                                    CONFORME                 OS      PRECEDENTES                  : HC 125628 ED, R                            ELATOR          (A  ): M      IN   .\n                                    TEORI ZAVASCKI, S                               EGUNDA             T    URMA         , JULGADO                EM     10/02/2015;\n                                    RHC   122465   A                      G  R,   R      ELATOR          (A   ):   M      IN  .   GILMAR   MENDES,\n                                    S EGUNDA             T   URMA        , JULGADO              EM     30/09/2014.\n                                                E  NTENDER                  DE          MODO               DIVERSO                SERIA             PERMITIR                 AO\n                                    IMPETRANTE                   ESCOLHER               O     TRIBUNAL               QUE        REALIZARÁ                 O    JUÍZO          DE\n                                    REVISÃO           DA      DECISÃO            INDIGITADA                COATORA             .\n                                                A  DEMAIS          , O     STJ       APLICOU             CORRETAMENTE                       O     ENTENDIMENTO\n                                    SEGUNDO                O    QUAL          A     NORMA             DO       ART     . 399, § 2º,                 DO      CPP,          QUE\n                                    CONSAGRA                 O     PRINCÍPIO              DA       IDENTIDADE                   FÍSICA         DO       JUIZ     ,  NÃO          É\n                                    ABSOLUTA             . N     ESSE         SENTIDO           ,  OS        SEGUINTES                 PRECEDENTES                  : RHC\n                                    123572, R            ELATOR          (A  ): M     IN   . LUIZ FUX, P                   RIMEIRA           T   URMA         , JULGADO\n                                    EM       07/10/2014;   RHC   115219,   R                                        ELATOR          (A  ):   M       IN  .   GILMAR\n                                    MENDES, S                  EGUNDA             T  URMA         , JULGADO             EM      07/05/2013.\n                                                E  X   POSITIS         , NEGO          SEGUIMENTO                   AO     HABEAS            CORPUS            , POR       SER\n                                    MANIFESTAMENTE                         INCABÍVEL             , COM        FUNDAMENTO                      NOS       ARTS       . 38      DA\n                                    L EI   8.038/90            E  21, § 1º,          DO     RISTF.          ”.\n\n            O agravante foi condenado à pena de 5 (cinco) anos de reclusão, a\nser cumprida inicialmente em regime fechado, e de 44 (quarenta e quatro)\ndias-multa, pela prática dos crimes previstos nos artigos 171,                                                                                         caput       , e 297,\n§ 1º, do Código Penal.\n\n            Os       habeas corpus                      impetrados perante o Tribunal de origem e o\nSuperior Tribunal de Justiça tiveram seguimento negado.\n\n            Negado   seguimento   a   este                                                habeas   corpus                   ,   em   razão   da   não\ninterposição de agravo regimental na Corte                                               a quo     , sobrevém o presente\nrecurso em que o agravante repisa os argumentos de violação ao\nprincípio do juiz natural e acrescenta que o agravo regimental foi\ninterposto no STJ, porém o relator do HC 315.535 teria enviado os autos\nfísicos à eliminação, sem julgá-lo.\n\n\n         É o relatório.",
+          "extractor": null
         },
-        "voto_relator": "AGRAVO REGIMENTAL NOS HABEAS CORPUS DECISÃO : NEGO PROVIMENTO AO AGRAVO.",
-        "votes": {
-          "relator": [
-            "MIN. LUIZ FUX"
-          ],
-          "acompanha_relator": [
-            "MIN. ALEXANDRE DE MORAES",
-            "MIN. LUÍS ROBERTO BARROSO",
-            "MIN. ROSA WEBER"
-          ],
-          "diverge_relator": [
-            "MIN. MARCO AURÉLIO"
-          ],
-          "acompanha_divergencia": [],
-          "pedido_vista": []
+        {
+          "tipo": "Voto",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4292698",
+          "text": "V O T O\n\n\n\n          O S      ENHOR           M    INISTRO            L  UIZ     F   UX     (R   ELATOR          ): A presente irresignação\nnão merece prosperar.\n\n\n          Em   que   pesem   os   argumentos   expendidos   no   agravo,   resta\nevidenciado das razões recursais que o agravante não trouxe nenhum\nargumento capaz de infirmar a decisão hostilizada, razão pela qual    deve\nela ser mantida, por seus próprios fundamentos.\n\n          Ab initio          , a competência originária do Supremo Tribunal Federal\npara conhecer e julgar                               Habeas Corpus                     está definida, taxativamente, no\nartigo 102, inciso I, alíneas                            d   e  i, da Constituição Federal,                               verbis      :\n\n\n                                          “Art.   102.   Compete   ao   Supremo   Tribunal   Federal,\n                               precipuamente, a guarda da Constituição, cabendo-lhe:\n                                          I processar e julgar, originariamente:\n                                          (…)\n                                          d) o habeas corpus, sendo paciente qualquer das pessoas\n                               referidas nas alíneas anteriores; o mandado de segurança e o habeas\n                               data contra atos do Presidente da República, das Mesas da Câmara e\n                               do Senado Federal, do Tribunal de Contas da União, do Procurador-\n                               Geral da República e do próprio Supremo Tribunal Federal;\n                                          …\n                                          i) o habeas corpus, quando o coator for Tribunal Superior ou\n                               quando o coator ou o paciente for autoridade ou funcionário cujos atos\n                               estejam sujeitos diretamente à jurisdição do Supremo Tribunal\n                               Federal, ou se trate de crime sujeito à mesma jurisdição em uma única\n                               instância”.\n\n          In casu         , o paciente não está arrolado em nenhuma das hipóteses\nsujeitas à jurisdição originária desta Corte.\n\n\n          A ementa do acórdão proferido na Pet 1738-AgR, Pleno, Relator o\nMinistro Celso de Mello, Dje de 1º.10.99, é elucidativa e precisa quanto à\ntaxatividade da competência do Supremo Tribunal Federal:\n\n\n                                          “PROTESTO     JUDICIAL     FORMULADO     CONTRA\n                               DEPUTADO   FEDERAL   -   MEDIDA   DESTITUÍDA   DE\n                                CARÁTER   PENAL   (CPC,   ART.   867)   -   AUSÊNCIA   DE\n                                COMPETÊNCIA   ORIGINÁRIA   DO   SUPREMO   TRIBUNAL\n                                FEDERAL   -   RECURSO   DE   AGRAVO   IMPROVIDO.   A\n                                PRERROGATIVA DE FORO – UNICAMENTE INVOCÁVEL\n                                NOS PROCEDIMENTOS DE CARÁTER PENAL - NÃO SE\n                                ESTENDE ÀS CAUSAS DE NATUREZA CIVIL.\n                                           - As medidas cautelares a que se refere o art. 867 do Código de\n                                Processo   Civil   (protesto,   notificação   ou   interpelação),   quando\n                                promovidas contra membros do Congresso Nacional, não se incluem\n                                na esfera de competência originária do Supremo Tribunal Federal,\n                                precisamente porque destituídas de caráter penal. Precedentes.\n                                           A COMPETÊNCIA DO SUPREMO TRIBUNAL FEDERAL\n                                - CUJOS FUNDAMENTOS REPOUSAM NA CONSTITUIÇÃO\n                                DA REPÚBLICA - SUBMETE-SE A REGIME DE DIREITO\n                                ESTRITO.\n                                           - A competência originária do Supremo Tribunal Federal,    por\n                                qualificar-se como um complexo de atribuições jurisdicionais de\n                                extração essencialmente constitucional - e ante o regime de direito\n                                estrito a que se acha submetida - não comporta a possibilidade de ser\n                                estendida a situações que extravasem os limites fixados, em numerus\n                                clausus, pelo rol exaustivo inscrito no art. 102, I, da Constituição da\n                                República. Precedentes.\n                                           O regime de direito estrito, a que se submete a definição dessa\n                                competência institucional, tem levado o Supremo Tribunal Federal,\n                                por efeito da taxatividade do rol constante da Carta Política, a afastar,\n                                do âmbito de suas atribuições jurisdicionais originárias, o processo e o\n                                julgamento de causas de natureza civil que não se acham inscritas no\n                                texto constitucional (ações populares, ações civis públicas, ações\n                                cautelares, ações ordinárias, ações declaratórias e medidas cautelares),\n                                mesmo que instauradas contra o Presidente da República ou contra\n                                qualquer das autoridades, que, em matéria penal (CF, art. 102, I, b e\n                                c), dispõem de prerrogativa de foro perante a Corte Suprema ou que,\n                                em sede de mandado de segurança, estão sujeitas à jurisdição imediata\n                                do Tribunal (CF, art. 102, I, d). Precedentes”                                      .\n\n          Afigura-se   paradoxal,   em   tema   de   direito   estrito,   conferir\ninterpretação   extensiva   para   abranger   no   rol   de   competências   do\nSupremo Tribunal hipóteses não sujeitas à sua jurisdição.\n\n\n          A prevalência do entendimento de que o Supremo Tribunal Federal\ndeve conhecer de                           habeas corpus                   substitutivo de recurso extraordinário\ncontrasta com os meios de contenção de feitos, remota e recentemente\nimplementados - Súmula Vinculante e Repercussão Geral - com o objetivo\nde viabilizar o exercício pleno, pelo Supremo Tribunal Federal, da nobre\nfunção de guardião da Constituição da República.\n\n          E nem se argumente com o que se convencionou chamar de\njurisprudência defensiva. Não é disso que se trata, mas de necessária,\nimperiosa   e   urgente   reviravolta   de   entendimento   em   prol   da\norganicidade do direito, especificamente no que tange às competências\noriginária e recursal do Supremo Tribunal Federal para processar e julgar\nhabeas corpus              recurso extraordinário, valendo acrescer que essa ação nobre\nnão pode e nem deve ser banalizada a pretexto, em muitos casos, de\npseudonulidades processuais com reflexos no direito de ir e vir.\n\n\n          A propósito da organicidade e dinâmica do direito, impondo-se a\ncorreção de rumos, bem discorreu o Ministro Marco Aurélio, no voto\nproferido   no   HC   110.055/MG,   que   capitaneou   a   mudança   de\nentendimento na Primeira Turma,                                          verbis     :\n\n\n                                         “Essa óptica há de ser observada, também, no que o acórdão\n                               impugnado foi formalizado pelo Superior Tribunal de Justiça em\n                               recurso ordinário constitucional em habeas corpus.\n                                         De duas, uma: ou há, no acórdão proferido, quadro a ensejar a\n                               interposição de recurso extraordinário, ou não há. Descabe a volta a\n                               estágio anterior, que é o do ajuizamento originário do habeas corpus.\n                                         No mais, ante os parâmetros fáticos e legais, não existe campo\n                               para a concessão da ordem de ofício. Extingo o processo sem o\n                               julgamento do mérito”                     (HC 110.055/MG, Primeira Turma, DJe de\n                               9/11/12 – grifei)\n\n            No mesmo sentido, firmou-se o entendimento da Primeira Turma\ndesta Corte no sentido da inadmissibilidade da utilização do                                                                     habeas corpus\ncomo substitutivo de recurso extraordinário, conforme se verifica nos\nseguintes precedentes:\n\n\n                                         “Habeas   corpus   substitutivo   de   recurso   extraordinário.\n                               Inadequação da via eleita ao caso concreto. Precedente da Primeira\n                               Turma.   Flexibilização   circunscrita   às   hipóteses   de   flagrante\n                               ilegalidade, abuso de poder ou teratologia. Não ocorrência. Writ\n                               extinto, em face da inadequação da via eleita. 1. Impetração manejada\nem substituição ao recurso extraordinário, a qual esbarra em decisão\nda Primeira Turma, que, em sessão extraordinária datada de 16/10/12,\nassentou, quando do julgamento do HC nº 110.055/MG, Relator o\nMinistro Marco Aurélio, a inadmissibilidade do habeas corpus em\ncasos como esse. 2. Nada impede, entretanto, que esta Suprema Corte,\nquando do manejo inadequado do habeas corpus como substitutivo,\nanalise a questão de ofício nas hipóteses de flagrante ilegalidade, abuso\nde poder ou teratologia, o que não se evidencia na espécie. 3. Habeas\ncorpus extinto por inadequação da via eleita”.                                            (HC 113.805/SP, Rel.\nMin. Dias Toffoli, Primeira Turma, DJe de 15/4/2013).\n\n\n           “ Habeas   corpus   substitutivo   de   recurso   extraordinário.\nInadequação da via eleita ao caso concreto. Precedente da Primeira\nTurma.   Flexibilização   circunscrita   às   hipóteses   de   flagrante\nilegalidade, abuso de poder ou teratologia. Não ocorrência. Writ\nextinto, em face da inadequação da via eleita. 1. Impetração manejada\nem substituição ao recurso extraordinário, a qual esbarra em decisão\nda Primeira Turma, que, em sessão extraordinária datada de 16/10/12,\nassentou, quando do julgamento do HC nº 110.055/MG, Relator o\nMinistro Marco Aurélio, a inadmissibilidade do habeas corpus em\ncasos como esse. 2. Nada impede, entretanto, que esta Suprema Corte,\nquando do manejo inadequado do habeas corpus como substitutivo,\nanalise a questão de ofício nas hipóteses de flagrante ilegalidade, abuso\nde poder ou teratologia, o que não se evidencia na espécie. 3. Habeas\ncorpus extinto por inadequação da via eleita.”                                           (HC 113.805/SP, Rel.\nMin. Dias Toffoli, Primeira Turma, DJe de 15/4/2013)\n\n           “ HABEAS CORPUS. CRIMES CONTRA O PATRIMÔNIO.\nROUBOS   CIRCUNSTANCIADOS.   TENTATIVA   DE   FURTO\nQUALIFICADO. QUADRILHA. PORTE ILEGAL DE ARMA DE\nFOGO DE USO RESTRITO. PRISÃO PREVENTIVA MANTIDA\nNA SENTENÇA CONDENATÓRIA. 1. Contra acórdão exarado em\nrecurso ordinário em habeas corpus remanesce a possibilidade de\nmanejo do recurso extraordinário, previsto no art. 102, III, da\nConstituição Federal. Diante da dicção constitucional não cabe, em\ndecorrência,   a   utilização   de   novo   habeas   corpus,   em   caráter\nsubstitutivo.   2.   Havendo   condenação   criminal,   encontram-se\npresentes   os   pressupostos   da   preventiva,   a   saber,   prova   da\nmaterialidade e indícios de autoria. Não se trata, apenas, de juízo de\ncognição provisória e sumária acerca da responsabilidade criminal do\nacusado, mas, sim, de julgamento condenatório, precedido por amplo\ncontraditório e no qual as provas foram objeto de avaliação imparcial,\n                     ou seja, um juízo efetuado, com base em cognição profunda e\n                     exaustiva, de que o condenado é culpado de um crime. Ainda que a\n                     sentença esteja sujeita à reavaliação crítica através de recursos, a\n                     situação difere da prisão preventiva decretada antes do julgamento. 3.\n                     Se as circunstâncias concretas do crime indicam o envolvimento do\n                     paciente em organização criminosa numerosa, bem estruturada,\n                     voltada à prática de crimes graves, tais como, tráfico de drogas, roubo\n                     de cargas, furtos de caixas eletrônicos, aquisição de armas, a\n                     periculosidade   e   risco   de   reiteração   delitiva   está   justificada   a\n                     decretação ou a manutenção da prisão cautelar para resguardar a\n                     ordem pública, à luz do art. 312 do CPP. Precedentes. 4. Ordem\n                     denegada.”             (HC 118.981/MT, Rel. Min. Rosa Weber, Primeira\n                     Turma, DJe 19/11/2013)\n\n\n                                “HABEAS         CORPUS.         PROCESSUAL         PENAL.\n                     SUBSTITUTIVO       DE       RECURSO       CONSTITUCIONAL.\n                     INADEQUAÇÃO   DA   VIA   ELEITA.   CRIMES   DE   ROUBO\n                     MAJORADO E DE CORRUPÇÃO DE MENORES. SENTENÇA\n                     CONDENATÓRIA.   REGIME   PRISIONAL.   SUPRESSÃO   DE\n                     INSTÂNCIA. PRISÃO PREVENTIVA. MOTIVAÇÃO GENÉRICA\n                     E ABSTRATA. CONCESSÃO DA ORDEM DE OFÍCIO. 1. Contra\n                     acórdão exarado em recurso ordinário em habeas corpus remanesce a\n                     possibilidade de manejo do recurso extraordinário previsto no art. 102,\n                     III,   da   Constituição   Federal.   Diante   da   dicção   constitucional,\n                     inadequada   a   utilização   de   novo   habeas   corpus,   em   caráter\n                     substitutivo. 2. Inviável a apreciação de questão não examinada pelo\n                     Superior Tribunal de Justiça, sob pena de indevida supressão de\n                     instância. 3. O decreto de prisão cautelar há de se apoiar nas\n                     circunstâncias fáticas do caso concreto, evidenciando que a soltura ou\n                     a manutenção em liberdade do agente implicará risco à ordem pública,\n                     à ordem econômica, à instrução criminal ou à aplicação da lei penal\n                     (CPP, art. 312). 4. A motivação genérica e abstrata, sem elementos\n                     concretos ou base empírica idônea a amparar o decreto prisional,\n                     esbarra   na  jurisprudência   consolidada  deste  Supremo   Tribunal\n                     Federal, que não lhe reconhece validade. Precedentes. 5. Habeas corpus\n                     extinto sem resolução de mérito, mas com concessão de ofício da\n                     ordem, para revogar a prisão preventiva do paciente, sem prejuízo da\n                     imposição, pelo magistrado de primeiro grau, se assim o entender, das\n                     medidas cautelares ao feitio legal.”                                 (HC 130.916, Primeira Turma,\n                     Rel. Min. Rosa Weber, DJe de 20/6/2016)\n\nSob   outro   enfoque,   inexiste   excepcionalidade   que   permita   a\nconcessão da ordem de ofício ante a ausência de teratologia na decisão\natacada, flagrante ilegalidade ou abuso de poder.\n\n\n          No que concerne às alegações de nulidades por ofensa ao princípio\nda identidade física do juiz, o Superior Tribunal de Justiça assentou que,\nin verbis       :\n\n\n                                         “Cediço que a Lei n° 11.719/08 incluiu no direito penal\n                               brasileiro, de forma expressa no art. 399, § 2º, do Código de Processo\n                               Penal, o princípio da identidade física do juiz, segundo o qual o\n                               magistrado que presidir a instrução criminal deverá proferir a\n                               sentença no feito. Todavia, o mencionado principio não é absoluto,\n                               comportando exceções. Em razão da ausência de outras normas\n                               específicas   regulamentando   o   referido   princípio,   nos   casos   de\n                               convocação, licença, promoção ou de outro motivo que impeça o juiz\n                               que tiver presidido a instrução de sentenciar o feito, por analogia -\n                               permitida pelo artigo 3º da Lei Adjetiva Penal deverá ser aplicado,\n                               subsidiariamente, o contido no artigo 132 do Código de Processo\n                               Civil, que dispõe que os autos passarão ao sucessor do magistrado.\n                               Destarte, o juiz que presidiu a instrução, mas que, por qualquer\n                               motivo esteja afastado, não proferirá sentença, devendo encaminhar os\n                               autos ao seu sucessor. Conforme maciça jurisprudência, a remoção\n                               constitui uma relativização ao princípio da identidade física do juiz, já\n                               que possui a mesma 'ratio' das outras exceções, embora não incluída\n                               expressamente no rol art. 132 do Código de Processo Civil, de modo\n                               que o magistrado removido para outro juízo, ainda que tenha\n                               presidido a instrução de determinado feito, não se encontra a este\n                               vinculado.”\n\n          Ademais, quanto à alegação de que houve interposição de agravo\nregimental perante o Superior Tribunal de Justiça, verifica-se que consta\ncertidão, nos autos do HC 315.535, informando que não foi protocolada a\nvia original da petição de agravo regimental no prazo assinalado em lei.\nO referido processo encontra-se concluso para decisão.\n\n\n          Com efeito, o conhecimento desta impetração sem que a instância\nprecedente tenha examinado o mérito do                                                          habeas corpus                  lá impetrado\nconsubstancia  indevida   supressão  de   instância  e,   por   conseguinte,\nviolação das regras constitucionais definidoras da competência dos\nTribunais Superiores, valendo conferir os seguintes precedentes desta\nCorte:\n\n\n                                           “ HABEAS CORPUS. DIREITO PENAL E PROCESSUAL\n                                PENAL.   QUESTÕES    NÃO   CONHECIDAS   PELO   STJ.\n                                AUTORIDADE     COATORA.     TRIBUNAL     DE     JUSTIÇA.\n                                INCOMPETÊNCIA DO STF. NEGATIVA AO DIREITO DE\n                                RECORRER   EM   LIBERDADE   FUNDAMENTADA.  PRISÃO\n                                ANTES   DO   TRÂNSITO   EM   JULGADO.   INSTRUÇÃO\n                                CRIMINAL       ENCERRADA.       EXCESSO       DE       PRAZO\n                                PREJUDICADO. ORDEM DENEGADA. 1. O Superior Tribunal\n                                de Justiça não se manifestou acerca do regime prisional imposto ao\n                                paciente no que concerne ao crime de tráfico de drogas e da\n                                possibilidade de aplicação da causa de diminuição de pena prevista no\n                                art. 22, § 4º, da Lei 11.343/06. 2. No que diz respeito aos temas não\n                                abordados pela Corte Superior, a autoridade coatora é o Tribunal de\n                                Justiça do Estado de São Paulo. Com efeito, não compete a esta\n                                Suprema Corte conhecer dessas matérias, sob pena de supressão de\n                                instância. Precedentes. 3. A proibição ao direito de o paciente recorrer\n                                em liberdade foi devidamente fundamentada. Ademais, o paciente foi\n                                preso em flagrante e permaneceu preso durante toda a instrução\n                                criminal. 4. A alegação de excesso de prazo fica prejudicada pelo fim\n                                da   instrução   penal   e   pela   prolação   de   sentença   condenatória.\n                                Precedentes. 5. Writ conhecido em parte e denegado.”                                                             (HC nº\n                                100.595, Rel. Min.  Ellen  Gracie,  Segunda  Turma, DJe de\n                                09/03/2011).\n\n\n                                           “ HABEAS     CORPUS.     PEDIDO     DE     LIBERDADE.\n                                SUPRESSÃO   DE   INSTÂNCIA.   REINCIDÊNCIA.   REGIME\n                                FECHADO.   POSSIBILIDADE.   ORDEM   PARCIALMENTE\n                                CONHECIDA E, NESSA PARTE, DENEGADA. O impetrante,\n                                embora   também   tenha   requerido   a   liberdade   do  paciente,  não\n                                apresentou qualquer fundamento para tanto. Simplesmente fez o\n                                pedido. Além disso, o STJ não se manifestou sobre a questão. Portanto,\n                                não há como o habeas corpus ser conhecido nesse ponto, sob pena de\n                                supressão de instância. Quanto ao pedido de fixação do regime\n                                prisional aberto ou semi-aberto, o TJSP, ao impor o regime fechado,\n                                considerou o fato de o paciente ser, de acordo com a sentença, “multi-\n                                reincidente”. Tal fundamento está em harmonia com o disposto nas\n                                alíneas “b” e “c” do § 2º do art. 33 do Código Penal, segundo as quais\n                                tanto o regime aberto, quanto o semi-aberto são reservados aos réus\n                                não reincidentes. Habeas corpus parcialmente conhecido e, nessa\n                                parte, denegado              .” (HC nº 100.616, Rel. Min. Joaquim Barbosa,\nSegunda Turma, DJe de 14/03/2011)\n\n           “ HABEAS CORPUS. PROCESSUAL PENAL. PEDIDO DE\nCOMUTAÇÃO DE PENA. JUÍZO DE ORIGEM. APRECIAÇÃO.\nAUSÊNCIA. IMPOSSIBILIDADE DE SEU EXAME PELO STF\nSOB PENA DE SUPRESSÃO DE INSTÂNCIAS. ALEGAÇÃO DE\nDEMORA NO JULGAMENTO DO MÉRITO DE WRIT PELO\nSUPERIOR     TRIBUNAL     DE     JUSTIÇA.     EXCESSO     DE\nIMPETRAÇÕES   NA   CORTE   SUPERIOR   PENDENTES   DE\nJULGAMENTO.       FLEXIBILIZAÇÃO       DO       PRINCÍPIO\nCONSTITUCIONAL     DA     RAZOÁVEL     DURAÇÃO     DO\nPROCESSO     QUE     SE     MOSTRA     COMPREENSÍVEL.\nAPOSENTADORIA DO RELATOR DOS FEITOS MANEJADOS\nEM FAVOR DO PACIENTE. ORDEM CONCEDIDA DE OFÍCIO\nPARA DETERMINAR SUA REDISTRIBUIÇÃO. I – O pedido de\ncomutação da pena não pode ser conhecido, uma vez que esta questão\nnão foi sequer analisada pelo juízo de origem. Seu exame por esta\nSuprema   Corte   implicaria   indevida   supressão   de   instância   e\nextravasamento dos limites de competência do STF descritos no art.\n102 da Constituição Federal. II – O excesso de trabalho que assoberba\no STJ permite a flexibilização, em alguma medida, do princípio\nconstitucional da razoável duração do processo. Precedentes. III - A\nconcessão da ordem para determinar o julgamento do writ na Corte a\nquo poderia redundar na injustiça de determinar-se que a impetração\nmanejada em favor do paciente seja colocada em posição privilegiada\ncom relação a de outros jurisdicionados. IV – Ordem concedida de\nofício para determinar a redistribuição dos habeas corpus manejados\nno STJ em favor do paciente, em razão da aposentadoria do então\nRelator.”          (HC nº 103.835, Rel. Min. Ricardo Lewandowski,\nPrimeira Turma, DJe de 08/02/2011)\n\n\n           “ Habeas       corpus.       Homicídio.       Prisão       ordenada\nindependentemente   de   trânsito   em   julgado.   Superveniência   do\ntrânsito em julgado. Writ prejudicado. Fixação de regime inicialmente\nfechado. Questão não submetida ao crivo do STJ. Supressão de\ninstância. Habeas corpus não conhecido. 1. Prejudicialidade do writ\nimpetrado perante Tribunal Superior fundada em decisão liminar,\nprecária e efêmera, obtida pelo paciente perante esta Suprema Corte\ninocorrente. 2. Superveniência de trânsito em julgado da decisão\ncondenatória, a ensejar o reconhecimento da prejudicialidade de ambas\nas impetrações. 3. A questão relativa à propriedade do regime prisional\nimposto ao paciente pela decisão condenatória não foi submetida ao\n                                crivo do Superior Tribunal de Justiça, não se admitindo a apreciação\n                                do tema por esta Suprema Corte, de forma originária, sob pena de\n                                configurar verdadeira supressão de instância. Precedentes. 4. Writ\n                                não  conhecido.”                   (HC nº  98.616/SP,  Rel.  Min.  Dias   Toffoli,\n                                Primeira Turma, DJe de 22/02/2011)\n\n          Por fim, impende consignar que não cabe a rediscussão da matéria\nperante essa Corte e nesta via processual, porquanto o                                                                   habeas corpus                não é\nsucedâneo de recurso ou revisão criminal                                                   . Nesse sentido:\n\n\n                                           “AGRAVO   REGIMENTAL    NO   HABEAS   CORPUS.\n                                PROCESSUAL           PENAL.           PRESSUPOSTOS           DE\n                                ADMISSIBILIDADE         DO         RECURSO         ESPECIAL.\n                                COMPETÊNCIA PRECÍPUA DO SUPERIOR TRIBUNAL DE\n                                JUSTIÇA. WRIT SUCEDÂNEO DE RECURSO OU REVISÃO\n                                CRIMINAL. INVIABILIDADE. 1. Compete constitucionalmente ao\n                                Superior Tribunal de Justiça o julgamento do recurso especial,\n                                cabendo-lhe, enquanto órgão ad quem, o segundo, e definitivo, juízo de\n                                admissibilidade   positivo   ou   negativo   quanto   a   tal   recurso   de\n                                fundamentação vinculada. Salvo hipóteses de flagrante ilegalidade ou\n                                abuso   de   poder,   inadmissível   o   reexame   dos   pressupostos   de\n                                admissibilidade do recurso especial pelo Supremo Tribunal Federal.\n                                Precedentes. 2. Inadmissível a utilização do habeas corpus como\n                                sucedâneo de recurso ou revisão criminal. Precedentes. 3. Agravo\n                                regimental   conhecido   e   não   provido.”                                       (HC   nº   133.648-AgR,\n                                Primeira Turma, Rel. Min. Rosa Weber, DJe de 07/06/2016)\n\n\n                                           “AGRAVO   REGIMENTAL    NO   HABEAS   CORPUS.\n                                CONSTITUCIONAL.   PENAL.   VIOLAÇÃO   DE   DIREITO\n                                AUTORAL.   TRÂNSITO   EM   JULGADO   DA   DECISÃO\n                                PROFERIDA   NO   SUPERIOR   TRIBUNAL   DE   JUSTIÇA.\n                                IMPETRAÇÃO   DE   HABEAS   CORPUS   NESTE   SUPREMO\n                                TRIBUNAL APÓS TRANSCURSO DO PRAZO RECURSAL:\n                                IMPOSSIBILIDADE DE UTILIZAÇÃO DE HABEAS CORPUS\n                                COMO SUCEDÂNEO DE REVISÃO CRIMINAL. DEFICIÊNCIA\n                                DE INSTRUÇÃO DO HABEAS  CORPUS. PRECEDENTES.\n                                DECISÃO AGRAVADA MANTIDA. AGRAVO AO QUAL SE\n                                NEGA PROVIMENTO. 1. Trânsito em julgado do acórdão objeto da\n                                impetração no Superior Tribunal de Justiça. Jurisprudência do\n                                Supremo Tribunal Federal no sentido de não ser viável a utilização de\n                                habeas corpus como sucedâneo de revisão criminal. 2. Não estando o\n                                pedido de habeas corpus instruído, esta deficiência compromete a sua\n                      viabilidade, impedindo que sequer se verifique a caracterização, ou\n                      não, do constrangimento ilegal. 3. Agravo regimental ao qual se nega\n                      provimento.”              (HC nº 132.103, Segunda Turma, Rel. Min. Cármen\n                      Lúcia, DJe de 15/03/2016)\n\nEx positis          , NEGO PROVIMENTO                                         ao agravo regimental.\n\n\nÉ como voto.",
+          "extractor": null
         },
-        "documentos": {
-          "Relatório": {
-            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4292715",
-            "text": null
-          },
-          "Voto": {
-            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4292698",
-            "text": null
-          },
-          "Voto Vogal": {
-            "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4309739",
-            "text": null
-          }
-        },
-        "julgamento_item_titulo": "AG.REG. NO HABEAS CORPUS 129840"
-      }
-    ],
-    "deslocamentos": [
-      {
-        "index_num": 10,
-        "guia": "6/2021",
-        "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
-        "data_recebido": "30/01/2021",
-        "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
-        "data_enviado": "30/01/2021"
-      },
-      {
-        "index_num": 9,
-        "guia": "404/2019",
-        "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
-        "data_recebido": "15/06/2019",
-        "enviado_por": "SEÇÃO DE ARQUIVO",
-        "data_enviado": "15/06/2019"
-      },
-      {
-        "index_num": 8,
-        "guia": "6985/2017",
-        "recebido_por": "SEÇÃO DE ARQUIVO",
-        "data_recebido": "27/06/2017",
-        "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_enviado": "27/06/2017"
-      },
-      {
-        "index_num": 7,
-        "guia": "12867/2017",
-        "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
-        "data_recebido": "20/06/2017",
-        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_enviado": "20/06/2017"
-      },
-      {
-        "index_num": 6,
-        "guia": "1074/2017",
-        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_recebido": "20/06/2017",
-        "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
-        "data_enviado": "20/06/2017"
-      },
-      {
-        "index_num": 5,
-        "guia": "4091/2017",
-        "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
-        "data_recebido": "08/06/2017",
-        "enviado_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_enviado": "08/06/2017"
-      },
-      {
-        "index_num": 4,
-        "guia": "13031/2015",
-        "recebido_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_recebido": "26/08/2015",
-        "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_enviado": "26/08/2015"
-      },
-      {
-        "index_num": 3,
-        "guia": "5193/2015",
-        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
-        "data_recebido": "19/08/2015",
-        "enviado_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_enviado": "19/08/2015"
-      },
-      {
-        "index_num": 2,
-        "guia": "7743/2015",
-        "recebido_por": "GABINETE MINISTRO LUIZ FUX",
-        "data_recebido": "17/08/2015",
-        "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-        "data_enviado": "17/08/2015"
-      },
-      {
-        "index_num": 1,
-        "guia": "1395637/2015",
-        "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
-        "data_recebido": "17/08/2015",
-        "enviado_por": "DIVERSOS",
-        "data_enviado": "17/08/2015"
-      }
-    ],
-    "peticoes": [
-      {
-        "index": 1,
-        "id": "42157/2015",
-        "data": "26/08/2015",
-        "recebido_data": "26/08/2015 14:34:06",
-        "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS"
-      }
-    ],
-    "recursos": [
-      {
-        "id": 1,
-        "data": "AG.REG. NO HABEAS CORPUS"
-      }
-    ],
-    "pautas": [],
-    "outcome": "nao_provido",
-    "status": 200,
-    "extraido": "2026-04-18T12:30:52.829282"
+        {
+          "tipo": "Voto Vogal",
+          "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=4309739",
+          "text": "V    O    T   O\n\n          O SENHOR MINISTRO MARCO AURÉLIO – O                                                                      habeas corpus               é ação\nconstitucional voltada a preservar a liberdade de ir e vir do cidadão. O\nprocesso que o veicule, devidamente aparelhado, deve ser submetido ao\njulgamento de Colegiado. Descabe observar quer o disposto no artigo 21\ndo Regimento Interno, no que revela a possibilidade de o relator negar\nseguimento a pedido manifestamente improcedente, quer o artigo 932 do\nCódigo de Processo Civil. Provejo o agravo para que o                                                                habeas corpus              tenha\nsequência.",
+          "extractor": null
+        }
+      ],
+      "julgamento_item_titulo": "AG.REG. NO HABEAS CORPUS 129840"
+    }
+  ],
+  "deslocamentos": [
+    {
+      "index": 10,
+      "guia": "6/2021",
+      "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+      "data_recebido": "2021-01-30",
+      "enviado_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+      "data_enviado": "2021-01-30"
+    },
+    {
+      "index": 9,
+      "guia": "404/2019",
+      "recebido_por": "COORDENADORIA DE MEMÓRIA E GESTÃO DOCUMENTAL",
+      "data_recebido": "2019-06-15",
+      "enviado_por": "SEÇÃO DE ARQUIVO",
+      "data_enviado": "2019-06-15"
+    },
+    {
+      "index": 8,
+      "guia": "6985/2017",
+      "recebido_por": "SEÇÃO DE ARQUIVO",
+      "data_recebido": "2017-06-27",
+      "enviado_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "data_enviado": "2017-06-27"
+    },
+    {
+      "index": 7,
+      "guia": "12867/2017",
+      "recebido_por": "SEÇÃO DE RECURSOS CRIMINAIS",
+      "data_recebido": "2017-06-20",
+      "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_enviado": "2017-06-20"
+    },
+    {
+      "index": 6,
+      "guia": "1074/2017",
+      "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_recebido": "2017-06-20",
+      "enviado_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+      "data_enviado": "2017-06-20"
+    },
+    {
+      "index": 5,
+      "guia": "4091/2017",
+      "recebido_por": "SEÇÃO DE COMPOSIÇÃO E CONTROLE DE ACÓRDÃOS",
+      "data_recebido": "2017-06-08",
+      "enviado_por": "GABINETE MINISTRO LUIZ FUX",
+      "data_enviado": "2017-06-08"
+    },
+    {
+      "index": 4,
+      "guia": "13031/2015",
+      "recebido_por": "GABINETE MINISTRO LUIZ FUX",
+      "data_recebido": "2015-08-26",
+      "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_enviado": "2015-08-26"
+    },
+    {
+      "index": 3,
+      "guia": "5193/2015",
+      "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_recebido": "2015-08-19",
+      "enviado_por": "GABINETE MINISTRO LUIZ FUX",
+      "data_enviado": "2015-08-19"
+    },
+    {
+      "index": 2,
+      "guia": "7743/2015",
+      "recebido_por": "GABINETE MINISTRO LUIZ FUX",
+      "data_recebido": "2015-08-17",
+      "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "data_enviado": "2015-08-17"
+    },
+    {
+      "index": 1,
+      "guia": "1395637/2015",
+      "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "data_recebido": "2015-08-17",
+      "enviado_por": "DIVERSOS",
+      "data_enviado": "2015-08-17"
+    }
+  ],
+  "peticoes": [
+    {
+      "index": 1,
+      "id": "42157/2015",
+      "data": "2015-08-26",
+      "recebido_data": "2015-08-26T14:34:06",
+      "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS"
+    }
+  ],
+  "recursos": [
+    {
+      "index": 1,
+      "tipo": "AG.REG. NO HABEAS CORPUS"
+    }
+  ],
+  "pautas": [
+    {
+      "index": 1,
+      "data": "2017-05-11",
+      "nome": "PAUTA PUBLICADA NO DJE - 1ª TURMA",
+      "complemento": "PAUTA Nº 51/2017. DJE nº 98, divulgado em 10/05/2017",
+      "julgador": null
+    }
+  ],
+  "outcome": {
+    "verdict": "nao_provido",
+    "source": "sessao_virtual",
+    "source_index": 0,
+    "date_iso": "2017-05-19"
   }
-]
+}

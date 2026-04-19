@@ -202,12 +202,78 @@ def shape_anomalies(item: dict[str, Any]) -> list[str]:
     sv = item.get("sessao_virtual")
     if sv is not None and not isinstance(sv, (dict, list)):
         msgs.append(f"sessao_virtual is {type(sv).__name__}, expected dict|list")
-    docs = (sv or {}).get("documentos") if isinstance(sv, dict) else None
-    if isinstance(docs, dict):
-        for slot, val in docs.items():
-            if val is not None and not isinstance(val, str):
-                msgs.append(f"sessao_virtual.documentos[{slot}] non-str: {type(val).__name__}")
+    # `sessao_virtual` may carry three shapes across the corpus:
+    # - dict with `documentos` dict (legacy v1/v2/v3)
+    # - list of entries, each with `documentos` list-of-dicts (v4)
+    # - None / anything else (skipped)
+    sessions = sv if isinstance(sv, list) else [sv] if isinstance(sv, dict) else []
+    for sess in sessions:
+        if not isinstance(sess, dict):
+            continue
+        docs = sess.get("documentos")
+        if isinstance(docs, list):
+            _check_documentos_list(docs, msgs)
+        elif isinstance(docs, dict):
+            _check_documentos_dict(docs, msgs)
+    # Soft-check extractor labels against the documented v4 open set.
+    unknown = _collect_unknown_extractors(item)
+    if unknown:
+        msgs.append(
+            "unknown extractor label(s) "
+            + ", ".join(sorted(unknown))
+            + f" (known: {', '.join(sorted(_KNOWN_EXTRACTORS))})"
+        )
     return msgs
+
+
+_KNOWN_EXTRACTORS: frozenset[str] = frozenset({
+    "rtf", "pypdf_plain", "pypdf_layout",
+    "unstructured", "mistral", "chandra",
+})
+
+
+def _check_documentos_list(docs: list[Any], msgs: list[str]) -> None:
+    for i, entry in enumerate(docs):
+        if not isinstance(entry, dict):
+            msgs.append(f"sessao_virtual.documentos[{i}] non-dict: {type(entry).__name__}")
+            continue
+        for field in ("tipo", "url", "text", "extractor"):
+            if field not in entry:
+                msgs.append(f"sessao_virtual.documentos[{i}] missing {field}")
+
+
+def _check_documentos_dict(docs: dict[str, Any], msgs: list[str]) -> None:
+    """Tolerate pre-v4 shapes — either `str` or `{url, text}` dict values."""
+    for slot, val in docs.items():
+        if val is None:
+            continue
+        if isinstance(val, (str, dict)):
+            continue
+        msgs.append(
+            f"sessao_virtual.documentos[{slot}] unexpected: {type(val).__name__}"
+        )
+
+
+def _collect_unknown_extractors(item: dict[str, Any]) -> set[str]:
+    found: set[str] = set()
+    for a in item.get("andamentos") or []:
+        link = a.get("link") if isinstance(a, dict) else None
+        if isinstance(link, dict):
+            lbl = link.get("extractor")
+            if isinstance(lbl, str) and lbl not in _KNOWN_EXTRACTORS:
+                found.add(lbl)
+    for sess in item.get("sessao_virtual") or []:
+        if not isinstance(sess, dict):
+            continue
+        docs = sess.get("documentos")
+        if not isinstance(docs, list):
+            continue
+        for d in docs:
+            if isinstance(d, dict):
+                lbl = d.get("extractor")
+                if isinstance(lbl, str) and lbl not in _KNOWN_EXTRACTORS:
+                    found.add(lbl)
+    return found
 
 
 # ----- Parity sources -----------------------------------------------------
@@ -663,9 +729,11 @@ def _resolve_parity(
 
 def _wipe_html_caches(rows: list[tuple[str, int, Optional[str]]]) -> None:
     for classe, processo, _ in rows:
-        d = Path("data/cache/html") / f"{classe}_{processo}"
-        if d.exists():
-            shutil.rmtree(d)
+        archive = Path("data/cache/html") / f"{classe}_{processo}.tar.gz"
+        archive.unlink(missing_ok=True)
+        legacy_dir = Path("data/cache/html") / f"{classe}_{processo}"
+        if legacy_dir.is_dir():
+            shutil.rmtree(legacy_dir)
 
 
 def _print_row(i: int, n: int, res: ProcessResult) -> None:

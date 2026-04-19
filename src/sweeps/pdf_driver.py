@@ -72,7 +72,7 @@ def _default_fetcher(
     ftype = detect_file_type(r)
     if ftype == "pdf":
         text = extract_pdf_text_from_content(r.content)
-        return (text, "pypdf", "ok") if text else (None, "pypdf", "empty")
+        return (text, "pypdf_plain", "ok") if text else (None, "pypdf_plain", "empty")
     if ftype == "rtf":
         text = extract_rtf_text(r.content)
         return (text, "rtf", "ok") if text else (None, "rtf", "empty")
@@ -181,7 +181,7 @@ def run_pdf_sweep(
         wall = time.perf_counter() - t0
 
         if status == "ok" and text:
-            pdf_cache.write(tgt.url, text)
+            pdf_cache.write(tgt.url, text, extractor=extractor)
             chars = len(text)
             counters.fetched += 1
             logging.info(f"[{i}/{n}] {tgt.url}: ok ({chars} chars)")

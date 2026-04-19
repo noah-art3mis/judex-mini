@@ -377,7 +377,8 @@ def varrer_processos(
 
 
 # ---------------------------------------------------------------------------
-# `pdfs` — baixa PDFs das peças; ``--ocr`` comuta para reextração via Unstructured
+# `pdfs` — baixa PDFs das peças; ``--ocr`` comuta para reextração OCR
+# (provedor padrão: Mistral; selecionável via ``--provedor``)
 
 
 @app.command(name="varrer-pdfs")
@@ -389,19 +390,27 @@ def varrer_pdfs(
     ),
     ocr: bool = typer.Option(
         False, "--ocr",
-        help="**Só OCR** (API Unstructured), sem passar pelo extrator "
-             "padrão. Reextrai entradas de cache com texto menor que "
-             "--min-caracteres; requer UNSTRUCTURED_API_KEY no ambiente. "
+        help="**Só OCR** (provedor padrão: Mistral), sem passar pelo "
+             "extrator padrão. Reextrai entradas de cache com texto menor "
+             "que --min-caracteres; requer a chave de API do provedor no "
+             "ambiente (MISTRAL_API_KEY por padrão; ver --provedor). "
              "Mutuamente exclusivo com --ocr-resgate.",
     ),
     ocr_resgate: bool = typer.Option(
         True, "--ocr-resgate/--sem-ocr-resgate",
         help="**Duas passagens** (padrão): primeiro pypdf (baixa e extrai), "
-             "depois OCR Unstructured nas entradas cujo texto ficou abaixo "
+             "depois OCR via Mistral nas entradas cujo texto ficou abaixo "
              "de --min-caracteres (decisões escaneadas). Use "
              "--sem-ocr-resgate para pular a segunda passagem e ficar só "
-             "com o pypdf. Requer UNSTRUCTURED_API_KEY para a segunda "
-             "passagem (sem a chave, a segunda passagem é pulada com aviso).",
+             "com o pypdf. Requer MISTRAL_API_KEY para a segunda passagem "
+             "(sem a chave, a segunda passagem é pulada com aviso). Use "
+             "--provedor para trocar o provedor OCR.",
+    ),
+    provedor: str = typer.Option(
+        "mistral", "--provedor",
+        help="Provedor OCR (padrão: mistral). Valores: mistral, "
+             "unstructured, chandra. Cada um lê sua própria chave de API "
+             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
     ),
     raizes: list[Path] = typer.Option(
         None, "--raizes",
@@ -419,7 +428,7 @@ def varrer_pdfs(
     ),
     tipos_doc: str = typer.Option(
         "", "--tipos-doc",
-        help="Valores exatos de andamento.link_descricao, separados por "
+        help="Valores exatos de andamento.link.tipo, separados por "
              'vírgula (ex.: "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO"). '
              "Vazio = todos os tipos.",
     ),
@@ -481,12 +490,18 @@ def varrer_pdfs(
     ),
     estrategia: str = typer.Option(
         "hi_res", "--estrategia",
-        help="[modo --ocr] Estratégia do Unstructured: hi_res, ocr_only, "
-             "fast ou auto.",
+        help="[modo --ocr, provedor=unstructured] Estratégia do "
+             "Unstructured: hi_res, ocr_only, fast ou auto. Ignorada "
+             "pelos outros provedores.",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
-        help="[modo --ocr] Reextrai mesmo quando o cache atual ≥ --min-caracteres.",
+        help="[modo --ocr] (1) inclui entradas cacheadas ≥ "
+             "--min-caracteres como candidatas E (2) desativa a guarda "
+             "monotônica do cache — sobrescreve o cache com a nova saída "
+             "do provedor mesmo se for menor. Use quando quiser rodar o "
+             "provedor novo (ex.: trocou de Unstructured para Mistral) "
+             "e gravar os resultados sem ressalva de tamanho.",
     ),
 ) -> None:
     """Baixa os PDFs das peças (decisão, acórdão, manifestação da PGR).
@@ -496,26 +511,30 @@ def varrer_pdfs(
     - **Padrão** (sem flag): **duas passagens**. Roda o ``pypdf``
       primeiro, filtrando pelos critérios (classe, impetrante,
       tipos de doc, relator); em seguida faz uma segunda passagem
-      pela API Unstructured (``hi_res``) **só** nas entradas cujo
-      texto extraído ficou abaixo de ``--min-caracteres`` — alvo
-      clássico do OCR, as decisões escaneadas. Rápido por padrão,
-      cai no OCR só quando precisa. Requer ``UNSTRUCTURED_API_KEY``
-      no ambiente para a segunda passagem; sem a chave a segunda
-      passagem é pulada com aviso e os resultados do ``pypdf``
-      permanecem.
+      por um provedor OCR (Mistral por padrão; trocável via
+      ``--provedor``) **só** nas entradas cujo texto extraído ficou
+      abaixo de ``--min-caracteres`` — alvo clássico do OCR, as
+      decisões escaneadas. Rápido por padrão, cai no OCR só quando
+      precisa. Requer a chave de API do provedor no ambiente
+      (``MISTRAL_API_KEY`` por padrão) para a segunda passagem; sem
+      a chave a segunda passagem é pulada com aviso e os resultados
+      do ``pypdf`` permanecem.
 
     - ``--sem-ocr-resgate``: **só pypdf**, uma passagem. Útil para
       sessões rápidas onde não faz sentido pagar OCR (ex.: só
       verificar cache, ou rodar com ``--simular``).
 
     - ``--ocr``: **só OCR**. Pula o ``pypdf`` e vai direto à
-      reextração via Unstructured sobre as entradas de cache
-      curtas. Útil quando o ``pypdf`` já rodou em uma sessão
-      anterior e só as escaneadas faltam.
+      reextração via provedor OCR sobre as entradas de cache curtas.
+      Útil quando o ``pypdf`` já rodou em uma sessão anterior e só
+      as escaneadas faltam.
 
-    O cache em ``data/pdf/<sha1(url)>.txt.gz`` é **monotônico por
-    tamanho**: só sobrescreve quando a saída nova é maior que a
-    atual. ``--ocr`` e ``--ocr-resgate`` são mutuamente exclusivos.
+    O cache em ``data/cache/pdf/<sha1(url)>.txt.gz`` é **monotônico por
+    tamanho** por padrão: só sobrescreve quando a saída nova é maior
+    que a atual. Passe ``--forcar`` para desativar essa guarda e
+    sobrescrever incondicionalmente (o que você quer quando muda de
+    provedor e quer o texto novo mesmo se for menor). ``--ocr`` e
+    ``--ocr-resgate`` são mutuamente exclusivos.
     """
     # valida combinações
     if ocr and ocr_resgate:
@@ -553,9 +572,24 @@ def varrer_pdfs(
         _push(a, "--dry-run", simular)
         return a
 
+    # env var do provedor selecionado — usado tanto para validar a chave
+    # quanto para decidir se pulamos o resgate OCR com aviso.
+    _KEY_ENV_BY_PROVIDER = {
+        "mistral": "MISTRAL_API_KEY",
+        "unstructured": "UNSTRUCTURED_API_KEY",
+        "chandra": "CHANDRA_API_KEY",
+    }
+    key_env = _KEY_ENV_BY_PROVIDER.get(provedor)
+    if key_env is None:
+        raise typer.BadParameter(
+            f"provedor inválido {provedor!r}; "
+            "escolha entre mistral, unstructured, chandra."
+        )
+
     # Modo só-OCR: pula pypdf, vai direto à reextração
     if ocr:
         argv = _argv_comum()
+        _push(argv, "--provider", provedor)
         _push(argv, "--min-chars", min_caracteres)
         _push(argv, "--strategy", estrategia)
         _push(argv, "--force", forcar)
@@ -581,28 +615,29 @@ def varrer_pdfs(
     if simular:
         raise typer.Exit(code=saida_pypdf)
 
-    # A segunda passagem depende da API da Unstructured. Se a chave não
+    # A segunda passagem depende da API do provedor OCR. Se a chave não
     # está no ambiente (nem via .env), pulamos com aviso em vez de
     # deixar o script filho falhar com exit 2 — a primeira passagem já
     # produziu os artefatos duráveis em --saida.
     from dotenv import load_dotenv
     load_dotenv()
-    if not os.environ.get("UNSTRUCTURED_API_KEY"):
+    if not os.environ.get(key_env):
         typer.secho(
-            "\nAviso: UNSTRUCTURED_API_KEY não está no ambiente (nem via "
-            f".env). Pulando o resgate OCR — os resultados do pypdf estão "
-            f"preservados em {saida}. Para habilitar a segunda passagem, "
-            "defina a chave; para silenciar este aviso, passe "
-            "--sem-ocr-resgate.",
+            f"\nAviso: {key_env} não está no ambiente (nem via .env). "
+            f"Pulando o resgate OCR (provedor={provedor}) — os resultados "
+            f"do pypdf estão preservados em {saida}. Para habilitar a "
+            f"segunda passagem, defina {key_env}; para silenciar este "
+            "aviso, passe --sem-ocr-resgate.",
             fg=typer.colors.YELLOW,
         )
         raise typer.Exit(code=saida_pypdf)
 
     typer.echo(
-        f"\n=== Resgate OCR: reextraindo entradas com texto < "
-        f"{min_caracteres} caracteres ==="
+        f"\n=== Resgate OCR ({provedor}): reextraindo entradas com texto "
+        f"< {min_caracteres} caracteres ==="
     )
     argv_ocr = _argv_comum()
+    _push(argv_ocr, "--provider", provedor)
     _push(argv_ocr, "--min-chars", min_caracteres)
     _push(argv_ocr, "--strategy", estrategia)
     _push(argv_ocr, "--force", forcar)

@@ -39,9 +39,9 @@ def collect_pdf_targets(
     - `classe`: match exactly, e.g. "HC", "RE", "ADI".
     - `impte_contains`: any of these (case-insensitive) substrings
       appears in a `.partes[].nome` field whose `.tipo == "IMPTE.(S)"`.
-    - `doc_types`: `andamento.link_descricao` must be in this set.
+    - `doc_types`: `andamento.link.tipo` must be in this set.
     - `relator_contains`: any of these substrings appears in `.relator`.
-    - `exclude_doc_types`: `andamento.link_descricao` must NOT be in
+    - `exclude_doc_types`: `andamento.link.tipo` must NOT be in
       this set. Applied after `doc_types`.
 
     Deduplicates by URL across input files.
@@ -89,9 +89,9 @@ def collect_pdf_targets(
         rec_classe = rec.get("classe")
 
         for a in rec.get("andamentos") or []:
-            link = a.get("link")
-            desc = a.get("link_descricao")
-            url = link.get("url") if isinstance(link, dict) else None
+            link = a.get("link") if isinstance(a.get("link"), dict) else None
+            desc = link.get("tipo") if link else None
+            url = link.get("url") if link else None
             if not url or not url.lower().endswith(".pdf"):
                 continue
             if doc_type_set is not None and desc not in doc_type_set:

@@ -14,7 +14,17 @@ from __future__ import annotations
 from typing import Any
 
 # Not diffable or known to differ by design.
-SKIP_FIELDS = {"extraido", "sessao_virtual", "status_http", "outcome", "schema_version"}
+# v6 groups scrape metadata under `_meta`; we skip that as a single
+# key. The individual legacy keys remain in the set so diffs against
+# pre-v6 fixtures still work.
+SKIP_FIELDS = {
+    "_meta",
+    "extraido",
+    "sessao_virtual",
+    "status_http",
+    "outcome",
+    "schema_version",
+}
 
 # Lists that can grow over time as the process adds new events.
 GROWING_LISTS = {"andamentos", "peticoes", "recursos", "deslocamentos"}

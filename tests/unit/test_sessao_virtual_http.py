@@ -43,13 +43,14 @@ def test_parse_sessao_virtual_first_entry_matches_fixture_shape() -> None:
 
     assert len(entries) == 2
     first = entries[0]
+    # v6: ASCII snake_case keys; dates normalized to ISO 8601 on emit.
     assert first["metadata"] == {
-        "relatora": "MIN. NUNES MARQUES",
-        "órgão_julgador": "Plenário",
+        "relator": "MIN. NUNES MARQUES",
+        "orgao_julgador": "Plenário",
         "lista": "25-2023",
         "processo": "ADI 2820",
-        "data_início": "24/02/2023",
-        "data_prevista_fim": "03/03/2023",
+        "data_inicio": "2023-02-24",
+        "data_fim_prevista": "2023-03-03",
     }
     assert first["voto_relator"].startswith("Voto do Relator: Conheço desta ação")
     assert first["votes"] == {
@@ -62,11 +63,17 @@ def test_parse_sessao_virtual_first_entry_matches_fixture_shape() -> None:
     assert first["julgamento_item_titulo"] == (
         "AÇÃO DIRETA DE INCONSTITUCIONALIDADE 2820"
     )
-    assert "Relatório" in first["documentos"]
-    assert "Voto" in first["documentos"]
-    relatorio = first["documentos"]["Relatório"]
+    # v4: documentos is a list of {tipo, url, text, extractor}; `tipo`
+    # values appear in STF order, duplicates allowed.
+    docs = first["documentos"]
+    assert isinstance(docs, list)
+    tipos = [d["tipo"] for d in docs]
+    assert "Relatório" in tipos
+    assert "Voto" in tipos
+    relatorio = next(d for d in docs if d["tipo"] == "Relatório")
     assert relatorio["url"].startswith("https://")
     assert relatorio["text"] is None
+    assert relatorio["extractor"] is None
 
 
 def test_parse_sessao_virtual_strips_html_from_voto_relator() -> None:
@@ -97,12 +104,13 @@ def test_parse_sessao_virtual_strips_html_from_voto_relator() -> None:
 
 def test_parse_sessao_virtual_second_entry_has_voto_vista() -> None:
     """The second session had a vista ministro who later voted — Voto Vista
-    should appear in documentos."""
+    should appear in documentos (v4 list shape)."""
     entries = parse_sessao_virtual(_load("sv_2083816.json"))
 
     second = entries[1]
-    assert second["metadata"]["data_início"] == "26/05/2023"
-    assert "Voto Vista" in second["documentos"]
+    # v6: ASCII snake_case + ISO date.
+    assert second["metadata"]["data_inicio"] == "2023-05-26"
+    assert "Voto Vista" in [d["tipo"] for d in second["documentos"]]
 
 
 def test_extract_sessao_virtual_end_to_end_for_adi_2820() -> None:
@@ -163,42 +171,60 @@ def test_tema_number_extracted_from_abasessao_fragment() -> None:
     assert _extract_tema_from_abasessao(html_without_tema) is None
 
 
-def test_resolve_documentos_fills_text_without_losing_url() -> None:
-    docs = {
-        "Relatório": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None},
-        "Voto":      {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None},
-    }
+def test_resolve_documentos_fills_text_and_extractor_without_losing_url() -> None:
+    docs = [
+        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None, "extractor": None},
+        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None, "extractor": None},
+    ]
     fake_store = {
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=1": "relator body",
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=2": "voto body",
+        "https://sistemas.stf.jus.br/repgeral/votacao?texto=1": ("relator body", "pypdf_plain"),
+        "https://sistemas.stf.jus.br/repgeral/votacao?texto=2": ("voto body",    "rtf"),
     }
 
     result = resolve_documentos(docs, fetcher=lambda url: fake_store[url])
 
-    assert result == {
-        "Relatório": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": "relator body"},
-        "Voto":      {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": "voto body"},
-    }
+    assert result == [
+        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": "relator body", "extractor": "pypdf_plain"},
+        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": "voto body",    "extractor": "rtf"},
+    ]
+
+
+def test_resolve_documentos_preserves_duplicate_tipo_entries() -> None:
+    """v4 list shape keeps every entry — the v3 dict silently dropped the
+    second "Voto" from the same session; the list has to preserve both."""
+    docs = [
+        {"tipo": "Voto", "url": "https://x/?texto=1", "text": None, "extractor": None},
+        {"tipo": "Voto", "url": "https://x/?texto=2", "text": None, "extractor": None},
+    ]
+    result = resolve_documentos(
+        docs,
+        fetcher=lambda url: (url.rsplit("=", 1)[-1], "pypdf_plain"),
+    )
+    assert [d["url"] for d in result] == ["https://x/?texto=1", "https://x/?texto=2"]
+    assert [d["text"] for d in result] == ["1", "2"]
+    assert all(d["extractor"] == "pypdf_plain" for d in result)
 
 
 def test_resolve_documentos_keeps_text_none_when_fetcher_returns_none() -> None:
     """On fetch failure (network, 429, parse), text stays None so a
-    re-run can try again. URL is always preserved."""
-    docs = {"Voto": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42", "text": None}}
+    re-run can try again. URL + extractor slot are always preserved."""
+    docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42",
+             "text": None, "extractor": None}]
 
-    result = resolve_documentos(docs, fetcher=lambda url: None)
+    result = resolve_documentos(docs, fetcher=lambda url: (None, None))
 
     assert result == docs
 
 
 def test_resolve_documentos_idempotent_on_already_enriched() -> None:
     """Entries with text already filled pass through — enrich is free to re-run."""
-    docs = {"Voto": {"url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9", "text": "already extracted"}}
+    docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9",
+             "text": "already extracted", "extractor": "pypdf_plain"}]
     called = []
 
-    def fetcher(url: str) -> str:
+    def fetcher(url: str) -> tuple:
         called.append(url)
-        return "should not be called"
+        return ("should not be called", "pypdf_plain")
 
     result = resolve_documentos(docs, fetcher=fetcher)
 
@@ -217,26 +243,28 @@ def test_extract_sessao_virtual_with_pdf_fetcher_resolves_docs() -> None:
     def json_fetcher(param: str, value: int) -> str:
         return fake_responses[(param, value)]
 
-    def pdf_fetcher(url: str) -> str:
+    def pdf_fetcher(url: str) -> tuple:
         pdf_calls.append(url)
-        return f"TEXT({url.rsplit('=', 1)[-1]})"
+        return (f"TEXT({url.rsplit('=', 1)[-1]})", "pypdf_plain")
 
     result = extract_sessao_virtual_from_json(
         incidente=2083816, tema=None, fetcher=json_fetcher, pdf_fetcher=pdf_fetcher
     )
 
     assert len(result) == 3
-    # Every doc now has url + non-None text after enrichment.
-    assert all(
-        isinstance(v, dict) and v["url"].startswith("https://") and v["text"] is not None
-        for entry in result
-        for v in entry["documentos"].values()
-    )
+    # v4: documentos is a list; after enrichment every entry has url,
+    # non-None text, and the extractor label the fetcher reported.
+    for entry in result:
+        assert isinstance(entry["documentos"], list)
+        for d in entry["documentos"]:
+            assert d["url"].startswith("https://")
+            assert d["text"] is not None
+            assert d["extractor"] == "pypdf_plain"
     assert len(pdf_calls) >= 3
 
 
 def test_extract_sessao_virtual_without_pdf_fetcher_leaves_text_none() -> None:
-    """Baseline: pdf_fetcher=None means urls are captured and `text` stays None."""
+    """Baseline: pdf_fetcher=None means urls are captured; text + extractor stay None."""
     fake_responses = {
         ("oi", 2083816): _load("oi_2083816.json"),
         ("sessaoVirtual", 2083816): _load("sv_2083816.json"),
@@ -250,11 +278,11 @@ def test_extract_sessao_virtual_without_pdf_fetcher_leaves_text_none() -> None:
         pdf_fetcher=None,
     )
 
-    # At least one document per session has a real URL and text=None.
+    # At least one document per session has a real URL with text=None and extractor=None.
     assert any(
-        isinstance(v, dict) and v["url"].startswith("https://") and v["text"] is None
+        d["url"].startswith("https://") and d["text"] is None and d["extractor"] is None
         for entry in result
-        for v in entry["documentos"].values()
+        for d in entry["documentos"]
     )
 
 

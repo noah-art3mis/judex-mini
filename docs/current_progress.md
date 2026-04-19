@@ -1,19 +1,22 @@
 # Current progress — judex-mini
 
-Branch: `main`. Tip: `290c99c` (pushed:
-`1ae0920` refactor drop-html-field, `290c99c` docs archive + cron
-monitoring session). Prior cycle archived at
-[`docs/progress_archive/2026-04-18_2030_steady-state-monitoring-plus-economics.md`](progress_archive/2026-04-18_2030_steady-state-monitoring-plus-economics.md)
-— 8.5 h cron-monitored backfill, HC density map reconciled, Selenium
-bake-off, bandwidth economics.
+Branch: `main`. Prior cycle archived at
+[`docs/progress_archive/2026-04-19_0500_schema-v4-v5-v6-and-mistral-default.md`](progress_archive/2026-04-19_0500_schema-v4-v5-v6-and-mistral-default.md)
+— v4 → v5 → v6 schema cascade (extractor provenance, andamento/documento
+link unification, ASCII-snake_case sessão metadata + ISO-only dates
++ `_meta` wrapper + typed `Pauta`), Mistral as default OCR provider,
+monotonic-guard bypass under `--force`, fixtures regenerated as
+bare-dict v6, v4-compat paths removed, 328 unit tests green.
 
-**Status as of 2026-04-18 ~20:30 UTC: HC 4-shard backfill still
-running at steady state.** 46 773 ok / 15 049 fail global, 0.75 ok/s
-aggregate. Quota runway ~22 h (3.61 GB of 5 GB topup remaining vs
-shard-1's ~38 h solo-chew need = ~17 h gap). Cron monitor armed on
-`:13` / `:43`. See
-[archived observation log](progress_archive/2026-04-18_2030_steady-state-monitoring-plus-economics.md#observations)
-for the full session history.
+**Status as of 2026-04-19 ~05:00 UTC: v6 schema shipped; production
+case JSONs (57 595 files) not yet renormalized.** Code paths all
+emit v6 shape; fixtures are v6; tests are v6; existing on-disk
+`data/cases/**/*.json` (mostly v3, some v4/v5) still carry the old
+shape. Next fire: `PYTHONPATH=. uv run python
+scripts/renormalize_cases.py --workers 8` — a full dry-run sample
+classified 1 000/57 595 all `ok` under v4, so the v6 jump should be
+equally mechanical. Warehouse build (`scripts/build_warehouse.py`)
+is still to be exercised end-to-end against real corpus.
 
 Single live file covering the **active task's lab notebook**
 (plan / expectations / observations / decisions) and the **strategic
@@ -31,6 +34,7 @@ behave, class sizes, perf numbers, where data lives), read:
 - [`docs/rate-limits.md`](rate-limits.md) — WAF behavior, validated defaults, robots.txt posture.
 - [`docs/process-space.md`](process-space.md) — HC/ADI/RE ceilings + density.
 - [`docs/performance.md`](performance.md) — HTTP-vs-Selenium numbers, caching as the real lever.
+- [`docs/warehouse-design.md`](warehouse-design.md) — DuckDB warehouse schema + build pipeline.
 
 ## Working conventions
 
@@ -44,100 +48,80 @@ behave, class sizes, perf numbers, where data lives), read:
 
 ## Task
 
-**Ride the HC 4-shard backfill through completion and decide the
-quota-wall strategy when it hits.** 4 shards running since 11:55 UTC
-relaunch, currently at 46 773 ok / 15 049 fail / 0 new errors in
-8.5 h of continuous load. Shard-1 (uniformly-dense middle) is the
-bottleneck at 0.38 proc/s with ~38 h solo-chew remaining; other
-shards will finish earlier and go idle. ScrapeGW quota runs out
-before shard-1 completes by ~17 h at current burn. Cron
-(`b27687d1`, `:13`/`:43`) monitors for dead workers, `collapse`
-regime, >5 new ProxyError entries, or 30-min global-ok stall.
+**Renormalize the 57 595-file production corpus to schema v6.** The
+schema cascade (v3 → v4 → v5 → v6) shipped in the prior cycle
+without touching on-disk data. The live code now emits v6; the
+warehouse build expects v6-friendly inputs; the renormalizer is
+v6-aware via the current extractors. This task drives the bulk
+migration.
 
 ## Plan
 
-1. **Let the cron heartbeat run.** No manual intervention unless an
-   alert fires. Workers are independent of the Claude session; the
-   cron only matters while this session is alive.
-2. **Quota-wall decision when it hits.** Reactive topup (+5 GB,
-   100 BRL) is the default; preemptive topup is an alternative.
-3. **Post-HC harvest** — consolidated REPORT, reconcile process-space
-   doc, ship the CliffDetector noise-reduction fix.
+1. **Dry-run sample** — `--dry-run --workers 4 --limit 2000` to
+   surface any systematic parse error introduced by the v6 changes
+   (metadata key rename, ISO-only dates, `_meta` wrapper). Walk
+   prints every 500 files; ~3 min at 4 workers.
+2. **Full dry-run** — drop `--limit`, same cadence. ~30 min at 4
+   workers. Goal: quantify `needs_rescrape` (incomplete HTML cache)
+   and `error` counts before any write.
+3. **Live migration** — drop `--dry-run`; writes atomically per file.
+   `--resume`-safe via the `already_current` short-circuit. Expected
+   wall ~2 h at 4 workers / ~1 h at 8.
+4. **Post-migration audit** — sample 10 v6 files: confirm `_meta`
+   slot exists with `schema_version=6`, andamento link carries
+   `{tipo, url, text, extractor}`, sessão metadata keys are
+   ASCII-snake_case, every date field is ISO-8601. Build the
+   warehouse end-to-end against the migrated corpus.
+5. **Clean up older-version tolerance** (separate PR). Once the
+   audit confirms all data is v6, drop the v1/v2/v3 branches in
+   `_normalize_documentos` and the pre-v6 fallbacks in
+   `_flatten_case`. Keep the renormalizer itself version-tolerant.
 
 ## Expectations / hypotheses
 
-**H1 (expected).** Steady-state throughput (46 ok/min aggregate)
-holds until either (a) HC completion or (b) 407 ProxyError cluster
-signals quota exhaustion. Regime churn stays at the
-`l2_engaged ⇄ approaching_collapse` edge without crossing into
-`collapse`. Rotator continues to self-correct alerts within 1 tick.
-
-**H0 (would falsify).** Throughput degrades, OR a new error class
-(403/429/5xx) appears in `errors.jsonl`, OR a shard dies without a
-clean shutdown. Any of these would force diagnosis.
-
-**H2 (unexpected).** Shard-1 hits a dense cluster that breaks the
-p95-outlier pattern (sustained >15s wall_s for 100+ records in a
-row), suggesting a subset of HC cases is genuinely harder to scrape
-(e.g. multi-volume cases with 20+ andamento PDFs). Would warrant a
-per-case wall_s histogram post-backfill.
+- **H1** (expected): >95 % of files classify as `ok` in dry-run;
+  `needs_rescrape` stays <5 %; `error` count is zero or a
+  single-digit systematic issue. The v3 → v4 migration on the same
+  corpus was clean; v4 → v5 → v6 are more conservative changes.
+- **H0** (null, would falsify): a systemic `error` pattern shows up
+  on an entire classe or year range. Would suggest a regression in
+  an extractor the renormalizer re-runs.
+- **H2** (unexpected): the `needs_rescrape` count is large (say,
+  10 k+). Would imply the HTML cache has gone stale in some
+  systematic way we hadn't tracked — not a v6 issue but something
+  the migration would surface. Recovery: feed the rescrape CSV
+  through `run_sweep.py` before the live migration.
 
 ## Observations
 
-_(append-only log. UTC timestamps.)_
-
-- **2026-04-18 20:30 UTC — session archived, fresh file seeded.**
-  Prior 8.5 h cron-monitored session (12:12 → 20:23 UTC) archived
-  to `docs/progress_archive/2026-04-18_2030_steady-state-monitoring-plus-economics.md`.
-  Carries the full density map / throughput progression / Selenium
-  bake-off record. Workers still running at original PIDs
-  (4719/4720/4721/4722); cron unchanged.
+Empty — task hasn't been fired yet.
 
 ## Decisions
 
-- **2026-04-18 20:30 UTC — archive the monitoring session, keep
-  running.** The active task has evolved from "diagnose the
-  overnight collapse and decide resume" to "ride the steady-state
-  backfill to completion." Fresh active-task scope narrows to
-  quota-wall handling + post-backfill harvest.
+- **Run renormalize from a detached process** (`nohup … & disown`)
+  since it'll span an hour+ and the Claude Code window might die.
+  `shards.pids` pattern doesn't apply (single-process parallelism via
+  `ProcessPoolExecutor` inside the script), but the durable state
+  still lives in atomic per-file writes — reconnecting from a fresh
+  window reads the tally by counting files matching `schema_version`
+  in the JSON.
 
 ## Open questions
 
-1. **CliffDetector noise-reduction** — make `filter_skip=True`
-   fails neutral for the fail_rate axis; consider raising the p95
-   threshold from ~7 s to ~10 s to match observed dense-territory
-   baseline. (Queued for post-backfill.)
-2. **Rolling-median wall_s breaker** — secondary safety net for
-   V-style patterns the p95 axis misses. (Carried forward.)
-3. **Quota-wall decision** — reactive vs preemptive top-up.
-   Pending user call when the first 407 lands or before bedtime,
-   whichever comes first.
-4. **Scale beyond 4 shards?** — WAF headroom verified at 4× over
-   8.5 h, untested at 8× or 16×. The arithmetic suggests it works
-   (per-shard WAF counter is independent), but empirically unverified.
+1. Should the v6 warehouse build drop the `data_protocolo_iso`
+   column as redundant (now that `data_protocolo` is ISO)? Or keep
+   as a no-cost alias? Lean toward drop to avoid two-names-one-value
+   rot.
+2. `scripts/renormalize_cases.py` still has a stale `to_iso` import
+   reference (v3-era; removed in v6) — might surface in the dry-run.
+   Check before firing and fix if needed.
 
-## Next steps
+## Next steps (this task)
 
-1. **Hands-off cron monitoring.** Nothing to do unless alert fires.
-2. **Quota-wall strategy (user decision).** Three options surfaced
-   in archived file § Decisions — default is reactive top-up.
-3. **Post-backfill consolidated REPORT.md** merging all 4 shards'
-   final state. Template: archived cycle's observation log.
-4. **Post-backfill: reconcile `docs/process-space.md`** — HC
-   ceiling numbers there are stale (doc says 25–40 k real HCs;
-   G-probe + this sweep confirm ~216 k). One `uv run python`
-   session against `data/cases/HC/*.json`.
-5. **Post-backfill: `CliffDetector` noise-reduction PR** in
-   `src/sweeps/shared.py` — one-liner + one new test.
-6. **Post-backfill: next-class decision** — ADI (~400 MB, 8 BRL,
-   rounding error) vs RE (~80 GB, ~1 600 BRL, real budgeting call).
-7. **Carried-forward:**
-   - Stratified-by-density sharding for next sweep (shard-1
-     solo-bottleneck is fixable).
-   - Rolling-median `wall_s` breaker.
-   - Selenium retirement phase 2 — re-capture ground-truth
-     fixtures under HTTP + audit `deprecated/` self-containment.
-     Spec at `docs/superpowers/specs/2026-04-17-selenium-retirement.md`.
+1. Smoke-test the renormalizer on a 10-file slice to catch the
+   `to_iso` issue cited above (or confirm it's already resolved).
+2. Fire the bounded dry-run (--limit 2000).
+3. On clean dry-run, move to full dry-run, then live.
 
 ---
 
@@ -145,124 +129,155 @@ _(append-only log. UTC timestamps.)_
 
 ## What just landed
 
-- **Raw `html` field dropped from `StfItem`** (`1ae0920`). All 6
-  ground-truth fixtures updated in lockstep. Shrinks case JSONs by
-  ~50–200 KB each.
-- **Cron-monitored 8.5 h backfill session** (archived). Empirical
-  confirmation that HTTP + 4-shard proxy rotation sustains
-  ~1 rec/s aggregate with zero WAF pressure. Four
-  `approaching_collapse` alert trips, all benign p95/fail-rate
-  detector noise; rotator self-corrected every one within 1 tick.
-- **HC density map reconciled** (archived). G-probe (Apr 16)
-  extrapolation of ~216 k real HCs is accurate; `docs/process-space.md`
-  numbers are stale.
-- **Throughput progression documented** (archived). Selenium
-  amortised 20 s/case → HTTP cold 0.87 s/case → HTTP 4-shard
-  0.98 s/case aggregate. ~8–10× end-to-end wall-clock speedup.
-- **Selenium-vs-HTTP-with-proxies bake-off** (archived). HTTP wins
-  every axis except resilience-to-STF-changes (which is why
-  `deprecated/scraper.py` is frozen, not deleted).
-- **`filter_skip` + `body_head` instrumentation** (`c463f14`) and
-  unified CLI `judex` hub (`04b852a`) — already landed pre-session.
+- **Schema v6 — broad cleanup sweep** (2026-04-19 ~04:30 UTC via
+  external edit, documented in `src/data/types.py`). Reduces schema
+  variance: ASCII snake_case metadata keys, ISO-only dates (no raw
+  DD/MM/YYYY + `*_iso` pair), `_meta: ScrapeMeta` slot for
+  scrape-provenance (`schema_version`/`status_http`/`extraido`),
+  `index_num`/`id` → `index`, `Recurso.data` → `Recurso.tipo`,
+  typed `Pauta`, non-Optional `incidente`. StfItem top-level is now
+  pure domain data. `extract_andamentos` split into reusable
+  `_parse_andamento_item` shared with new `extract_pautas`.
+- **Schema v5 — andamento link unified with Documento**
+  (2026-04-19 ~04:00 UTC). `Andamento.link` carries `{tipo, url,
+  text, extractor}` or None; `link_descricao` sibling is gone.
+  Option 2 for href-less edge case: `{tipo: "...", url: null, ...}`.
+  Downstream consumers + help text + ground-truth fixtures all
+  migrated; v4-compat `link_descricao` fallback removed.
+- **Schema v4 — extractor provenance** (2026-04-19 ~03:30 UTC).
+  `extractor: Optional[str]` on every `Documento`. `<sha1>.extractor`
+  plain-text sidecar alongside `<sha1>.txt.gz` +
+  `<sha1>.elements.json.gz`. sessao_virtual documentos dict → list
+  preserving duplicate `tipo` (option b). `extract_document_text`,
+  `_make_pdf_fetcher`, `resolve_documentos`, `_cache_only_pdf_fetcher`
+  all return `(text, extractor)`.
+- **Mistral as default OCR provider everywhere** (2026-04-19).
+  `scripts/reextract_unstructured.py` generalised to dispatch
+  through `src.scraping.ocr.extract_pdf`; `--provider` flag, default
+  mistral. Portuguese CLI `--provedor` + per-provider `*_API_KEY`
+  check. `--force` now bypasses the monotonic cache guard —
+  unconditional overwrite of text + elements + sidecar. Prior guard
+  bug fixed (was clobbering the sidecar with `extractor=unchanged`
+  on no-improvement runs).
+- **3-way OCR bakeoff results** (earlier). Mistral wins on speed
+  (12×), cost (10×), and semantic preservation vs Unstructured.
+  Chandra preserves semantics but 15 % shorter output.
+- **HTML cache migrated to per-case tar.gz** (prior cycle). 58 %
+  on-disk reduction, 12× inode reduction; migration script at
+  `scripts/migrate_html_cache_to_tar.py`.
+- **DuckDB warehouse implemented** at `src/warehouse/builder.py` +
+  entrypoint `scripts/build_warehouse.py`. Five tables (`cases`,
+  `partes`, `andamentos`, `documentos`, `pdfs`) + `manifest`. Full
+  schema tolerance v1..v6 via `_flatten_case` + `_flatten_documentos`.
+- **Tier-0 (2026) HC backfill smoke test passed** (2026-04-18).
+  8-shard year-priority pipeline validated, 917/917 filter_skip,
+  zero WAF events. Tier-1 (2025) queued.
+- **4-shard HC backfill archived**. Final: 54 841 ok / 12 real fails
+  across 72 646 records over 11.6 h. Corpus 55 354 HCs.
+- **Detached-sweep pattern documented** in `CLAUDE.md § Surviving
+  session death`.
+- **Proxy pool at 80 sessions across 8 files** (`proxies.{a..h}.txt`).
 
 ## In flight
 
-### 4-shard concurrent HC backfill
+Nothing executing. Four strands paused at clean handoff points:
 
-- **Location:** `runs/active/2026-04-17-hc-full-backfill-sharded/shard-{0..3}/`
-- **Shard PIDs (since 11:55 UTC relaunch):** 4719 / 4720 / 4721 / 4722
-- **Proxy pools (all disjoint):** `proxies.a.txt` (10) /
-  `.b.txt` (10) / `.c.txt` (12) / `.d.txt` (10) = 42 total sessions
-- **HC range per shard:** shard-0 273000..204751, shard-1
-  204750..136501, shard-2 136500..68251, shard-3 68250..1
-- **Latest probe (20:23 UTC):** 46 773 ok / 15 049 fail / 0 new errors
-- **Bandwidth:** 1.39 GB used of 5 GB top-up (3.61 GB remaining);
-  ~22 h runway at 168 MB/h burn
-- **Cron monitor:** job `b27687d1`, `13,43 * * * *`, session-only,
-  7-day auto-expire
-- **Stop cleanly:**
-  `xargs -a runs/active/2026-04-17-hc-full-backfill-sharded/shards.pids kill -TERM`
-- **Progress probe:** `PYTHONPATH=. uv run python scripts/probe_sharded.py --out-root runs/active/2026-04-17-hc-full-backfill-sharded`
+- **Schema v6 migration — code shipped, data not yet renormalized.**
+  See active-task section above. Blocks the warehouse build
+  end-to-end audit.
+- **HC backfill — tier-0 complete, tier-1 queued.** Tier-0 ran
+  clean; run dir at `runs/active/2026-04-18-hc-2026/` awaiting
+  archival; tier-1 (2025) next fire. 109 042 total gap IDs across
+  tiers 0–13.
+- **Storage migration — 50 cases tar'd, 55 k still legacy.**
+  `scripts/migrate_html_cache_to_tar.py` is ready; full migration
+  ~30 s one-shot.
+- **Warehouse end-to-end** — builder + tests shipped, but never run
+  against the real corpus. Gated on v6 migration.
 
 ## Next steps, ordered
 
-1. Hands-off cron monitoring until alert or completion.
-2. Quota-wall decision when the first 407 lands.
-3. Post-backfill: consolidated REPORT + archive per-shard dirs.
-4. Post-backfill: update `docs/process-space.md` with the ~216 k
-   HC reality (see Doc amendments below).
-5. Post-backfill: update `docs/performance.md` with the HTTP 4-shard
-   aggregate throughput (0.98 s/case, 1.02 rec/s).
-6. Post-backfill: update `docs/rate-limits.md` with the "8.5 h
-   continuous 4-shard, zero 403/429" empirical result (promotes
-   the V-sweep's "rotation > throttle" lesson to confirmed).
-7. Post-backfill: `CliffDetector` noise-reduction PR.
-8. Next-class decision (ADI then RE, or RE directly).
+### Schema v6 migration (blocks everything that reads case JSONs in bulk)
 
-## Known limitation — denominator composition and right-censoring
+1. **Smoke-run** — `--limit 10 --dry-run` to catch import/symbol
+   errors (see open question 2 in active task).
+2. **Bounded dry-run** — `--limit 2000`.
+3. **Full dry-run** — no limit.
+4. **Live migration** — `--workers 8`.
+5. **Post-migration audit + warehouse build** — exercise
+   `scripts/build_warehouse.py` against the migrated corpus;
+   sanity-check the 5 tables + manifest.
+6. **Drop older-version tolerance** in `_normalize_documentos` and
+   `_flatten_case` (separate PR).
 
-Preserved across cycles. Under FGV's §b rule (the project default —
-see [`docs/hc-who-wins.md § Research question`](hc-who-wins.md#research-question)),
-our `fav_pct` denominator is the set of cases with a recognized
-terminating verdict. Pending cases excluded. Real costs for
-mixed-vintage corpora: selection bias via processing speed,
-right-censoring thrown away, denominator shrinkage on fresh data,
-parser-gap pollution, temporal incomparability. Mitigations (not
-yet implemented): split `None` into `pending` vs `parser_gap`,
-report %-pending alongside every `fav_pct`, sensitivity analysis
-via bracketing, Kaplan-Meier win curves on mature vintages.
+### HC-backfill strand
 
-## Known gaps in the `sessao_virtual` port
+1. Archive tier-0, fire tier-1 (2025, ~2.5 h at 8-shard).
+2. Sequential tiers 2 → 13 with cron monitoring between.
+3. Consolidated post-queue REPORT at
+   `docs/reports/<date>-hc-year-priority-tiers-0-13.md`.
+4. Doc amendments (rate-limits, performance, hc-who-wins).
 
-- **Vote categories are partial** — only codes 7/8/9 land in the final `votes` dict. See [`docs/stf-portal.md § sessao_virtual`](stf-portal.md#sessao_virtual--not-from-abasessao).
-- **`documentos` values are mixed types**: string with extracted text (success) or original URL (fetch failed). Consumers must check `startswith("https://")`.
-- **Tema branch has only one fixture test (tema 1020).** If you see drift there, probe another tema + add a fixture.
+### Storage-migration strand
 
-## Doc amendments queued (for post-backfill)
+1. Full tar.gz migration pass (drop `--keep-dirs`; ~30 s at current
+   55 k-case scale).
+2. Update `CLAUDE.md § Caches` if the layout summary still mentions
+   per-tab `.html.gz`.
 
-Items this session produced that *should* update the conceptual
-docs once the backfill completes. Do not amend live to avoid
-contradicting in-flight observations:
+### Long-running carryovers
 
-- **`docs/process-space.md`** — already accurate (line 21:
-  HC ~216 k, 69 % bimodal). **No amendment needed.** My earlier
-  read of "25–40 k stale number" was wrong; the doc was ahead of
-  me. Noted here so future-me doesn't re-survey.
-- **`docs/rate-limits.md`** — line 172/262 still describes the
-  world as "9-day full HC backfill from a single IP." That's
-  still true for single IP but the doc hasn't absorbed the
-  4-shard + proxy-rotation empirical validation. Add a section
-  documenting: "8.5 h / 4 shards / 42 sessions / 0 × HTTP
-  403/429/5xx" → rotation + sharding make full-HC ~2.5 days, not
-  9 days, and the bandwidth cost is linear (~208 BRL regardless
-  of shard count). Promote "rotation > throttle" from hypothesis
-  to confirmed.
-- **`docs/performance.md`** — line 133 says `3.60 s/process` is
-  the HTTP-with-retry-403 single-worker baseline. Add: HTTP +
-  4-shard proxy rotation gives **0.98 s/case aggregate** (per-
-  shard 0.19 ok/s, unchanged from single-worker — rotation
-  enables parallelism, doesn't speed up individual requests).
-- **`docs/hc-who-wins.md`** — check whether the notebook-strand
-  layout's sample-size estimates presume the old density ceiling;
-  if so, the 216 k reality affects "what fraction of HCs does
-  strand X need to cover" math.
+- Decide on `data_protocolo_iso` column redundancy under v6 (active
+  task open question 1).
+- Re-run `docs/hc-who-wins.md` sample-size math against the final
+  HC corpus.
+
+## Known limitations
+
+- **Denominator composition + right-censoring** — HC density maps
+  reflect the 2013 → 2026 tiers in scope. Paper-era (pre-2013)
+  explicitly out of scope. See `docs/hc-who-wins.md § Sampling`.
+
+## Known gaps
+
+- **`sessao_virtual` ground-truth parity** — the live code emits the
+  ADI shape; older HC fixtures sometimes lacked the `metadata`
+  subkeys entirely. `SKIP_FIELDS` in `scripts/_diff.py` guards the
+  diff harness against this.
+- **PDF enrichment status tracking** — no persisted field answers
+  "has this case been through PDF enrichment?" Derivable from
+  `extractor` slots; a `scripts/pdf_enrichment_status.py` rollup
+  script was proposed but not landed.
 
 ---
 
 # Reference — how to run things
 
 ```bash
-# Unit tests (226 tests, <5 s)
+# Unit tests (~6 s, 328 tests)
 uv run pytest tests/unit/
 
-# Ground-truth validation (HTTP parity against 6 fixtures)
+# Ground-truth validation (HTTP parity against 7 fixtures + 2 candidates)
 PYTHONPATH=. uv run python scripts/validate_ground_truth.py
 
 # HTTP scrape, one process, with PDFs
-uv run judex coletar -c ADI -i 2820 -f 2820 -o json -d data/cases/ADI --sobrescrever
+PYTHONPATH=. uv run python -c "from src.scraping.scraper import scrape_processo_http; print(scrape_processo_http('HC', 128377, fetch_pdfs=False))"
 
-# Wipe all regenerable caches (safe; HC case JSONs under data/cases/ survive)
-rm -rf data/cache
+# Wipe all regenerable caches (case JSONs under data/cases/ survive)
+rm -rf data/cache/pdf data/cache/html
+```
+
+## Renormalize production JSONs to the current schema
+
+```bash
+# Dry run — quantify needs_rescrape + error
+PYTHONPATH=. uv run python scripts/renormalize_cases.py --dry-run --workers 4
+
+# Live
+PYTHONPATH=. uv run python scripts/renormalize_cases.py --workers 8
+
+# Scoped to one classe
+PYTHONPATH=. uv run python scripts/renormalize_cases.py --classe HC --workers 4
 ```
 
 ## Running sweeps
@@ -270,63 +285,44 @@ rm -rf data/cache
 ```bash
 # One-shot sweep over a CSV of (classe, processo) pairs
 PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv tests/sweep/shape_coverage.csv \
-    --label my_sweep \
-    --parity-dir tests/ground_truth \
-    --out runs/active/<date>-<label>
+    --out runs/active/$(date +%Y-%m-%d)-<label> \
+    --csv tests/sweep/<label>.csv
 
-# Long sweep with proxy rotation
-PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv tests/sweep/<input>.csv \
-    --label long_sweep \
-    --proxy-pool config/proxies.a.txt \
-    --out runs/active/<date>-<label>
-
-# Resume (skip already-ok processes)
-PYTHONPATH=. uv run python scripts/run_sweep.py \
-    --csv <same-csv> --label <same> --out <same-dir> --resume
-```
-
-**Stopping a running sweep cleanly.**
-
-```bash
-ps -ef | grep run_sweep | grep -v grep           # find the pid
-kill -TERM <pid>                                 # clean stop
-# or: pkill -TERM -f "run_sweep.*<label>"
-```
-
-## Live sharded-sweep probe
-
-```bash
-PYTHONPATH=. uv run python scripts/probe_sharded.py \
-    --out-root runs/active/2026-04-17-hc-full-backfill-sharded
-
-grep -cH "\[rotate\]" \
-    runs/active/2026-04-17-hc-full-backfill-sharded/shard-*/driver.log
-
-pgrep -af "run_sweep.*hc_full_backfill_shard"
-```
-
-## Launching sharded sweeps
-
-```bash
-# Shard a CSV into N range-partitions
-PYTHONPATH=. uv run python scripts/shard_csv.py \
-    --csv tests/sweep/<input>.csv \
-    --shards 4 --out-dir tests/sweep/shards/
-
-# Launch N concurrent backfill shards
-nohup ./scripts/launch_hc_backfill_sharded.sh \
-    > runs/active/<dir>/launcher-stdout.log 2>&1 & disown
+# Sharded backfill (8 shards on disjoint proxy pools)
+nohup ./scripts/launch_hc_year_sharded.sh 2025 \
+    > runs/active/2026-04-XX-hc-2025/launcher-stdout.log 2>&1 & disown
 
 # Stop all shards cleanly
-xargs -a runs/active/<dir>/shards.pids kill -TERM
+xargs -a runs/active/<label>/shards.pids kill -TERM
+```
+
+## PDF sweeps + OCR
+
+```bash
+# Default: pypdf pass + Mistral rescue on short-cached entries
+PYTHONPATH=. uv run python scripts/fetch_pdfs.py \
+    --out runs/active/<label> --classe HC --impte-contains "<name>"
+
+# OCR-only re-extraction (default provider: mistral)
+PYTHONPATH=. uv run python scripts/reextract_unstructured.py \
+    --out runs/active/<label> --classe HC \
+    --force   # bypass monotonic guard, always overwrite
+
+# Provider bakeoff
+PYTHONPATH=. uv run python scripts/ocr_bakeoff.py \
+    --out runs/active/<label> --providers mistral,chandra --limit 55
+```
+
+## Warehouse
+
+```bash
+PYTHONPATH=. uv run python scripts/build_warehouse.py
+# → data/warehouse/judex.duckdb
 ```
 
 ## Marimo notebooks / judex CLI hub
 
 ```bash
+uv run marimo edit analysis/<name>.py
 uv run judex --help
-uv run judex exportar --apenas hc_famous_lawyers
-uv run marimo edit analysis/hc_famous_lawyers.py
 ```

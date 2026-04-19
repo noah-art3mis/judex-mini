@@ -167,6 +167,15 @@ compare first-cycle gap to the prior 15).
 ## 4-shard proxy-rotation validation (2026-04-18)
 
 **Empirical datapoint that collapses the "9-day single-IP" wall.**
+Extended by a second session to **20.1 h of continuous 4-shard
+load** (8.5 h on 2026-04-17 + 11.6 h on 2026-04-18) with zero
+HTTP 403 / 429 / 5xx across all four shards. Final combined state:
+**54 841 ok / 17 805 fail across 72 646 records processed.**
+Of the 17 805 fails, **12 are real** (`filter_skip=False`
+NoIncidente) and 17 793 are filter-skip dead-zone hits — the
+real-error rate is **0.016 %**, the lowest on record for this
+codebase.
+
 An 8.5-hour continuous HC backfill run under the following
 configuration held **zero HTTP 403 / 429 / 5xx** across all four
 shards:
@@ -212,7 +221,19 @@ count, at the same bandwidth cost:
 works (per-shard WAF counter is independent), but the WAF may have
 a higher-level aggregate signal across *all* proxy IPs that hasn't
 surfaced at 4×. Worth validating before committing to 16× on a
-paid pool.
+paid pool. **Partially addressed 2026-04-18:** the user added 44
+new proxies (pools `e/f/g/h`), bringing totals to 80 sessions
+across 8 pools. The 8-shard pivot tier-0 smoke test (2026 catch-up,
+~917 IDs) is the anchor for confirming whether 8× sustains without
+aggregate-counter trips.
+
+**"Rotation > throttle" is now confirmed under 20 h.** Earlier
+(V-sweep, 2026-04-17) this was hypothesised. The 20.1 h combined
+run promotes it to an operational default: `--throttle-sleep` was
+removed from `scripts/run_sweep.py` in favour of `--proxy-pool`
+rotation because proactive per-process pacing doesn't drain the
+per-IP reputation counter, while rotation bypasses the counter
+entirely.
 
 **What this changes.** The "Mitigation proposals" section below
 was written before proxy rotation was validated. Option 2 (proxy

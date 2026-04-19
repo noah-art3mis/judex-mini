@@ -95,3 +95,47 @@ def test_elements_file_is_gzipped_json(tmp_path, monkeypatch) -> None:
     raw = gzip.decompress(files[0].read_bytes())
     parsed = json.loads(raw)
     assert parsed == [{"type": "Title", "text": "hi"}]
+
+
+# ----- Extractor sidecar (v4) ----------------------------------------------
+
+
+def test_read_extractor_miss_returns_none(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    assert pdf_cache.read_extractor("https://example.test/a.pdf") is None
+
+
+def test_write_with_extractor_persists_sidecar(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    pdf_cache.write("https://example.test/a.pdf", "hello", extractor="pypdf_plain")
+
+    assert pdf_cache.read("https://example.test/a.pdf") == "hello"
+    assert pdf_cache.read_extractor("https://example.test/a.pdf") == "pypdf_plain"
+
+
+def test_write_without_extractor_leaves_sidecar_untouched(tmp_path, monkeypatch) -> None:
+    """Prior provenance must survive a text-only rewrite.
+
+    The agreed contract is: passing `extractor=None` means "caller does
+    not know" — not "wipe the known label". That way legacy writers
+    (pre-v4 scripts) can overwrite cached text without destroying a
+    label that an OCR pass previously recorded.
+    """
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    pdf_cache.write("https://example.test/a.pdf", "v1", extractor="unstructured")
+    pdf_cache.write("https://example.test/a.pdf", "v2")  # no extractor
+
+    assert pdf_cache.read("https://example.test/a.pdf") == "v2"
+    assert pdf_cache.read_extractor("https://example.test/a.pdf") == "unstructured"
+
+
+def test_write_overwrites_extractor_sidecar_when_provided(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(pdf_cache, "CACHE_ROOT", tmp_path)
+
+    pdf_cache.write("https://example.test/a.pdf", "A", extractor="pypdf_plain")
+    pdf_cache.write("https://example.test/a.pdf", "B", extractor="unstructured")
+
+    assert pdf_cache.read_extractor("https://example.test/a.pdf") == "unstructured"

@@ -202,9 +202,14 @@ in criminal appeals than in HCs).
   Ranges are in `src/utils/hc_calendar.py::year_to_id_range`.
 - **Full HC backfill** (~216 k extant cases — see
   [`docs/process-space.md`](process-space.md)). Wall-time depends on
-  shard count: **~2.5 days at 4-shard proxy rotation**, ~9 days
-  single-IP (see
-  [`docs/rate-limits.md § Wall-time math at scale`](rate-limits.md#wall-time-math-at-scale)).
+  shard count: **~2.5 days at 4-shard proxy rotation** (validated
+  empirically over 20.1 h of continuous load with zero WAF events,
+  see [`docs/rate-limits.md § 4-shard proxy-rotation validation`](rate-limits.md#4-shard-proxy-rotation-validation-2026-04-18)),
+  ~1.3 days at 8-shard (pivot landed 2026-04-18 with 80 sessions
+  across 8 pools, tier-0 smoke test pending), ~9 days single-IP.
+  As of 2026-04-18 the on-disk capture is ~55 k HCs (range
+  48 933–271 139); the remaining ~161 k is the year-priority
+  gap-sweep queue (tiers 2026 → 2013, paper era out of scope).
   Bandwidth cost ~208 BRL regardless of shard count. Not blocked on
   this analysis; the who-wins plot quality at 1000 cases will tell
   us whether the ceiling analysis needs 10 k or 100 k.

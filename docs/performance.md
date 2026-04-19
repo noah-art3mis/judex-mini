@@ -129,15 +129,17 @@ tabs (`andamentos`, `peticoes`, `recursos`) are where Selenium pays
 the `button_wait` penalty and where HTTP pays nothing. Small
 processes show 2–3×; processes with full docket depth show 5–10×.
 
-**The 4-shard row is empirically validated** at full-sweep scale
-(HC backfill, 8.5 h continuous, zero HTTP 403/429/5xx — see
-`rate-limits.md § 4-shard proxy-rotation validation`). Aggregate
-throughput is 1.02 rec/s across 4 workers running on disjoint
-ScrapeGW proxy pools; per-worker rate is ~0.19 ok/s, essentially
-unchanged from single-worker sweep E. **Rotation doesn't make
-individual workers faster — it lets them run in parallel without
-cross-blocking on a shared WAF counter.** Scaling is linear in
-shard count so long as each shard has its own proxy pool.
+**The 4-shard row is empirically validated** at full-sweep scale —
+**20.1 h continuous** across two sessions (8.5 h on 2026-04-17 +
+11.6 h on 2026-04-18), zero HTTP 403/429/5xx, 54 841 ok / 72 646
+processed (real-fail rate 0.016 %). See `rate-limits.md § 4-shard
+proxy-rotation validation`. Aggregate throughput is ~0.98 s/case
+(~1.02 rec/s) across 4 workers running on disjoint ScrapeGW proxy
+pools; per-worker rate is ~0.19 ok/s, essentially unchanged from
+single-worker sweep E. **Rotation doesn't make individual workers
+faster — it lets them run in parallel without cross-blocking on a
+shared WAF counter.** Scaling is linear in shard count so long as
+each shard has its own proxy pool.
 
 The "processes ‖8" row remains aspirational because it assumed
 no WAF ceiling at all; we'd need to verify that 8-way concurrency
@@ -155,5 +157,5 @@ linear speedup worth taking.
 
 - **Playwright instead of Selenium.** Both drive a real browser; the floor cost (startup + full page render) is the same. Playwright buys maybe 1.5–2×, not the 10× we see from HTTP. If a browser fallback is ever needed, either works, and Selenium is already frozen in `deprecated/`.
 - **UA spoofing.** Gray-area legally, brittle technically, and the Chrome UA plus residential-proxy session already presents as a normal user.
-- ~~**IP rotation**~~ *is now the canonical approach* — `--proxy-pool` with ScrapeGW residential sessions, validated at 4-shard concurrency over 8.5 h continuous load with zero HTTP 403/429/5xx. See [`rate-limits.md § 4-shard proxy-rotation validation`](rate-limits.md#4-shard-proxy-rotation-validation-2026-04-18). The `robots.txt` posture question in [`rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt) still applies.
+- ~~**IP rotation**~~ *is now the canonical approach* — `--proxy-pool` with ScrapeGW residential sessions, validated at 4-shard concurrency over **20.1 h cumulative continuous load** with zero HTTP 403/429/5xx. See [`rate-limits.md § 4-shard proxy-rotation validation`](rate-limits.md#4-shard-proxy-rotation-validation-2026-04-18). The `robots.txt` posture question in [`rate-limits.md § The unresolved policy question`](rate-limits.md#the-unresolved-policy-question--robotstxt) still applies.
 - **Chase a bulk dataset.** STF is not on DataJud; Corte Aberta is aggregates-only; commercial aggregators are paid and inappropriate for research. Scraping the portal is the only path.

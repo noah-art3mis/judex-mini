@@ -1,43 +1,55 @@
-"""Re-extract image-only PDFs via the Unstructured API.
+"""Re-extract image-only PDFs via an OCR provider.
 
-OCR counterpart to `scripts/fetch_pdfs.py`: same filter flags
-(``--classe / --impte-contains / --doc-types / --relator-contains``),
-same target collection, but instead of the default pypdf path each
-short-cached PDF is POSTed to the Unstructured SaaS API with
-``strategy=hi_res``.
+Generic successor to the Unstructured-only variant: dispatches through
+`src.scraping.ocr.extract_pdf` so the provider is a `--provider` flag
+(default: `mistral`) rather than a hard-coded vendor.
 
-Routes through `src.sweeps.pdf_driver.run_pdf_sweep` so every attempt
-is captured in `pdfs.state.json` / `pdfs.log.jsonl` / `pdfs.errors.jsonl`
-under ``--out``. That gives `--resume`, `--retry-from`, circuit breaker,
-and per-GET latency history for free.
+Filters are the same as `scripts/fetch_pdfs.py` (``--classe /
+--impte-contains / --doc-types / --relator-contains``). Routes through
+`src.sweeps.pdf_driver.run_pdf_sweep` so every attempt lands in
+`pdfs.state.json` / `pdfs.log.jsonl` / `pdfs.errors.jsonl` under ``--out``
+with `--resume`, `--retry-from`, circuit breaker, and per-GET latency
+for free.
 
-Cache-monotonic: only overwrites ``data/cache/pdf/<sha1(url)>.txt.gz`` when
-the new OCR extract is strictly longer than the prior cached text.
-The per-attempt record uses ``extractor="unstructured_api"`` on
-improvement and ``extractor="unchanged"`` otherwise, so the report
-at `<out>/report.md` breaks down improved vs unchanged.
+Cache semantics:
+
+- **Default** (`--force` not set): a PDF text entry is only overwritten
+  when the new extraction is **strictly longer** than the prior cached
+  text. A shorter result does not touch the cache; the attempt is
+  recorded in the sweep log with `status=unchanged` so you can audit
+  what was skipped.
+- **`--force`**: unconditionally overwrites the text cache + elements
+  cache + extractor sidecar with whatever the provider returns. Use
+  this when you've chosen a higher-quality provider and want the new
+  output regardless of length (e.g. Mistral markdown is often shorter
+  than Unstructured plain text but more structured).
 
 Usage:
 
-    # Dry run — show what would be re-extracted.
+    # Dry run — show what would be re-extracted, no API calls.
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
         --out runs/active/$(date +%Y-%m-%d)-reextract \\
         --classe HC --dry-run
 
-    # Famous-lawyer HC preset (matches fetch_pdfs.py's preset).
+    # Mistral (default), famous-lawyer HC preset:
     PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
-        --out runs/active/2026-04-17-famous-lawyers-ocr \\
+        --out runs/active/2026-04-19-famous-lawyers-ocr \\
         --classe HC \\
-        --impte-contains "TORON,PIERPAOLO,PEDRO MACHADO DE ALMEIDA CASTRO,\\
-ARRUDA BOTELHO,MARCELO LEONARDO,NILO BATISTA,VILARDI,PODVAL,\\
-MUDROVITSCH,BADARO,DANIEL GERBER,TRACY JOSEPH REINALDET" \\
-        --doc-types "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO,\\
-MANIFESTAÇÃO DA PGR" \\
+        --impte-contains "TORON,PIERPAOLO,ARRUDA BOTELHO,MARCELO LEONARDO,NILO BATISTA,VILARDI,PODVAL,MUDROVITSCH,BADARO,DANIEL GERBER,TRACY JOSEPH REINALDET" \\
+        --doc-types "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO,MANIFESTAÇÃO DA PGR" \\
         --min-chars 5000
 
-Optional env vars:
-    UNSTRUCTURED_API_KEY   required to run (not needed for --dry-run)
-    UNSTRUCTURED_API_URL   defaults to the SaaS general endpoint
+    # Force-rewrite the cache with Unstructured hi_res output:
+    PYTHONPATH=. uv run python scripts/reextract_unstructured.py \\
+        --out runs/active/2026-04-19-force-unstructured \\
+        --provider unstructured --strategy hi_res --force \\
+        --classe HC --limit 100
+
+Optional env vars (only the selected provider's key is required):
+    MISTRAL_API_KEY        mistral (default)
+    UNSTRUCTURED_API_KEY   unstructured
+    CHANDRA_API_KEY        chandra
+    UNSTRUCTURED_API_URL   overrides the SaaS general endpoint
 """
 
 from __future__ import annotations
@@ -50,22 +62,34 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
-import requests
 from dotenv import load_dotenv
 
 from scripts._filters import add_filter_args, targets_from_args
+from src.scraping.http_session import _http_get_with_retry
+from src.scraping.ocr import OCRConfig, extract_pdf
 from src.sweeps.pdf_driver import FetcherFn, run_pdf_sweep
 from src.sweeps.pdf_targets import PdfTarget
-from src.scraping.http_session import _http_get_with_retry
 from src.utils import pdf_cache
 
 
-DEFAULT_UNSTRUCTURED_URL = "https://api.unstructuredapp.io/general/v0/general"
+PROVIDERS = ("mistral", "unstructured", "chandra")
+DEFAULT_PROVIDER = "mistral"
+
+# Env-var name per provider. Default is uppercase of the provider name
+# plus `_API_KEY`. Unstructured also honors `UNSTRUCTURED_API_URL` as
+# a URL override — the only provider that needs that today.
+_API_KEY_ENV = {
+    "mistral": "MISTRAL_API_KEY",
+    "unstructured": "UNSTRUCTURED_API_KEY",
+    "chandra": "CHANDRA_API_KEY",
+}
 
 
 def _concat_elements(elements: Any) -> str:
-    """Join `text` fields of Unstructured elements in document order.
+    """Join `text` fields of structured elements in document order.
 
+    Kept as a thin local helper so the existing unit test stays valid
+    — the canonical implementation is in `src.scraping.ocr.unstructured`.
     Tolerant of malformed rows: missing `text`, non-dict entries, and
     whitespace-only strings are skipped.
     """
@@ -81,75 +105,67 @@ def _concat_elements(elements: Any) -> str:
     return "\n".join(pieces).strip()
 
 
-def _extract_with_unstructured(
-    pdf_bytes: bytes,
-    *,
-    api_url: str,
-    api_key: str,
-    strategy: str = "hi_res",
-    languages: tuple[str, ...] = ("por",),
-    timeout: int = 300,
-) -> tuple[Optional[str], list[dict[str, Any]]]:
-    """POST PDF bytes to the Unstructured SaaS API.
-
-    Returns `(joined_text, elements)`. The elements list is the raw
-    API response — dicts with `type`, `text`, `metadata`, etc. —
-    written to the parallel elements cache when accepted so downstream
-    consumers can recover section titles, page numbers, and table
-    structure that the flat text throws away.
-    """
-    headers = {
-        "unstructured-api-key": api_key,
-        "accept": "application/json",
-    }
-    files = {"files": ("doc.pdf", pdf_bytes, "application/pdf")}
-    data: list[tuple[str, str]] = [("strategy", strategy)]
-    for lg in languages:
-        data.append(("languages", lg))
-    r = requests.post(
-        api_url, headers=headers, files=files, data=data, timeout=timeout
+def _build_ocr_config(
+    *, provider: str, api_key: str, api_url: Optional[str],
+    strategy: str, mode: str, batch: bool, timeout: int,
+) -> OCRConfig:
+    """Assemble an `OCRConfig` from CLI args, keeping provider-specific
+    knobs inert for providers that don't use them."""
+    return OCRConfig(
+        provider=provider,
+        api_key=api_key,
+        api_url=api_url,
+        languages=("por",),
+        timeout=timeout,
+        # provider-specific
+        strategy=strategy,
+        mode=mode,
+        batch=batch,
     )
-    r.raise_for_status()
-    elements = r.json() or []
-    if not isinstance(elements, list):
-        elements = []
-    return _concat_elements(elements), elements
 
 
 def _make_fetcher(
     *,
-    api_url: str,
-    api_key: str,
-    strategy: str,
+    ocr_config: OCRConfig,
     old_len_by_url: dict[str, int],
+    force: bool,
 ) -> FetcherFn:
     """Build a FetcherFn suitable for `pdf_driver.run_pdf_sweep`.
 
-    The closure captures the per-URL "prior length" map so the
-    monotonic guard can compare without a fresh `pdf_cache.read`.
+    Monotonic guard: unless `force` is set, the cache is only overwritten
+    when the new extraction's text is **strictly longer** than the prior
+    cached text. Under `force`, the guard is disabled — any non-empty
+    provider output replaces the cache (text + elements + extractor
+    sidecar).
     """
+    provider = ocr_config.provider
+
     def fetcher(
         session: Any, target: PdfTarget, config: Any,
     ) -> tuple[Optional[str], Optional[str], str]:
         r = _http_get_with_retry(session, target.url, config=config, timeout=90)
         if not r.content.startswith(b"%PDF"):
-            return (None, "unstructured_api", "unknown_type")
+            return (None, provider, "unknown_type")
 
-        new_text, new_elements = _extract_with_unstructured(
-            r.content, api_url=api_url, api_key=api_key, strategy=strategy,
-        )
-        new_len = len(new_text or "")
+        result = extract_pdf(r.content, config=ocr_config)
+        new_text = (result.text or "").strip()
+        new_len = len(new_text)
         old_len = old_len_by_url.get(target.url, 0)
-        old_text = pdf_cache.read(target.url) or ""
 
-        if new_text and new_len > old_len:
-            pdf_cache.write_elements(target.url, new_elements)
-            return (new_text, "unstructured_api", "ok")
+        # Monotonic guard (opt-out via --force).
+        if not force and new_len <= old_len:
+            # Returning text=None tells the driver to skip `pdf_cache.write`.
+            # The attempt is still recorded in `pdfs.log.jsonl` via the sweep
+            # store, with extractor=provider + status=unchanged so you can
+            # audit which URLs the guard rejected.
+            return (None, provider, "unchanged")
 
-        # No improvement — preserve the prior cache, record as "unchanged".
-        if old_text:
-            return (old_text, "unchanged", "ok")
-        return (None, "unstructured_api", "empty")
+        if not new_text:
+            return (None, provider, "empty")
+
+        if result.elements:
+            pdf_cache.write_elements(target.url, result.elements)
+        return (new_text, provider, "ok")
 
     return fetcher
 
@@ -161,6 +177,10 @@ def _classify_candidates(
 
     Returns `(candidates, cached_ok, no_cache)` where each candidate
     is a `(target, old_len)` pair (0 if no prior cache).
+
+    When `force` is True, long-cached entries are included as
+    candidates so they get re-OCR'd; without it, they short-circuit to
+    `cached_ok`.
     """
     candidates: list[tuple[PdfTarget, int]] = []
     cached_ok = 0
@@ -189,6 +209,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     add_filter_args(ap)
     ap.add_argument(
+        "--provider", default=DEFAULT_PROVIDER, choices=PROVIDERS,
+        help=f"OCR provider (default: {DEFAULT_PROVIDER}). "
+             "Each provider reads its own API key env var "
+             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
+    )
+    ap.add_argument(
         "--min-chars", type=int, default=1000,
         help="re-extract cache entries shorter than this (default: 1000).",
     )
@@ -200,7 +226,25 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument(
         "--strategy", default="hi_res",
         choices=["hi_res", "ocr_only", "fast", "auto"],
-        help="Unstructured partition strategy (default: hi_res).",
+        help="Unstructured partition strategy (default: hi_res). "
+             "Ignored for non-Unstructured providers.",
+    )
+    ap.add_argument(
+        "--mode", default="accurate",
+        choices=["accurate", "balanced", "fast"],
+        help="Chandra mode (default: accurate). Ignored for non-Chandra "
+             "providers.",
+    )
+    ap.add_argument(
+        "--batch", action="store_true",
+        help="Mistral batch API (~24h turnaround, ~50%% cheaper). Ignored "
+             "for non-Mistral providers. NB: the current driver is sync — "
+             "this flag is wired into OCRConfig for forward compat but not "
+             "yet routed through the batch orchestrator.",
+    )
+    ap.add_argument(
+        "--timeout", type=int, default=300,
+        help="per-PDF OCR timeout in seconds (default: 300).",
     )
     ap.add_argument(
         "--limit", type=int, default=0,
@@ -212,7 +256,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument(
         "--force", action="store_true",
-        help="re-extract even if cached length >= --min-chars.",
+        help="(1) include cache entries >= --min-chars as candidates AND "
+             "(2) bypass the monotonic guard — unconditionally overwrite "
+             "the cache with the new provider output when non-empty.",
     )
     ap.add_argument(
         "--resume", action="store_true",
@@ -235,24 +281,33 @@ def main(argv: Optional[list[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     load_dotenv()
 
-    api_key = os.environ.get("UNSTRUCTURED_API_KEY")
-    api_url = os.environ.get("UNSTRUCTURED_API_URL", DEFAULT_UNSTRUCTURED_URL)
+    api_key_env = _API_KEY_ENV[args.provider]
+    api_key = os.environ.get(api_key_env)
+    api_url = (
+        os.environ.get("UNSTRUCTURED_API_URL")
+        if args.provider == "unstructured" else None
+    )
     if not api_key and not args.dry_run:
         print(
-            "ERROR: UNSTRUCTURED_API_KEY not set (checked env + .env).",
+            f"ERROR: {api_key_env} not set (checked env + .env) for "
+            f"provider={args.provider!r}.",
             file=sys.stderr,
         )
         return 2
 
     targets = targets_from_args(args)
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
-    print(f"target pool: {len(targets)} PDFs across {n_procs} processes")
+    print(
+        f"target pool: {len(targets)} PDFs across {n_procs} processes "
+        f"· provider={args.provider} · force={args.force}"
+    )
 
     candidates, cached_ok, no_cache = _classify_candidates(
         targets, min_chars=args.min_chars, force=args.force,
     )
 
-    print(f"  cached with >= {args.min_chars} chars: {cached_ok}")
+    print(f"  cached with >= {args.min_chars} chars: {cached_ok}"
+          + (" (ignored under --force)" if args.force else ""))
     print(f"  re-extraction candidates:             {len(candidates)} "
           f"(of which {no_cache} have no cache entry at all)")
     by_type = Counter((t.doc_type or "-") for t, _ in candidates)
@@ -269,10 +324,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     candidate_targets = [t for t, _ in candidates]
     old_len_by_url = {t.url: old_len for t, old_len in candidates}
 
-    fetcher = _make_fetcher(
-        api_url=api_url, api_key=api_key or "",
+    ocr_config = _build_ocr_config(
+        provider=args.provider,
+        api_key=api_key or "",
+        api_url=api_url,
         strategy=args.strategy,
+        mode=args.mode,
+        batch=args.batch,
+        timeout=args.timeout,
+    )
+
+    fetcher = _make_fetcher(
+        ocr_config=ocr_config,
         old_len_by_url=old_len_by_url,
+        force=args.force,
     )
 
     fetched, cached_hits, failed = run_pdf_sweep(

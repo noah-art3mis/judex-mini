@@ -211,6 +211,58 @@ duplicate log buffer in context):
   before stacking paper-era sweeps back-to-back. The short version:
   wait 30–90 min between sweeps, overnight for a full IP reset.
 
+### Surviving session death (the "detached-sweep" pattern)
+
+The Claude Code / Cursor window can die (crash, OOM, reload, explicit
+close) without killing the in-flight sweep. This is not accidental — the
+launcher is structured to detach from the controlling shell, and
+everything durable goes to disk atomically per record. Four structural
+pieces make it work:
+
+1. **Detach at launch.**
+   `nohup ./scripts/launch_hc_backfill_sharded.sh > runs/active/<dir>/launcher-stdout.log 2>&1 & disown`
+   — `nohup` ignores SIGHUP (sent when the terminal closes); `& disown`
+   drops the job from the shell's job table so it isn't killed when the
+   shell exits. The launcher's `run_sweep.py` children inherit the
+   detached state via `nohup`'s parent group.
+2. **Persist PIDs.** The launcher writes child PIDs to
+   `runs/active/<dir>/shards.pids`. On reconnect, `pgrep -af run_sweep`
+   finds them, but the pids file is authoritative when multiple sweeps
+   overlap.
+3. **Atomic state per record.** `src/sweeps/process_store.py` writes
+   `sweep.state.json` via `tempfile → os.replace` (atomic on POSIX) and
+   appends to `sweep.log.jsonl` with `fsync` after each record. A process
+   killed mid-record loses at most the in-flight record; `--resume`
+   skips already-ok records, so driver-restart is safe.
+4. **Session-independent alerting.** A cron monitor scheduled via
+   `/schedule` polls `sweep.state.json` on a cron expression (e.g.
+   `13,43 * * * *`). The cron runs in the harness, not in the window,
+   so heartbeats survive window death.
+
+**Reconnecting from a fresh window:**
+
+```bash
+cat runs/active/<dir>/shards.pids                          # discover PIDs
+pgrep -af "run_sweep.*<label-fragment>"                    # verify alive
+PYTHONPATH=. uv run python scripts/probe_sharded.py \      # read state
+    --out-root runs/active/<dir>
+cat docs/current_progress.md                               # restore context
+# Stop cleanly if needed:
+xargs -a runs/active/<dir>/shards.pids kill -TERM
+```
+
+**What does NOT survive session death:**
+- Claude Code conversation state (thinking, plans, Bash task ids). The
+  `run_in_background` task id is gone with the window. Mitigation: the
+  lab-notebook at `docs/current_progress.md` is the out-of-band memory —
+  write observations as they happen; the fresh window's first act is to
+  read it.
+- Cron jobs with a short `expires_after`. Use 7-day expiry (or longer)
+  so monitoring outlives the window that scheduled it.
+- Any state the driver held in memory but hadn't yet flushed to disk.
+  With the current atomic contracts this is <1 record; don't break the
+  contract (see `src/sweeps/process_store.py`).
+
 ## Key source modules
 
 | Module | Role |

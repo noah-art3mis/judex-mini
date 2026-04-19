@@ -1,0 +1,8 @@
+- [ ] running tier 1 sweep
+- [ ] making duckdb warehouse
+- [ ] making harness to test new ocr fucntionality 
+- [x] v4 migration (code + tests + ground-truth fixtures)
+- ! [ ] update old data with new format — run `PYTHONPATH=. uv run python scripts/renormalize_cases.py --workers 8` (the renormalizer is v4-aware: `_build_documentos` now emits the list shape and `_cache_only_pdf_fetcher` returns `(text, extractor)` from the sidecar; missing sidecars backfill as `extractor: null`)
+- [ ] check if new author info changes anything
+- [ ] add analysis segmentation by year or government
+- segmentation by primeiro autor x autores

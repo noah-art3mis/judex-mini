@@ -33,12 +33,14 @@ def _make_rec(
 
 
 def _andamento(desc: str, pdf_name: str = "doc.pdf") -> dict:
+    """Build a v5 andamento stub — the doc-type label lives on link.tipo."""
     return {
         "link": {
-            "url": f"https://portal.stf.jus.br/processos/{pdf_name}",
-            "text": None,
+            "tipo":      desc,
+            "url":       f"https://portal.stf.jus.br/processos/{pdf_name}",
+            "text":      None,
+            "extractor": None,
         },
-        "link_descricao": desc,
     }
 
 

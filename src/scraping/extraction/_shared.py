@@ -17,6 +17,9 @@ from src.utils.text_utils import normalize_spaces
 
 
 _DDMMYYYY = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
+_DDMMYYYY_HHMMSS = re.compile(
+    r"\b(\d{2})/(\d{2})/(\d{4})(?:[ T]|,?\s+às\s+)(\d{2}):(\d{2})(?::(\d{2}))?"
+)
 
 
 def to_iso(br_date: Optional[str]) -> Optional[str]:
@@ -37,6 +40,29 @@ def to_iso(br_date: Optional[str]) -> Optional[str]:
     if not (1 <= mo <= 12 and 1 <= d <= 31 and 1900 <= y <= 2100):
         return None
     return f"{y:04d}-{mo:02d}-{d:02d}"
+
+
+def to_iso_datetime(br_timestamp: Optional[str]) -> Optional[str]:
+    """Extract a DD/MM/YYYY[ HH:MM[:SS]] timestamp → ISO 8601 datetime.
+
+    Falls back to `to_iso` (date-only) when no time component is
+    present. Used for ``peticao.recebido_data`` where STF emits
+    ``"20/08/2020 11:51:26"`` — v6 preserves the time rather than
+    truncating to date.
+    """
+    if not br_timestamp:
+        return None
+    m = _DDMMYYYY_HHMMSS.search(br_timestamp)
+    if not m:
+        return to_iso(br_timestamp)
+    d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    hh, mm = int(m.group(4)), int(m.group(5))
+    ss = int(m.group(6)) if m.group(6) else 0
+    if not (1 <= mo <= 12 and 1 <= d <= 31 and 1900 <= y <= 2100):
+        return None
+    if not (0 <= hh <= 23 and 0 <= mm <= 59 and 0 <= ss <= 59):
+        return None
+    return f"{y:04d}-{mo:02d}-{d:02d}T{hh:02d}:{mm:02d}:{ss:02d}"
 
 
 _GUIA_SUFFIX = re.compile(r",\s*GUIA\s*N[ºOo0]?[^,]*$", re.IGNORECASE)

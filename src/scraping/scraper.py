@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 from typing import Any, Optional
@@ -27,9 +27,8 @@ from bs4 import BeautifulSoup
 
 from src.scraping.extraction import http as ex
 from src.scraping.extraction import sessao as sessao_ex
-from src.scraping.extraction._shared import to_iso as _to_iso
 from src.config import ScraperConfig
-from src.data.types import SCHEMA_VERSION, StfItem
+from src.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
 from src.scraping.http_session import (
     RetryableHTTPError,
     _decode,
@@ -81,6 +80,19 @@ class ProcessFetch:
     incidente: int
     detalhe_html: str
     tabs: dict[str, str]
+
+
+@dataclass
+class _CacheBuf:
+    """Accumulator for one case's tab HTML. Flushed once per case."""
+
+    tabs: dict[str, str] = field(default_factory=dict)
+    dirty: bool = False
+
+    def put(self, tab: str, html: str, *, from_network: bool) -> None:
+        self.tabs[tab] = html
+        if from_network:
+            self.dirty = True
 
 
 class NoIncidenteError(Exception):
@@ -175,6 +187,7 @@ def fetch_process(
     classe: str,
     processo: int,
     *,
+    cache_buf: _CacheBuf,
     use_cache: bool = True,
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
@@ -194,15 +207,16 @@ def fetch_process(
         )
         if incidente is None:
             incidente = resolve_incidente(session, classe, processo, config=config)
-            html_cache.write_incidente(classe, processo, incidente)
+            cache_buf.dirty = True
 
         def cached(tab: str, fetcher: Any) -> str:
             if use_cache:
                 hit = html_cache.read(classe, processo, tab)
                 if hit is not None:
+                    cache_buf.put(tab, hit, from_network=False)
                     return hit
             html = fetcher()
-            html_cache.write(classe, processo, tab, html)
+            cache_buf.put(tab, html, from_network=True)
             return html
 
         detalhe_html = cached(
@@ -367,23 +381,26 @@ def _extract_tema_from_abasessao(sessao_html: str) -> Optional[int]:
 
 
 def _make_pdf_fetcher(*, use_cache: bool = True) -> Any:
-    """Return a `fetcher(url) -> Optional[str]` that caches extracted text.
+    """Return a `fetcher(url) -> (text, extractor)` that caches extracts.
 
     Cache is URL-keyed (sha1); misses hit sistemas.stf.jus.br via
-    src.utils.pdf_utils.extract_document_text (which handles both PDF
-    and RTF). Fetch failures propagate as None so resolve_documentos
-    can keep the URL for a later retry.
+    `src.utils.pdf_utils.extract_document_text` (which handles both PDF
+    and RTF) and persist the label to `<sha1>.extractor`. Fetch failures
+    propagate as `(None, _)` so `resolve_documentos` keeps the URL for a
+    later retry. Cache hits return the sidecar label when present; None
+    on pre-v4 entries with no sidecar (the signal for "we have text but
+    don't know which extractor produced it").
     """
 
-    def fetcher(url: str) -> Optional[str]:
+    def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
         if use_cache:
             hit = pdf_cache.read(url)
             if hit is not None:
-                return hit
-        text = extract_document_text(url)
+                return (hit, pdf_cache.read_extractor(url))
+        text, extractor = extract_document_text(url)
         if text is not None:
-            pdf_cache.write(url, text)
-        return text
+            pdf_cache.write(url, text, extractor=extractor)
+        return (text, extractor)
 
     return fetcher
 
@@ -393,6 +410,7 @@ def _make_sessao_fetcher(
     processo: int,
     session: requests.Session,
     *,
+    cache_buf: _CacheBuf,
     use_cache: bool,
     config: Optional[ScraperConfig],
 ) -> Any:
@@ -408,6 +426,7 @@ def _make_sessao_fetcher(
         if use_cache:
             hit = html_cache.read(classe, processo, tab)
             if hit is not None:
+                cache_buf.put(tab, hit, from_network=False)
                 return hit
         try:
             r = _http_get_with_retry(
@@ -419,11 +438,11 @@ def _make_sessao_fetcher(
             )
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
-                html_cache.write(classe, processo, tab, "[]")
+                cache_buf.put(tab, "[]", from_network=True)
                 return "[]"
             raise
         text = _decode(r)
-        html_cache.write(classe, processo, tab, text)
+        cache_buf.put(tab, text, from_network=True)
         return text
 
     return fetcher
@@ -447,8 +466,14 @@ def scrape_processo_http(
     Raises :class:`NoIncidenteError` when STF signals the process is
     unallocated (redirect without ``incidente=<n>``).
     """
+    cache_buf = _CacheBuf()
     fetched = fetch_process(
-        classe, processo, use_cache=use_cache, session=session, config=config
+        classe,
+        processo,
+        cache_buf=cache_buf,
+        use_cache=use_cache,
+        session=session,
+        config=config,
     )
 
     detalhe_soup = BeautifulSoup(fetched.detalhe_html, "lxml")
@@ -461,7 +486,12 @@ def scrape_processo_http(
     try:
         tema = _extract_tema_from_abasessao(fetched.tabs.get(TAB_SESSAO, ""))
         sessao_fetcher = _make_sessao_fetcher(
-            classe, processo, sessao_session, use_cache=use_cache, config=config
+            classe,
+            processo,
+            sessao_session,
+            cache_buf=cache_buf,
+            use_cache=use_cache,
+            config=config,
         )
         pdf_fetcher = _make_pdf_fetcher(use_cache=use_cache) if fetch_pdfs else None
         sessao_virtual = sessao_ex.extract_sessao_virtual_from_json(
@@ -474,10 +504,21 @@ def scrape_processo_http(
         if owns_session:
             sessao_session.close()
 
+    if cache_buf.dirty:
+        html_cache.write_case(
+            classe,
+            processo,
+            tabs=cache_buf.tabs,
+            incidente=fetched.incidente,
+        )
+
     andamentos = ex.extract_andamentos(fetched.tabs.get(TAB_ANDAMENTOS, ""))
-    data_protocolo = ex.extract_data_protocolo(info_soup)
     return StfItem(
-        schema_version=SCHEMA_VERSION,
+        _meta=ScrapeMeta(
+            schema_version=SCHEMA_VERSION,
+            status_http=200,
+            extraido=datetime.now().isoformat(),
+        ),
         incidente=fetched.incidente,
         classe=classe,
         processo_id=processo,
@@ -487,8 +528,7 @@ def scrape_processo_http(
         publicidade=ex.extract_publicidade(detalhe_soup),
         badges=ex.extract_badges(detalhe_soup),
         assuntos=ex.extract_assuntos(info_soup),
-        data_protocolo=data_protocolo,
-        data_protocolo_iso=_to_iso(data_protocolo),
+        data_protocolo=ex.extract_data_protocolo(info_soup),
         orgao_origem=ex.extract_orgao_origem(info_soup),
         origem=ex.extract_origem(info_soup),
         numero_origem=ex.extract_numero_origem(info_soup),
@@ -503,11 +543,9 @@ def scrape_processo_http(
         deslocamentos=ex.extract_deslocamentos(fetched.tabs.get(TAB_DESLOCAMENTOS, "")),
         peticoes=ex.extract_peticoes(fetched.tabs.get(TAB_PETICOES, "")),
         recursos=ex.extract_recursos(fetched.tabs.get(TAB_RECURSOS, "")),
-        pautas=[],
+        pautas=ex.extract_pautas(fetched.tabs.get(TAB_PAUTAS, "")),
         outcome=ex.derive_outcome({
             "sessao_virtual": sessao_virtual,
             "andamentos": andamentos,
         }),
-        status_http=200,
-        extraido=datetime.now().isoformat(),
     )

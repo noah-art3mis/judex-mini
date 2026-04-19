@@ -1,6 +1,6 @@
 """On-disk caches for PDF-derived content, keyed by URL sha1.
 
-Two parallel caches, both under `data/pdf/`, both sha1(url)-keyed:
+Three parallel caches, all under `data/cache/pdf/`, all sha1(url)-keyed:
 
 - **Text cache** (`<sha1>.txt.gz`): flat extracted text. Written by
   every extractor path (pypdf, Unstructured OCR, RTF fallback). This
@@ -11,9 +11,16 @@ Two parallel caches, both under `data/pdf/`, both sha1(url)-keyed:
   `scripts/reextract_unstructured.py` when an OCR pass succeeds.
   Absent for pypdf-sourced entries (pypdf has no element structure
   to capture).
+- **Extractor sidecar** (`<sha1>.extractor`, plain text, no gzip):
+  the label of the extractor that produced the text. Values come from
+  the schema v4 open set ("rtf", "pypdf_plain", "pypdf_layout",
+  "unstructured", "mistral", "chandra"); the file is 5-20 bytes so
+  the storage overhead is noise. Read via `pdf_cache.read_extractor`;
+  `None` when the sidecar is absent (pre-v4 cache entries) or the
+  extractor wasn't recorded.
 
-The two caches are independent — writing to one doesn't populate the
-other. Consumers that need boilerplate-free or section-aware text
+The caches are independent — writing to one doesn't populate the
+others. Consumers that need boilerplate-free or section-aware text
 read the elements cache and filter; consumers that just want a blob
 keep using `read(url)` and get whatever the most-recent extractor
 produced.
@@ -54,6 +61,10 @@ def _elements_path(url: str) -> Path:
     return CACHE_ROOT / f"{_hash(url)}.elements.json.gz"
 
 
+def _extractor_path(url: str) -> Path:
+    return CACHE_ROOT / f"{_hash(url)}.extractor"
+
+
 def read(url: str) -> Optional[str]:
     p = _text_path(url)
     if not p.exists():
@@ -61,8 +72,30 @@ def read(url: str) -> Optional[str]:
     return gzip.decompress(p.read_bytes()).decode("utf-8")
 
 
-def write(url: str, text: str) -> None:
+def write(url: str, text: str, *, extractor: Optional[str] = None) -> None:
+    """Write extracted text and, optionally, the extractor sidecar.
+
+    When `extractor` is provided, also writes `<sha1>.extractor` as a
+    plain-text sidecar. Pre-v4 callers that pass `extractor=None` leave
+    the sidecar untouched (never overwritten with null), so prior
+    provenance survives a text-only rewrite.
+    """
     _atomic_write(_text_path(url), gzip.compress(text.encode("utf-8")))
+    if extractor is not None:
+        _atomic_write(_extractor_path(url), extractor.encode("utf-8"))
+
+
+def read_extractor(url: str) -> Optional[str]:
+    """Return the extractor label for `url`, or None on miss.
+
+    Miss means either the PDF has no cache entry at all, or the entry
+    predates the v4 sidecar contract. Callers should treat both as
+    "extractor unknown" and not infer which case applies.
+    """
+    p = _extractor_path(url)
+    if not p.exists():
+        return None
+    return p.read_bytes().decode("utf-8").strip() or None
 
 
 def read_elements(url: str) -> Optional[list[dict[str, Any]]]:

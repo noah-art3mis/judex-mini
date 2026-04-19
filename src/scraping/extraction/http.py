@@ -48,6 +48,7 @@ from src.scraping.extraction.relator import extract_relator
 from src.scraping.extraction.tables import (
     extract_andamentos,
     extract_deslocamentos,
+    extract_pautas,
     extract_peticoes,
     extract_recursos,
 )
@@ -74,5 +75,6 @@ __all__ = [
     "extract_deslocamentos",
     "extract_peticoes",
     "extract_recursos",
+    "extract_pautas",
     "derive_outcome",
 ]

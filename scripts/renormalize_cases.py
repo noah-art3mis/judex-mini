@@ -13,12 +13,21 @@ cache. Cases with no / incomplete HTML cache are reported as
 
 Why this works
 --------------
-Each schema bump (commits 45d86df → 00eabd7) changed parsing, not
+Each schema bump (commits 45d86df → current) changed parsing, not
 source HTML. The HTML fragments STF served are still in the cache;
 running the current `src.scraping.extraction.*` modules against them
 produces the new shape. The PDF text cache (URL-keyed) is untouched
 by schema bumps, so sessao_virtual's `documentos` `text` values
 survive too.
+
+v4 note (2026-04-19). The v3 → v4 jump adds `extractor: Optional[str]`
+on every link/documento and restructures `documentos` from dict to
+list. Both fall out naturally: re-running `_build_documentos` emits
+the list shape, and `_cache_only_pdf_fetcher` now returns
+`(text, extractor)` with the extractor label read from the
+`<sha1>.extractor` sidecar. Cache entries that predate the sidecar
+(most of them, today) get `extractor: null` — an agreed lossy
+backfill that new scrapes will populate as PDFs are re-extracted.
 
 Usage
 -----
@@ -56,16 +65,16 @@ from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
-from src.data.types import SCHEMA_VERSION, StfItem
+from src.data.types import SCHEMA_VERSION, ScrapeMeta, StfItem
 from src.scraping.extraction import http as ex
 from src.scraping.extraction import sessao as sessao_ex
-from src.scraping.extraction._shared import to_iso
 from src.scraping.scraper import (
     DETALHE,
     TAB_ANDAMENTOS,
     TAB_DESLOCAMENTOS,
     TAB_INFORMACOES,
     TAB_PARTES,
+    TAB_PAUTAS,
     TAB_PETICOES,
     TAB_RECURSOS,
     TAB_SESSAO,
@@ -101,9 +110,16 @@ def _cache_only_sessao_fetcher(classe: str, processo: int):
 
 
 def _cache_only_pdf_fetcher():
-    """PDF fetcher that returns cache hits and None on miss (no network)."""
-    def fetcher(url: str) -> Optional[str]:
-        return pdf_cache.read(url)
+    """PDF fetcher that returns `(text, extractor)` from the cache.
+
+    Both slots are None on a full miss. When text is cached but the
+    `<sha1>.extractor` sidecar is absent (pre-v4 cache entries), we
+    return `(text, None)` — the v4 renormalizer writes the documento
+    with `extractor: null`, which is the agreed "we don't know which
+    extractor produced this" signal.
+    """
+    def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
+        return pdf_cache.read(url), pdf_cache.read_extractor(url)
     return fetcher
 
 
@@ -153,9 +169,12 @@ def _rebuild_item(classe: str, processo: int) -> Optional[StfItem]:
         return None
 
     andamentos = ex.extract_andamentos(tabs[TAB_ANDAMENTOS])
-    data_protocolo = ex.extract_data_protocolo(info_soup)
     return StfItem(
-        schema_version=SCHEMA_VERSION,
+        _meta=ScrapeMeta(
+            schema_version=SCHEMA_VERSION,
+            status_http=200,
+            extraido=datetime.now().isoformat(),
+        ),
         incidente=incidente,
         classe=classe,
         processo_id=processo,
@@ -165,8 +184,7 @@ def _rebuild_item(classe: str, processo: int) -> Optional[StfItem]:
         publicidade=ex.extract_publicidade(detalhe_soup),
         badges=ex.extract_badges(detalhe_soup),
         assuntos=ex.extract_assuntos(info_soup),
-        data_protocolo=data_protocolo,
-        data_protocolo_iso=to_iso(data_protocolo),
+        data_protocolo=ex.extract_data_protocolo(info_soup),
         orgao_origem=ex.extract_orgao_origem(info_soup),
         origem=ex.extract_origem(info_soup),
         numero_origem=ex.extract_numero_origem(info_soup),
@@ -181,13 +199,11 @@ def _rebuild_item(classe: str, processo: int) -> Optional[StfItem]:
         deslocamentos=ex.extract_deslocamentos(tabs[TAB_DESLOCAMENTOS]),
         peticoes=ex.extract_peticoes(tabs[TAB_PETICOES]),
         recursos=ex.extract_recursos(tabs[TAB_RECURSOS]),
-        pautas=[],
+        pautas=ex.extract_pautas(tabs[TAB_PAUTAS]),
         outcome=ex.derive_outcome({
             "sessao_virtual": sessao_virtual,
             "andamentos": andamentos,
         }),
-        status_http=200,
-        extraido=datetime.now().isoformat(),
     )
 
 
@@ -219,7 +235,11 @@ def _process_file(path: Path, *, force: bool, dry_run: bool) -> RenormResult:
     except Exception as e:
         return RenormResult(path, "error", f"load: {e}")
 
-    current_version = existing.get("schema_version")
+    # v6: schema_version lives under `_meta`. Pre-v6 files had it
+    # top-level; fall back so the renormalizer can spot already-v6 files
+    # regardless of shape history.
+    meta = existing.get("_meta") or {}
+    current_version = meta.get("schema_version") or existing.get("schema_version")
     if not force and current_version == SCHEMA_VERSION:
         return RenormResult(path, "already_current")
 
