@@ -33,6 +33,7 @@ from src.scraping.ocr import ExtractResult, OCRConfig
 from src.scraping.ocr.dispatch import extract_pdf as _dispatch_extract
 from src.sweeps import shared as _shared
 from src.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
+from src.utils.pricing import estimate_ocr_cost
 from src.sweeps.peca_targets import PecaTarget
 from src.utils import peca_cache
 from src.utils.peca_utils import extract_rtf_text
@@ -221,9 +222,23 @@ def run_extract_sweep(
 
     finished = datetime.now(timezone.utc)
     errors_path = store.write_errors_file()
+
+    # Estimate pages from total chars extracted this sweep. The 2 000-char/page
+    # heuristic is a rough OCR-industry average for text-dense docs — good
+    # enough for "is this run $1 or $100" reasoning, not for billing. Override
+    # the provider rate via OCR_PRICE_<PROVIDER>_USD_PER_1K_PAGES env vars.
+    snap = store.snapshot()
+    chars_this_sweep = sum(
+        r.get("chars") or 0
+        for r in snap.values()
+        if r.get("status") == "ok"
+    )
+    pages_estimate = max(1, chars_this_sweep // 2000) if chars_this_sweep else 0
+    cost = estimate_ocr_cost(provider=provedor, pages=pages_estimate)
+
     report_path = _render_extract_report(
         out_dir=out_dir, store=store, provedor=provedor,
-        started=started, finished=finished,
+        started=started, finished=finished, cost=cost,
     )
 
     print(
@@ -232,6 +247,7 @@ def run_extract_sweep(
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
+    print(f"  {cost.summary_line()}")
     print(f"  state:  {store.state_path}")
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")
@@ -279,6 +295,7 @@ def _render_extract_report(
     provedor: str,
     started: datetime,
     finished: datetime,
+    cost: Optional[object] = None,
 ) -> Path:
     snap = store.snapshot()
     status_counts: Counter = Counter(
@@ -296,6 +313,10 @@ def _render_extract_report(
         f"- elapsed:  {(finished - started).total_seconds():.1f}s",
         f"- provedor: {provedor}",
         f"- targets:  {len(snap)}",
+    ]
+    if cost is not None:
+        lines.append(f"- {cost.summary_line()}")
+    lines += [
         "",
         "## Status",
         "",

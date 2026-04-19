@@ -28,6 +28,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import os
 import csv
 import json
 import shutil
@@ -1006,11 +1007,29 @@ def main(argv: list[str]) -> int:
     )
 
     totals = outcome.totals
+    # Rough bytes estimate: each ok process scrape is ~4 HTTP GETs × ~50 KB =
+    # ~200 KB total traffic. This is coarse (the WAF-shape filter and
+    # retries add variance) but sufficient for "this run cost $X" reasoning.
+    # Override via PROCESS_AVG_BYTES env var if your deployment sees different
+    # response sizes.
+    AVG_BYTES_PER_PROCESS = 200_000
+    try:
+        avg_bytes = int(os.environ.get("PROCESS_AVG_BYTES", AVG_BYTES_PER_PROCESS))
+    except ValueError:
+        avg_bytes = AVG_BYTES_PER_PROCESS
+    from src.utils.pricing import estimate_proxy_cost
+    pool_was_active = pool is not None and pool.size() > 0
+    cost = estimate_proxy_cost(
+        bytes_downloaded=totals["ok"] * avg_bytes,
+        used_proxy=pool_was_active,
+    )
+
     print(
         f"\nsummary: ok={totals['ok']} fail={totals['fail']} error={totals['error']} "
         f"skipped={totals['skipped']} 429×{totals['429']} 5xx×{totals['5xx']}",
         flush=True,
     )
+    print(f"  {cost.summary_line()}")
     print(f"  state:  {store.state_path}")
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")

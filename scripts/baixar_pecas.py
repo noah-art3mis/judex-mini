@@ -29,6 +29,7 @@ import logging
 import sys
 from pathlib import Path
 
+from src.scraping.proxy_pool import ProxyPool
 from src.sweeps import peca_cli as _pdf_cli
 from src.sweeps.download_driver import run_download_sweep
 
@@ -76,6 +77,26 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--retomar", action="store_true",
                     help="Skip targets already status=ok in pdfs.state.json.")
 
+    # Proxy rotation (optional — off by default; costs proxy bandwidth).
+    ap.add_argument(
+        "--proxy-pool", dest="proxy_pool", type=Path, default=None,
+        help="Path to a file with one proxy URL per line (# comments ok). "
+             "Enables proactive IP rotation: swap sessions every "
+             "--proxy-rotate-seconds so no single IP trips STF's WAF. "
+             "Mirrors scripts/run_sweep.py semantics. See docs/rate-limits.md.",
+    )
+    ap.add_argument(
+        "--proxy-rotate-seconds", dest="proxy_rotate_seconds",
+        type=float, default=270.0,
+        help="Seconds a proxy is used before rotating (default: 270). "
+             "Ignored when --proxy-pool is absent.",
+    )
+    ap.add_argument(
+        "--proxy-cooldown-minutes", dest="proxy_cooldown_minutes",
+        type=float, default=4.0,
+        help="Minutes a just-used proxy stays out of rotation (default: 4).",
+    )
+
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -99,12 +120,22 @@ def main(argv: list[str] | None = None) -> int:
     saida = args.saida or Path("runs/active/baixar-adhoc")
     saida.mkdir(parents=True, exist_ok=True)
 
+    pool = ProxyPool.from_file(args.proxy_pool) if args.proxy_pool else None
+    if pool is not None:
+        print(f"=== proxy rotation active · pool_size={pool.size()} "
+              f"· rotate_every={args.proxy_rotate_seconds:.0f}s "
+              f"· cooldown={args.proxy_cooldown_minutes:.1f}min ===",
+              flush=True)
+
     _, _, failed = run_download_sweep(
         targets,
         out_dir=saida,
         forcar=args.forcar,
         resume=args.retomar,
         retry_from=args.retentar_de,
+        pool=pool,
+        proxy_rotate_seconds=args.proxy_rotate_seconds,
+        proxy_cooldown_minutes=args.proxy_cooldown_minutes,
     )
     return 0 if failed == 0 else 1
 

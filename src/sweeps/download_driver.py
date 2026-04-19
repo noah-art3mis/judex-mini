@@ -34,7 +34,9 @@ import requests
 
 from src.config import ScraperConfig
 from src.scraping.http_session import _http_get_with_retry, new_session
+from src.scraping.proxy_pool import ProxyPool
 from src.sweeps import shared as _shared
+from src.utils.pricing import estimate_proxy_cost
 from src.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
 from src.sweeps.peca_targets import PecaTarget
 from src.utils import peca_cache
@@ -81,6 +83,10 @@ def run_download_sweep(
     config: Optional[ScraperConfig] = None,
     install_signal_handlers: bool = True,
     getter: Optional[GetterFn] = None,
+    pool: Optional[ProxyPool] = None,
+    proxy_rotate_seconds: float = 270.0,
+    proxy_cooldown_minutes: float = 4.0,
+    cliff_window: int = 50,
 ) -> tuple[int, int, int]:
     """Run a PDF download sweep. Returns `(downloaded, cached_hits, failed)`."""
     out_dir = Path(out_dir)
@@ -106,14 +112,48 @@ def run_download_sweep(
         request_log = RequestLog(out_dir / "requests.db")
         config = ScraperConfig(throttle=throttle, request_log=request_log)
 
+    pool_active = pool is not None and pool.size() > 0
+    initial_proxy = pool.pick() if pool_active else None
     owns_session = session is None
     if session is None:
-        session = new_session()
+        session = new_session(proxy=initial_proxy)
+
+    session_holder: dict[str, Any] = {
+        "session": session,
+        "proxy": initial_proxy,
+        "started_at": time.monotonic(),
+        "rotations": 0,
+    }
+
+    def rotate_session(reason: str) -> None:
+        old = session_holder["proxy"]
+        assert pool is not None  # pool_active implies pool is not None
+        pool.mark_hot(old, minutes=proxy_cooldown_minutes)
+        try:
+            session_holder["session"].close()
+        except Exception:
+            pass
+        new_proxy = pool.pick()
+        if new_proxy is None:
+            wait_s = pool.time_until_next_available()
+            print(
+                f"  [rotate] all proxies hot — waiting {wait_s:.0f}s",
+                flush=True,
+            )
+            time.sleep(wait_s + 1.0)
+            new_proxy = pool.pick()
+        session_holder["session"] = new_session(proxy=new_proxy)
+        session_holder["proxy"] = new_proxy
+        session_holder["started_at"] = time.monotonic()
+        session_holder["rotations"] += 1
+        print(f"  [rotate] reason={reason}", flush=True)
 
     breaker: Optional[_shared.CircuitBreaker] = (
         _shared.CircuitBreaker(circuit_window, circuit_threshold)
         if circuit_window > 0 else None
     )
+    detector = _shared.CliffDetector(window=cliff_window)
+    last_regime: dict[str, str] = {"value": "warming"}
 
     counters = _Counters()
     started = datetime.now(timezone.utc)
@@ -152,7 +192,7 @@ def run_download_sweep(
         http_status: Optional[int] = None
         body: Optional[bytes] = None
         try:
-            body = get_fn(session, tgt, config)
+            body = get_fn(session_holder["session"], tgt, config)
         except Exception as e:
             status = "http_error"
             etype, hstatus, _ = _shared.classify_exception(e)
@@ -183,6 +223,27 @@ def run_download_sweep(
             wall_s=round(wall, 3),
             attempt=store.attempt_count(tgt.url) + 1,
         ))
+
+        detector.observe(status, wall, http_status=http_status)
+        regime = detector.regime()
+        if regime != last_regime["value"]:
+            print(
+                f"  [regime] {last_regime['value']} → {regime}"
+                f"  (see docs/rate-limits.md § Wall taxonomy)",
+                flush=True,
+            )
+            last_regime["value"] = regime
+
+        if pool_active:
+            elapsed_on_proxy = time.monotonic() - session_holder["started_at"]
+            rotate_reason: Optional[str] = None
+            if elapsed_on_proxy > proxy_rotate_seconds:
+                rotate_reason = f"time>{proxy_rotate_seconds:.0f}s"
+            elif regime == "approaching_collapse" and elapsed_on_proxy > 30.0:
+                rotate_reason = "approaching_collapse"
+            if rotate_reason is not None:
+                rotate_session(reason=rotate_reason)
+
         return status
 
     def on_progress(i: int, n: int) -> None:
@@ -214,22 +275,40 @@ def run_download_sweep(
             throttle_sleep=throttle_sleep,
         )
     finally:
-        if owns_session:
-            session.close()
+        if owns_session or session_holder["rotations"] > 0:
+            try:
+                session_holder["session"].close()
+            except Exception:
+                pass
 
     finished = datetime.now(timezone.utc)
     errors_path = store.write_errors_file()
+
+    # Total bytes downloaded this sweep (status=ok only; cache hits don't
+    # count against proxy bandwidth). Derived from the store's snapshot.
+    snap = store.snapshot()
+    bytes_this_sweep = sum(
+        r.get("chars") or 0
+        for r in snap.values()
+        if r.get("status") == "ok"
+    )
+    cost = estimate_proxy_cost(
+        bytes_downloaded=bytes_this_sweep, used_proxy=pool_active,
+    )
+
     report_path = _render_download_report(
         out_dir=out_dir, store=store, request_log=config.request_log,
-        started=started, finished=finished,
+        started=started, finished=finished, cost=cost,
     )
 
     print(
         f"\nsummary: downloaded={counters.downloaded} cached={counters.cached_hits} "
         f"failed={counters.failed}"
+        + (f"  rotations={session_holder['rotations']}" if pool_active else "")
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
+    print(f"  {cost.summary_line()}")
     print(f"  state:  {store.state_path}")
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")
@@ -274,6 +353,7 @@ def _render_download_report(
     request_log: Optional[RequestLog],
     started: datetime,
     finished: datetime,
+    cost: Optional[Any] = None,
 ) -> Path:
     snap = store.snapshot()
     status_counts: Counter = Counter(
@@ -290,6 +370,10 @@ def _render_download_report(
         f"- finished: {finished.isoformat(timespec='seconds')}",
         f"- elapsed:  {(finished - started).total_seconds():.1f}s",
         f"- targets:  {len(snap)}",
+    ]
+    if cost is not None:
+        lines.append(f"- {cost.summary_line()}")
+    lines += [
         "",
         "## Status",
         "",

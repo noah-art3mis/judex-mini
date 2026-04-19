@@ -475,6 +475,35 @@ def baixar_pecas(
         False, "--retomar",
         help="Pula alvos já status=ok em pdfs.state.json.",
     ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo com uma URL de proxy por linha; habilita rotação "
+             "proativa. Sem este flag, a varredura roda em IP direto "
+             "(comportamento atual).",
+    ),
+    proxy_rotacao_segundos: float = typer.Option(
+        270.0, "--proxy-rotacao-segundos",
+        help="Segundos usando cada proxy antes de rotacionar (padrão 270 = "
+             "4,5 min). Ignorado quando --proxy-pool é omitido.",
+    ),
+    proxy_cooldown_minutos: float = typer.Option(
+        4.0, "--proxy-cooldown-minutos",
+        help="Minutos que um proxy recém-usado permanece fora de rotação.",
+    ),
+    shards: int = typer.Option(
+        0, "--shards",
+        help="Se > 1, particiona o CSV em N shards e dispara N processos "
+             "paralelos (um por shard), cada um com seu próprio "
+             "--proxy-pool retirado de --proxy-pool-dir. Exige --csv, "
+             "--saida e --proxy-pool-dir.",
+    ),
+    proxy_pool_dir: Optional[Path] = typer.Option(
+        None, "--proxy-pool-dir",
+        help="Diretório com arquivos proxies.<letra>.txt; usado apenas "
+             "em modo sharded (--shards > 1). O launcher pega os N "
+             "primeiros em ordem alfabética (proxies.a.txt, proxies.b.txt, "
+             "...).",
+    ),
 ) -> None:
     """Baixa PDFs do STF para o cache local de bytes.
 
@@ -484,7 +513,56 @@ def baixar_pecas(
 
     Prioridade de modos de entrada: ``--retentar-de`` > ``--csv`` >
     range (``-c`` + ``-i``/``-f``) > filtros.
+
+    Rotação de proxy é opcional e espelha ``varrer-processos``: sem
+    ``--proxy-pool``, roda em IP direto (comportamento padrão). Com
+    ``--proxy-pool``, o driver troca de sessão/IP a cada
+    ``--proxy-rotacao-segundos`` para nunca encostar no limite do WAF
+    do STF em um único IP.
     """
+    if shards > 1:
+        if csv is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --csv (sharding particiona o CSV)."
+            )
+        if saida is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --saida (raiz das pastas por shard)."
+            )
+        if proxy_pool_dir is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --proxy-pool-dir (um pool por shard)."
+            )
+
+        from src.sweeps.shard_launcher import (
+            ProxyPoolShortage,
+            launch_sharded_download,
+        )
+
+        extra: list[str] = []
+        _push(extra, "--retomar", retomar)
+        _push(extra, "--forcar", forcar)
+        _push(extra, "--nao-perguntar", nao_perguntar)
+        _push(extra, "--proxy-rotate-seconds", proxy_rotacao_segundos)
+        _push(extra, "--proxy-cooldown-minutes", proxy_cooldown_minutos)
+
+        try:
+            pids_path = launch_sharded_download(
+                csv_path=csv,
+                shards=shards,
+                proxy_pool_dir=proxy_pool_dir,
+                saida_root=saida,
+                extra_args=extra,
+            )
+        except ProxyPoolShortage as e:
+            raise typer.BadParameter(str(e))
+
+        typer.echo(f"Lançou {shards} shards em background.")
+        typer.echo(f"  PIDs:   {pids_path}")
+        typer.echo(f"  Watch:  pgrep -af baixar_pecas")
+        typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
+        raise typer.Exit(code=0)
+
     argv = _argv_pdf_common(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
@@ -494,6 +572,9 @@ def baixar_pecas(
         nao_perguntar=nao_perguntar, retomar=retomar,
     )
     _push(argv, "--forcar", forcar)
+    _push(argv, "--proxy-pool", proxy_pool)
+    _push(argv, "--proxy-rotate-seconds", proxy_rotacao_segundos)
+    _push(argv, "--proxy-cooldown-minutes", proxy_cooldown_minutos)
 
     from scripts.baixar_pecas import main as _baixar_main
     raise typer.Exit(code=_baixar_main(argv))
