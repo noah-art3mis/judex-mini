@@ -12,8 +12,9 @@ name: Daily STF Report
 #                    The `--proxy-pool` flag rotates through them to dodge WAF.
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
+  # Daily cron disabled — re-enable by uncommenting the `schedule` block below.
+  # schedule:
+  #   - cron: '0 6 * * *'   # 06:00 UTC = 03:00 America/Sao_Paulo
   workflow_dispatch: {}
 
 permissions:
