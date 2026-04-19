@@ -217,7 +217,28 @@ def test_primeiro_autor_absent_when_partes_empty_and_no_prior_value():
     assert out.get("primeiro_autor") is None
 
 
-# ----- Idempotency + v6 control --------------------------------------------
+# ----- v7: publicacoes_dje seeded empty on migration -----------------------
+
+def test_publicacoes_dje_seeded_empty_when_missing(v3_input):
+    # v3 input has no publicacoes_dje (pre-v7); renormalizer seeds []
+    # so downstream readers can assume the key exists.
+    out = reshape_to_v7(v3_input)
+    assert out["publicacoes_dje"] == []
+
+
+def test_publicacoes_dje_preserved_when_already_populated():
+    # When a record already carries publicacoes_dje (e.g. re-reshape of
+    # a v7 record), the reshape must not clobber it with [].
+    raw = {
+        "_meta": {"schema_version": 7, "status_http": 200, "extraido": "2026-04-19T00:00:00"},
+        "classe": "HC", "processo_id": 158802,
+        "publicacoes_dje": [{"numero": 204, "decisoes": []}],
+    }
+    out = reshape_to_v7(raw)
+    assert out["publicacoes_dje"] == [{"numero": 204, "decisoes": []}]
+
+
+# ----- Idempotency + v7 control --------------------------------------------
 
 def test_v7_control_is_unchanged(v7_control):
     expected = copy.deepcopy(v7_control)
