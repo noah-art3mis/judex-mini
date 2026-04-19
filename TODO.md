@@ -1,5 +1,3 @@
-- [!] update old data
-    - fix renormalizer to re-extract without crashing because it didnt find all the fields. mostly concerned with using the new author data. it crases because of lacking the pautas 
 - [x] fix input cli
     - [ ] fix docs
 - [ ] build warehouse

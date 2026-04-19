@@ -227,6 +227,79 @@ migration.
   `andamentos`/`documentos`/`pautas` slots for those rows). If a
   cross-case query mysteriously misses andamentos for a chunk of
   older HCs, that's the explanation, not a v6 regression.
+- **2026-04-19 ~09:30 — second renormalize pass, with two fixes.**
+  Complaint from TODO: old data still used truncated
+  `#partes-resumidas` authors + stale `primeiro_autor`; pautas
+  empty. Two code changes shipped (+11 unit tests, 391 suite green,
+  ground-truth 0 diffs):
+  - `scripts/renormalize_cases.py`: split `TABS` into
+    `_REQUIRED_TABS` (detalhe, informacoes, partes, andamentos,
+    sessao) and `_OPTIONAL_TABS` (decisoes, deslocamentos, peticoes,
+    recursos, pautas). Missing optional → `""` placeholder
+    (extractors no-op on empty); missing required → still
+    `needs_rescrape`. Prior strict all-or-nothing `_read_all_cached`
+    was punting cases to rescrape just because their cache predated
+    `abaPautas`/`abaDecisoes` (added in commit 1241d22).
+  - `src/data/reshape.py`: `reshape_to_v6` now re-derives
+    `primeiro_autor` via `extract_primeiro_autor(partes)`. Derived
+    value wins; stale falls back to existing when partes has no
+    matching `AUTHOR_PARTY_TIPOS` prefix.
+- **2026-04-19 ~09:31 — shape-only pass, whole corpus.**
+  `uv run python scripts/renormalize_cases.py --mode shape-only
+  --force --workers 4` → **79,742 files in 84.2 s, 947 f/s,
+  0 error, 0 needs_rescrape.** All files now structurally v6.
+  But shape-only can't fix content drift: on-disk partes lists
+  were still `#partes-resumidas`-collapsed for ~95 % of HC files.
+- **2026-04-19 ~09:33 → 09:48 — full-mode pass, whole corpus.**
+  `uv run python scripts/renormalize_cases.py --force --workers 8`
+  → **ok=34,816 / needs_rescrape=44,926 / error=0, wall 886.2 s
+  (90 f/s aggregate, ~37 f/s real-extraction rate).** Significant
+  uplift: prior pass was ok=12,669; today's is ok=34,816 (**2.75×
+  improvement**) due to the optional-tabs relaxation letting cases
+  whose caches predated `abaPautas`/`abaDecisoes` rebuild from
+  what's actually present.
+- **Content uplift on the re-extracted slice** (5000-file sample,
+  split by bucket):
+
+  |                        | Re-extracted (n=2228) | Still truncated (n=2772) |
+  |------------------------|:---------------------:|:------------------------:|
+  | `"E OUTRO"` sentinel   | **0.0 %**             | 21.8 %                   |
+  | Multi-IMPTE present    | **25.9 %**            | 3.0 %                    |
+  | PROC entry present     | 10.5 %                | 1.2 %                    |
+  | `pautas` populated     | **18.7 %**            | 0 %                      |
+
+  "E OUTRO" sentinel dropped from 21.8 % → 0 % on re-extracted
+  files; multi-IMPTE presence jumped 3 % → 26 % (≈9× more full
+  lawyer rosters surfaced); pautas now populated in 18.7 % of
+  re-extracted HCs (was 0 % — field was empty until v6 added
+  `extract_pautas`). These are the concrete payoffs of the
+  `#todas-partes` + typed-pauta + re-derivation work.
+- **2026-04-19 ~09:50 — root cause of the 44,926 rescrape cliff.**
+  **78.5 % (35,254 files) have a flat-directory HTML cache** —
+  the pre-tar.gz format (`HC_N/abaXxx.html.gz` per-tab files)
+  that `html_cache.read` doesn't open. Only 21.5 % (9,671) have
+  no cache at all. The renormalizer's `_read_all_cached` assumes
+  tar.gz; it predates (or missed) the cache-format migration.
+  Three recovery options:
+  - **A (fast)**: one-shot converter flat-dir → tar.gz for the
+    35,254 recoverable cases, then re-run renormalizer. Zero
+    HTTP, ~5 min wall estimated.
+  - **B (thorough)**: `run_sweep.py --csv
+    runs/active/renormalize_needs_rescrape.csv` — refresh HTML +
+    handles the 9,671 no-cache tail in one pass. ~90 min WAF-bound.
+  - **C (permanent)**: teach `html_cache.read` to fall back to
+    flat-dir when tar.gz absent (~20 LOC). Covers any future
+    flat-dir cache that slips in too.
+- **2026-04-19 ~09:55 — warehouse rebuilt post-migration.**
+  `uv run python scripts/build_warehouse.py` →
+  `data/warehouse/judex.duckdb`, **722 MB, 117.6 s, 79,742 cases
+  / 268,157 partes / 1,086,647 andamentos / 30,504 documentos
+  / 30,387 pdfs.** Warehouse now reflects the re-extracted slice
+  with untruncated partes + populated pautas. Same caveat as
+  before: 56 % of rows still carry the pre-migration truncated
+  content because they're in the rescrape bucket. A
+  `reextracted_at` / `content_version` column would let analyses
+  filter to the clean slice; not yet added.
 
 ## Re-extraction status — what's v6, what isn't
 
@@ -238,16 +311,20 @@ the current code. State of that re-extraction:
 
 | Bucket | Count | Re-extracted? | What still needs to happen |
 |---|---|---|---|
-| Renormalized to v6 (`_meta.schema_version=6`)         | 12,669 | ✅ done — full extractor chain re-ran on cached HTML in the 2026-04-19 00:55 UTC pass         | nothing |
-| `needs_rescrape` (incomplete HTML cache, mostly v2 on disk) | 44,926 | ❌ **NOT** re-extracted — renormalizer short-circuited because cached HTML lacked `abaPautas` / sessão JSON | (1) re-fetch HTML (`run_sweep.py --csv runs/active/renormalize_needs_rescrape.csv`); (2) re-run `renormalize_cases.py` |
-| New captures from 2026-04-19 overnight (tiers 0–3)    | **22,147 net-new HC cases** | ✅ born v6 (current scraper writes v6 directly) | nothing |
+| Renormalized to v6 (full-mode, today's second pass)   | **34,816** | ✅ done — extractor chain re-ran on cached HTML 2026-04-19 09:48; `#todas-partes` partes + typed pauta + re-derived `primeiro_autor` | nothing |
+| Shape-only migrated only                              | **44,926** | ⚠️ structure-v6 but content-stale — `_meta` slot + ISO dates + dict-shaped outcome in place, but partes are still `#partes-resumidas`-truncated and pautas are empty | depends on recovery path (see below) |
+| **Rescrape cliff — flat-directory HTML cache on disk** | **35,254** | ❌ recoverable locally: cache exists in pre-tar.gz per-tab format, renormalizer doesn't read it | one-shot flat-dir→tar.gz converter + re-run renormalizer (~5 min, zero HTTP) OR fall-back reader in `html_cache.read` |
+| **Rescrape cliff — no cache at all**                   | **9,671**  | ❌ genuinely absent: never scraped-with-cache or cache deleted | `run_sweep.py --csv runs/active/renormalize_needs_rescrape.csv` — WAF-bound, ~90 min |
+| New captures from 2026-04-19 overnight (tiers 0–3)    | 22,147 net-new HC cases | ✅ born v6 (current scraper writes v6 directly) | nothing |
 
 **The 2026-04-19 overnight did NOT touch the 44,926 stale-cache
 bucket** — those IDs were already on disk (just stale-shape) so
 the year-gap CSV generator excluded them. They remain on the
-explicit rescrape backlog (open question 3). Estimated wall to
-clear them: ~90 min WAF-bound rescrape + ~5 min renormalize
-re-run.
+explicit rescrape backlog (open question 3). Revised recovery
+path after today's root-cause analysis (2026-04-19 ~09:50):
+35,254 have flat-directory cache recoverable locally (~5 min
+with a format-converter one-shot); only 9,671 truly need an
+HTTP rescrape (~20 min at the smaller count).
 
 ## Decisions
 
@@ -267,14 +344,20 @@ re-run.
    rot.
 2. ~~`scripts/renormalize_cases.py` still has a stale `to_iso`
    import reference~~ — resolved; grep confirms absence.
-3. **Rescrape 44 926 or not?** Three options on the table:
-   (a) stop here — 22 % v6 coverage is enough to validate the
-   warehouse end-to-end; rescrape when there's a research need;
-   (b) fire `scripts/run_sweep.py --csv
-   runs/active/renormalize_needs_rescrape.csv` (8-shard, ~90 min,
-   WAF-bound) then re-run renormalizer; (c) triage the CSV first
-   (age distribution, date_protocolo coverage) to cut the target
-   by ~50 % before rescraping. Not yet decided.
+3. **Clear the 44 926 rescrape cliff — which path?** Root cause
+   (2026-04-19 ~09:50): **78.5 % (35,254) have flat-directory
+   HTML cache locally**, unread by the renormalizer; only 21.5 %
+   (9,671) truly lack cache. Three options:
+   (a) stop here — 34,816 v6-content files (44 % of corpus) is
+   enough to validate the warehouse end-to-end; defer until
+   analyses demand broader coverage;
+   (b) **flat-dir → tar.gz converter** (zero HTTP) + re-run
+   renormalizer on the 35,254 — clears the biggest slice cheaply;
+   follow with targeted sweep on the residual 9,671;
+   (c) **permanent fix in `html_cache.read`**: fall back to
+   flat-dir when tar.gz absent, ~20 LOC. Makes the renormalizer
+   idempotent across both formats without a one-shot migration.
+   Preference: (c) + (b) residual sweep. Not yet decided.
 4. **Strategy retrospective**: a principled v5→v6 migration could
    have been JSON-only (10× faster) for ~90 % of the diff (key
    renames + `_meta` wrap + date-format change), with HTML only
