@@ -28,7 +28,7 @@ import os
 import sys
 from pathlib import Path
 
-from scripts import _pdf_cli
+from src.sweeps import pdf_cli as _pdf_cli
 from src.scraping.ocr import OCRConfig
 from src.sweeps.extract_driver import run_extract_sweep
 

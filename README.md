@@ -186,9 +186,11 @@ da PGR). Quando você quer o **texto** desses PDFs também, rode dois
 comandos em sequência — eles são independentes de propósito:
 
 1. **`baixar-pdfs`** — baixa os bytes dos PDFs para
-   `data/cache/pdf/<hash>.pdf.gz`. Esta é a única parte que volta a
-   falar com o portal do STF, então está sujeita aos mesmos limites de
-   taxa do `varrer-processos`.
+   `data/cache/pdf/<hash>.pdf.gz`. É a única parte que volta a falar
+   com o STF, mas vai para um domínio diferente
+   (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio
+   orçamento de taxa — na prática, 403 aqui é bem mais raro que no
+   `varrer-processos`, e o comando roda sempre direto (sem proxy).
 2. **`extrair-pdfs --provedor <X>`** — lê os bytes do disco e extrai
    o texto via o provedor escolhido. Nenhuma chamada ao STF.
    Provedores suportados: `pypdf` (local, grátis, camada de texto;
@@ -301,9 +303,15 @@ tempo. O bloqueio dura alguns minutos e libera sozinho. O que fazer:
 
 - **Espere 5 a 10 minutos** e tente de novo.
 - **Rode intervalos menores** (ex.: 50 processos por vez, não 1000).
-- Para extrações grandes (centenas ou milhares de processos), existem
-  ferramentas de *sweep* com retry automático e pacing configurável —
-  veja [`CLAUDE.md`](CLAUDE.md).
+- Para varreduras grandes, `varrer-processos` aceita `--proxy-pool`
+  (arquivo com uma URL de proxy por linha) e faz rotação automática
+  de IP antes de estourar o limite da WAF. Já o `baixar-pdfs` roda
+  sempre direto — não usa proxy, mas como vive em outro domínio
+  (`sistemas.stf.jus.br`) com contador próprio, normalmente também
+  não precisa.
+- Para sweeps em massa, existem ferramentas com retry automático,
+  disjuntor e pacing configurável — detalhes em
+  [`CLAUDE.md`](CLAUDE.md).
 
 ### O arquivo de saída não aparece
 

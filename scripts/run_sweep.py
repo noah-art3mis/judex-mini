@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 from urllib.parse import urlparse
 
-from scripts._diff import diff_item
+from src.sweeps.diff_harness import diff_item
 from src.sweeps import shared as _shared
 from src.config import ScraperConfig
 from src.scraping.http_session import RetryableHTTPError, new_session
@@ -91,7 +91,7 @@ _JSON_LIST_COLS = {
 _INT_COLS = {"incidente", "processo_id", "volumes", "folhas", "apensos", "status"}
 
 # Fields we skip when diffing because they're known to differ by design
-# (matches scripts/_diff.SKIP_FIELDS).
+# (matches src.sweeps.diff_harness.SKIP_FIELDS).
 _CSV_SKIP_FIELDS = {"extraido", "sessao_virtual", "status"}
 
 

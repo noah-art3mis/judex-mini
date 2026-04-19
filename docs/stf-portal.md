@@ -144,7 +144,7 @@ carry three shapes (MI/RE/AI: `{data,tipo,numero,relator,status,participantes}`;
 ACO_2652: `{lista,relator,orgao_julgador,voto_texto,…}`;
 ADI_2820_reread: `{metadata,voto_relator,votes,documentos,julgamento_item_titulo}`).
 The HTTP path commits to the ADI shape. `sessao_virtual` is a SKIP
-field in `scripts/_diff.SKIP_FIELDS` — unit tests validate the
+field in `src.sweeps.diff_harness.SKIP_FIELDS` — unit tests validate the
 parsers instead.
 
 ## PDF origin — different hostname, different throttle

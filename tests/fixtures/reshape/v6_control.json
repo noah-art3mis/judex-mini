@@ -1,0 +1,290 @@
+{
+  "_meta": {
+    "schema_version": 6,
+    "status_http": 200,
+    "extraido": "2026-04-19T00:20:01.230812"
+  },
+  "incidente": 4756517,
+  "classe": "HC",
+  "processo_id": 127663,
+  "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=4756517",
+  "numero_unico": "0001294-76.2015.1.00.0000",
+  "meio": "ELETRONICO",
+  "publicidade": "PUBLICO",
+  "badges": [
+    "Medida Liminar",
+    "Réu Preso"
+  ],
+  "assuntos": [
+    "DIREITO PROCESSUAL PENAL | Execução Penal e de Medidas Alternativas | Pena Privativa de Liberdade | Progressão de Regime"
+  ],
+  "data_protocolo": "2015-04-14",
+  "orgao_origem": "TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO",
+  "origem": "SP - SÃO PAULO",
+  "numero_origem": [
+    "553959",
+    "553959"
+  ],
+  "volumes": 1,
+  "folhas": 0,
+  "apensos": null,
+  "relator": "MINISTRO PRESIDENTE",
+  "primeiro_autor": "RENATO ALEXANDRE TRONCONI",
+  "partes": [
+    {
+      "index": 1,
+      "tipo": "PACTE.(S)",
+      "nome": "RENATO ALEXANDRE TRONCONI"
+    },
+    {
+      "index": 2,
+      "tipo": "IMPTE.(S)",
+      "nome": "RENATO ALEXANDRE TRONCONI"
+    },
+    {
+      "index": 3,
+      "tipo": "COATOR(A/S)(ES)",
+      "nome": "JUIZ DE DIREITO DA VARA DE EXECUÇÃO CRIMINAL DA COMARCA DE ITAPETINGA"
+    }
+  ],
+  "andamentos": [
+    {
+      "index": 20,
+      "data": "2022-08-01",
+      "nome": "AUTOS DISPONIBILIZADOS À ORIGEM",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 19,
+      "data": "2015-06-15",
+      "nome": "JUNTADA DE AR",
+      "complemento": "REFERENTE AO OFÍCIO 9781/2015",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 18,
+      "data": "2015-05-22",
+      "nome": "EXPEDIDO OFÍCIO Nº",
+      "complemento": "1707SEJ, ao Secretário Judiciário do Tribunal de Justiça do Estado de São Paulo. JL695661793BR",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 17,
+      "data": "2015-05-18",
+      "nome": "PETIÇÃO",
+      "complemento": "24411/2015 - 18/05/2015 - SGPDOC nº 30131/2015, Defensoria Pública do Estado de São Paulo, 8/5/2015 - acusa o recebimento do Ofício n. 9695/2015, de 29/4/2015, e presta informações. Resolução n. 522/2014.",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 16,
+      "data": "2015-05-14",
+      "nome": "EXPEDIDO(A)",
+      "complemento": "INFORMAÇÃO BAIXA PROCESSO ENVIO DECISÃO - SEBE",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 15,
+      "data": "2015-05-14",
+      "nome": "COMUNICAÇÃO ASSINADA",
+      "complemento": "INFORMAÇÃO BAIXA PROCESSO ENVIO DECISÃO - SEBE",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 14,
+      "data": "2015-05-13",
+      "nome": "BAIXA DEFINITIVA DOS AUTOS",
+      "complemento": "Guia: 23745/2015 - TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO",
+      "julgador": null,
+      "link": {
+        "tipo": "TERMO DE BAIXA",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=306800722&ext=.pdf",
+        "text": null,
+        "extractor": null
+      }
+    },
+    {
+      "index": 13,
+      "data": "2015-05-13",
+      "nome": "JUNTADA DE AR",
+      "complemento": "REFERENTE AO OFÍCIO 9695/2015",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 12,
+      "data": "2015-05-12",
+      "nome": "REMESSA",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 11,
+      "data": "2015-05-12",
+      "nome": "TRANSITADO(A) EM JULGADO",
+      "complemento": "Em 12/05/2015",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 10,
+      "data": "2015-05-04",
+      "nome": "EXPEDIDO(A)",
+      "complemento": "COMUNICAÇÃO DECISÃO ÍNTEGRA PACIENTE/IMPETRANTE - SEJ",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 9,
+      "data": "2015-05-04",
+      "nome": "EXPEDIDO(A)",
+      "complemento": "Envio Decisão Defensor Público - SEJ",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 8,
+      "data": "2015-05-04",
+      "nome": "PUBLICAÇÃO, DJE",
+      "complemento": "DJE nº 81, divulgado em 30/04/2015",
+      "julgador": null,
+      "link": {
+        "tipo": "DECISÃO MONOCRÁTICA",
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15334624199&ext=.pdf",
+        "text": null,
+        "extractor": null
+      }
+    },
+    {
+      "index": 7,
+      "data": "2015-04-30",
+      "nome": "COMUNICAÇÃO ASSINADA",
+      "complemento": "COMUNICAÇÃO DECISÃO ÍNTEGRA PACIENTE/IMPETRANTE - SEJ",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 6,
+      "data": "2015-04-30",
+      "nome": "COMUNICAÇÃO ASSINADA",
+      "complemento": "Envio Decisão Defensor Público - SEJ",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 5,
+      "data": "2015-04-29",
+      "nome": "CERTIDÃO",
+      "complemento": "Certifico que elaborei 2 Ofícios. Decisão de 27/04/15.",
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 4,
+      "data": "2015-04-29",
+      "nome": "NEGADO SEGUIMENTO",
+      "complemento": null,
+      "julgador": "PRESIDÊNCIA",
+      "link": null
+    },
+    {
+      "index": 3,
+      "data": "2015-04-16",
+      "nome": "CONCLUSOS À PRESIDÊNCIA",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 2,
+      "data": "2015-04-16",
+      "nome": "REGISTRADO À PRESIDÊNCIA",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    },
+    {
+      "index": 1,
+      "data": "2015-04-16",
+      "nome": "AUTUADO",
+      "complemento": null,
+      "julgador": null,
+      "link": null
+    }
+  ],
+  "sessao_virtual": [],
+  "deslocamentos": [
+    {
+      "index": 7,
+      "guia": "23745/2015",
+      "recebido_por": "TRIBUNAL DE JUSTIÇA DO ESTADO DE SÃO PAULO",
+      "data_recebido": null,
+      "enviado_por": "SEÇÃO DE BAIXA E EXPEDIÇÃO",
+      "data_enviado": "2015-05-13"
+    },
+    {
+      "index": 6,
+      "guia": "6967/2015",
+      "recebido_por": "SEÇÃO DE BAIXA E EXPEDIÇÃO",
+      "data_recebido": "2015-05-12",
+      "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_enviado": "2015-05-12"
+    },
+    {
+      "index": 5,
+      "guia": "2667/2015",
+      "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_recebido": "2015-05-05",
+      "enviado_por": "SEÇÃO DE COMUNICAÇÕES",
+      "data_enviado": "2015-05-05"
+    },
+    {
+      "index": 4,
+      "guia": "6221/2015",
+      "recebido_por": "SEÇÃO DE COMUNICAÇÕES",
+      "data_recebido": "2015-04-29",
+      "enviado_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_enviado": "2015-04-29"
+    },
+    {
+      "index": 3,
+      "guia": "2465/2015",
+      "recebido_por": "SEÇÃO DE PROCESSOS ORIGINÁRIOS CRIMINAIS",
+      "data_recebido": "2015-04-29",
+      "enviado_por": "PRESIDÊNCIA",
+      "data_enviado": "2015-04-29"
+    },
+    {
+      "index": 2,
+      "guia": "3375/2015",
+      "recebido_por": "PRESIDÊNCIA",
+      "data_recebido": "2015-04-16",
+      "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "data_enviado": "2015-04-16"
+    },
+    {
+      "index": 1,
+      "guia": "3369/2015",
+      "recebido_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "data_recebido": "2015-04-16",
+      "enviado_por": "SEÇÃO DE RECEBIMENTO E DISTRIBUIÇÃO DE ORIGINÁRIOS",
+      "data_enviado": "2015-04-16"
+    }
+  ],
+  "peticoes": [],
+  "recursos": [],
+  "pautas": [],
+  "outcome": {
+    "verdict": "nao_conhecido",
+    "source": "andamentos",
+    "source_index": 4,
+    "date_iso": "2015-04-29"
+  }
+}

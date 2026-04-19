@@ -93,7 +93,7 @@ parser bug in one of them.
   - Transition: HC 80000, 120000, 180000
   - Modern: 5 spread across 200000..270000
 - Confirm each returns 200 via HTTP first (skip 404s, pick replacements).
-- Scrape each via both backends, diff JSON (reuse `scripts/_diff.py`).
+- Scrape each via both backends, diff JSON (reuse `src/sweeps/diff_harness.py`).
 - Extend `SKIP_FIELDS` only where truly schema-divergent
   (e.g. `sessao_virtual` shape mismatch already documented).
 - Exit: table of (field, disagreements) written to

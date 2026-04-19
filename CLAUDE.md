@@ -28,17 +28,23 @@ uv run python main.py ...
 uv add <pkg>
 ```
 
-Scripts that import `src.*` or `scripts.*` need `PYTHONPATH=.`:
+Scripts import `src.*` directly — no `PYTHONPATH=.` needed. The repo
+is an editable install (hatchling `packages = ["src"]` in pyproject);
+`uv sync` puts `src` on the venv's import path. Pytest picks up the
+`scripts/` directory via `[tool.pytest.ini_options] pythonpath = ["."]`
+in pyproject, so tests that `from scripts.run_sweep import ...` also
+work with no env var.
+
 ```bash
-PYTHONPATH=. uv run python scripts/validate_ground_truth.py
-PYTHONPATH=. uv run python scripts/run_sweep.py ...
+uv run python scripts/validate_ground_truth.py
+uv run python scripts/run_sweep.py ...
 ```
 
 ## Testing
 
 ```bash
-uv run pytest tests/unit/                                        # fast, <3 s — run before every change
-PYTHONPATH=. uv run python scripts/validate_ground_truth.py      # parity vs. hand-verified JSON
+uv run pytest tests/unit/                               # fast, <3 s — run before every change
+uv run python scripts/validate_ground_truth.py         # parity vs. hand-verified JSON
 ```
 
 ## Non-obvious gotchas

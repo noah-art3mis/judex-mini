@@ -71,6 +71,7 @@ from src.scraping.extraction import sessao as sessao_ex
 from src.scraping.scraper import (
     DETALHE,
     TAB_ANDAMENTOS,
+    TAB_DECISOES,
     TAB_DESLOCAMENTOS,
     TAB_INFORMACOES,
     TAB_PARTES,
@@ -78,10 +79,10 @@ from src.scraping.scraper import (
     TAB_PETICOES,
     TAB_RECURSOS,
     TAB_SESSAO,
-    TABS,
     _canonical_url,
     _extract_tema_from_abasessao,
 )
+from src.data.reshape import reshape_to_v6
 from src.utils import html_cache, pdf_cache
 
 CASES_ROOT = Path("data/cases")
@@ -123,18 +124,49 @@ def _cache_only_pdf_fetcher():
     return fetcher
 
 
+# Tabs the current extractors read to rebuild an StfItem. Missing →
+# needs_rescrape (we can't synthesize partes or andamentos from nothing).
+_REQUIRED_TABS: tuple[str, ...] = (
+    TAB_INFORMACOES,
+    TAB_PARTES,
+    TAB_ANDAMENTOS,
+    TAB_SESSAO,
+)
+
+# Tabs the rebuild reads only for their own derived field, or that have
+# no extractor at all (TAB_DECISOES). Every extractor over these tabs
+# no-ops on empty input (`find_all` returns []). So a cache archive
+# written before these tabs were added to TABS can still renormalize —
+# the corresponding list field just falls out empty, which is the same
+# shape a live scrape would produce when the tab has no rows.
+_OPTIONAL_TABS: tuple[str, ...] = (
+    TAB_DECISOES,
+    TAB_DESLOCAMENTOS,
+    TAB_PETICOES,
+    TAB_RECURSOS,
+    TAB_PAUTAS,
+)
+
+
 def _read_all_cached(classe: str, processo: int) -> Optional[dict[str, str]]:
-    """Return dict of {tab: html} or None if any fragment is missing."""
+    """Return dict of {tab: html} or None if any required fragment is missing.
+
+    Optional tabs fall through as empty strings when absent. This keeps
+    pre-v6 cache archives (which predate `abaPautas` + `abaDecisoes`)
+    renormalizable from partes + andamentos alone.
+    """
     out: dict[str, str] = {}
     detalhe = html_cache.read(classe, processo, DETALHE)
     if detalhe is None:
         return None
     out[DETALHE] = detalhe
-    for tab in TABS:
+    for tab in _REQUIRED_TABS:
         h = html_cache.read(classe, processo, tab)
         if h is None:
             return None
         out[tab] = h
+    for tab in _OPTIONAL_TABS:
+        out[tab] = html_cache.read(classe, processo, tab) or ""
     return out
 
 
@@ -229,7 +261,9 @@ def _atomic_write_json(path: Path, item: StfItem) -> None:
     os.replace(tmp, path)
 
 
-def _process_file(path: Path, *, force: bool, dry_run: bool) -> RenormResult:
+def _process_file(
+    path: Path, *, force: bool, dry_run: bool, mode: str = "full"
+) -> RenormResult:
     try:
         existing = _load_existing(path)
     except Exception as e:
@@ -242,6 +276,19 @@ def _process_file(path: Path, *, force: bool, dry_run: bool) -> RenormResult:
     current_version = meta.get("schema_version") or existing.get("schema_version")
     if not force and current_version == SCHEMA_VERSION:
         return RenormResult(path, "already_current")
+
+    if mode == "shape-only":
+        try:
+            new_item = reshape_to_v6(existing)
+        except Exception as e:
+            return RenormResult(path, "error", f"reshape: {type(e).__name__}: {e}")
+        if dry_run:
+            return RenormResult(path, "ok", "dry-run")
+        try:
+            _atomic_write_json(path, new_item)
+        except Exception as e:
+            return RenormResult(path, "error", f"write: {e}")
+        return RenormResult(path, "ok")
 
     classe = existing.get("classe")
     processo = existing.get("processo_id")
@@ -314,6 +361,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--report-every", type=int, default=500,
         help="log a progress line every N files.",
     )
+    ap.add_argument(
+        "--mode", choices=("full", "shape-only"), default="full",
+        help=(
+            "full: re-run extractors against cached HTML (canonical; "
+            "needs full HTML cache or short-circuits to needs_rescrape). "
+            "shape-only: pure JSON v1/v2/v3 → v6 dict surgery, no HTML "
+            "or PDF reads — recovers files the full path would skip."
+        ),
+    )
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -327,8 +383,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     print(
         f"scanning {len(paths)} files "
-        f"(SCHEMA_VERSION={SCHEMA_VERSION}, force={args.force}, "
-        f"dry_run={args.dry_run}, workers={args.workers})",
+        f"(SCHEMA_VERSION={SCHEMA_VERSION}, mode={args.mode}, "
+        f"force={args.force}, dry_run={args.dry_run}, "
+        f"workers={args.workers})",
         flush=True,
     )
 
@@ -354,11 +411,22 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.workers <= 1:
         for i, p in enumerate(paths, 1):
-            _tally(_process_file(p, force=args.force, dry_run=args.dry_run), i)
+            _tally(
+                _process_file(
+                    p, force=args.force, dry_run=args.dry_run, mode=args.mode
+                ),
+                i,
+            )
     else:
         with ProcessPoolExecutor(max_workers=args.workers) as pool:
             futures = [
-                pool.submit(_process_file, p, force=args.force, dry_run=args.dry_run)
+                pool.submit(
+                    _process_file,
+                    p,
+                    force=args.force,
+                    dry_run=args.dry_run,
+                    mode=args.mode,
+                )
                 for p in paths
             ]
             for i, fut in enumerate(as_completed(futures), 1):

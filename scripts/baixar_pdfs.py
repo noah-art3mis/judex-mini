@@ -29,7 +29,7 @@ import logging
 import sys
 from pathlib import Path
 
-from scripts import _pdf_cli
+from src.sweeps import pdf_cli as _pdf_cli
 from src.sweeps.download_driver import run_download_sweep
 
 

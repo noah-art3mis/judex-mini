@@ -1,0 +1,236 @@
+[
+  {
+    "schema_version": 3,
+    "incidente": 7189114,
+    "classe": "HC",
+    "processo_id": 253283,
+    "url": "https://portal.stf.jus.br/processos/detalhe.asp?incidente=7189114",
+    "numero_unico": "0097404-88.2025.1.00.0000",
+    "meio": "ELETRONICO",
+    "publicidade": "PUBLICO",
+    "badges": [
+      "Criminal",
+      "Medida Liminar",
+      "Assistência Judiciária Gratuita"
+    ],
+    "assuntos": [
+      "DIREITO PENAL | Parte Geral | Aplicação da Pena | Regime inicial",
+      "DIREITO PENAL | Parte Geral | Aplicação da Pena"
+    ],
+    "data_protocolo": "11/03/2025",
+    "data_protocolo_iso": "2025-03-11",
+    "orgao_origem": "SUPREMO TRIBUNAL FEDERAL",
+    "origem": "SP - SÃO PAULO",
+    "numero_origem": [
+      "253283",
+      "965075",
+      "202404565125",
+      "15018359020238260535",
+      "21766092023",
+      "2176609882023030212",
+      "00974048820251000000"
+    ],
+    "volumes": null,
+    "folhas": null,
+    "apensos": null,
+    "relator": "CÁRMEN LÚCIA",
+    "primeiro_autor": "KEROLLEM CRISTINA MACHADO DE SA",
+    "partes": [
+      {
+        "index": 1,
+        "tipo": "PACTE.(S)",
+        "nome": "KEROLLEM CRISTINA MACHADO DE SA"
+      },
+      {
+        "index": 2,
+        "tipo": "IMPTE.(S)",
+        "nome": "DEFENSORIA PÚBLICA DO ESTADO DE SÃO PAULO"
+      },
+      {
+        "index": 3,
+        "tipo": "ADV.(A/S)",
+        "nome": "DEFENSOR PÚBLICO-GERAL DO ESTADO DE SÃO PAULO"
+      },
+      {
+        "index": 4,
+        "tipo": "COATOR(A/S)(ES)",
+        "nome": "SUPERIOR TRIBUNAL DE JUSTIÇA"
+      }
+    ],
+    "andamentos": [
+      {
+        "index_num": 10,
+        "data": "28/03/2025",
+        "data_iso": "2025-03-28",
+        "nome": "BAIXA AO ARQUIVO DO STF",
+        "complemento": "Guia: 11296/2025 - COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 9,
+        "data": "28/03/2025",
+        "data_iso": "2025-03-28",
+        "nome": "TRANSITADO(A) EM JULGADO",
+        "complemento": "28/03/2025",
+        "julgador": null,
+        "link_descricao": "CERTIDÃO DE TRÂNSITO EM JULGADO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15375295830&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 8,
+        "data": "17/03/2025",
+        "data_iso": "2025-03-17",
+        "nome": "INTIMADO ELETRONICAMENTE",
+        "complemento": "DEFENSOR PÚBLICO-GERAL DO ESTADO DE SÃO PAULO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 7,
+        "data": "17/03/2025",
+        "data_iso": "2025-03-17",
+        "nome": "INTIMAÇÃO ELETRÔNICA DISPONIBILIZADA",
+        "complemento": "Intimação de Despacho, Decisão ou Acórdão - DEFENSOR PÚBLICO-GERAL DO ESTADO DE SÃO PAULO",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 6,
+        "data": "17/03/2025",
+        "data_iso": "2025-03-17",
+        "nome": "PUBLICAÇÃO, DJE",
+        "complemento": "Divulgado em 14/03/2025",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 5,
+        "data": "14/03/2025",
+        "data_iso": "2025-03-14",
+        "nome": "NEGADO SEGUIMENTO",
+        "complemento": null,
+        "julgador": "MIN. CÁRMEN LÚCIA",
+        "link_descricao": "DECISÃO MONOCRÁTICA",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15374794345&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 4,
+        "data": "11/03/2025",
+        "data_iso": "2025-03-11",
+        "nome": "CONCLUSOS AO(À) RELATOR(A)",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 3,
+        "data": "11/03/2025",
+        "data_iso": "2025-03-11",
+        "nome": "DISTRIBUÍDO",
+        "complemento": "MIN. CÁRMEN LÚCIA",
+        "julgador": null,
+        "link_descricao": "CERTIDÃO",
+        "link": {
+          "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=15374659230&ext=.pdf",
+          "text": null
+        }
+      },
+      {
+        "index_num": 2,
+        "data": "11/03/2025",
+        "data_iso": "2025-03-11",
+        "nome": "AUTUADO",
+        "complemento": null,
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      },
+      {
+        "index_num": 1,
+        "data": "11/03/2025",
+        "data_iso": "2025-03-11",
+        "nome": "PROTOCOLADO",
+        "complemento": "Petição Inicial (nº 29561) recebida em 11/03/2025, às 14:15:13",
+        "julgador": null,
+        "link_descricao": null,
+        "link": null
+      }
+    ],
+    "sessao_virtual": [],
+    "deslocamentos": [
+      {
+        "index_num": 4,
+        "guia": "11296/2025",
+        "recebido_por": "COORDENADORIA DE GESTÃO DA INFORMAÇÃO, MEMÓRIA INSTITUCIONAL E MUSEU",
+        "data_recebido": "28/03/2025",
+        "data_recebido_iso": "2025-03-28",
+        "enviado_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
+        "data_enviado": "28/03/2025",
+        "data_enviado_iso": "2025-03-28"
+      },
+      {
+        "index_num": 3,
+        "guia": "1455/2025",
+        "recebido_por": "GERÊNCIA DE RECURSOS CRIMINAIS E HABEAS CORPUS",
+        "data_recebido": "14/03/2025",
+        "data_recebido_iso": "2025-03-14",
+        "enviado_por": "GABINETE MINISTRA CÁRMEN LÚCIA",
+        "data_enviado": "14/03/2025",
+        "data_enviado_iso": "2025-03-14"
+      },
+      {
+        "index_num": 2,
+        "guia": "2773/2025",
+        "recebido_por": "GABINETE MINISTRA CÁRMEN LÚCIA",
+        "data_recebido": "11/03/2025",
+        "data_recebido_iso": "2025-03-11",
+        "enviado_por": "GERÊNCIA DE AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE ORIGINÁRIOS CRIMINAIS",
+        "data_enviado": "11/03/2025",
+        "data_enviado_iso": "2025-03-11"
+      },
+      {
+        "index_num": 1,
+        "guia": "4982082/2025",
+        "recebido_por": "GERÊNCIA DE AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE ORIGINÁRIOS CRIMINAIS",
+        "data_recebido": "11/03/2025",
+        "data_recebido_iso": "2025-03-11",
+        "enviado_por": "DIVERSOS",
+        "data_enviado": "11/03/2025",
+        "data_enviado_iso": "2025-03-11"
+      }
+    ],
+    "peticoes": [
+      {
+        "index": 1,
+        "id": "29561/2025",
+        "data": "11/03/2025",
+        "data_iso": "2025-03-11",
+        "recebido_data": "11/03/2025 14:14:43",
+        "recebido_data_iso": "2025-03-11",
+        "recebido_por": "GERÊNCIA DE AUTUAÇÃO, ANÁLISE DE PREVENÇÃO E DISTRIBUIÇÃO DE ORIGINÁRIOS CRIMINAIS"
+      }
+    ],
+    "recursos": [],
+    "pautas": [],
+    "outcome": {
+      "verdict": "nao_conhecido",
+      "source": "andamentos",
+      "source_index": 5,
+      "date_iso": "2025-03-14"
+    },
+    "status_http": 200,
+    "extraido": "2026-04-18T22:02:23.559251"
+  }
+]

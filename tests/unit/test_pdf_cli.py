@@ -19,7 +19,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts import _pdf_cli
+from src.sweeps import pdf_cli as _pdf_cli
 from src.sweeps.pdf_targets import PdfTarget
 from src.utils import pdf_cache
 

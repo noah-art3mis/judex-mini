@@ -375,7 +375,7 @@ with a different shape:
 Mixed-shape lists are unusual; consumers should check for `"tipo":
 "tema"` before assuming the ADI shape.
 
-### Why `sessao_virtual` is in `scripts/_diff.SKIP_FIELDS`
+### Why `sessao_virtual` is in `src.sweeps.diff_harness.SKIP_FIELDS`
 
 Captured ground-truth fixtures have inconsistent shapes (Selenium-era
 capture sometimes emits different keys), so parity diffs false-positive.

@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-from scripts._filters import split_csv
 from src.scraping.ocr.dispatch import estimate_cost, estimate_wall
 from src.sweeps.pdf_targets import (
     PdfTarget,
@@ -22,6 +21,7 @@ from src.sweeps.pdf_targets import (
     targets_from_range,
 )
 from src.utils import pdf_cache
+from src.utils.filters import split_csv
 
 
 # Rough anchors used by the preview. The ~2 MB/PDF and ~5 pg/PDF numbers

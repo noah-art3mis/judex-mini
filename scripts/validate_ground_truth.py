@@ -24,7 +24,7 @@ import urllib3
 from pathlib import Path
 from typing import Any
 
-from scripts._diff import diff_item
+from src.sweeps.diff_harness import diff_item
 from src.scraping.http_session import new_session
 from src.scraping.scraper import scrape_processo_http
 
