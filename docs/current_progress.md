@@ -78,6 +78,7 @@ Collect all HCs + PDF bytes + extracted text for 12 marquee criminal-defense law
 - **Phase 4 coverage**: 98.1 % text cached across all lawyers; per-lawyer range 94–100 %. Toron 99 % (432 / 436), Bottini 99 % (186 / 188), Pedro M. de Almeida Castro 97 % (256 / 263).
 - **Phase 5 cleanup** first pass: rewrote 29,807 / 31,737 files, `chars_after = 197,722,778` (−22 % size). Dry-run predicted −55,796,634 chars; actual was −55,762,231 — +34 k char preservation exactly equal to the `{A, E, O, À}` stop-list sparing `TORON E OUTRO` patterns. **Second pass rewrote 3,415 files for −10,814 chars** — the non-idempotency that's the open question.
 - **Sample text quality (post-cleanup), Toron HC 195830 DECISÃO MONOCRÁTICA**: `HABEAS CORPUS 195.830 SÃO PAULO / RELATOR : MIN. MARCO AURÉLIO / … IMPTE.(S) :ALBERTO ZACHARIAS TORON E OUTRO(A/S) / COATOR(A/S)(ES) :RELATOR DO HC Nº 632.905 DO SUPERIOR TRIBUNAL DE JUSTIÇA` — clean.
+- **Blog-export pipeline** (2026-04-19 late evening, tangent). `scripts/export_blog_post.py` turns the cross-lawyer notebook (`analysis/reports/2026-04-19-hc-famous-lawyers.py`, 682 lines / 34 KB) into a Ghost-ready bundle at `exports/hc_famous_lawyers_blog/`: (a) `post.md` — full prose + two `GHOST-HTML-CARD` markers; (b) `assets/tabela_advogados.html` — 12-lawyer ranking as `great_tables` styled HTML, heatmap on `% procedência`, scoped CSS; (c) `assets/fig_advogados.html` — Plotly fragment (`include_plotlyjs='cdn', full_html=False`); (d) `assets/fig_advogados.png` — 1920×1080 kaleido fallback. Prose extraction is a `mo\.md\(r"""…"""\)` regex + `len==6` assertion (tripwire if notebook cells get rewritten). Live/frozen drift surfaced at build time: prose cites 53.816 HCs / 183 banca; live warehouse returns **79.742 HCs / 279 banca** (48 %/52 % growth). Qualitative conclusions *strengthen* — bulk procedência fell 5.56 %→4.79 %, óbice procedimental rose 52.3 %→57.6 %, banca-vs-bulk multiplier widened 1.6× → 2.09×. Added a methodology callout block that interpolates the current numbers into the top of `post.md`. Bundle also zipped at `exports/hc_famous_lawyers_blog.zip` (137 KB) for manual sending. `uv add great_tables kaleido` brought in 15 transitive deps (babel, choreographer for headless Chromium, htmltools, …); kaleido 1.x worked first try on WSL2 without the `--single-process` workaround older guides still recommend.
 
 ## Decisions
 
@@ -106,6 +107,7 @@ Collect all HCs + PDF bytes + extracted text for 12 marquee criminal-defense law
 
 - New: `judex/sweeps/shard_launcher.py`, `judex/utils/pricing.py`, `judex/scraping/ocr/cleanup.py`, `scripts/clean_pdf_text.py`, `scripts/baixar_pecas.py` (proxy-pool flags), tests `tests/unit/test_shard_launcher.py`, `test_pricing.py`, `test_pdf_text_cleanup.py`.
 - Edited: `judex/cli.py` (proxy + sharded flags on `baixar-pecas`), `judex/sweeps/download_driver.py` (pool + rotation + cost), `judex/sweeps/extract_driver.py` (cost line), `scripts/run_sweep.py` (cost line), `judex/scraping/ocr/dispatch.py` (positional `config` fix), `CLAUDE.md` (`## CLI` section), `tests/unit/test_download_driver.py` (+3 tests).
+- Blog-export tangent: New `scripts/export_blog_post.py`; generated `exports/hc_famous_lawyers_blog/{post.md, README.md, assets/tabela_advogados.html, assets/fig_advogados.html, assets/fig_advogados.png}` + `exports/hc_famous_lawyers_blog.zip`. `pyproject.toml` / `uv.lock` gained `great_tables` + `kaleido` (+ 13 transitive deps).
 - Test count: 441 → 475 (all green under the pre-rename `src.*` path; needs re-run post-rename).
 
 ---
@@ -218,6 +220,27 @@ Carried over from the archived cycle's "Analytical readiness" section
 
 ### Operational hygiene
 
+- **`data/cache/html/` carries two generations side-by-side** (measured
+  2026-04-19, during a Drive-backup sizing pass). Three disjoint buckets
+  totalling 4.5 GB: **22,303 tar-only** (656 MB) — cases scraped under
+  the current per-case `.tar.gz` layout (`judex/utils/html_cache.py:28`);
+  **16,188 paired** (1.2 GB legacy dirs + 517 MB current tars) — rescraped
+  under the new layout but the old per-file-gz dir was never swept;
+  **32,171 dir-only** (2.3 GB) — old per-file-gz layout, never retouched,
+  **invisible to `html_cache.has_case()`** so the pipeline treats these
+  cases as un-scraped. Tar and dir are *not* content-equal for paired
+  cases — ACO_2652 showed the tar carrying 15 `dje_detail_*.html` pages
+  the dir lacks. Overlaps with but is narrower than the 44,926 rescrape
+  cliff below (the cliff's "78.5 % flat-directory" figure is the
+  intersection, not the count of legacy dirs on disk). Two independent
+  free wins: (i) delete the **paired** dirs after a content-superset
+  verify — ~1.2 GB back, zero pipeline impact (tars are already
+  authoritative); (ii) offline-migrate **dir-only** cases to `.tar.gz`
+  (read the `.html.gz` members, retar — no HTTP), cuts ~1 GB more and
+  unifies `has_case()` coverage. Path (ii) is a cleaner resolution of
+  the cliff entry's flat-dir gap than the proposed
+  "permanent fall-back in `html_cache.read`" — rewrite the bytes once
+  instead of teaching the reader to grok two layouts forever.
 - **Bytes-cache suffix rename** `<sha1>.pdf.gz` → `<sha1>.bytes.gz`.
   Full playbook in the Reference section below; safe to run now that
   no `baixar-pecas`/`extrair-pecas` process is live.
