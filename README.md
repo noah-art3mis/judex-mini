@@ -14,6 +14,56 @@ Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhad
 | `baixar-pecas`         | Baixa os bytes dos PDFs anexados para o cache local.                       |
 | `extrair-pecas`        | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
 | `atualizar-warehouse`  | Reconstrói o DuckDB analítico a partir dos JSONs + cache (zero HTTP).      |
+| `relatorio-diario`     | Relatório diário de novas distribuições (watchlist opcional para diffs).   |
+
+## Fluxo completo
+
+Do zero a um warehouse consultável em SQL, cinco passos em ordem. Os dois primeiros falam com o STF; os três seguintes são locais (zero HTTP).
+
+```text
+  1. varrer-processos     ← HTTP (portal.stf.jus.br)
+  2. baixar-pecas         ← HTTP (sistemas.stf.jus.br)
+  3. extrair-pecas        ← local (lê bytes do cache, escreve texto)
+  4. aggregate_dead_ids   ← local (compila sweep.state.json → cemitério)
+  5. atualizar-warehouse  ← local (JSONs + cache → DuckDB)
+```
+
+| # | Comando                                                     | Pule se…                                                                    |
+|---|-------------------------------------------------------------|-----------------------------------------------------------------------------|
+| 1 | `judex varrer-processos`                                    | nunca — é a base de tudo                                                    |
+| 2 | `judex baixar-pecas`                                        | só quer metadados                                                           |
+| 3 | `judex extrair-pecas`                                       | baixou bytes mas o texto não importa                                        |
+| 4 | `uv run python scripts/aggregate_dead_ids.py --classe HC`   | sweep pequeno; em sweeps de milhares, rode entre 1 e 5 — no próximo sweep passe `--excluir-mortos data/dead_ids/HC.txt` para pular IDs já confirmados como "não existem" no STF |
+| 5 | `judex atualizar-warehouse`                                 | consulta os JSONs direto (raro)                                             |
+
+O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este `processo_id` nunca foi alocado") de todos os sweeps já feitos e grava em `data/dead_ids/<classe>.txt` os IDs confirmados (≥ 2 observações com `body_head=""`). A tabela `<classe>.candidates.tsv` ao lado guarda a auditoria completa.
+
+**Exemplo concreto para 2026** (HC, ids 267138..271138):
+
+```bash
+# 1. Metadados — sharded com rotação de proxy (~60 min em 8 shards)
+uv run judex varrer-processos -c HC -i 267138 -f 271138 \
+  --rotulo hc_2026 --saida runs/active/hc-2026 \
+  --diretorio-itens data/cases/HC \
+  --shards 8 --proxy-pool-dir config/
+
+# 2. Bytes dos PDFs — sharded (~30 min)
+uv run judex baixar-pecas -c HC -i 267138 -f 271138 \
+  --saida runs/active/hc-2026-bytes --nao-perguntar \
+  --shards 8 --proxy-pool-dir config/
+
+# 3. Texto via pypdf, zero HTTP (~10 min)
+uv run judex extrair-pecas -c HC -i 267138 -f 271138 \
+  --saida runs/active/hc-2026-text --nao-perguntar
+
+# 4. Agrega IDs mortos de todos os sweeps já feitos (~5 s, local)
+uv run python scripts/aggregate_dead_ids.py --classe HC
+# → data/dead_ids/HC.txt + HC.candidates.tsv
+
+# 5. Rebuild do warehouse (só 2026, swap atômico, ~5 s)
+uv run judex atualizar-warehouse --ano 2026 --classe HC \
+  --saida data/warehouse/judex-2026.duckdb
+```
 
 ## Funcionalidades
 
@@ -293,6 +343,19 @@ O scraper rotaciona proativamente: cada IP é usado por ~4,5 min e fica ~4 min e
 
 **`baixar-pecas` também aceita `--proxy-pool`.** Vive em `sistemas.stf.jus.br` — domínio separado, contador de reputação próprio, bem mais tolerante que `portal.stf.jus.br`, então em volumes pequenos roda direto. Em sweeps grandes (milhares de PDFs), o modo shardeado (`--shards N --proxy-pool-dir D`) é o caminho: particiona o CSV e distribui um pool de proxies por shard.
 
+**Convenção do diretório de proxies (modo shardeado).** O launcher espera um arquivo por shard, nomeado `proxies.<letra>.txt` e pega os **N primeiros em ordem alfabética**. Ou seja:
+
+```
+config/
+├── proxies.a.txt        ← usado pelo shard-a
+├── proxies.b.txt        ← shard-b
+├── proxies.c.txt
+...
+└── proxies.p.txt        ← shard-p (16º)
+```
+
+Cada arquivo tem uma URL de proxy por linha (mesmo formato do `--proxy-pool`). Para `--shards 8` bastam `proxies.{a..h}.txt`; para `--shards 16`, adicione `proxies.{i..p}.txt`. O launcher falha limpo (`ProxyPoolShortage`) se o número de arquivos for menor que o número de shards pedido.
+
 ### 7.4 Disjuntor (circuit breaker)
 
 Para evitar queimar proxy e IP quando o WAF entra em regime de bloqueio total, `varrer-processos` embute um disjuntor ligado por padrão: mantém uma janela rolante das últimas raspagens e, se a fração de falhas ultrapassa o limiar, o sweep para limpo (escreve estado, sai com código 2). Em paralelo, o `CliffDetector` classifica o regime WAF em tempo real (`healthy` / `approaching_collapse` / `engaged` / `collapse`) e dispara rotação preventiva de proxy antes da janela expirar. Detalhes em [`docs/rate-limits.md`](docs/rate-limits.md).
@@ -358,6 +421,23 @@ O portal do STF bloqueia IPs que fazem requisições demais em pouco tempo. O bl
 - **Rode intervalos menores** (ex.: 50 processos por vez, não 1000).
 - Para varreduras de milhares de processos, use rotação de proxy + disjuntor — receita completa em **[§ 7.3](#73-rotação-de-proxy)** e **[§ 7.4](#74-disjuntor-circuit-breaker)**. O `baixar-pecas` vive em outro domínio (`sistemas.stf.jus.br`) com contador próprio e bem mais tolerante — em volumes pequenos roda direto; para milhares de PDFs, passe `--proxy-pool` ou use o modo shardeado.
 - Para detalhes técnicos (retry, pacing, regime WAF), ver [`docs/rate-limits.md`](docs/rate-limits.md) e [`CLAUDE.md`](CLAUDE.md).
+
+### Shards pararam antes do fim (`CliffDetector collapse`)
+
+Em sweeps longos com rotação de proxy, o `CliffDetector` pode decidir que o regime WAF entrou em colapso e parar o shard limpo. Acontece principalmente quando o provedor de proxy tem a reputação degradada no STF (o próprio host/ASN é que está hot, não o seu IP). Sintomas:
+
+- Tempos por caso escalam: 2 s → 30 s → 60 s → 100 s antes da parada
+- Driver log termina com `[regime] warming → collapse` e `Stopping cleanly — cool down ≥60 min before --resume`
+- `pgrep` para o shard parado retorna vazio; o `sweep.state.json` dele congela em X/500
+
+O que fazer, em ordem de invasividade:
+
+1. **Aguardar ≥60 min e relançar com `--retomar`.** Suficiente para o WAF "esquecer" a reputação na maioria dos casos.
+2. **Trocar para IP direto.** Relance a varredura sem `--proxy-pool` — seu IP tem contador próprio, intocado pelo sweep que colapsou. Adequado para recuperar algumas centenas de IDs.
+3. **Desligar o detector:** `--ignorar-collapse` mantém o sweep rodando apesar dos picos. Só vale em IP direto — em pool de proxy, o detector existe para proteger a reputação do pool.
+4. **Trocar de provedor de proxy.** Se o provedor atual já queimou a reputação no STF, nenhum cooldown razoável recupera — precisa de outra ASN.
+
+Depois de qualquer relançamento, rode `uv run python scripts/aggregate_dead_ids.py --classe HC` para o cemitério absorver as observações `NoIncidente` capturadas antes do colapso — isso acelera a próxima tentativa via `--excluir-mortos`.
 
 ---
 
