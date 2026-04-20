@@ -19,6 +19,7 @@ Exemplos:
     uv run judex baixar-pecas -c HC -i 252920 -f 253000        # download bytes
     uv run judex extrair-pecas -c HC -i 252920 -f 253000 \\
         --provedor mistral --nao-perguntar                     # OCR a partir do cache
+    uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
     uv run judex exportar --apenas hc_famous_lawyers
     uv run judex sondar-densidade --classe HC --amostras 20
 """
@@ -240,6 +241,26 @@ def varrer_processos(
         None, "--proxy-pool",
         help="Arquivo com uma URL de proxy por linha; habilita rotação proativa.",
     ),
+    shards: int = typer.Option(
+        0, "--shards",
+        help="Se > 1, particiona o CSV em N shards e dispara N processos "
+             "paralelos (um por shard), cada um com seu próprio --proxy-pool "
+             "retirado de --proxy-pool-dir. Exige --csv, --saida, --rotulo "
+             "e --proxy-pool-dir.",
+    ),
+    proxy_pool_dir: Optional[Path] = typer.Option(
+        None, "--proxy-pool-dir",
+        help="Diretório com arquivos proxies.<letra>.txt; usado apenas em "
+             "modo sharded (--shards > 1). O launcher pega os N primeiros em "
+             "ordem alfabética (proxies.a.txt, proxies.b.txt, ...).",
+    ),
+    excluir_mortos: Optional[Path] = typer.Option(
+        None, "--excluir-mortos",
+        help="Caminho para um arquivo <classe>.txt (um processo_id por "
+             "linha) gerado por scripts/aggregate_dead_ids.py; IDs "
+             "listados são omitidos da varredura. Aplicável em modo "
+             "range — filtra o CSV sintetizado.",
+    ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
 
@@ -310,19 +331,32 @@ def varrer_processos(
 
         saida.mkdir(parents=True, exist_ok=True)
 
+        # Carrega dead-IDs se o usuário passou --excluir-mortos.
+        if excluir_mortos is not None:
+            from judex.utils.dead_ids import load_dead_ids
+            dead = load_dead_ids(excluir_mortos)
+        else:
+            dead = set()
+
         # Grava o CSV persistente dentro de --saida (não em /tmp): fica
         # auditável ao lado dos demais artefatos da varredura.
         tmp_csv = saida / "input.csv"
+        n_written = 0
         with tmp_csv.open("w", encoding="utf-8", newline="") as fp:
             writer = _csv.writer(fp)
             writer.writerow(["classe", "processo"])
             for p in range(processo_inicial, processo_final + 1):
+                if p in dead:
+                    continue
                 writer.writerow([classe.upper(), p])
+                n_written += 1
         csv = tmp_csv
 
+        total = processo_final - processo_inicial + 1
+        dead_msg = f", {total - n_written} morto(s) excluído(s)" if dead else ""
         typer.echo(
             f"Modo range: {classe} {processo_inicial}..{processo_final} "
-            f"({processo_final - processo_inicial + 1} processo(s)). "
+            f"({n_written} processo(s){dead_msg}). "
             f"Rótulo={rotulo!r}, saída={saida}."
         )
 
@@ -335,6 +369,55 @@ def varrer_processos(
         raise typer.BadParameter(
             "--saida é obrigatório quando a entrada é --csv ou --retentar-de."
         )
+
+    # Modo shardeado: particiona o CSV em N e dispara N filhos detach.
+    # Mesma forma que baixar-pecas --shards — inclusive PIDs/monitor.
+    if shards > 1:
+        if csv is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --csv (sharding particiona o CSV). "
+                "Modo range já sintetizou um CSV; mas --shards + range "
+                "só faz sentido acima de ~milhares de processos."
+            )
+        if proxy_pool_dir is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --proxy-pool-dir (um pool por shard)."
+            )
+
+        from judex.sweeps.shard_launcher import (
+            ProxyPoolShortage,
+            launch_sharded_sweep,
+        )
+
+        # Flags que valem a pena carregar para todos os shards. Tradução
+        # Typer(pt) → argparse do run_sweep(en) acontece aqui — o launcher
+        # fala a linguagem do script, não do Typer.
+        extra: list[str] = []
+        _push(extra, "--resume", retomar)
+        _push(extra, "--items-dir", diretorio_itens)
+        _push(extra, "--progress-every", progresso_cada)
+        _push(extra, "--cliff-window", janela_cliff)
+        _push(extra, "--no-stop-on-collapse", ignorar_collapse)
+        if not retry_403:
+            extra.append("--no-retry-403")
+
+        try:
+            pids_path = launch_sharded_sweep(
+                csv_path=csv,
+                shards=shards,
+                proxy_pool_dir=proxy_pool_dir,
+                saida_root=saida,
+                label_prefix=rotulo,
+                extra_args=extra,
+            )
+        except ProxyPoolShortage as e:
+            raise typer.BadParameter(str(e))
+
+        typer.echo(f"Lançou {shards} shards em background.")
+        typer.echo(f"  PIDs:   {pids_path}")
+        typer.echo(f"  Watch:  pgrep -af {rotulo}_shard_")
+        typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
+        raise typer.Exit(code=0)
 
     argv: list[str] = ["--label", rotulo, "--out", str(saida)]
     _push(argv, "--csv", csv)
@@ -609,6 +692,63 @@ def extrair_pecas(
 
     from scripts.extrair_pecas import main as _extrair_main
     raise typer.Exit(code=_extrair_main(argv))
+
+
+# ---------------------------------------------------------------------------
+# `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
+
+
+@app.command(name="atualizar-warehouse")
+def atualizar_warehouse(
+    diretorio_casos: Path = typer.Option(
+        Path("data/cases"), "--diretorio-casos",
+        help="Raiz dos JSONs de caso (particionados por classe).",
+    ),
+    diretorio_cache_pdf: Path = typer.Option(
+        Path("data/cache/pdf"), "--diretorio-cache-pdf",
+        help="Cache de PDFs (.txt.gz / .elements.json.gz / .extractor).",
+    ),
+    saida: Path = typer.Option(
+        Path("data/warehouse/judex.duckdb"), "--saida",
+        help="Caminho do arquivo .duckdb de saída (swap atômico).",
+    ),
+    classe: Optional[list[str]] = typer.Option(
+        None, "--classe",
+        help="Restringe a ingestão a uma ou mais classes (repita p/ várias).",
+    ),
+    ano: Optional[int] = typer.Option(
+        None, "--ano",
+        help="Filtra para um ano de HC via hc_calendar (exige --classe HC).",
+    ),
+    progresso_cada: int = typer.Option(
+        10_000, "--progresso-cada",
+        help="Frequência (em processos) das linhas de progresso no stdout.",
+    ),
+) -> None:
+    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de PDFs.
+
+    Full-rebuild com swap atômico — não há modo incremental. Os JSONs
+    em ``data/cases/`` continuam sendo a fonte de verdade; o warehouse
+    é um artefato derivado, regenerável. Custo típico: ~2–3 min para
+    ~55k casos, ~15–20 min para 350k.
+
+    O comando não fala com a rede — é puro scan local de JSON + gzip.
+    Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
+    quiser ver os dados novos nos notebooks / em SQL.
+    """
+    argv: list[str] = []
+    _push(argv, "--cases-root", diretorio_casos)
+    _push(argv, "--pdf-cache-root", diretorio_cache_pdf)
+    _push(argv, "--output", saida)
+    if classe:
+        for c in classe:
+            argv.extend(["--classe", c])
+    _push(argv, "--year", ano)
+    _push(argv, "--progress-every", progresso_cada)
+
+    from scripts.build_warehouse import main as _bw_main
+
+    raise typer.Exit(code=_bw_main(argv))
 
 
 # ---------------------------------------------------------------------------

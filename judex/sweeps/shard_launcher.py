@@ -91,6 +91,80 @@ def _real_spawn(argv: list[str], cwd: Path, driver_log: Path) -> int:
     return proc.pid
 
 
+def launch_sharded_sweep(
+    *,
+    csv_path: Path,
+    shards: int,
+    proxy_pool_dir: Path,
+    saida_root: Path,
+    label_prefix: str,
+    extra_args: Optional[list[str]] = None,
+    spawn: Optional[SpawnFn] = None,
+) -> Path:
+    """Partition CSV, spawn N detached run_sweep children, return PIDs file.
+
+    Sibling of :func:`launch_sharded_download`, targeting
+    ``scripts/run_sweep.py`` (case JSON scrape) instead of
+    ``scripts/baixar_pecas.py`` (PDF bytes). Same partition rule, same
+    per-shard directory layout, same pids-file contract — the differences
+    are:
+
+    - **Label is mandatory.** ``run_sweep`` requires ``--label`` to name
+      its sweep.state.json + sweep.log.jsonl; per-shard label is
+      ``<label_prefix>_shard_<letter>`` so ``pgrep -f <label>`` targets a
+      single shard and so shard logs don't cross-contaminate.
+    - **Target script** is ``scripts/run_sweep.py`` (the WAF-hot half).
+    - ``extra_args`` typically includes ``--resume`` + ``--items-dir
+      data/cases/<CLASSE>``; the caller owns the choice.
+
+    Raises :class:`ValueError` if ``label_prefix`` is empty — we'd
+    otherwise silently spawn shards with ambiguous labels.
+    """
+    if shards < 2:
+        raise ValueError("launch_sharded_sweep requires shards >= 2")
+    if not label_prefix:
+        raise ValueError(
+            "launch_sharded_sweep requires a non-empty label_prefix "
+            "(run_sweep's --label is mandatory)"
+        )
+    # Resolve spawn at call time so monkeypatching _real_spawn (e.g. from
+    # CLI integration tests) reaches this path without callers needing to
+    # pass spawn= explicitly.
+    if spawn is None:
+        spawn = _real_spawn
+    extra_args = list(extra_args or [])
+
+    saida_root.mkdir(parents=True, exist_ok=True)
+    shards_dir = saida_root / "shards"
+    shard_files = shard_csv(csv_path, shards, shards_dir)
+
+    pools = discover_proxy_pools(proxy_pool_dir, shards)
+
+    repo_root = Path.cwd()
+    pids_path = saida_root / "shards.pids"
+    lines: list[str] = []
+
+    for shard_csv_path, pool_path in zip(shard_files, pools):
+        letter = pool_path.stem.split(".")[1]  # proxies.a.txt -> "a"
+        shard_saida = saida_root / f"shard-{letter}"
+        shard_saida.mkdir(parents=True, exist_ok=True)
+
+        argv = [
+            "uv", "run", "python", "scripts/run_sweep.py",
+            "--csv", str(shard_csv_path),
+            "--label", f"{label_prefix}_shard_{letter}",
+            "--out", str(shard_saida),
+            "--proxy-pool", str(pool_path),
+            *extra_args,
+        ]
+        driver_log = shard_saida / "driver.log"
+        pid = spawn(argv, repo_root, driver_log)
+        lines.append(f"{pid}  shard-{letter}")
+
+    pids_path.write_text("\n".join(lines) + "\n")
+    return pids_path
+
+
 def launch_sharded_download(
     *,
     csv_path: Path,

@@ -1,5 +1,6 @@
 """Generate a (classe, processo) CSV for one HC year, filtering out IDs
-already on disk under `data/cases/HC/`.
+already on disk under `data/cases/HC/` and (optionally) IDs confirmed
+dead in `data/dead_ids/HC.txt`.
 
 Used by the year-priority 4-shard backfill (see
 `docs/hc-backfill-extension-plan.md`). The output CSV contains only
@@ -8,12 +9,13 @@ to `scripts/shard_csv.py` + `scripts/run_sweep.py`.
 
 Usage:
 
-    PYTHONPATH=. uv run python scripts/generate_hc_year_gap_csv.py \\
+    uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2026 --out tests/sweep/hc_2026_gap.csv
 
-    # Override the captures directory (default: data/cases/HC)
-    PYTHONPATH=. uv run python scripts/generate_hc_year_gap_csv.py \\
-        --year 2025 --out /tmp/hc_2025_gap.csv --cases-dir data/cases/HC
+    # Exclude dead IDs aggregated from past sweeps
+    uv run python scripts/generate_hc_year_gap_csv.py \\
+        --year 2026 --out /tmp/hc_2026_gap.csv \\
+        --dead-ids data/dead_ids/HC.txt
 """
 
 from __future__ import annotations
@@ -21,7 +23,9 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
+from typing import Optional
 
+from judex.utils.dead_ids import load_dead_ids
 from judex.utils.hc_calendar import year_to_id_range
 
 
@@ -48,10 +52,16 @@ def captured_ids(cases_dir: Path) -> set[int]:
     return out
 
 
-def write_gap_csv(year: int, out_path: Path, cases_dir: Path) -> int:
+def write_gap_csv(
+    year: int,
+    out_path: Path,
+    cases_dir: Path,
+    dead_ids_path: Optional[Path] = None,
+) -> int:
     lo, hi = year_to_id_range(year)
     have = captured_ids(cases_dir)
-    gap = [n for n in range(hi, lo - 1, -1) if n not in have]
+    dead = load_dead_ids(dead_ids_path) if dead_ids_path else set()
+    gap = [n for n in range(hi, lo - 1, -1) if n not in have and n not in dead]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="") as f:
@@ -60,10 +70,11 @@ def write_gap_csv(year: int, out_path: Path, cases_dir: Path) -> int:
         for n in gap:
             w.writerow(["HC", n])
 
+    dead_in_range = sum(1 for n in range(lo, hi + 1) if n in dead)
     print(
         f"year={year} range={lo}..{hi} width={hi - lo + 1} "
         f"have={sum(1 for n in range(lo, hi + 1) if n in have)} "
-        f"gap={len(gap)} → {out_path}"
+        f"dead={dead_in_range} gap={len(gap)} → {out_path}"
     )
     return len(gap)
 
@@ -73,8 +84,15 @@ def main() -> None:
     ap.add_argument("--year", type=int, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--cases-dir", type=Path, default=Path("data/cases/HC"))
+    ap.add_argument(
+        "--dead-ids", type=Path, default=None,
+        help="Optional path to a dead-ID file (one pid per line) — IDs "
+             "listed there are excluded from the gap CSV. Typical: "
+             "data/dead_ids/HC.txt, produced by "
+             "scripts/aggregate_dead_ids.py.",
+    )
     args = ap.parse_args()
-    write_gap_csv(args.year, args.out, args.cases_dir)
+    write_gap_csv(args.year, args.out, args.cases_dir, dead_ids_path=args.dead_ids)
 
 
 if __name__ == "__main__":

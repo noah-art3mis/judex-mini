@@ -76,3 +76,27 @@ def test_write_gap_csv_emits_header_only_when_fully_captured(
     with out.open(newline="") as f:
         rows = list(csv.reader(f))
     assert rows == [["classe", "processo"]]
+
+
+def test_write_gap_csv_excludes_dead_ids(tmp_path: Path) -> None:
+    """IDs listed in dead_ids_path must be excluded from the gap CSV."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    # range 100..104; capture 101; mark 102 and 104 as dead; expect gap = [103, 100]
+    _touch(cases, "judex-mini_HC_101-101.json")
+    dead = tmp_path / "dead.txt"
+    dead.write_text("102\n104\n")
+
+    out = tmp_path / "gap.csv"
+    with patch(
+        "scripts.generate_hc_year_gap_csv.year_to_id_range",
+        return_value=(100, 104),
+    ):
+        count = write_gap_csv(
+            year=2024, out_path=out, cases_dir=cases, dead_ids_path=dead,
+        )
+
+    assert count == 2
+    with out.open(newline="") as f:
+        rows = list(csv.reader(f))
+    assert rows[1:] == [["HC", "103"], ["HC", "100"]]
