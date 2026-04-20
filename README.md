@@ -8,11 +8,12 @@ Este README é o **guia prático para rodar a ferramenta**. Detalhes de arquitet
 
 Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhada com `--help`):
 
-| Comando              | O que faz                                                                  |
-|----------------------|----------------------------------------------------------------------------|
-| `varrer-processos`   | Raspa metadados de processos do STF (partes, andamentos, PDFs, etc.).      |
-| `baixar-pecas`       | Baixa os bytes dos PDFs anexados para o cache local.                       |
-| `extrair-pecas`      | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
+| Comando                | O que faz                                                                  |
+|------------------------|----------------------------------------------------------------------------|
+| `varrer-processos`     | Raspa metadados de processos do STF (partes, andamentos, PDFs, etc.).      |
+| `baixar-pecas`         | Baixa os bytes dos PDFs anexados para o cache local.                       |
+| `extrair-pecas`        | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
+| `atualizar-warehouse`  | Reconstrói o DuckDB analítico a partir dos JSONs + cache (zero HTTP).      |
 
 ## Funcionalidades
 

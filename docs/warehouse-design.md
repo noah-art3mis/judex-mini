@@ -184,10 +184,12 @@ CREATE TABLE manifest (
 
 ## Build pipeline
 
-### `scripts/build_warehouse.py`
+### `judex atualizar-warehouse` (→ `scripts/build_warehouse.py`)
 
-Manual trigger (`uv run python scripts/build_warehouse.py`). Three
-phases, each idempotent:
+Manual trigger. User-facing entrypoint is the Typer command
+`uv run judex atualizar-warehouse`; it's a thin wrapper over
+`scripts/build_warehouse.py:main(argv)`, which still works if
+invoked directly. Three phases, each idempotent:
 
 ```
 1. Enumerate inputs
@@ -247,17 +249,20 @@ Keep this for v2. v1 is full rebuild.
 
 Three triggers, pick the simplest you tolerate:
 
-1. **Manual** — `uv run python scripts/build_warehouse.py`. Cost:
-   human has to remember. Fine for exploratory use.
-2. **Post-sweep** — `run_sweep.py`'s `_finalize()` calls
-   `build_warehouse.py` on success. Cost: 2-3 min added to each
-   sweep. Rebuilds stale data automatically.
+1. **Manual** — `uv run judex atualizar-warehouse` (shipped v1).
+   Cost: human has to remember. Fine for exploratory use and the
+   recommended default — see `judex/cli.py` and
+   `scripts/build_warehouse.py`.
+2. **Post-sweep** — `run_sweep.py`'s `_finalize()` calls the
+   builder on success. Cost: 2-3 min added to each sweep. Rebuilds
+   stale data automatically. Not wired.
 3. **Cron** — `/schedule` nightly. Cost: wastes build time on
    days nothing scraped. Simplest ops story.
 
-Recommendation: **manual for v1**. Add post-sweep in v2 once
-build-time settles. Don't cron — wasted rebuilds on quiet days
-aren't free.
+Recommendation: **manual for v1** (current state). Add post-sweep
+in v2 only if the "stale warehouse" friction becomes real. Don't
+cron — wasted rebuilds on quiet days aren't free, and shared
+`.duckdb` under sharded sweeps would race the swap.
 
 ## Usage examples
 

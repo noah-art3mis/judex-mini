@@ -417,8 +417,8 @@ uv run python scripts/validate_ground_truth.py                # 0 diffs expected
 uv run python -c "from judex.utils import peca_cache; print(peca_cache.has_bytes('https://portal.stf.jus.br/processos/downloadPeca.asp?id=15386152898&ext=.pdf'))"
 
 # 4) rebuild warehouse — pdfs.cache_path column embeds the old filename
-uv run python scripts/build_warehouse.py --year 2026
-uv run python scripts/build_warehouse.py                      # full corpus
+uv run judex atualizar-warehouse --ano 2026 --classe HC
+uv run judex atualizar-warehouse                              # full corpus
 
 # 5) commit
 #    chore(cache): rename bytes-cache suffix .pdf.gz → .bytes.gz
@@ -454,13 +454,18 @@ uv run python scripts/extrair_pecas.py \
 
 ```bash
 # Full rebuild (~168 s on 79k-case corpus)
-uv run python scripts/build_warehouse.py
+uv run judex atualizar-warehouse
 # → data/warehouse/judex.duckdb
 
 # Year-scoped rebuild (HC only; fast iteration — ~4.5 s for 2026)
-uv run python scripts/build_warehouse.py --year 2026 --classe HC
+uv run judex atualizar-warehouse --ano 2026 --classe HC \
+    --saida data/warehouse/judex-2026.duckdb
 # → data/warehouse/judex-2026.duckdb
 ```
+
+`uv run judex atualizar-warehouse` is a thin wrapper around
+`scripts/build_warehouse.py`; the script still works directly if
+you need argparse-style flags.
 
 ## Marimo notebooks / judex CLI hub
 

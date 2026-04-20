@@ -54,28 +54,47 @@ rebuilds argv and calls the `main()` of an argparse-based script in
 (`nohup uv run python scripts/baixar_pecas.py …`) without Typer in
 the picture.
 
-| Command              | Source                        | What it does                                                                                            |
-|----------------------|-------------------------------|---------------------------------------------------------------------------------------------------------|
-| `varrer-processos`   | `scripts/run_sweep.py`        | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool`; `--items-dir`.          |
-| `baixar-pecas`       | `scripts/baixar_pecas.py`     | PDF bytes download. `--proxy-pool`; sharded mode via `--shards N --proxy-pool-dir D`.                    |
-| `extrair-pecas`      | `scripts/extrair_pecas.py`    | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured}`. |
-| `exportar`           | (in-CLI)                      | Export the five HC Marimo notebooks to standalone interactive HTML.                                      |
-| `validar-gabarito`   | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                        |
-| `sondar-densidade`   | `scripts/class_density_probe.py` | Stratified density probe of process-id space per STF class (HC, ADI, RE, …).                         |
+| Command                | Source                             | What it does                                                                                            |
+|------------------------|------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `varrer-processos`     | `scripts/run_sweep.py`             | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool`; `--items-dir`; sharded mode via `--shards N --proxy-pool-dir D`.|
+| `baixar-pecas`         | `scripts/baixar_pecas.py`          | PDF bytes download. `--proxy-pool`; sharded mode via `--shards N --proxy-pool-dir D`.                   |
+| `extrair-pecas`        | `scripts/extrair_pecas.py`         | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured}`.|
+| `atualizar-warehouse`  | `scripts/build_warehouse.py`       | Rebuild `data/warehouse/judex.duckdb` from case JSONs + PDF cache. Full-rebuild, atomic swap, zero HTTP.|
+| `exportar`             | (in-CLI)                           | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
+| `validar-gabarito`     | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+| `sondar-densidade`     | `scripts/class_density_probe.py`   | Stratified density probe of process-id space per STF class (HC, ADI, RE, …).                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators) + the
 underlying script's argparse.
 
-**Sharded sweeps.** For >1000-target sweeps with proxy rotation:
-`uv run judex baixar-pecas --csv X.csv --saida out/ --shards 8
---proxy-pool-dir config/ --retomar --nao-perguntar`. Partitions the
-CSV range-wise, picks `proxies.{a..h}.txt` from `--proxy-pool-dir`,
-detaches N children, writes `out/shards.pids`. Monitor with
-`pgrep -af baixar_pecas` or read each `out/shard-<letter>/pdfs.state.json`.
-`xargs -a out/shards.pids kill -TERM` stops cleanly. The launcher lives
-in `judex/sweeps/shard_launcher.py`; the older shell equivalent for
-`run_sweep` is `scripts/launch_hc_backfill_sharded.sh`.
+**Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
+scrape layers support `--shards N --proxy-pool-dir D` — same semantics,
+same layout, different target script:
+
+```bash
+# Case JSON (WAF-hot)
+uv run judex varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
+    --shards 8 --proxy-pool-dir config/ --retomar
+
+# PDF bytes (sistemas.stf.jus.br)
+uv run judex baixar-pecas --csv X.csv --saida out/ --shards 8 \
+    --proxy-pool-dir config/ --retomar --nao-perguntar
+```
+
+Partitions the CSV range-wise, picks `proxies.{a..h}.txt` from
+`--proxy-pool-dir`, detaches N children (per-shard label
+`<rotulo>_shard_<letter>` for `varrer-processos`; per-shard dir only
+for `baixar-pecas`), writes `out/shards.pids`. Monitor with
+`pgrep -af <rotulo>_shard_` (varrer) or `pgrep -af baixar_pecas`
+(baixar), or read each `out/shard-<letter>/sweep.state.json` /
+`.../pdfs.state.json`. `xargs -a out/shards.pids kill -TERM` stops
+cleanly. Both launchers live in `judex/sweeps/shard_launcher.py`
+(`launch_sharded_sweep` / `launch_sharded_download`). The CLI path is
+preferred for new sharded sweeps; `scripts/launch_hc_backfill_sharded.sh`
+is still valid when you need to **pre-seed each shard's
+`sweep.state.json` from an archived monolithic sweep** (to avoid
+re-fetching already-`ok` cases) — the CLI doesn't do that seeding step.
 
 ## Testing
 
