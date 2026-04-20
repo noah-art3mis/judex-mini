@@ -333,17 +333,17 @@ class ProcessResult:
 
 
 def _write_item_json(items_dir: Path, classe: str, processo: int, item_dict: dict) -> None:
-    """Atomic write of `[item]` to <items_dir>/judex-mini_<classe>_<n>-<n>.json.
+    """Atomic write of the scraped item to <items_dir>/judex-mini_<classe>_<n>-<n>.json.
 
-    One-file-per-process so parallel replay tools can walk the dir
-    unambiguously. Wrapped in a 1-element list to match the JSON
-    format main.py -o json emits.
+    One-file-per-process matches the canonical shape in data/cases/<CLASSE>/,
+    so passing --diretorio-itens data/cases/HC writes warehouse-ready JSONs
+    directly (no promote-with-unwrap step).
     """
     items_dir.mkdir(parents=True, exist_ok=True)
     path = items_dir / f"judex-mini_{classe}_{processo}-{processo}.json"
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(
-        json.dumps([item_dict], ensure_ascii=False, indent=2),
+        json.dumps(item_dict, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     tmp.replace(path)
