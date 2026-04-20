@@ -261,6 +261,13 @@ def varrer_processos(
              "listados são omitidos da varredura. Aplicável em modo "
              "range — filtra o CSV sintetizado.",
     ),
+    estrategia_shard: str = typer.Option(
+        "interleave", "--estrategia-shard",
+        help="Particionamento de CSV em modo sharded. 'interleave' "
+             "(padrão) distribui linhas round-robin entre shards, "
+             "equilibrando qualquer dimensão correlacionada com a "
+             "ordem do CSV. 'range' mantém pids contíguos por shard.",
+    ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
 
@@ -401,6 +408,11 @@ def varrer_processos(
         if not retry_403:
             extra.append("--no-retry-403")
 
+        if estrategia_shard not in ("interleave", "range"):
+            raise typer.BadParameter(
+                f"--estrategia-shard inválida: {estrategia_shard!r}. "
+                "Use 'interleave' ou 'range'."
+            )
         try:
             pids_path = launch_sharded_sweep(
                 csv_path=csv,
@@ -409,6 +421,7 @@ def varrer_processos(
                 saida_root=saida,
                 label_prefix=rotulo,
                 extra_args=extra,
+                strategy=estrategia_shard,  # type: ignore[arg-type]
             )
         except ProxyPoolShortage as e:
             raise typer.BadParameter(str(e))
@@ -558,6 +571,14 @@ def baixar_pecas(
              "primeiros em ordem alfabética (proxies.a.txt, proxies.b.txt, "
              "...).",
     ),
+    estrategia_shard: str = typer.Option(
+        "interleave", "--estrategia-shard",
+        help="Particionamento de CSV em modo sharded. 'interleave' "
+             "(padrão) distribui linhas round-robin entre shards, "
+             "equilibrando workloads correlacionados com a ordem do CSV "
+             "(ex.: URLs já em cache vs. fresh). 'range' mantém pids "
+             "contíguos por shard.",
+    ),
 ) -> None:
     """Baixa PDFs do STF para o cache local de bytes.
 
@@ -597,6 +618,11 @@ def baixar_pecas(
         _push(extra, "--forcar", forcar)
         _push(extra, "--nao-perguntar", nao_perguntar)
 
+        if estrategia_shard not in ("interleave", "range"):
+            raise typer.BadParameter(
+                f"--estrategia-shard inválida: {estrategia_shard!r}. "
+                "Use 'interleave' ou 'range'."
+            )
         try:
             pids_path = launch_sharded_download(
                 csv_path=csv,
@@ -604,6 +630,7 @@ def baixar_pecas(
                 proxy_pool_dir=proxy_pool_dir,
                 saida_root=saida,
                 extra_args=extra,
+                strategy=estrategia_shard,  # type: ignore[arg-type]
             )
         except ProxyPoolShortage as e:
             raise typer.BadParameter(str(e))

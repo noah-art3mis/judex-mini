@@ -32,7 +32,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 
-from scripts.shard_csv import shard_csv
+from scripts.shard_csv import ShardStrategy, shard_csv
 
 
 _PROXY_FILE_RE = re.compile(r"^proxies\.[a-z]\.txt$")
@@ -100,6 +100,7 @@ def launch_sharded_sweep(
     label_prefix: str,
     extra_args: Optional[list[str]] = None,
     spawn: Optional[SpawnFn] = None,
+    strategy: ShardStrategy = "interleave",
 ) -> Path:
     """Partition CSV, spawn N detached run_sweep children, return PIDs file.
 
@@ -136,7 +137,7 @@ def launch_sharded_sweep(
 
     saida_root.mkdir(parents=True, exist_ok=True)
     shards_dir = saida_root / "shards"
-    shard_files = shard_csv(csv_path, shards, shards_dir)
+    shard_files = shard_csv(csv_path, shards, shards_dir, strategy=strategy)
 
     pools = discover_proxy_pools(proxy_pool_dir, shards)
 
@@ -173,6 +174,7 @@ def launch_sharded_download(
     saida_root: Path,
     extra_args: Optional[list[str]] = None,
     spawn: SpawnFn = _real_spawn,
+    strategy: ShardStrategy = "interleave",
 ) -> Path:
     """Partition CSV, spawn N detached baixar_pecas children, return PIDs file.
 
@@ -196,7 +198,7 @@ def launch_sharded_download(
 
     saida_root.mkdir(parents=True, exist_ok=True)
     shards_dir = saida_root / "shards"
-    shard_files = shard_csv(csv_path, shards, shards_dir)
+    shard_files = shard_csv(csv_path, shards, shards_dir, strategy=strategy)
 
     pools = discover_proxy_pools(proxy_pool_dir, shards)
 
