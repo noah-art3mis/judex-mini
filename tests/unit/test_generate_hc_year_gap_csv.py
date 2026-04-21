@@ -100,3 +100,60 @@ def test_write_gap_csv_excludes_dead_ids(tmp_path: Path) -> None:
     with out.open(newline="") as f:
         rows = list(csv.reader(f))
     assert rows[1:] == [["HC", "103"], ["HC", "100"]]
+
+
+def test_write_gap_csv_include_captured_keeps_on_disk_ids(tmp_path: Path) -> None:
+    """`include_captured=True` emits every pid in range except confirmed deads —
+    on-disk pids are NOT filtered. Used for full-year re-scrape sweeps where
+    content-staleness of existing files can't be cheaply detected."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    # range 100..104; 101 is on disk; 104 is dead; expect full = [103, 102, 101, 100]
+    _touch(cases, "judex-mini_HC_101-101.json")
+    dead = tmp_path / "dead.txt"
+    dead.write_text("104\n")
+
+    out = tmp_path / "full.csv"
+    with patch(
+        "scripts.generate_hc_year_gap_csv.year_to_id_range",
+        return_value=(100, 104),
+    ):
+        count = write_gap_csv(
+            year=2024,
+            out_path=out,
+            cases_dir=cases,
+            dead_ids_path=dead,
+            include_captured=True,
+        )
+
+    assert count == 4
+    with out.open(newline="") as f:
+        rows = list(csv.reader(f))
+    assert rows[1:] == [["HC", "103"], ["HC", "102"], ["HC", "101"], ["HC", "100"]]
+
+
+def test_write_gap_csv_include_captured_still_excludes_deads(tmp_path: Path) -> None:
+    """Even with include_captured=True, confirmed-dead pids are filtered —
+    they produce empty case JSONs regardless, so scraping them is wasted."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    dead = tmp_path / "dead.txt"
+    dead.write_text("101\n103\n")
+
+    out = tmp_path / "full.csv"
+    with patch(
+        "scripts.generate_hc_year_gap_csv.year_to_id_range",
+        return_value=(100, 104),
+    ):
+        count = write_gap_csv(
+            year=2024,
+            out_path=out,
+            cases_dir=cases,
+            dead_ids_path=dead,
+            include_captured=True,
+        )
+
+    assert count == 3
+    with out.open(newline="") as f:
+        rows = list(csv.reader(f))
+    assert rows[1:] == [["HC", "104"], ["HC", "102"], ["HC", "100"]]

@@ -1,11 +1,18 @@
-"""Generate a (classe, processo) CSV for one HC year, filtering out IDs
-already on disk under `data/cases/HC/` and (optionally) IDs confirmed
-dead in `data/dead_ids/HC.txt`.
+"""Generate a (classe, processo) CSV for one HC year.
 
-Used by the year-priority 4-shard backfill (see
-`docs/hc-backfill-extension-plan.md`). The output CSV contains only
-uncaptured HC processo_ids in descending order — ready to feed directly
-to `scripts/shard_csv.py` + `scripts/run_sweep.py`.
+Two modes:
+
+- **Gap mode** (default): exclude pids already on disk under
+  `data/cases/HC/` and (optionally) pids confirmed dead in
+  `data/dead_ids/HC.txt`. Output covers only uncaptured pids.
+- **Full-range mode** (`--full-range` / `include_captured=True`):
+  exclude only confirmed deads. Output covers every pid in the
+  year's range — used when re-scraping on-disk cases to pick up
+  a wider HTML surface (e.g. v8+DJe content path on top of
+  cases that are already structurally v8).
+
+Output is descending order — ready to feed directly to
+`scripts/shard_csv.py` + `scripts/run_sweep.py`.
 
 Usage:
 
@@ -16,6 +23,11 @@ Usage:
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2026 --out /tmp/hc_2026_gap.csv \\
         --dead-ids data/dead_ids/HC.txt
+
+    # Full-range re-scrape (keep on-disk pids; still drop deads)
+    uv run python scripts/generate_hc_year_gap_csv.py \\
+        --year 2025 --out /tmp/hc_2025_full.csv \\
+        --dead-ids data/dead_ids/HC.txt --full-range
 """
 
 from __future__ import annotations
@@ -57,26 +69,32 @@ def write_gap_csv(
     out_path: Path,
     cases_dir: Path,
     dead_ids_path: Optional[Path] = None,
+    include_captured: bool = False,
 ) -> int:
     lo, hi = year_to_id_range(year)
     have = captured_ids(cases_dir)
     dead = load_dead_ids(dead_ids_path) if dead_ids_path else set()
-    gap = [n for n in range(hi, lo - 1, -1) if n not in have and n not in dead]
+    rows = [
+        n for n in range(hi, lo - 1, -1)
+        if (include_captured or n not in have) and n not in dead
+    ]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["classe", "processo"])
-        for n in gap:
+        for n in rows:
             w.writerow(["HC", n])
 
     dead_in_range = sum(1 for n in range(lo, hi + 1) if n in dead)
+    have_in_range = sum(1 for n in range(lo, hi + 1) if n in have)
+    mode = "full" if include_captured else "gap"
     print(
         f"year={year} range={lo}..{hi} width={hi - lo + 1} "
-        f"have={sum(1 for n in range(lo, hi + 1) if n in have)} "
-        f"dead={dead_in_range} gap={len(gap)} → {out_path}"
+        f"have={have_in_range} dead={dead_in_range} "
+        f"{mode}={len(rows)} → {out_path}"
     )
-    return len(gap)
+    return len(rows)
 
 
 def main() -> None:
@@ -87,12 +105,26 @@ def main() -> None:
     ap.add_argument(
         "--dead-ids", type=Path, default=None,
         help="Optional path to a dead-ID file (one pid per line) — IDs "
-             "listed there are excluded from the gap CSV. Typical: "
+             "listed there are excluded from the output. Typical: "
              "data/dead_ids/HC.txt, produced by "
              "scripts/aggregate_dead_ids.py.",
     )
+    ap.add_argument(
+        "--full-range", action="store_true",
+        help="Keep pids that are already on disk (only exclude confirmed "
+             "deads). Used for full-year re-scrape sweeps where existing "
+             "cases need to be refreshed against a wider extractor "
+             "surface (e.g. v8+DJe on top of structurally-v8-but-content-"
+             "stale files).",
+    )
     args = ap.parse_args()
-    write_gap_csv(args.year, args.out, args.cases_dir, dead_ids_path=args.dead_ids)
+    write_gap_csv(
+        args.year,
+        args.out,
+        args.cases_dir,
+        dead_ids_path=args.dead_ids,
+        include_captured=args.full_range,
+    )
 
 
 if __name__ == "__main__":

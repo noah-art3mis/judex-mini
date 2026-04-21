@@ -779,6 +779,41 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
+# `probe` — visão unificada do progresso de uma varredura sharded
+
+
+@app.command(name="probe")
+def probe_cmd(
+    out_root: Path = typer.Option(
+        ..., "--out-root",
+        help="Diretório da varredura sharded (contém shard-*/sweep.state.json).",
+    ),
+    watch: int = typer.Option(
+        0, "--watch",
+        help="Intervalo de atualização em segundos (0 = mostra uma vez e sai).",
+    ),
+) -> None:
+    """Mostra o progresso de uma varredura sharded em tempo real.
+
+    Lê `shard-*/sweep.state.json` sob `--out-root` e renderiza uma
+    tabela rich com done/target, throughput por shard, regime de WAF
+    (colorido) e ETA agregada. Com `--watch N` redesenha a tela a cada
+    N segundos (Ctrl-C para sair).
+
+    A fonte de verdade de `target` é `<out-root>/shards/*.shard.N.csv`
+    — gerado automaticamente pelo launcher de `varrer-processos
+    --shards`.
+    """
+    argv: list[str] = []
+    _push(argv, "--out-root", out_root)
+    _push(argv, "--watch", watch)
+
+    from scripts.probe_sharded import main as _probe_main
+
+    raise typer.Exit(code=_probe_main(argv))
+
+
+# ---------------------------------------------------------------------------
 # `validar-gabarito` — diff contra as fixtures de gabarito
 
 

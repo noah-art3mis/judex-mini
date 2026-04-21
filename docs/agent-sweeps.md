@@ -71,8 +71,8 @@ pieces make it work:
 ```bash
 cat runs/active/<dir>/shards.pids                          # discover PIDs
 pgrep -af "run_sweep.*<label-fragment>"                    # verify alive
-PYTHONPATH=. uv run python scripts/probe_sharded.py \      # read state
-    --out-root runs/active/<dir>
+uv run judex probe --out-root runs/active/<dir>            # rich snapshot
+uv run judex probe --out-root runs/active/<dir> --watch 30 # auto-refresh
 cat docs/current_progress.md                               # restore context
 # Stop cleanly if needed:
 xargs -a runs/active/<dir>/shards.pids kill -TERM
