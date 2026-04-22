@@ -367,11 +367,121 @@ Decision is the worse of axis A (WAF-shape-filtered fail rate) and
 axis B (p95 wall_s). Both axes are window-full-gated as of
 2026-04-21 to suppress the n=20 false-positive class.
 
+## Per-year completion tracker (HC)
+
+Three pipeline stages per year. Status legend: ✅ ≥95% content-fresh /
+landed · 🔄 actively in flight · 🟡 partial / older scrape, content-stale ·
+❌ not started or sparse-on-disk. **Sources:** `cases` from on-disk
+inventory + today's arm-A/B/C/recovery sweeps; `pecas` from
+`data/cache/pdf/*.pdf.gz` count and known sweep launches; `extracted`
+from `*.txt.gz` count. Per-year peças/extracted attribution is
+approximate (the cache is URL-keyed, not year-keyed); refine when a
+year-scoped probe is needed.
+
+| year | width  | on-disk | cases                                     | peças                                   | extracted    |
+|-----:|-------:|--------:|-------------------------------------------|-----------------------------------------|--------------|
+| 2026 |  4,001 |   3,098 | ✅ done (initial sweep, pre-cycle)         | 🟡 partial (older ad-hoc runs)          | 🟡 partial   |
+| 2025 | 16,200 |  13,346 | ✅ arm A + recovery (96% landed)           | 🔄 ~52% in flight (direct-IP, ETA ~17h) | ❌            |
+| 2024 | 14,387 |  12,300 | ✅ arm B + recovery                        | ❌                                       | ❌            |
+| 2023 | 12,644 |  10,841 | ✅ arm C (100% / 0 cliffs)                 | ❌                                       | ❌            |
+| 2022 | 13,057 |   1,156 | ❌ **next backfill target — 11,901 missing** | ❌                                       | ❌            |
+| 2021 | 14,508 |   7,423 | 🟡 51% on-disk, content-stale              | ❌                                       | ❌            |
+| 2020 | 15,754 |   4,207 | 🟡 27% on-disk, content-stale              | ❌                                       | ❌            |
+| 2019 | 14,352 |     914 | ❌ 13,438 missing                          | ❌                                       | ❌            |
+| 2018 | 13,969 |     945 | ❌ 13,024 missing                          | ❌                                       | ❌            |
+| 2017 | 12,604 |   2,053 | ❌ 10,551 missing                          | ❌                                       | ❌            |
+| 2016 |  7,049 |   4,382 | 🟡 62% on-disk, content-stale              | ❌                                       | ❌            |
+| 2015 |  6,319 |   5,584 | 🟡 88% on-disk, content-stale              | ❌                                       | ❌            |
+| 2014 |  5,338 |   4,333 | 🟡 81% on-disk, content-stale              | ❌                                       | ❌            |
+
+**Cumulative cache as of 2026-04-22:** 37,997 PDFs (.pdf.gz) + 32,529
+extracted texts (.txt.gz) = 4.2 GB. The 86% extraction ratio reflects
+prior `extrair-pecas` runs that processed everything in cache at the
+time; new PDFs landed by the in-flight 2025 sweep are not yet
+extracted.
+
+**Backfill priority queue** (cases column, derived from %alive_have):
+1. **2022** (11,901 missing, near-zero coverage) — single arm-B-sized
+   sweep, ~25 min at 16-shard fresh-pool.
+2. **2019, 2018, 2017** (~37k missing combined) — three sequential
+   year sweeps; would close the 2017–2022 hole.
+3. **2021, 2020, 2016, 2015, 2014** (mixed-coverage, content-stale) —
+   `--full-range` re-scrapes, smaller marginal value than the missing-
+   year sweeps; defer until 2017–2022 closes.
+4. **Pre-2014** (paper-era, ≤47% density per `docs/process-space.md`) —
+   not a near-term priority; lower yield per request.
+
 ---
 
 # Strategic state
 
 ## What just landed (most recent cycle)
+
+- **Canonical lawyer classifier + judge↔lawyer network notebook**
+  (this session, 2026-04-22). Extended
+  `judex/analysis/lawyer_canonical.py` from a pure name canonicalizer
+  into the project-canonical party classifier: new
+  `LawyerKind` enum (`sentinel / placeholder / pro_se / institutional
+  / juridical / court / with_oab / bare`), `LawyerEntry` NamedTuple,
+  and `classify(nome) → (kind, key, oab_codes)` built on
+  `canonical_lawyer()`. Accent-insensitive institutional-prefix match
+  is the load-bearing fix — `DEFENSORIA PUBLICA DA UNIAO` (4,766 rows,
+  no acute accents) was slipping past every ad-hoc `DEFENSORIA
+  PÚBLICA` prefix check as a "bare" lawyer. Now it lands in
+  `institutional`. Also catches OAB codes outside parentheticals
+  (`OAB/SP 148022`, `OAB-PE 48215`) via `_extract_oab_anywhere`.
+  +17 pinning tests; 568 total. Full-corpus bucket distribution
+  (HC ADV): institutional 5,254 rows (70%), with_oab 1,405,
+  sentinel 181, bare 579, placeholder 74, pro_se 4, juridical 2,
+  court 0. On IMPTE: sentinel 3,012 (the "phantom IMPTE" rows the
+  docstring warned about), institutional 8,726, with_oab 64,111,
+  bare 18,470.
+
+  CLAUDE.md `§ Non-obvious gotchas` now points all future notebooks
+  at `judex.analysis.lawyer_canonical` — the failure-mode catalog
+  (accent variants, non-parenthetical OABs, law firms, courts-as-
+  parties, sentinel typos) is one call away instead of one regex
+  per notebook away.
+
+  Also shipped: `analysis/hc_judge_lawyer_network.py` — Marimo
+  notebook with three reactive views. **(1) pyvis bipartite with
+  Barnes-Hut physics** (Obsidian-style), sandboxed in an
+  `iframe srcdoc` to stop pyvis's dark-theme CSS from bleeding
+  into the host page. Plain-text tooltips (vis-network renders
+  `title` via `innerText`, so `<b>` / `<br>` showed as literal
+  text — switched to `\n` delimiters). **(2) log₂(lift) heatmap**
+  clipped to ±4 to avoid outlier saturation. **(3) minister ↔
+  minister cosine projection** on lawyer-distribution vectors.
+  Reactive filters: top-N (default 60), min-pair edge count
+  (default 2), year range (default 2015–2026), `LawyerKind`
+  multiselect (default `[with_oab]` — the critical default,
+  dropping `institutional` from the defaults because it swamps
+  minister-cosine into 0.99-everywhere meaninglessness).
+
+  Self-describing filter banner renders the active state + the
+  universe size + the edge count at the top, so the exported
+  snapshot documents itself. Snapshot shipped to
+  `analysis/reports/2026-04-22-hc-judge-lawyer-network.html`
+  (~200 KB with `with_oab`-only default).
+
+  **Substantive finding:** `ADV.(A/S)` is ~72% institutional in
+  the HC corpus — the banca-de-renome (Toron, Bottini, etc.) lives
+  in `IMPTE.(S)`, not `ADV.(A/S)`. The two roles capture different
+  institutional facts (filer vs. lawyer-of-record after possible
+  DP takeover). For private-bar coverage use
+  `analysis/hc_famous_lawyers.py`; this notebook is the ADV-rep
+  map.
+
+  **Old-vs-new `partes` format check** (by year): `"E OUTRO(A/S)"`
+  tail prevalence dropped from ~3% in 2017–2021 to <1% in 2022+,
+  confirming the scraper's split-row migration. Partes-per-case
+  mean rose 1.03 → 1.13 in 2023–2024 (splitting visible in
+  aggregate). `LawyerKind` bucket shares are stable across years
+  (institutional 77-86%, with_oab 13-25%) — classifier is
+  era-robust. Cross-year trend analysis on co-lawyers-per-case is
+  NOT reliable without controlling for rescrape vintage though —
+  an older case rescraped under the new scraper will suddenly
+  show more ADV rows than it did before.
 
 - **Warehouse build-stats validation** (this session). Added
   population-rate thresholds per case-level field (`partes`,
