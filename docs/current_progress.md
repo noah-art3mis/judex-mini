@@ -303,6 +303,70 @@ These are the reusable rules extracted from the 8-vs-16 A/B. The
    scrapegw L3-per-IP decay. Not acted on yet; logged as the one
    structural hedge against today's single-provider fragility.
 
+## Throughput + regime baselines (anchor for future predictions)
+
+Empirical numbers from today's runs + prior validations. Use these
+to set expectations *before* a sweep launches; deviations are the
+signal that something's off (pool fatigue, time-of-day, WAF policy
+shift). All "per-shard rec/s" are steady-state medians, not peaks;
+cluster rec/s = per-shard × N_shards. Regime % = share of records
+in the named regime over the whole sweep.
+
+### `varrer-processos` (case JSON, `portal.stf.jus.br`)
+
+| config                                          | per-shard rec/s | cluster rec/s | typical regime mix              | cliff rate    |
+|-------------------------------------------------|-----------------|---------------|---------------------------------|---------------|
+| 1 worker, no proxy (sweep E baseline)           | ~0.28           | ~0.28         | 90% good, 10% warn              | n/a (1 worker)|
+| 4 shards + aged proxies (sweep V validation)    | ~0.26           | ~1.02         | 75% good, 20% warn, ~5% l2      | low           |
+| **8 shards + aged proxies** (arm A)             | **0.15**        | **1.24**      | 60% good, 30% warn, 10% l2      | **8 / 8 (cascade)** |
+| **16 shards + fresh proxies** (arm B)           | **0.66**        | **10.52**     | 95% good, 5% warn, 0% l2        | 2 / 16 (genuine) |
+| **16 shards + fresh proxies** (arm C, smaller)  | **0.65**        | **9.0**       | 96% good, 4% warn, 0% l2        | 0 / 16        |
+| **16 shards + 8h-cooled-not-refreshed** (recovery) | **0.22**     | **3.45**      | 78% good, 12% warn, 1.6% l2     | 1 / 16        |
+
+Rules-of-thumb derived:
+- **Per-shard floor ≈ 0.15 rec/s** when retry-403 chains are firing
+  (aged pool + portal-WAF-fatigue). Anything below this means proxies
+  are exhausted; investigate before continuing.
+- **Per-shard ceiling ≈ 0.7 rec/s** on a fresh batch — bottlenecked
+  by the 5-XHR-fan-out per case + proxy wall, not WAF.
+- **Cluster throughput is roughly linear in shard count** as long as
+  per-shard stays in the green; sub-linear when individual shards drop
+  into warn/l2.
+- **`good` < 80% over a full sweep** = the pool is no longer fresh
+  for this host; refresh it or expect a cliff cascade.
+
+### `baixar-pecas` (PDF bytes, mostly `portal.stf.jus.br`)
+
+| config                                              | per-shard rec/s | cluster rec/s | typical regime mix    | cliff rate |
+|-----------------------------------------------------|-----------------|---------------|-----------------------|------------|
+| 16 shards + portal-fatigued pool (HC 2025, 2026-04-21) | **0.06–0.17** | **2.14**      | mostly ok, sparse fail/http_error | none observed yet |
+| 16 shards + fresh pool against `sistemas` host (no clean datapoint) | (projected) ~0.7 | (projected) ~12 | (projected) all ok    | n/a        |
+
+`baixar-pecas` is bytes-only (one GET per PDF, no XHR fan-out), so on
+a fresh-vs-host pool it should outpace `varrer-processos` per shard.
+The current 2025 sweep is much slower because andamento attachments
+come from `portal.stf.jus.br/processos/downloadPeca.asp` — the same
+WAF bucket as case JSONs, which our pool already exhausted today.
+**The fresh-host projection is unmeasured** — the next 2024 PDF run
+on a refreshed batch is the cleanest opportunity to nail it down.
+
+### Regime ladder reference
+
+Source: `docs/rate-limits.md § Operating regimes`. CliffDetector
+classifies each rolling window of records into one of:
+
+| regime              | meaning                                            | typical fail-rate | action                       |
+|---------------------|----------------------------------------------------|-------------------|------------------------------|
+| `under_utilising`   | wastefully polite; pool has slack                  | 0–5%              | could push harder            |
+| `healthy`           | steady scraping, L1 absorbed, L2 not engaged       | 5–10%             | nothing — this is the target |
+| `l2_engaged`        | Pareto frontier; as fast as WAF tolerates pre-block | 10–20%           | fine for short bursts        |
+| `approaching_collapse` | adaptive block firing; retry budget at risk     | 20–30%            | rotation; consider stopping  |
+| `collapse`          | V-style cliff; gaps < 15 records between cycles    | > 30%             | stop, cool down ≥ 60 min     |
+
+Decision is the worse of axis A (WAF-shape-filtered fail rate) and
+axis B (p95 wall_s). Both axes are window-full-gated as of
+2026-04-21 to suppress the n=20 false-positive class.
+
 ---
 
 # Strategic state
