@@ -71,7 +71,13 @@ def run_download_sweep(
     *,
     out_dir: Path,
     forcar: bool = False,
-    throttle_sleep: float = 2.0,
+    # Per-record fixed throttle defaults to 0 — pacing comes from
+    # AdaptiveThrottle (which ratchets up on slow / error responses
+    # via record(was_error=True)) and tenacity's 403 backoff. Matches
+    # the convention in shared.py and extract_driver.py; the prior
+    # 2.0s default was a lone outlier that throttled cached records
+    # and squandered the cache-skip fast path.
+    throttle_sleep: float = 0.0,
     resume: bool = False,
     retry_from: Optional[Path] = None,
     circuit_window: int = 50,
