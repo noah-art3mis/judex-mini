@@ -49,6 +49,7 @@ analysis = [
     "marimo>=0.23.1",
     "matplotlib>=3.10.7",
     "plotly>=6.7.0",
+    "pyvis>=0.3.2",
     "seaborn>=0.13.2",
     "umap-learn>=0.5.9.post2",
 ]
