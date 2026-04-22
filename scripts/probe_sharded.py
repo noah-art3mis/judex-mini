@@ -1,8 +1,19 @@
 """Unified progress probe across N sweep shards.
 
-A sharded sweep writes one `sweep.state.json` per shard. This script
-unions them into a single rich-rendered view so you don't have to
-eyeball each probe and mentally sum.
+A sharded sweep writes one state file per shard. This script unions
+them into a single rich-rendered view so you don't have to eyeball
+each probe and mentally sum.
+
+Two sharded sweep shapes are supported, auto-detected per shard dir:
+
+- **varrer** — `<shard>/sweep.state.json`, keyed by `<CLASSE>_<pid>`,
+  one entry per case. Done/target are case-counts. Regimes come from
+  the CliffDetector field on each entry.
+- **baixar** — `<shard>/pdfs.state.json`, keyed by URL, one entry per
+  PDF download. Done = entries; target = `targets: N PDFs` line from
+  the shard's `driver.log` (parsed once at first probe). No regime
+  ladder (CliffDetector is varrer-side only); the regimes column shows
+  status counts (ok / fail / cached) instead.
 
 Usage:
 
@@ -18,17 +29,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
+
+
+SweepMode = Literal["varrer", "baixar"]
 
 
 @dataclass
@@ -37,6 +52,7 @@ class ShardStat:
     name: str
     records: int
     target: Optional[int]
+    mode: SweepMode = "varrer"
     statuses: Counter = field(default_factory=Counter)
     regimes: Counter = field(default_factory=Counter)
     min_processo: Optional[int] = None
@@ -61,6 +77,16 @@ REGIME_META = {
     "warming":                (0, "warm",  "dim"),
 }
 
+# baixar-pecas has no regime ladder; the rightmost column shows
+# download status counts instead. Same (severity, label, style) shape
+# as REGIME_META so _fmt_meta can render either.
+STATUS_META = {
+    "fail":   (3, "fail",   "red"),
+    "error":  (3, "err",    "red"),
+    "ok":     (1, "ok",     "green"),
+    "cached": (0, "cached", "dim"),
+}
+
 
 def _count_csv_rows(path: Path) -> Optional[int]:
     try:
@@ -83,12 +109,65 @@ def _find_target(out_root: Path, shard_name: str) -> Optional[int]:
     return _count_csv_rows(candidates[0]) if candidates else None
 
 
+_BAIXAR_TARGETS_RE = re.compile(r"^targets:\s*(\d+)\s*PDFs", re.MULTILINE)
+
+
+def _detect_mode_and_state(shard_dir: Path) -> tuple[SweepMode, Optional[Path]]:
+    """Decide which sharded sweep this is by looking for known state files.
+
+    Returns ``(mode, state_path_or_None)``. State path is None when the
+    shard has launched but hasn't written its first record yet.
+    """
+    pdfs = shard_dir / "pdfs.state.json"
+    if pdfs.exists():
+        return "baixar", pdfs
+    sweep = shard_dir / "sweep.state.json"
+    if sweep.exists():
+        return "varrer", sweep
+    # Indeterminate (pre-first-write). Default to varrer-shape so the
+    # display still renders a 0/target row instead of disappearing.
+    return "varrer", None
+
+
+def _parse_baixar_target(shard_dir: Path) -> Optional[int]:
+    """Extract `targets: N PDFs` from the shard's driver.log.
+
+    The line is written once at startup, before any HTTP, so it's
+    available even if no records have landed yet. Returns None if the
+    log doesn't exist or the line hasn't been written.
+    """
+    log = shard_dir / "driver.log"
+    if not log.exists():
+        return None
+    try:
+        # The line is in the first dozen-or-so lines. Read a bounded
+        # prefix to avoid scanning huge logs late in a run.
+        head = log.open().read(4096)
+    except OSError:
+        return None
+    m = _BAIXAR_TARGETS_RE.search(head)
+    return int(m.group(1)) if m else None
+
+
 def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
-    """Read one shard's state file and return a structured snapshot."""
-    sf = shard_dir / "sweep.state.json"
-    target = _find_target(out_root, shard_dir.name)
-    if not sf.exists():
-        return ShardStat(name=shard_dir.name, records=0, target=target)
+    """Read one shard's state file and return a structured snapshot.
+
+    Dispatches on which state file exists:
+    - ``pdfs.state.json`` → baixar mode, URL-keyed, target from
+      driver.log's `targets: N PDFs` line.
+    - ``sweep.state.json`` → varrer mode, case-keyed, target from the
+      partitioned shard CSV row count.
+    """
+    mode, sf = _detect_mode_and_state(shard_dir)
+    if mode == "baixar":
+        target = _parse_baixar_target(shard_dir)
+    else:
+        target = _find_target(out_root, shard_dir.name)
+
+    if sf is None:
+        return ShardStat(
+            name=shard_dir.name, records=0, target=target, mode=mode,
+        )
 
     mtime = sf.stat().st_mtime
     data = json.loads(sf.read_text())
@@ -107,7 +186,10 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
         r = v.get("regime")
         if r:
             regimes[r] += 1
+        # Varrer entries use `processo`; baixar entries use `processo_id`.
         p = v.get("processo")
+        if not isinstance(p, int):
+            p = v.get("processo_id")
         if isinstance(p, int):
             min_pid = p if min_pid is None else min(min_pid, p)
         ts = v.get("ts")
@@ -117,7 +199,7 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
             latest = dt if latest is None else max(latest, dt)
 
     return ShardStat(
-        name=shard_dir.name, records=len(data), target=target,
+        name=shard_dir.name, records=len(data), target=target, mode=mode,
         statuses=statuses, regimes=regimes,
         min_processo=min_pid, earliest_ts=earliest, latest_ts=latest,
         mtime=mtime,
@@ -142,21 +224,29 @@ def _fmt_duration(seconds: float) -> str:
     return f"{h}h{m:02d}m"
 
 
-def _fmt_regimes(regimes: Counter) -> Text:
-    """Render regime counts worst-first with short labels + color."""
-    if not regimes:
+def _fmt_meta(counts: Counter, meta: dict) -> Text:
+    """Render counts worst-first with short labels + color, given a
+    ``meta`` table of ``{key: (severity, short_label, style)}``."""
+    if not counts:
         return Text("—", style="dim")
     ordered = sorted(
-        regimes.items(),
-        key=lambda kv: -REGIME_META.get(kv[0], (0, kv[0], "white"))[0],
+        counts.items(),
+        key=lambda kv: -meta.get(kv[0], (0, kv[0], "white"))[0],
     )
     out = Text()
-    for i, (regime, count) in enumerate(ordered):
-        meta = REGIME_META.get(regime, (0, regime, "white"))
+    for i, (key, count) in enumerate(ordered):
+        m = meta.get(key, (0, key, "white"))
         if i > 0:
             out.append(" ")
-        out.append(f"{meta[1]}={count}", style=meta[2])
+        out.append(f"{m[1]}={count}", style=m[2])
     return out
+
+
+def _shard_summary_cell(st: ShardStat) -> Text:
+    """Pick the right counter+meta for the shard's mode."""
+    if st.mode == "baixar":
+        return _fmt_meta(st.statuses, STATUS_META)
+    return _fmt_meta(st.regimes, REGIME_META)
 
 
 def _rec_per_second(st: ShardStat) -> float:
@@ -215,9 +305,13 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
             st.name,
             target_cell, pct_cell, rec_s_cell,
             str(st.min_processo) if st.min_processo else "—",
-            _fmt_regimes(st.regimes),
+            _shard_summary_cell(st),
             age_cell,
         )
+
+    # Cluster-mode is whichever mode the shards are in (they all share
+    # one in practice; if mixed, fall back to varrer/regimes).
+    cluster_mode: SweepMode = stats[0].mode if stats else "varrer"
 
     # Footer: cluster totals
     if cluster_earliest and cluster_latest and grand_records > 1:
@@ -236,6 +330,12 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
         eta_cell = Text("—", style="dim")
         rps_cell = Text("—", style="bold")
 
+    cluster_summary = (
+        _fmt_meta(all_statuses, STATUS_META)
+        if cluster_mode == "baixar"
+        else _fmt_meta(all_regimes, REGIME_META)
+    )
+
     table.add_section()
     table.add_row(
         Text("TOTAL", style="bold"),
@@ -243,7 +343,7 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
         Text(f"{grand_records/grand_target*100:5.1f}%" if grand_target else "—", style="bold"),
         rps_cell,
         elapsed_cell,
-        _fmt_regimes(all_regimes),
+        cluster_summary,
         eta_cell,
     )
     return table

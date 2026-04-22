@@ -122,6 +122,92 @@ def test_cli_probe_runs_once_and_prints_shard_name(tmp_path: Path) -> None:
     assert "TOTAL" in result.output
 
 
+# --- baixar-pecas mode ----------------------------------------------------
+
+
+def _write_pdfs_state(shard_dir: Path, records: list[dict]) -> None:
+    """Mirror baixar-pecas: state file is `pdfs.state.json`, keyed by URL."""
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    state = {r["url"]: r for r in records}
+    (shard_dir / "pdfs.state.json").write_text(json.dumps(state))
+
+
+def _pdf_record(
+    pid: int, url: str, *,
+    status: str = "ok",
+    ts: str = "2026-04-21T20:00:00+00:00",
+) -> dict:
+    """Mirror baixar-pecas state-entry shape: URL-keyed, `processo_id`
+    not `processo`, no `regime` field, has `doc_type` / `chars`."""
+    return {
+        "ts": ts, "url": url, "attempt": 1, "wall_s": 1.5,
+        "status": status, "error": None, "error_type": None,
+        "http_status": None, "extractor": "bytes", "chars": 50000,
+        "processo_id": pid, "classe": "HC",
+        "doc_type": "DECISÃO", "context": {},
+    }
+
+
+def test_probe_shard_detects_baixar_mode_from_pdfs_state(tmp_path: Path) -> None:
+    """`pdfs.state.json` presence flips the shard into baixar mode.
+    The driver-log `targets: N PDFs` line supplies the target — case-row
+    counts from `<out-root>/shards/*.csv` would mix units (cases vs PDFs)
+    and mislead at the cluster level."""
+    shard = tmp_path / "shard-a"
+    _write_pdfs_state(shard, [
+        _pdf_record(100, "https://stf.test/a.pdf"),
+        _pdf_record(100, "https://stf.test/b.pdf"),
+        _pdf_record(99, "https://stf.test/c.pdf", status="fail"),
+    ])
+    (shard / "driver.log").write_text(
+        "targets: 3154 PDFs across 779 processes (modo: csv ...)\n"
+        "[1/3154] https://stf.test/a.pdf: ok (52370 bytes)\n"
+    )
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.mode == "baixar"
+    assert st.records == 3
+    assert st.target == 3154  # PDF count from driver.log, not case count
+    assert st.statuses["ok"] == 2
+    assert st.statuses["fail"] == 1
+    # No regime field on baixar entries — regimes counter stays empty.
+    assert dict(st.regimes) == {}
+
+
+def test_probe_shard_baixar_min_pid_uses_processo_id(tmp_path: Path) -> None:
+    """Varrer entries use `processo`, baixar entries use `processo_id`.
+    min_pid must work in both modes — otherwise the column is empty for
+    baixar sweeps and the user loses a useful 'where is this shard
+    chewing through pids' signal."""
+    shard = tmp_path / "shard-a"
+    _write_pdfs_state(shard, [
+        _pdf_record(252920, "https://stf.test/x.pdf"),
+        _pdf_record(252901, "https://stf.test/y.pdf"),
+        _pdf_record(252915, "https://stf.test/z.pdf"),
+    ])
+    (shard / "driver.log").write_text("targets: 3 PDFs across 3 processes\n")
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.min_processo == 252901
+
+
+def test_probe_shard_baixar_handles_missing_driver_log(tmp_path: Path) -> None:
+    """If driver.log hasn't been written yet (fresh launch, race), target
+    is None — the row still renders, just without a percentage."""
+    shard = tmp_path / "shard-a"
+    _write_pdfs_state(shard, [_pdf_record(100, "https://stf.test/a.pdf")])
+    # No driver.log — pdfs.state.json present without it would be a
+    # weird race but probe must still work.
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.mode == "baixar"
+    assert st.records == 1
+    assert st.target is None
+
+
 def test_cli_probe_errors_when_no_shards(tmp_path: Path) -> None:
     """An out-root with no shard-* subdirs must exit non-zero with a
     clear error — protects against silent misuse (typo in path, etc)."""
