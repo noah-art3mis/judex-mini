@@ -109,6 +109,40 @@ def test_regime_either_axis_can_trip_collapse():
     assert det.regime() == "collapse"
 
 
+def test_p95_axis_dormant_until_window_full():
+    """A single slow record at the MIN_OBS=20 boundary must not trip
+    collapse via axis B.
+
+    At n=20 with window=50, `int(0.95 * n) = 19`, so p95 indexes to the
+    maximum element — one slow outlier in the first 20 records drives
+    p95 > 60s and fires collapse without any actual WAF signal. Arm B's
+    shard-o cliffed at 20/899 after a single 66.67s record (retries=0,
+    status=ok — just a slow HTTP call), losing 879 pids to a detector
+    false positive. Fix: gate axis B on window fullness so p95's known-
+    unreliable small-window behavior can't tip state.
+    """
+    det = CliffDetector(window=50)
+    for _ in range(19):
+        det.observe("ok", 1.0)
+    det.observe("ok", 80.0)  # single slow record; no retries, no fail
+    # With only 20 of 50 window filled, axis B must not contribute.
+    # (Axis A: 0 fails → fail_rate=0 → under_utilising by fail-rate.)
+    assert det.regime() == "under_utilising"
+
+
+def test_axis_a_still_fires_early_when_window_not_full():
+    """The window-full gate is only for axis B (p95 wall). Axis A
+    (WAF-shaped fail rate) must still catch catastrophic fail spikes
+    at n=MIN_OBS, even though the window isn't full — otherwise V-style
+    collapse that fires in the first 25 records would be missed."""
+    det = CliffDetector(window=50)
+    for _ in range(20):
+        det.observe("fail", 1.0, http_status=403)
+    # n=20 (below window=50), 100% WAF-shaped fails.
+    # Axis A: fail_rate=1.0 > 0.30 → collapse (axis A not gated).
+    assert det.regime() == "collapse"
+
+
 def test_window_slides_old_observations_drop():
     det = CliffDetector(window=20)
     for _ in range(20):

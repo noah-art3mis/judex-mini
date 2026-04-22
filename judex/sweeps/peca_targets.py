@@ -228,20 +228,36 @@ def _find_case_file(roots: Sequence[Path], classe: str, processo: int) -> Option
       - `judex-mini_<classe>_<processo>.json` (plain)
       - `judex-mini_<classe>_<processo>-<processo>.json` (range-row form)
 
-    Returns None if neither exists — a scraped-but-missing process is
-    not an error, just absent from the resolved target set.
+    The scraper writes case files **flat under a per-classe bucket**:
+    `<root>/<CLASSE>/judex-mini_<CLASSE>_<pid>.json`. There are no
+    further subdirectories. We exploit that to do constant-time
+    `Path.is_file()` probes — checking `<root>/<classe>/<name>` first
+    (production layout) and falling back to `<root>/<name>` (callers
+    that pass the classe-bucket directly as the root). Two stats per
+    candidate name per root, no tree walks.
+
+    The previous implementation called ``r.rglob(name)`` for every
+    candidate, which is O(tree_size) per call and dominated
+    `baixar-pecas` startup at sharded scale: 16 shards × ~1700 pids
+    each × an 80k-file rglob each = thousands of full tree walks
+    before the first HTTP request.
+
+    Returns None if no candidate exists — a scraped-but-missing process
+    is not an error, just absent from the resolved target set.
     """
     candidates = (
         f"judex-mini_{classe}_{processo}.json",
         f"judex-mini_{classe}_{processo}-{processo}.json",
     )
     for r in roots:
-        r = Path(r)
-        if not r.exists():
-            continue
+        r_path = Path(r)
         for name in candidates:
-            for p in r.rglob(name):
-                return p
+            bucketed = r_path / classe / name
+            if bucketed.is_file():
+                return bucketed
+            direct = r_path / name
+            if direct.is_file():
+                return direct
     return None
 
 

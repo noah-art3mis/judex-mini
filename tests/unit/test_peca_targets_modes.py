@@ -65,6 +65,32 @@ def test_range_walks_inclusive_bounds(tmp_path: Path) -> None:
     ]
 
 
+def test_range_lookup_does_not_recurse_into_subdirs(tmp_path: Path) -> None:
+    """`_find_case_file` probes ``<root>/<classe>/<file>`` and
+    ``<root>/<file>`` directly — it does **not** walk arbitrary
+    subdirectories. A case file buried below the bucket level is
+    invisible. This locks in the O(1)-per-pid lookup contract:
+    regressing to ``rglob`` would make this test pass (because rglob
+    finds the file) but balloon baixar-pecas startup at sharded
+    scale, which is exactly what we just fixed.
+    """
+    # File buried deeper than the per-classe bucket — only an rglob
+    # would find it.
+    buried = tmp_path / "HC" / "extra" / "nested" / "judex-mini_HC_100.json"
+    _write_case(
+        buried,
+        classe="HC", processo_id=100,
+        urls=[("https://stf.test/100.pdf", "DECISÃO")],
+    )
+
+    out = targets_from_range("HC", 100, 100, roots=[tmp_path])
+
+    assert out == [], (
+        "buried case file should be invisible to the direct-probe "
+        "lookup; finding it implies a regression to rglob"
+    )
+
+
 def test_range_skips_missing_case_files(tmp_path: Path) -> None:
     """Gaps in the scraped range don't raise — they're silently absent.
 

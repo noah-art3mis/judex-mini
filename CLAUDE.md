@@ -9,6 +9,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Starting a session / resuming work | [`docs/current_progress.md`](docs/current_progress.md) — active-task lab notebook + strategic state. Living file; template and archive convention live inside it. |
 | You need to know where a file lives (cases, caches, runs, exports) | [`docs/data-layout.md`](docs/data-layout.md) — spatial map of every store and every key. |
 | Writing new scraping code or debugging a 403 | [`docs/stf-portal.md`](docs/stf-portal.md) — URL flow, auth triad, UTF-8 quirk, field→source map. |
+| A field-wide data regression just showed up (e.g. 0% populated) | [`docs/system-changes.md`](docs/system-changes.md) — STF-side migrations timeline (DJe → digital.stf, Selenium retirement, schema v1→v8, known gaps). |
 | Tuning request pacing, retries, or proxy rotation | [`docs/rate-limits.md`](docs/rate-limits.md) — WAF behavior (403-not-429), validated defaults, cross-sweep cooldowns. |
 | **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
@@ -56,8 +57,8 @@ the picture.
 
 | Command                | Source                             | What it does                                                                                            |
 |------------------------|------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `varrer-processos`     | `scripts/run_sweep.py`             | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool`; `--items-dir`; sharded mode via `--shards N --proxy-pool-dir D`.|
-| `baixar-pecas`         | `scripts/baixar_pecas.py`          | PDF bytes download. `--proxy-pool`; sharded mode via `--shards N --proxy-pool-dir D`.                   |
+| `varrer-processos`     | `scripts/run_sweep.py`             | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--items-dir`; sharded mode via `--shards N --proxy-pool FILE` (round-robin split into N pools at launch). |
+| `baixar-pecas`         | `scripts/baixar_pecas.py`          | PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.               |
 | `extrair-pecas`        | `scripts/extrair_pecas.py`         | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured}`.|
 | `atualizar-warehouse`  | `scripts/build_warehouse.py`       | Rebuild `data/warehouse/judex.duckdb` from case JSONs + PDF cache. Full-rebuild, atomic swap, zero HTTP.|
 | `exportar`             | (in-CLI)                           | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
@@ -69,24 +70,27 @@ for flag names / defaults is `judex/cli.py` (Typer decorators) + the
 underlying script's argparse.
 
 **Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
-scrape layers support `--shards N --proxy-pool-dir D` — same semantics,
-same layout, different target script:
+scrape layers support `--shards N --proxy-pool FILE` — one flat file
+of proxy URLs (one per line, `#`-comments + blank lines ignored).
+The launcher round-robin-splits the file into N per-shard pools at
+`<saida>/proxies/proxies.{a..p}.txt` and detaches one child per
+shard.
 
 ```bash
 # Case JSON (WAF-hot)
 uv run judex varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
-    --shards 8 --proxy-pool-dir config/ --retomar
+    --shards 8 --proxy-pool config/proxies --retomar
 
 # PDF bytes (sistemas.stf.jus.br)
 uv run judex baixar-pecas --csv X.csv --saida out/ --shards 8 \
-    --proxy-pool-dir config/ --retomar --nao-perguntar
+    --proxy-pool config/proxies --retomar --nao-perguntar
 ```
 
-Partitions the CSV range-wise, picks `proxies.{a..h}.txt` from
-`--proxy-pool-dir`, detaches N children (per-shard label
-`<rotulo>_shard_<letter>` for `varrer-processos`; per-shard dir only
-for `baixar-pecas`), writes `out/shards.pids`. Monitor with
-`pgrep -af <rotulo>_shard_` (varrer) or `pgrep -af baixar_pecas`
+Partitions the CSV (interleave by default), splits the proxy file,
+spawns N children (per-shard label `<rotulo>_shard_<letter>` for
+`varrer-processos`; per-shard dir only for `baixar-pecas`), writes
+`out/shards.pids`. Monitor with `uv run judex probe --out-root out/`
+or `pgrep -af <rotulo>_shard_` (varrer) / `pgrep -af baixar_pecas`
 (baixar), or read each `out/shard-<letter>/sweep.state.json` /
 `.../pdfs.state.json`. `xargs -a out/shards.pids kill -TERM` stops
 cleanly. Both launchers live in `judex/sweeps/shard_launcher.py`

@@ -238,6 +238,103 @@ class BuildSummary:
     n_pdfs: int
     wall_s: float
     output_path: Path
+    population_rates: dict[str, float]
+    validation_warnings: list[str]
+
+
+class BuildValidationError(RuntimeError):
+    """Raised when `build(strict=True)` hits a population-rate threshold miss.
+
+    Caught by the CLI so `judex atualizar-warehouse --strict` exits non-zero
+    on regressions. Ad-hoc `build(strict=False)` calls log the same
+    information to stdout but do not raise — the warehouse file is still
+    produced so manual inspection is possible.
+    """
+
+
+# Minimum expected population rate per case-level field, derived from the
+# 2026-04-21 sample of a healthy v8+DJe corpus. These are intentionally
+# conservative floors (not means) — a build dropping below these values
+# is evidence of a scraper regression, not a genuine corpus shift.
+#
+# Contract: (field_name, minimum_population_rate_across_cases, description).
+# The field_name keys match what `_compute_population_rates` emits.
+MIN_POPULATION_RATES: dict[str, tuple[float, str]] = {
+    # Structural invariants — every STF case has at least one parte and one
+    # andamento. A drop below 99% means cases are being written malformed.
+    "partes":           (0.99, "cases with ≥1 parte"),
+    "andamentos":       (0.99, "cases with ≥1 andamento"),
+    # Distributional — ~25–29% observed on arm B / arm C; floor 15% is
+    # wide enough to tolerate class-mix shifts (e.g. builds scoped to a
+    # class with fewer pautas) without firing spuriously.
+    "pautas":           (0.15, "cases with ≥1 pauta"),
+    "sessao_virtual":   (0.15, "cases with ≥1 sessao_virtual entry"),
+    # DJe — this is the canary for the JS-rendering regression. A healthy
+    # corpus has ≥5% of cases with DJe; the 2026-04-21 discovery showed
+    # 0% corpus-wide when STF migrated the listing endpoint. 5% is a
+    # loose floor; real healthy rates should be 20–40%.
+    "publicacoes_dje":  (0.05, "cases with ≥1 DJe publication"),
+}
+
+
+def _compute_population_rates(
+    n_cases: int,
+    partes_rows: list[dict],
+    andamentos_rows: list[dict],
+    pautas_rows: list[dict],
+    publicacoes_dje_rows: list[dict],
+    sessao_virtual_populated: int,
+) -> dict[str, float]:
+    """Population rate = (cases with ≥1 child row) / n_cases, per field.
+
+    Computed after flattening: each child table's distinct
+    (classe, processo_id) set is the populated-case count for that field.
+    Cheap — just a set comprehension per list.
+
+    Returns 0.0 for every field when n_cases is 0 rather than dividing.
+    """
+    if n_cases <= 0:
+        return {k: 0.0 for k in MIN_POPULATION_RATES}
+
+    def distinct_cases(rows: list[dict]) -> int:
+        return len({(r["classe"], r["processo_id"]) for r in rows})
+
+    return {
+        "partes":          distinct_cases(partes_rows)          / n_cases,
+        "andamentos":      distinct_cases(andamentos_rows)      / n_cases,
+        "pautas":          distinct_cases(pautas_rows)          / n_cases,
+        "publicacoes_dje": distinct_cases(publicacoes_dje_rows) / n_cases,
+        "sessao_virtual":  sessao_virtual_populated             / n_cases,
+    }
+
+
+def _validate_population_rates(
+    rates: dict[str, float],
+) -> tuple[list[str], list[str]]:
+    """Compare each rate to its threshold. Returns (warnings, info_lines).
+
+    Each info line is a "FIELD: X.Y% (threshold ≥ Z%) OK|WARN" row so
+    the full build stats print as a human-readable table. Warnings are
+    the subset of info lines that fail their threshold — what `strict`
+    mode would raise on.
+    """
+    warnings: list[str] = []
+    info: list[str] = []
+    for field, (min_rate, desc) in MIN_POPULATION_RATES.items():
+        actual = rates.get(field, 0.0)
+        ok = actual >= min_rate
+        flag = "OK  " if ok else "WARN"
+        line = (
+            f"  {desc:42s}: {actual*100:5.1f}% "
+            f"(threshold ≥ {min_rate*100:4.1f}%) [{flag}]"
+        )
+        info.append(line)
+        if not ok:
+            warnings.append(
+                f"{field}: population rate {actual*100:.2f}% "
+                f"below threshold {min_rate*100:.1f}%"
+            )
+    return warnings, info
 
 
 def _load_case(path: Path) -> Optional[dict]:
@@ -692,7 +789,15 @@ def build(
     classes: Optional[Iterable[str]] = None,
     id_range: Optional[tuple[int, int]] = None,
     progress_every: int = 10_000,
+    strict: bool = False,
 ) -> BuildSummary:
+    """Build the warehouse. When ``strict=True``, a population-rate
+    threshold miss (see ``MIN_POPULATION_RATES``) raises
+    ``BuildValidationError`` *after* the rates are printed, so operators
+    see the full stats before the non-zero exit. Ad-hoc invocations
+    default ``strict=False`` — warnings surface on stdout but the
+    warehouse still ships so manual inspection is possible.
+    """
     t0 = time.monotonic()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = output_path.with_name(output_path.name + ".tmp")
@@ -706,6 +811,10 @@ def build(
     pautas_rows: list[dict] = []
     publicacoes_dje_rows: list[dict] = []
     decisoes_dje_rows: list[dict] = []
+    # sessao_virtual isn't its own table (entries land in `documentos`
+    # with kind='sessao'), so track "cases whose JSON had a non-empty
+    # sessao_virtual list" directly during the scan.
+    sessao_virtual_populated = 0
 
     for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
         item = _load_case(path)
@@ -718,6 +827,8 @@ def build(
         pautas_rows.extend(_flatten_pautas(item))
         publicacoes_dje_rows.extend(_flatten_publicacoes_dje(item))
         decisoes_dje_rows.extend(_flatten_decisoes_dje(item, pdf_cache_root))
+        if item.get("sessao_virtual"):
+            sessao_virtual_populated += 1
         if progress_every and (i + 1) % progress_every == 0:
             print(f"  scanned {i + 1:,} cases", flush=True)
 
@@ -729,6 +840,30 @@ def build(
     n_pautas = len(pautas_rows)
     n_publicacoes_dje = len(publicacoes_dje_rows)
     n_decisoes_dje = len(decisoes_dje_rows)
+
+    # Population-rate validation: catches silent field-wide regressions
+    # (e.g. STF's 2026-04-21 DJe-listing JS-migration took our DJe capture
+    # rate from 20%+ to 0% corpus-wide; a threshold check here would have
+    # caught it immediately instead of three days later).
+    population_rates = _compute_population_rates(
+        n_cases=n_cases,
+        partes_rows=partes_rows,
+        andamentos_rows=andamentos_rows,
+        pautas_rows=pautas_rows,
+        publicacoes_dje_rows=publicacoes_dje_rows,
+        sessao_virtual_populated=sessao_virtual_populated,
+    )
+    validation_warnings, validation_lines = _validate_population_rates(
+        population_rates
+    )
+    print(f"\nbuild stats ({n_cases:,} cases):", flush=True)
+    for line in validation_lines:
+        print(line, flush=True)
+    if validation_warnings:
+        print(
+            f"  ⚠ {len(validation_warnings)} threshold miss(es) — see above",
+            flush=True,
+        )
 
     con = duckdb.connect(str(tmp))
     try:
@@ -779,6 +914,15 @@ def build(
         con.close()
 
     os.replace(tmp, output_path)
+    # Under strict mode, raise *after* the warehouse file ships + stats
+    # print, so operators see what failed before the non-zero exit. The
+    # warehouse is still produced — callers who want to inspect the bad
+    # build can query it; they just don't get a clean CI signal.
+    if strict and validation_warnings:
+        raise BuildValidationError(
+            "population-rate thresholds missed: "
+            + "; ".join(validation_warnings)
+        )
     return BuildSummary(
         n_cases=n_cases,
         n_partes=n_partes,
@@ -790,4 +934,6 @@ def build(
         n_pdfs=n_pdfs,
         wall_s=time.monotonic() - t0,
         output_path=output_path,
+        population_rates=population_rates,
+        validation_warnings=validation_warnings,
     )

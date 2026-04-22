@@ -45,12 +45,12 @@ O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este 
 uv run judex varrer-processos -c HC -i 267138 -f 271138 \
   --rotulo hc_2026 --saida runs/active/hc-2026 \
   --diretorio-itens data/cases/HC \
-  --shards 8 --proxy-pool-dir config/
+  --shards 8 --proxy-pool config/proxies
 
 # 2. Bytes dos PDFs — sharded (~30 min)
 uv run judex baixar-pecas -c HC -i 267138 -f 271138 \
   --saida runs/active/hc-2026-bytes --nao-perguntar \
-  --shards 8 --proxy-pool-dir config/
+  --shards 8 --proxy-pool config/proxies
 
 # 3. Texto via pypdf, zero HTTP (~10 min)
 uv run judex extrair-pecas -c HC -i 267138 -f 271138 \
@@ -341,20 +341,22 @@ O scraper rotaciona proativamente: cada IP é usado por ~4,5 min e fica ~4 min e
 
 **Custo (referência prática).** Eu uso [ProxyScrape](https://proxyscrape.com/) residencial — **R$ 100 por 5 GB** de tráfego. Cada processo do STF custa ~30–50 KB de HTML, então 5 GB dão ordem de 100 k raspagens. Para rodar um processo isolado não compensa; para o backfill de uma classe inteira (HC ~216 k), compensa.
 
-**`baixar-pecas` também aceita `--proxy-pool`.** Vive em `sistemas.stf.jus.br` — domínio separado, contador de reputação próprio, bem mais tolerante que `portal.stf.jus.br`, então em volumes pequenos roda direto. Em sweeps grandes (milhares de PDFs), o modo shardeado (`--shards N --proxy-pool-dir D`) é o caminho: particiona o CSV e distribui um pool de proxies por shard.
+**`baixar-pecas` também aceita `--proxy-pool`.** Vive em `sistemas.stf.jus.br` — domínio separado, contador de reputação próprio, bem mais tolerante que `portal.stf.jus.br`, então em volumes pequenos roda direto. Em sweeps grandes (milhares de PDFs), o modo shardeado (`--shards N --proxy-pool FILE`) é o caminho: particiona o CSV e distribui o pool de proxies entre os shards.
 
-**Convenção do diretório de proxies (modo shardeado).** O launcher espera um arquivo por shard, nomeado `proxies.<letra>.txt` e pega os **N primeiros em ordem alfabética**. Ou seja:
+**Modo shardeado: um arquivo só de proxies.** Os dois sweepers consomem `--proxy-pool FILE` em todos os modos. Em modo monolítico o arquivo vai direto para o driver; em modo shardeado o launcher divide round-robin (linha *i* → shard *i % N*) e materializa as fatias em `<saida>/proxies/proxies.<letra>.txt` na hora de subir os filhos. Sem precisar manter pasta de pools nem renomear arquivos:
 
 ```
-config/
-├── proxies.a.txt        ← usado pelo shard-a
-├── proxies.b.txt        ← shard-b
-├── proxies.c.txt
-...
-└── proxies.p.txt        ← shard-p (16º)
+config/proxies      ← uma URL por linha; cole o batch novo do provedor aqui
+                     (linhas em branco e comentários `#` são ignoradas)
 ```
 
-Cada arquivo tem uma URL de proxy por linha (mesmo formato do `--proxy-pool`). Para `--shards 8` bastam `proxies.{a..h}.txt`; para `--shards 16`, adicione `proxies.{i..p}.txt`. O launcher falha limpo (`ProxyPoolShortage`) se o número de arquivos for menor que o número de shards pedido.
+```bash
+# scrapegw, IPRoyal, ProxyScrape... copia, cola, salva. Pronto.
+uv run judex varrer-processos --csv X.csv --saida out/ --rotulo r \
+    --shards 16 --proxy-pool config/proxies --retomar
+```
+
+O launcher falha limpo (`ValueError`) se o arquivo tiver menos URLs úteis do que o número de shards pedido — uma URL por shard é o mínimo.
 
 ### 7.4 Disjuntor (circuit breaker)
 

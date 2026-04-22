@@ -148,8 +148,21 @@ class CliffDetector:
             return "warming"
         fails = sum(self._waf_bad)
         fail_rate = fails / n
-        walls_sorted = sorted(self._walls)
-        p95 = walls_sorted[min(int(0.95 * n), n - 1)]
+        # Axis B (p95 wall_s) is unreliable on a partially-filled window:
+        # at n == MIN_OBS == 20 with the default window=50, the p95 index
+        # lands on the maximum element, so a single slow record
+        # (e.g. one 70s HTTP stall with no retries, no fails) trips
+        # collapse without any WAF signal. Gate axis B on window fullness
+        # so only genuinely-multi-record-spread latency signals
+        # (≥ 3 records at p95-threshold+ in a full 50-record window)
+        # contribute. Axis A (WAF-shaped fail rate) is not gated — it
+        # still fires early when fail rate is catastrophic.
+        window_full = len(self._walls) == self._walls.maxlen
+        if window_full:
+            walls_sorted = sorted(self._walls)
+            p95 = walls_sorted[int(0.95 * n)]
+        else:
+            p95 = 0.0
         if fail_rate > 0.30 or p95 > 60:
             return "collapse"
         if fail_rate > 0.20 or p95 > 30:

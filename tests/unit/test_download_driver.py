@@ -225,8 +225,10 @@ def test_proxy_pool_reactive_rotation_on_approaching_collapse(
     `approaching_collapse` and the proxy has been in use for >30 s, rotate
     even if --proxy-rotate-seconds hasn't elapsed yet. Simulated by a getter
     that advances the fake clock by 35 s per call (> p95 threshold of 30 s):
-    after ~MIN_OBS=20 observations the regime promotes to
+    after the window fills (window=50) axis B promotes to
     approaching_collapse, and the next post-item rotation check fires.
+    Needs ≥ window_size targets so p95 fires — axis B is gated on window
+    fullness to avoid the small-window-max=p95 false-positive.
     """
     clock = [1000.0]
     monkeypatch.setattr(
@@ -254,7 +256,7 @@ def test_proxy_pool_reactive_rotation_on_approaching_collapse(
         return b"x"
 
     run_download_sweep(
-        [_target(f"https://x.test/{i}.pdf") for i in range(25)],
+        [_target(f"https://x.test/{i}.pdf") for i in range(55)],
         **_kwargs(
             tmp_path / "sweep",
             getter=getter,

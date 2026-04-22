@@ -239,20 +239,19 @@ def varrer_processos(
     ),
     proxy_pool: Optional[Path] = typer.Option(
         None, "--proxy-pool",
-        help="Arquivo com uma URL de proxy por linha; habilita rotação proativa.",
+        help="Arquivo com uma URL de proxy por linha; habilita rotação "
+             "proativa. Em modo monolítico vai direto para run_sweep; em "
+             "modo sharded (--shards > 1) o launcher divide round-robin em "
+             "N pools materializados em <saida>/proxies/proxies.<letra>.txt "
+             "(linhas em branco e comentários '#' ignorados). Obrigatório "
+             "em modo sharded.",
     ),
     shards: int = typer.Option(
         0, "--shards",
         help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard), cada um com seu próprio --proxy-pool "
-             "retirado de --proxy-pool-dir. Exige --csv, --saida, --rotulo "
-             "e --proxy-pool-dir.",
-    ),
-    proxy_pool_dir: Optional[Path] = typer.Option(
-        None, "--proxy-pool-dir",
-        help="Diretório com arquivos proxies.<letra>.txt; usado apenas em "
-             "modo sharded (--shards > 1). O launcher pega os N primeiros em "
-             "ordem alfabética (proxies.a.txt, proxies.b.txt, ...).",
+             "paralelos (um por shard), cada um com sua fatia round-robin "
+             "do --proxy-pool. Exige --csv, --saida, --rotulo e "
+             "--proxy-pool.",
     ),
     excluir_mortos: Optional[Path] = typer.Option(
         None, "--excluir-mortos",
@@ -386,15 +385,13 @@ def varrer_processos(
                 "Modo range já sintetizou um CSV; mas --shards + range "
                 "só faz sentido acima de ~milhares de processos."
             )
-        if proxy_pool_dir is None:
+        if proxy_pool is None:
             raise typer.BadParameter(
-                "--shards > 1 exige --proxy-pool-dir (um pool por shard)."
+                "--shards > 1 exige --proxy-pool (arquivo flat com URLs; "
+                "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import (
-            ProxyPoolShortage,
-            launch_sharded_sweep,
-        )
+        from judex.sweeps.shard_launcher import launch_sharded_sweep
 
         # Flags que valem a pena carregar para todos os shards. Tradução
         # Typer(pt) → argparse do run_sweep(en) acontece aqui — o launcher
@@ -417,13 +414,13 @@ def varrer_processos(
             pids_path = launch_sharded_sweep(
                 csv_path=csv,
                 shards=shards,
-                proxy_pool_dir=proxy_pool_dir,
+                proxy_pool=proxy_pool,
                 saida_root=saida,
                 label_prefix=rotulo,
                 extra_args=extra,
                 strategy=estrategia_shard,  # type: ignore[arg-type]
             )
-        except ProxyPoolShortage as e:
+        except ValueError as e:
             raise typer.BadParameter(str(e))
 
         typer.echo(f"Lançou {shards} shards em background.")
@@ -554,22 +551,18 @@ def baixar_pecas(
     proxy_pool: Optional[Path] = typer.Option(
         None, "--proxy-pool",
         help="Arquivo com uma URL de proxy por linha; habilita rotação "
-             "proativa. Sem este flag, a varredura roda em IP direto "
-             "(comportamento atual).",
+             "proativa. Em modo monolítico vai direto para baixar_pecas; "
+             "em modo sharded (--shards > 1) o launcher divide round-robin "
+             "em N pools materializados em <saida>/proxies/proxies.<letra>.txt "
+             "(linhas em branco e comentários '#' ignorados). Sem este "
+             "flag em modo monolítico, baixa via IP direto. Obrigatório "
+             "em modo sharded.",
     ),
     shards: int = typer.Option(
         0, "--shards",
         help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard), cada um com seu próprio "
-             "--proxy-pool retirado de --proxy-pool-dir. Exige --csv, "
-             "--saida e --proxy-pool-dir.",
-    ),
-    proxy_pool_dir: Optional[Path] = typer.Option(
-        None, "--proxy-pool-dir",
-        help="Diretório com arquivos proxies.<letra>.txt; usado apenas "
-             "em modo sharded (--shards > 1). O launcher pega os N "
-             "primeiros em ordem alfabética (proxies.a.txt, proxies.b.txt, "
-             "...).",
+             "paralelos (um por shard), cada um com sua fatia round-robin "
+             "do --proxy-pool. Exige --csv, --saida e --proxy-pool.",
     ),
     estrategia_shard: str = typer.Option(
         "interleave", "--estrategia-shard",
@@ -603,15 +596,13 @@ def baixar_pecas(
             raise typer.BadParameter(
                 "--shards > 1 exige --saida (raiz das pastas por shard)."
             )
-        if proxy_pool_dir is None:
+        if proxy_pool is None:
             raise typer.BadParameter(
-                "--shards > 1 exige --proxy-pool-dir (um pool por shard)."
+                "--shards > 1 exige --proxy-pool (arquivo flat com URLs; "
+                "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import (
-            ProxyPoolShortage,
-            launch_sharded_download,
-        )
+        from judex.sweeps.shard_launcher import launch_sharded_download
 
         extra: list[str] = []
         _push(extra, "--retomar", retomar)
@@ -627,12 +618,12 @@ def baixar_pecas(
             pids_path = launch_sharded_download(
                 csv_path=csv,
                 shards=shards,
-                proxy_pool_dir=proxy_pool_dir,
+                proxy_pool=proxy_pool,
                 saida_root=saida,
                 extra_args=extra,
                 strategy=estrategia_shard,  # type: ignore[arg-type]
             )
-        except ProxyPoolShortage as e:
+        except ValueError as e:
             raise typer.BadParameter(str(e))
 
         typer.echo(f"Lançou {shards} shards em background.")
@@ -751,6 +742,14 @@ def atualizar_warehouse(
         10_000, "--progresso-cada",
         help="Frequência (em processos) das linhas de progresso no stdout.",
     ),
+    estrito: bool = typer.Option(
+        False, "--estrito",
+        help="Sai com código ≠ 0 se alguma taxa de população de campo "
+             "(partes, andamentos, pautas, sessao_virtual, publicacoes_dje) "
+             "cair abaixo do limiar esperado — usado em CI para pegar "
+             "regressões silenciosas do scraper. O arquivo .duckdb ainda "
+             "é gravado para inspeção manual; só o exit code muda.",
+    ),
 ) -> None:
     """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de PDFs.
 
@@ -772,6 +771,8 @@ def atualizar_warehouse(
             argv.extend(["--classe", c])
     _push(argv, "--year", ano)
     _push(argv, "--progress-every", progresso_cada)
+    if estrito:
+        argv.append("--strict")
 
     from scripts.build_warehouse import main as _bw_main
 

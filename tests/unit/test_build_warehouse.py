@@ -806,3 +806,113 @@ def test_manifest_records_row_counts_and_commit(tmp_path: Path) -> None:
     assert row[2] == 0
     assert sorted(row[3]) == ["ADI", "HC"]
     assert row[4] == 0               # fixtures have no pautas
+
+
+# --- build-stats validation (catch silent regressions) --------------------
+
+
+def _healthy_case(n: int) -> dict:
+    """A case that exercises every populated-rate field above its threshold,
+    so a corpus of these alone produces zero validation warnings."""
+    c = _v1_case(n=n)
+    # sessao_virtual with one entry
+    c["sessao_virtual"] = [{
+        "metadata": {"relator": "MIN. X"},
+        "voto_relator": None, "votes": {},
+        "documentos": [], "julgamento_item_titulo": "",
+    }]
+    # pautas populated
+    c["pautas"] = [{
+        "index": 0, "data": "2024-01-01", "nome": "PAUTA",
+        "complemento": None, "julgador": None,
+    }]
+    # v8+ DJe shape with one entry
+    c["publicacoes_dje"] = [{
+        "seq": 0, "numero": 1, "data": "2024-01-02",
+        "secao": "2ª Turma", "subsecao": "Sessão", "titulo": f"HC {n}",
+        "detail_url": f"https://portal.stf.jus.br/dje?n={n}",
+        "decisoes": [],
+    }]
+    c["_meta"] = {"schema_version": 8, "status_http": 200,
+                  "extraido": "2026-04-21T00:00:00"}
+    return c
+
+
+def test_build_stats_reports_population_rates(tmp_path: Path) -> None:
+    """The build returns population rates for the key fields the builder
+    knows how to track, so callers (and CI) can diff them across builds."""
+    cases = tmp_path / "cases"
+    for n in range(1, 11):
+        _write_case(cases, _healthy_case(n))
+
+    summary = builder.build(
+        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        output_path=tmp_path / "out.duckdb",
+    )
+
+    rates = summary.population_rates
+    # Every healthy case has partes + andamentos + pautas + sessao + DJe.
+    assert rates["partes"] == 1.0
+    assert rates["andamentos"] == 1.0
+    assert rates["pautas"] == 1.0
+    assert rates["sessao_virtual"] == 1.0
+    assert rates["publicacoes_dje"] == 1.0
+
+
+def test_build_stats_warns_when_dje_below_threshold(tmp_path: Path) -> None:
+    """The canonical regression test: if `publicacoes_dje` population drops
+    across the corpus (e.g. because STF changed the listing endpoint to
+    JS-rendered and our parser now returns []), the builder must surface
+    a warning. Prevents the 2026-04-21 silent-regression scenario where
+    0/3118 cases had DJe and nobody noticed."""
+    cases = tmp_path / "cases"
+    for n in range(1, 21):
+        c = _healthy_case(n)
+        c["publicacoes_dje"] = []  # simulate the STF-migration regression
+        _write_case(cases, c)
+
+    summary = builder.build(
+        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        output_path=tmp_path / "out.duckdb",
+    )
+
+    assert summary.population_rates["publicacoes_dje"] == 0.0
+    # Warning must mention the field by name so grep-for-bug works.
+    warnings_str = " ".join(summary.validation_warnings)
+    assert "publicacoes_dje" in warnings_str
+    # Other fields still healthy — their warnings must NOT fire.
+    assert not any("partes" in w for w in summary.validation_warnings)
+
+
+def test_build_strict_raises_on_validation_warning(tmp_path: Path) -> None:
+    """Under --strict (for CI / scheduled rebuilds) a threshold miss is
+    a hard failure, not just a warning line. Ad-hoc builds stay permissive."""
+    cases = tmp_path / "cases"
+    for n in range(1, 21):
+        c = _healthy_case(n)
+        c["publicacoes_dje"] = []
+        _write_case(cases, c)
+
+    import pytest
+    with pytest.raises(builder.BuildValidationError) as excinfo:
+        builder.build(
+            cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+            output_path=tmp_path / "out.duckdb",
+            strict=True,
+        )
+    assert "publicacoes_dje" in str(excinfo.value)
+
+
+def test_build_strict_passes_when_all_thresholds_met(tmp_path: Path) -> None:
+    """Healthy data under strict mode must not raise — strict only gates
+    on threshold misses, not on merely having data."""
+    cases = tmp_path / "cases"
+    for n in range(1, 11):
+        _write_case(cases, _healthy_case(n))
+
+    summary = builder.build(
+        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        output_path=tmp_path / "out.duckdb",
+        strict=True,
+    )
+    assert summary.validation_warnings == []

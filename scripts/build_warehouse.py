@@ -34,6 +34,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Filter to one HC year via hc_calendar.year_to_id_range (requires --classe HC)."
     )
     parser.add_argument("--progress-every", type=int, default=10_000)
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="Exit non-zero if any case-level population rate (partes, "
+             "andamentos, pautas, sessao_virtual, publicacoes_dje) falls "
+             "below its threshold. Warehouse file is still written so the "
+             "bad build can be inspected manually; this only gates CI. "
+             "Thresholds live in judex.warehouse.builder.MIN_POPULATION_RATES."
+    )
     args = parser.parse_args(argv)
 
     id_range = None
@@ -50,14 +58,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.classe:
         print(f"  classes {args.classe}")
 
-    summary = builder.build(
-        cases_root=args.cases_root,
-        pdf_cache_root=args.pdf_cache_root,
-        output_path=args.output,
-        classes=args.classe,
-        id_range=id_range,
-        progress_every=args.progress_every,
-    )
+    try:
+        summary = builder.build(
+            cases_root=args.cases_root,
+            pdf_cache_root=args.pdf_cache_root,
+            output_path=args.output,
+            classes=args.classe,
+            id_range=id_range,
+            progress_every=args.progress_every,
+            strict=args.strict,
+        )
+    except builder.BuildValidationError as e:
+        # `strict=True` raises *after* writing the warehouse file + printing
+        # stats — so the user sees what failed. Return non-zero so CI / any
+        # scheduled rebuild catches the regression.
+        print(f"\nERROR: {e}")
+        return 2
 
     size_mb = args.output.stat().st_size / 1024**2
     print()

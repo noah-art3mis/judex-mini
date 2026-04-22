@@ -1,33 +1,37 @@
-"""Sharded-launch primitive for PDF-download sweeps.
+"""Sharded-launch primitives for judex sweeps.
 
-Used by ``judex baixar-pecas --shards N --proxy-pool-dir D`` to partition
-an input CSV into N disjoint shards, each bound to a different proxy
-pool, and spawn N detached child processes (one per shard).
+Used by:
+- ``judex varrer-processos --shards N --proxy-pool FILE`` (case JSON,
+  WAF-hot; routed through ``scripts/run_sweep.py``).
+- ``judex baixar-pecas      --shards N --proxy-pool FILE`` (PDF bytes;
+  routed through ``scripts/baixar_pecas.py``).
 
-The launcher is the Python analogue of ``scripts/launch_hc_backfill_sharded.sh`` —
-except it targets ``scripts/baixar_pecas.py`` (PDF bytes) rather than
-``scripts/run_sweep.py`` (case JSON), and it lives in ``src/`` so it
-composes with the Typer CLI naturally.
+Both callers partition an input CSV into N disjoint shards and detach
+one child process per shard, each bound to a slice of the proxy pool.
 
 Design:
-- **Range-partition** the CSV via ``scripts.shard_csv.shard_csv`` (not
-  hash) so each shard owns a contiguous slice of processo_ids. Preserves
-  locality + matches the monolithic-sweep seeding logic.
-- **Proxy pool discovery** picks the first N alphabetically-sorted files
-  matching ``proxies.<letter>.txt`` (single-letter suffix) from
-  ``--proxy-pool-dir``. ``proxies.reserve.txt`` and other names are
-  ignored. Errors loudly if fewer than N pools are available.
+- **Single proxy input file.** The caller passes one flat file of
+  proxy URLs (one per line; blank lines and ``#`` comments ignored).
+  :func:`split_proxy_file` materializes N per-shard sub-files under
+  ``<saida_root>/proxies/proxies.<letter>.txt`` via round-robin, so
+  line ``i`` lands in pool ``i % N`` and any geographic/provider
+  clustering is spread across shards instead of concentrated.
+- **Shard partitioning** via :func:`scripts.shard_csv.shard_csv`.
+  Default strategy is ``interleave`` (line ``i`` → shard ``i % N``),
+  which spreads any correlation with CSV order across shards.
+  ``range`` is still selectable for workloads where per-shard pid
+  locality matters.
 - **Detached children** via ``subprocess.Popen(start_new_session=True)``
-  with ``nohup``-equivalent semantics (stdin closed, stdout/stderr to a
-  per-shard ``driver.log``). Parent returns immediately; PIDs recorded to
-  ``<saida_root>/shards.pids`` for ``kill -TERM`` / ``pgrep -af``.
-- **Spawn is injected** (``spawn`` kwarg) so unit tests don't fork real
-  processes. Default is ``_real_spawn`` in this module.
+  with ``nohup``-equivalent semantics (stdin closed, stdout/stderr to
+  a per-shard ``driver.log``). Parent returns immediately; PIDs are
+  recorded to ``<saida_root>/shards.pids`` for
+  ``xargs -a ... kill -TERM`` / ``pgrep -af <label>``.
+- **Spawn is injected** (``spawn`` kwarg) so unit tests don't fork
+  real processes. Default is ``_real_spawn`` in this module.
 """
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 from typing import Callable, Optional
@@ -35,38 +39,50 @@ from typing import Callable, Optional
 from scripts.shard_csv import ShardStrategy, shard_csv
 
 
-_PROXY_FILE_RE = re.compile(r"^proxies\.[a-z]\.txt$")
-
 SpawnFn = Callable[[list[str], Path, Path], int]
 """(argv, cwd, driver_log) -> pid. driver_log is the file where stdout+stderr
 of the child should be written (create/truncate)."""
 
 
-class ProxyPoolShortage(RuntimeError):
-    """Raised when --proxy-pool-dir has fewer matching files than --shards."""
+def split_proxy_file(proxy_file: Path, n: int, out_dir: Path) -> list[Path]:
+    """Split a flat proxy list into N pools via round-robin.
 
+    The caller keeps a single source-of-truth file (e.g. freshly pasted
+    from a proxy provider) containing one proxy URL per line; we split
+    it at launch time into ``out_dir/proxies.{a..}.txt`` — line ``i``
+    lands in pool ``i % n``, distributing any geographic/provider
+    clustering across shards rather than concentrating it. Blank lines
+    and ``#``-prefixed comments are ignored so pasted batches don't
+    need polishing.
 
-def discover_proxy_pools(proxy_pool_dir: Path, n: int) -> list[Path]:
-    """Return the first N alphabetically-sorted ``proxies.<letter>.txt`` files.
+    Returns the list of per-pool file paths in alphabetical order,
+    ready to hand to each shard's ``--proxy-pool`` arg.
 
-    Raises ``ProxyPoolShortage`` if fewer than N are present. Rejects
-    non-single-letter suffixes (``proxies.reserve.txt``, ``proxies.pool1.txt``)
-    so it can't accidentally pick up the reserve pool.
+    Raises ``ValueError`` if the source has fewer usable lines than
+    ``n`` — we refuse to create empty pool files that would starve a
+    shard.
     """
-    if not proxy_pool_dir.is_dir():
-        raise ProxyPoolShortage(
-            f"--proxy-pool-dir {proxy_pool_dir} is not a directory"
+    lines = []
+    for raw in proxy_file.read_text().splitlines():
+        s = raw.strip()
+        if s and not s.startswith("#"):
+            lines.append(s)
+    if len(lines) < n:
+        raise ValueError(
+            f"{proxy_file} has {len(lines)} usable proxies; need at least {n} "
+            f"(one per shard). Add more proxies or reduce --shards."
         )
-    candidates = sorted(
-        p for p in proxy_pool_dir.iterdir()
-        if p.is_file() and _PROXY_FILE_RE.match(p.name)
-    )
-    if len(candidates) < n:
-        raise ProxyPoolShortage(
-            f"--proxy-pool-dir {proxy_pool_dir} has only {len(candidates)} "
-            f"proxies.<letter>.txt file(s); need {n}"
-        )
-    return candidates[:n]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pools: list[list[str]] = [[] for _ in range(n)]
+    for i, line in enumerate(lines):
+        pools[i % n].append(line)
+    paths: list[Path] = []
+    for idx, pool_lines in enumerate(pools):
+        letter = chr(ord("a") + idx)
+        path = out_dir / f"proxies.{letter}.txt"
+        path.write_text("\n".join(pool_lines) + "\n")
+        paths.append(path)
+    return paths
 
 
 def _real_spawn(argv: list[str], cwd: Path, driver_log: Path) -> int:
@@ -95,7 +111,7 @@ def launch_sharded_sweep(
     *,
     csv_path: Path,
     shards: int,
-    proxy_pool_dir: Path,
+    proxy_pool: Path,
     saida_root: Path,
     label_prefix: str,
     extra_args: Optional[list[str]] = None,
@@ -107,19 +123,19 @@ def launch_sharded_sweep(
     Sibling of :func:`launch_sharded_download`, targeting
     ``scripts/run_sweep.py`` (case JSON scrape) instead of
     ``scripts/baixar_pecas.py`` (PDF bytes). Same partition rule, same
-    per-shard directory layout, same pids-file contract — the differences
-    are:
+    per-shard directory layout, same pids-file contract — the
+    differences are:
 
-    - **Label is mandatory.** ``run_sweep`` requires ``--label`` to name
-      its sweep.state.json + sweep.log.jsonl; per-shard label is
-      ``<label_prefix>_shard_<letter>`` so ``pgrep -f <label>`` targets a
-      single shard and so shard logs don't cross-contaminate.
+    - **Label is mandatory.** ``run_sweep`` requires ``--label`` to
+      name its sweep.state.json + sweep.log.jsonl; per-shard label is
+      ``<label_prefix>_shard_<letter>`` so ``pgrep -f <label>`` targets
+      a single shard and so shard logs don't cross-contaminate.
     - **Target script** is ``scripts/run_sweep.py`` (the WAF-hot half).
     - ``extra_args`` typically includes ``--resume`` + ``--items-dir
       data/cases/<CLASSE>``; the caller owns the choice.
 
-    Raises :class:`ValueError` if ``label_prefix`` is empty — we'd
-    otherwise silently spawn shards with ambiguous labels.
+    Raises :class:`ValueError` if ``label_prefix`` is empty, or if
+    ``proxy_pool`` has fewer usable proxy lines than ``shards``.
     """
     if shards < 2:
         raise ValueError("launch_sharded_sweep requires shards >= 2")
@@ -139,7 +155,7 @@ def launch_sharded_sweep(
     shards_dir = saida_root / "shards"
     shard_files = shard_csv(csv_path, shards, shards_dir, strategy=strategy)
 
-    pools = discover_proxy_pools(proxy_pool_dir, shards)
+    pools = split_proxy_file(proxy_pool, shards, saida_root / "proxies")
 
     repo_root = Path.cwd()
     pids_path = saida_root / "shards.pids"
@@ -170,7 +186,7 @@ def launch_sharded_download(
     *,
     csv_path: Path,
     shards: int,
-    proxy_pool_dir: Path,
+    proxy_pool: Path,
     saida_root: Path,
     extra_args: Optional[list[str]] = None,
     spawn: SpawnFn = _real_spawn,
@@ -179,18 +195,20 @@ def launch_sharded_download(
     """Partition CSV, spawn N detached baixar_pecas children, return PIDs file.
 
     Steps:
-      1. Create ``<saida_root>/shards/`` and call ``shard_csv`` to range-
-         partition ``csv_path`` into N files.
-      2. Resolve N proxy pools via ``discover_proxy_pools``.
-      3. For each shard, mkdir ``<saida_root>/shard-<letter>/`` and spawn
-         ``uv run python scripts/baixar_pecas.py --csv SHARD --saida
-         SHARD_DIR --proxy-pool POOL [extra_args]``. Child is detached.
+      1. Create ``<saida_root>/shards/`` and call ``shard_csv`` to
+         partition ``csv_path`` into N files (strategy-driven).
+      2. Split ``proxy_pool`` round-robin into N per-shard files under
+         ``<saida_root>/proxies/proxies.<letter>.txt``.
+      3. For each shard, mkdir ``<saida_root>/shard-<letter>/`` and
+         spawn ``uv run python scripts/baixar_pecas.py --csv SHARD
+         --saida SHARD_DIR --proxy-pool POOL [extra_args]``. Child is
+         detached.
       4. Write one ``<pid>  shard-<letter>`` line per child to
          ``<saida_root>/shards.pids``.
       5. Return the pids-file path.
 
-    Returns the path to the ``shards.pids`` file so the caller can print
-    the monitoring commands back to the user.
+    Raises :class:`ValueError` if ``proxy_pool`` has fewer usable proxy
+    lines than ``shards``.
     """
     if shards < 2:
         raise ValueError("launch_sharded_download requires shards >= 2")
@@ -200,13 +218,13 @@ def launch_sharded_download(
     shards_dir = saida_root / "shards"
     shard_files = shard_csv(csv_path, shards, shards_dir, strategy=strategy)
 
-    pools = discover_proxy_pools(proxy_pool_dir, shards)
+    pools = split_proxy_file(proxy_pool, shards, saida_root / "proxies")
 
     repo_root = Path.cwd()
     pids_path = saida_root / "shards.pids"
     lines: list[str] = []
 
-    for i, (shard_csv_path, pool_path) in enumerate(zip(shard_files, pools)):
+    for shard_csv_path, pool_path in zip(shard_files, pools):
         # Shard letter follows the pool's letter (a, b, c, ...) for easy
         # "shard-a uses proxies.a.txt" reasoning.
         letter = pool_path.stem.split(".")[1]  # proxies.a.txt -> "a"
