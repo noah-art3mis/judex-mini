@@ -463,6 +463,7 @@ def _argv_pdf_common(
     relator_contem: str, excluir_tipos_doc: str, limite: int,
     saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
     retomar: bool,
+    apenas_substantivas: bool = True,
 ) -> list[str]:
     """Montar a parte comum de argv para baixar-pecas e extrair-pecas."""
     a: list[str] = []
@@ -480,6 +481,10 @@ def _argv_pdf_common(
     _push(a, "--dry-run", dry_run)
     _push(a, "--nao-perguntar", nao_perguntar)
     _push(a, "--retomar", retomar)
+    if apenas_substantivas:
+        a.append("--apenas-substantivas")
+    else:
+        a.append("--todos-tipos")
     return a
 
 
@@ -522,6 +527,12 @@ def baixar_pecas(
     excluir_tipos_doc: str = typer.Option(
         "", "--excluir-tipos-doc",
         help="Filtro: tipos de doc a pular (depois de --tipos-doc).",
+    ),
+    apenas_substantivas: bool = typer.Option(
+        True, "--apenas-substantivas/--todos-tipos",
+        help="Pula peças tier-C (certidões, termos, intimações) por padrão. "
+             "Ver docs/peca-tipo-classification.md. Use --todos-tipos para "
+             "desativar e baixar TODAS as peças.",
     ),
     limite: int = typer.Option(
         0, "--limite",
@@ -608,6 +619,10 @@ def baixar_pecas(
         _push(extra, "--retomar", retomar)
         _push(extra, "--forcar", forcar)
         _push(extra, "--nao-perguntar", nao_perguntar)
+        if apenas_substantivas:
+            extra.append("--apenas-substantivas")
+        else:
+            extra.append("--todos-tipos")
 
         if estrategia_shard not in ("interleave", "range"):
             raise typer.BadParameter(
@@ -639,6 +654,7 @@ def baixar_pecas(
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
         limite=limite, saida=saida, dry_run=dry_run,
         nao_perguntar=nao_perguntar, retomar=retomar,
+        apenas_substantivas=apenas_substantivas,
     )
     _push(argv, "--forcar", forcar)
     _push(argv, "--proxy-pool", proxy_pool)
@@ -669,6 +685,11 @@ def extrair_pecas(
     tipos_doc: str = typer.Option("", "--tipos-doc"),
     relator_contem: str = typer.Option("", "--relator-contem"),
     excluir_tipos_doc: str = typer.Option("", "--excluir-tipos-doc"),
+    apenas_substantivas: bool = typer.Option(
+        True, "--apenas-substantivas/--todos-tipos",
+        help="Pula peças tier-C (certidões, termos, intimações) por padrão. "
+             "Ver docs/peca-tipo-classification.md.",
+    ),
     limite: int = typer.Option(0, "--limite"),
     # Extrator.
     provedor: str = typer.Option(
@@ -704,6 +725,7 @@ def extrair_pecas(
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
         limite=limite, saida=saida, dry_run=dry_run,
         nao_perguntar=nao_perguntar, retomar=retomar,
+        apenas_substantivas=apenas_substantivas,
     )
     _push(argv, "--provedor", provedor)
     _push(argv, "--forcar", forcar)

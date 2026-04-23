@@ -31,6 +31,7 @@ from pathlib import Path
 from judex.sweeps import peca_cli as _pdf_cli
 from judex.scraping.ocr import OCRConfig
 from judex.sweeps.extract_driver import run_extract_sweep
+from judex.sweeps.peca_classification import filter_substantive, summarize_tipos
 
 
 _PROVIDERS = ("pypdf", "mistral", "chandra", "unstructured")
@@ -86,6 +87,19 @@ def main(argv: list[str] | None = None) -> int:
                     type=str, default="")
     ap.add_argument("--limite", type=int, default=0)
 
+    # Substantive-only filter (mirrors baixar-pecas; on by default).
+    ap.add_argument(
+        "--apenas-substantivas", dest="apenas_substantivas",
+        action="store_true", default=True,
+        help="Pula peças tier-C (certidões, termos, intimações). "
+             "Default: True. Desativar com --todos-tipos.",
+    )
+    ap.add_argument(
+        "--todos-tipos", dest="apenas_substantivas",
+        action="store_false",
+        help="Desativa o filtro substantivas; extrai TODAS as peças.",
+    )
+
     # Extractor.
     ap.add_argument("--provedor", type=str, default="pypdf", choices=_PROVIDERS,
                     help="Text extractor. Default: pypdf.")
@@ -104,6 +118,31 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     targets, mode_label = _pdf_cli.resolve_targets(args)
+    if args.apenas_substantivas:
+        before = len(targets)
+        targets = filter_substantive(targets)
+        dropped = before - len(targets)
+        if dropped:
+            print(
+                f"--apenas-substantivas: dropped {dropped} tier-C targets "
+                f"({before} → {len(targets)}). Use --todos-tipos to disable.",
+                flush=True,
+            )
+
+    top, unseen = summarize_tipos(targets)
+    if top:
+        top_str = ", ".join(f"{t!r} ({n:,})" for t, n in top)
+        print(f"top tipos: {top_str}", flush=True)
+    if unseen:
+        unseen_str = ", ".join(
+            f"{t!r} (n={n:,})" for t, n in sorted(unseen.items(), key=lambda kv: -kv[1])
+        )
+        print(
+            f"⚠  unseen tipo(s) — not in classification, kept by default: {unseen_str}. "
+            f"See docs/peca-tipo-classification.md § Policy for unseen tipos.",
+            flush=True,
+        )
+
     if args.limite and len(targets) > args.limite:
         targets = targets[: args.limite]
 

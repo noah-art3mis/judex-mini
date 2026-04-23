@@ -32,6 +32,11 @@ from pathlib import Path
 from judex.scraping.proxy_pool import ProxyPool
 from judex.sweeps import peca_cli as _pdf_cli
 from judex.sweeps.download_driver import run_download_sweep
+from judex.sweeps.peca_classification import (
+    TIER_C_DOC_TYPES,
+    filter_substantive,
+    summarize_tipos,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,6 +69,22 @@ def main(argv: list[str] | None = None) -> int:
                     help="Filter: comma-separated doc_types to skip.")
     ap.add_argument("--limite", type=int, default=0,
                     help="Truncate to N targets (0 = no limit). After filtering.")
+
+    # Substantive-only filter (on by default; ~55% fewer HTTP requests).
+    # Drops tier-C procedural stubs (certidões, termos, intimações,
+    # comunicações, decisão-de-julgamento). See docs/peca-tipo-classification.md.
+    ap.add_argument(
+        "--apenas-substantivas", dest="apenas_substantivas",
+        action="store_true", default=True,
+        help="Pula peças tier-C (certidões, termos, intimações). "
+             "Default: True. Desativar com --todos-tipos.",
+    )
+    ap.add_argument(
+        "--todos-tipos", dest="apenas_substantivas",
+        action="store_false",
+        help="Desativa o filtro substantivas; baixa TODAS as peças "
+             "(inclui certidões, termos, etc.).",
+    )
 
     # Execution.
     ap.add_argument("--saida", type=Path, default=None,
@@ -102,6 +123,33 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     targets, mode_label = _pdf_cli.resolve_targets(args)
+    if args.apenas_substantivas:
+        before = len(targets)
+        targets = filter_substantive(targets)
+        dropped = before - len(targets)
+        if dropped:
+            print(
+                f"--apenas-substantivas: dropped {dropped} tier-C targets "
+                f"({before} → {len(targets)}). Use --todos-tipos to disable.",
+                flush=True,
+            )
+
+    # Pre-flight tipo summary + unseen-tipo warning. Runs regardless of
+    # filter state — unseen tipos are worth flagging either way.
+    top, unseen = summarize_tipos(targets)
+    if top:
+        top_str = ", ".join(f"{t!r} ({n:,})" for t, n in top)
+        print(f"top tipos: {top_str}", flush=True)
+    if unseen:
+        unseen_str = ", ".join(
+            f"{t!r} (n={n:,})" for t, n in sorted(unseen.items(), key=lambda kv: -kv[1])
+        )
+        print(
+            f"⚠  unseen tipo(s) — not in classification, kept by default: {unseen_str}. "
+            f"See docs/peca-tipo-classification.md § Policy for unseen tipos.",
+            flush=True,
+        )
+
     if args.limite and len(targets) > args.limite:
         targets = targets[: args.limite]
 

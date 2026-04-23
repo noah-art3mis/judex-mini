@@ -14,7 +14,9 @@ PDF cache: **1.5 GB / 10,841 PDFs** (arm A didn't run baixar-pecas
 yet). Dead-ID graveyard: `data/dead_ids/HC.txt` (**3,348 confirmed
 pids**, pre-arm-A; arm-A's NoIncidente observations not yet
 aggregated). Main `judex.duckdb` and 2026 sub-warehouse unchanged.
-Nothing executing (all 8 arm-A shards self-stopped on cliff).
+HC 2025 PDF sweep stopped 2026-04-22 ~19:52 BRT for a host reboot
+at ~58% URL coverage / 52% case coverage. Resume command in
+§ In flight.
 
 Single live file covering the **active task's lab notebook** and the
 **strategic state** across work-sessions. Archive to
@@ -227,7 +229,9 @@ arm C launched (HC 2023 @ 16 shards, in flight from 09:16 BRT). A/B
 decision landed: **16 wins, 8 retired for sustained jobs.** Full
 writeup: [`docs/reports/2026-04-21-8-vs-16-shards.md`](reports/2026-04-21-8-vs-16-shards.md).
 
-**What's still ahead** (nothing executing):
+**What's still ahead** (HC 2025 PDF sweep stopped at ~58% for a
+reboot — resume command in § In flight; parallel-safe zero-HTTP
+queue also listed there):
 
 a. ✅ **Arm-A + arm-B + arm-C recovery pass** — *landed 2026-04-21*.
    7,672-pid union-recovery at 16 shards; 96.0% / 1 cliff / 43.5 min
@@ -604,14 +608,179 @@ Tests: **538 green**. Cumulative cache: 1.5 GB PDFs, 90,196 HC cases.
 
 ## In flight
 
-**Nothing executing.** Arms A/B/C + recovery all landed this cycle.
-Content-freshness for HC 2023–2025 now covers 7,367 + 13,240 + 10,926
+**Stopped 2026-04-22 ~19:52 BRT for a host reboot — resume after
+boot.** `baixar-pecas` HC 2025 direct-IP sweep was halted with
+SIGTERM → SIGKILL after the graceful handler hung on a stuck HTTP
+request. State file (`pdfs.state.json`, 12.8 MB) parses cleanly;
+per-URL atomic writes mean at most one in-flight URL was lost.
+
+**Final stop snapshot:**
+- run dir: `runs/active/2026-04-22-hc-pecas-2025-direct/`
+- URLs in state: **29,326** (15,418 cached · 13,902 ok · 6 http_error)
+- launcher counter at stop: **~29,330 / 50,526 (≈ 58%)**
+- cases visited: **7,198 / 13,755 (52.3%)** — ~6,557 cases remain
+- recent throughput: 0.50 rec/s (60s window) / 0.34 rec/s (long run)
+- error pattern: 5 SSLError + 1 ConnectionError, **zero 403s** —
+  direct host IP showed no WAF pushback all day; this is the first
+  clean datapoint that contradicts yesterday's "portal-fatigued"
+  baseline (see § Throughput baselines, `baixar-pecas` row).
+
+**Resume command** (after reboot — single-process, identical to
+the launch invocation; `--retomar` skips everything in
+`pdfs.state.json` and continues from the next CSV row):
+
+```bash
+cd /home/noah-art3mis/projects/judex-mini
+nohup uv run judex baixar-pecas \
+    --csv tests/sweep/hc_2025_full.csv \
+    --saida runs/active/2026-04-22-hc-pecas-2025-direct \
+    --retomar --nao-perguntar \
+    >> runs/active/2026-04-22-hc-pecas-2025-direct/launcher-stdout.log 2>&1 &
+disown
+```
+
+**Verify resume took** (within 30s of relaunch — state size should
+keep growing, launcher counter should advance past 29,330):
+
+```bash
+tail -5 runs/active/2026-04-22-hc-pecas-2025-direct/launcher-stdout.log
+pgrep -af 'baixar-pecas' | grep -v 'pgrep\|grep'
+```
+
+**Estimated remaining work** at observed rates: ~21,200 URLs left;
+12.8 h at 0.50 rec/s recent rate, 17 h at 0.34 rec/s long-run rate.
+If the host IP is still as clean post-reboot as it was today, expect
+the upper end (recent rate). If the WAF starts pushing back (any
+403s in the first 200 records), abort and switch to the proxy-pool
+path per § Reference.
+
+**Why no shards:** this is a single-process direct-IP sweep — the
+launch invocation didn't include `--shards` / `--proxy-pool`, so
+`judex probe` (which enumerates `shard-*` dirs) doesn't work on
+this run. Probe equivalents:
+`tail launcher-stdout.log` (true done/total counter),
+`wc -l pdfs.log.jsonl` (rate),
+`jq -s 'group_by(.status) | map({status: .[0].status, n: length})' pdfs.state.json`
+(status breakdown).
+
+**Follow-up: 22 http_error URLs to retry after main run finishes.**
+On 2026-04-23 morning the workstation's captive-portal network
+session expired, causing ~16 URLs to fail with `SSL:
+UNEXPECTED_EOF_WHILE_READING` (RST-injection into long-running
+TLS streams) before re-auth restored the network. Combined with
+the 6 pre-stop errors, state now holds **22 `http_error`** (vs
+15,418 cached · 14,152 ok at the time of note). These will NOT be
+retried within the current run — the read-head has already passed
+them. After the current sweep terminates and `pdfs.errors.jsonl`
+is rewritten, drain them with:
+
+```bash
+uv run judex baixar-pecas \
+    --retentar-de runs/active/2026-04-22-hc-pecas-2025-direct/pdfs.errors.jsonl \
+    --saida runs/active/2026-04-22-hc-pecas-2025-direct \
+    --nao-perguntar
+```
+
+`--retentar-de` skips the CSV entirely and processes only those
+URLs, so the cost is ~22 HTTP requests, not a full re-scan.
+Anything that stays in errors.jsonl after this retry is a real
+permanent failure worth inspecting case-by-case.
+
+### Parallel-safe queue (zero-HTTP, no WAF share)
+
+Content-freshness for HC 2023–2025 covers 7,367 + 13,240 + 10,926
 + 7,356 = 38,889 fresh case JSONs via arms B/C + recoveries (arm A
 initial 7,356, then 7,367 of its 7,672-pid recovery queue landed
 across 2023/2024/2025 union). Corpus-wide freshness status moves
 from "~half of 2025" to "~96% of 2023–2025 + 100% of 2026."
 
+### Parallel-safe queue (zero-HTTP, no WAF share)
+
+These can run **right now** alongside the active `baixar-pecas`
+without touching `portal.stf.jus.br`. Ordered by ROI. Interference
+model: all four read from local disk / warehouse only; none emit
+HTTP to STF or any proxy provider.
+
+1. **`extrair-pecas --provedor pypdf`** — drains the extraction
+   backlog. Current cache: 38,232 `.pdf.gz` vs 32,529 `.txt.gz` →
+   **~5,703 PDFs with no extracted text yet**, and the active sweep
+   is growing the gap as it lands fresh `ok` bytes. pypdf is local
+   CPU, single-threaded, ~free; won't contend with the sweep for
+   bandwidth. Obvious consumer of what `baixar-pecas` produces.
+2. **`atualizar-warehouse`** — full rebuild of
+   `data/warehouse/judex.duckdb` from case JSONs + text cache.
+   Atomic swap, zero HTTP, a few minutes. Will land arms A/B/C +
+   recovery freshness + whatever extraction #1 produces. Build-stats
+   validation from this cycle will flag `publicacoes_dje: 0.0% [WARN]`
+   (expected — DJe path 1/2 not done) and any other silent regression.
+3. **Analysis work on the current warehouse** — Marimo notebooks,
+   SQL queries, the `analysis/hc_judge_lawyer_network.py` snapshot
+   refresh on whatever warehouse build is current, the unit test
+   suite (`uv run pytest tests/unit/`, 568 green). All file-bound.
+4. **`validar-gabarito`** — re-run parity check against the 5
+   hand-verified cases in `tests/ground_truth/`. Zero HTTP; reads
+   the case JSONs on disk. Cheap smoke test that the scraper output
+   format hasn't drifted.
+
+**Unsafe while the current sweep runs** (would share the host IP's
+WAF counter): a second `baixar-pecas` direct, any `varrer-processos`
+direct, `sondar-densidade`. A *proxy-pool* sweep is safe because
+egress IPs don't overlap, but it doubles proxy burn for the duration.
+
 ### Recently completed (today)
+
+**Peça tipo classification + `pdfs_substantive` view + `--apenas-substantivas` default — 2026-04-23.**
+Built a three-tier classification of HC peça PDFs: tier A =
+substantive argumentation (keep), tier B = length-gated mixed
+(keep if >1500 chars for `DESPACHO`), tier C = procedural boilerplate
+(skip). By document count, tier C is **55% of the HC corpus** (132k of
+241k andamentos PDFs). Validated with min/median/max sampling per
+tipo (both random and length-extreme); calibration bumped the
+`MANIFESTAÇÃO DA PGR` length gate 500 → 1000 after finding CIENTE
+stamps at 567 chars.
+
+Shipped:
+- `judex/sweeps/peca_classification.py`: `TIER_A_DOC_TYPES`,
+  `TIER_B_DOC_TYPES`, `TIER_C_DOC_TYPES`, `KNOWN_DOC_TYPES` constants
+  + `filter_substantive()` + `summarize_tipos()`. Matching is
+  case- and accent-insensitive (NFKD fold + combining-strip +
+  uppercase + trim); fail-open on genuinely new tipos.
+- `scripts/baixar_pecas.py` + `judex/cli.py`: **`--apenas-substantivas`
+  default ON** with `--todos-tipos` opt-out. Filter runs after
+  `resolve_targets` before `--limite`, so CSV / range / filter-fallback
+  paths all benefit. Sharded mode threads the flag through to children.
+  Pre-flight banner prints top-5 tipos and warns on any unseen tipo
+  (not in `KNOWN_DOC_TYPES`) so operators catch labeling drift at
+  sweep launch.
+- `judex/warehouse/builder.py`: `CREATE VIEW pdfs_substantive` added
+  to `_SCHEMA_SQL` — unions andamentos + session-virtual documentos,
+  tier-labeled, drops tier-C. `MANIFESTAÇÃO DA PGR` length gate
+  calibrated 500 → 1000 from expanded sampling.
+- `docs/peca-tipo-classification.md`: full tier definitions, per-tipo
+  content notes, flag usage, insensitive-match policy, fail-open
+  policy, pre-flight banner format, validation sampling log.
+- `tests/unit/test_peca_classification.py`: 7 behavior tests
+  (drop tier-C, keep unknown, case/accent-insensitive match, fail-open
+  on genuinely new tipos, summarize top+unseen, variant-not-flagged,
+  high-volume stubs present).
+
+All **575 unit tests green** (568 + 7 new; warehouse tests exercise
+the view via `_SCHEMA_SQL`).
+
+**Empirical validation on current corpus:** 17 distinct tipos, zero
+case/accent variants, zero silent misses from the insensitive fold
+— the insensitive match is pure future-proofing against STF labeling
+reforms.
+
+**End-to-end dry-run** on HC 250000–250050 (185 targets):
+`--apenas-substantivas` dropped 117 (63%); top tipos:
+DECISÃO MONOCRÁTICA (46), INTEIRO TEOR DO ACÓRDÃO (18), DESPACHO (4);
+zero unseen tipos flagged.
+
+**Sweep impact** — next `baixar-pecas` run silently drops ~55% of
+URLs before HTTP (prints a "dropped N tier-C targets" banner + top
+tipos + unseen warning if any). Proportional wall-clock + WAF-exposure
+savings. Opt-out with `--todos-tipos` if ever needed.
 
 **HC recovery pass — 2026-04-21 afternoon** (task (a) from prior
 next-steps). 7,672-pid union-recovery CSV (arms A/B/C target minus

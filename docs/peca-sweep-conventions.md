@@ -8,6 +8,13 @@ institutional layout — state, log, errors, optional request_log,
 report — so the operational tooling (monitoring, archiving) is
 uniform across both halves of the pipeline.
 
+**Before launching a large `baixar-pecas` sweep**, see
+[`peca-tipo-classification.md`](peca-tipo-classification.md) for the
+tier-C `--excluir-tipos-doc` list. Skipping procedural stubs
+(certidões, termos, intimações, etc.) cuts HTTP request volume by
+~55% at the tipo level — proportional wall-clock and WAF-exposure
+savings — with no analytical loss.
+
 ## Expected files
 
 | File | Written by | Purpose |

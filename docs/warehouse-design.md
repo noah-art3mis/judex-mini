@@ -168,6 +168,21 @@ which you'd enable lazily per session: `INSTALL fts; LOAD fts;
 PRAGMA create_fts_index('pdfs', 'url', 'text');`. Don't bake it into
 the schema; it's a query-time concern.
 
+### `pdfs_substantive` (view — substantive peças only, tier-labeled)
+
+Unions andamentos-side peça PDFs with session-virtual documentos,
+drops tier-C boilerplate (certidões, termos, intimações,
+comunicações, decisão-de-julgamento stubs), length-gates tier-B
+(`DESPACHO` >1500 chars) and the occasional stub
+`MANIFESTAÇÃO DA PGR` (>500 chars). Columns: `classe, processo_id,
+seq, doc_type, url, sha1, source ∈ {andamento, sessao_virtual},
+tier ∈ {A, B}, text, n_chars`. Reach for this instead of rolling
+your own `andamentos + pdfs` join with tipo logic in every notebook.
+
+Full tier definitions, per-tipo content notes, sweep-side filter
+recipe, and savings arithmetic live in
+[`peca-tipo-classification.md`](peca-tipo-classification.md).
+
 ### `manifest` (build provenance)
 
 ```sql

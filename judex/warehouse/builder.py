@@ -223,6 +223,54 @@ CREATE INDEX pubdje_secao_idx         ON publicacoes_dje (secao, subsecao);
 CREATE INDEX pubdje_linked_idx        ON publicacoes_dje (incidente_linked);
 CREATE INDEX decdje_kind_idx          ON decisoes_dje (kind);
 CREATE INDEX decdje_rtf_sha1_idx      ON decisoes_dje (rtf_url_sha1);
+
+-- Substantive-peça filter: unions andamentos-side peças + session-virtual
+-- documentos, tier-labels them (A = full argumentation, B = length-gated
+-- mixed). Tier-C boilerplate tipos (CERTIDÃO*, TERMO DE *, etc.) are
+-- excluded by the WHERE clause — their content is either procedural
+-- template text or data already structured in `cases` / `andamentos`.
+-- See `docs/peca-tipo-classification.md` for the tier definitions.
+CREATE VIEW pdfs_substantive AS
+SELECT
+    a.classe,
+    a.processo_id,
+    a.seq AS seq,
+    a.link_tipo AS doc_type,
+    a.link_url AS url,
+    a.link_url_sha1 AS sha1,
+    'andamento' AS source,
+    CASE
+        WHEN a.link_tipo IN ('DECISÃO MONOCRÁTICA', 'INTEIRO TEOR DO ACÓRDÃO') THEN 'A'
+        WHEN a.link_tipo = 'MANIFESTAÇÃO DA PGR' THEN 'A'
+        WHEN a.link_tipo = 'DESPACHO' THEN 'B'
+    END AS tier,
+    p.text,
+    p.n_chars
+FROM andamentos a
+LEFT JOIN pdfs p ON a.link_url_sha1 = p.sha1
+WHERE a.link_url IS NOT NULL
+  AND (
+        a.link_tipo IN ('DECISÃO MONOCRÁTICA', 'INTEIRO TEOR DO ACÓRDÃO')
+     OR (a.link_tipo = 'MANIFESTAÇÃO DA PGR' AND (p.n_chars IS NULL OR p.n_chars > 1000))
+     OR (a.link_tipo = 'DESPACHO'            AND (p.n_chars IS NULL OR p.n_chars > 1500))
+  )
+
+UNION ALL
+
+SELECT
+    d.classe,
+    d.processo_id,
+    d.doc_seq AS seq,
+    d.doc_type,
+    d.url,
+    d.url_sha1 AS sha1,
+    'sessao_virtual' AS source,
+    'A' AS tier,
+    d.text,
+    CAST(LENGTH(d.text) AS INTEGER) AS n_chars
+FROM documentos d
+WHERE d.url IS NOT NULL
+  AND d.doc_type IN ('Voto', 'Relatório', 'Voto Vogal', 'Voto Vista');
 """
 
 
