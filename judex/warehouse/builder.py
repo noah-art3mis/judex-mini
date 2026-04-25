@@ -325,34 +325,39 @@ MIN_POPULATION_RATES: dict[str, tuple[float, str]] = {
 }
 
 
+# How many cases buffer in memory before flushing to DuckDB. Smaller →
+# lower peak RAM, more Arrow-conversion overhead per insert. 5000 cases
+# is empirically ~250–400 MB peak at 20 rows/case; WSL2 with 3.8 GB
+# RAM handles the full HC corpus rebuild at this value. Tests
+# monkeypatch this down to 3 to exercise chunk-boundary code paths.
+_CHUNK_SIZE: int = 5_000
+
+
 def _compute_population_rates(
     n_cases: int,
-    partes_rows: list[dict],
-    andamentos_rows: list[dict],
-    pautas_rows: list[dict],
-    publicacoes_dje_rows: list[dict],
+    *,
+    cases_with_partes: int,
+    cases_with_andamentos: int,
+    cases_with_pautas: int,
+    cases_with_publicacoes_dje: int,
     sessao_virtual_populated: int,
 ) -> dict[str, float]:
     """Population rate = (cases with ≥1 child row) / n_cases, per field.
 
-    Computed after flattening: each child table's distinct
-    (classe, processo_id) set is the populated-case count for that field.
-    Cheap — just a set comprehension per list.
+    Takes pre-computed populated-case counts rather than raw row lists,
+    so `build()` can track them incrementally during a streamed scan
+    without ever holding the full row corpus in memory.
 
     Returns 0.0 for every field when n_cases is 0 rather than dividing.
     """
     if n_cases <= 0:
         return {k: 0.0 for k in MIN_POPULATION_RATES}
-
-    def distinct_cases(rows: list[dict]) -> int:
-        return len({(r["classe"], r["processo_id"]) for r in rows})
-
     return {
-        "partes":          distinct_cases(partes_rows)          / n_cases,
-        "andamentos":      distinct_cases(andamentos_rows)      / n_cases,
-        "pautas":          distinct_cases(pautas_rows)          / n_cases,
-        "publicacoes_dje": distinct_cases(publicacoes_dje_rows) / n_cases,
-        "sessao_virtual":  sessao_virtual_populated             / n_cases,
+        "partes":          cases_with_partes          / n_cases,
+        "andamentos":      cases_with_andamentos      / n_cases,
+        "pautas":          cases_with_pautas          / n_cases,
+        "publicacoes_dje": cases_with_publicacoes_dje / n_cases,
+        "sessao_virtual":  sessao_virtual_populated   / n_cases,
     }
 
 
@@ -852,90 +857,128 @@ def build(
     if tmp.exists():
         tmp.unlink()
 
-    cases_rows: list[dict] = []
-    partes_rows: list[dict] = []
-    andamentos_rows: list[dict] = []
-    documentos_rows: list[dict] = []
-    pautas_rows: list[dict] = []
-    publicacoes_dje_rows: list[dict] = []
-    decisoes_dje_rows: list[dict] = []
+    # Per-case buffers, bounded to _CHUNK_SIZE cases. Everything flushes
+    # into DuckDB on each boundary — peak RAM scales with the chunk, not
+    # the corpus. Before this refactor (2026-04-24) the full corpus sat
+    # in memory at once, which OOM-killed on WSL2 at ~80k HC cases.
+    table_names = (
+        "cases", "partes", "andamentos", "documentos",
+        "pautas", "publicacoes_dje", "decisoes_dje",
+    )
+    buffers: dict[str, list[dict]] = {t: [] for t in table_names}
+
+    n_cases = 0
+    counts: dict[str, int] = {t: 0 for t in table_names if t != "cases"}
+    # Populated-case sets: (classe, processo_id) keys per field that
+    # participates in population-rate validation. Bounded at O(n_cases).
+    populated: dict[str, set[tuple[str, int]]] = {
+        "partes": set(), "andamentos": set(),
+        "pautas": set(), "publicacoes_dje": set(),
+    }
     # sessao_virtual isn't its own table (entries land in `documentos`
-    # with kind='sessao'), so track "cases whose JSON had a non-empty
-    # sessao_virtual list" directly during the scan.
+    # with kind='sessao'), so count cases whose JSON had a non-empty
+    # sessao_virtual list directly during the scan.
     sessao_virtual_populated = 0
-
-    for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
-        item = _load_case(path)
-        if item is None or "classe" not in item or "processo_id" not in item:
-            continue
-        cases_rows.append(_flatten_case(item, path))
-        partes_rows.extend(_flatten_partes(item))
-        andamentos_rows.extend(_flatten_andamentos(item, pdf_cache_root))
-        documentos_rows.extend(_flatten_documentos(item, pdf_cache_root))
-        pautas_rows.extend(_flatten_pautas(item))
-        publicacoes_dje_rows.extend(_flatten_publicacoes_dje(item))
-        decisoes_dje_rows.extend(_flatten_decisoes_dje(item, pdf_cache_root))
-        if item.get("sessao_virtual"):
-            sessao_virtual_populated += 1
-        if progress_every and (i + 1) % progress_every == 0:
-            print(f"  scanned {i + 1:,} cases", flush=True)
-
-    classes_seen = sorted({r["classe"] for r in cases_rows})
-    n_cases = len(cases_rows)
-    n_partes = len(partes_rows)
-    n_andamentos = len(andamentos_rows)
-    n_documentos = len(documentos_rows)
-    n_pautas = len(pautas_rows)
-    n_publicacoes_dje = len(publicacoes_dje_rows)
-    n_decisoes_dje = len(decisoes_dje_rows)
-
-    # Population-rate validation: catches silent field-wide regressions
-    # (e.g. STF's 2026-04-21 DJe-listing JS-migration took our DJe capture
-    # rate from 20%+ to 0% corpus-wide; a threshold check here would have
-    # caught it immediately instead of three days later).
-    population_rates = _compute_population_rates(
-        n_cases=n_cases,
-        partes_rows=partes_rows,
-        andamentos_rows=andamentos_rows,
-        pautas_rows=pautas_rows,
-        publicacoes_dje_rows=publicacoes_dje_rows,
-        sessao_virtual_populated=sessao_virtual_populated,
+    classes_seen: set[str] = set()
+    # Scoped builds (classe or id_range filter) need the set of
+    # documentos url_sha1s so the PDF insert filters to just those
+    # referenced by this warehouse. Unscoped builds load the full PDF
+    # cache — sha1_filter stays None.
+    sha1_filter: Optional[set[str]] = (
+        set() if (classes is not None or id_range is not None) else None
     )
-    validation_warnings, validation_lines = _validate_population_rates(
-        population_rates
-    )
-    print(f"\nbuild stats ({n_cases:,} cases):", flush=True)
-    for line in validation_lines:
-        print(line, flush=True)
-    if validation_warnings:
-        print(
-            f"  ⚠ {len(validation_warnings)} threshold miss(es) — see above",
-            flush=True,
-        )
 
     con = duckdb.connect(str(tmp))
     try:
         con.execute(_SCHEMA_SQL)
-        # Insert + clear each table eagerly so peak RAM is at most one
-        # table's data + its Arrow conversion, not all five stacked.
-        _bulk_insert(con, "cases", cases_rows); cases_rows.clear()
-        _bulk_insert(con, "partes", partes_rows); partes_rows.clear()
-        _bulk_insert(con, "andamentos", andamentos_rows); andamentos_rows.clear()
-        # If the build is scoped (classe or year filter), capture the set
-        # of documentos url_sha1s first so PDFs can be filtered to just
-        # those referenced by this warehouse's documentos. Unscoped
-        # builds keep the full PDF cache (preserves original behaviour).
-        sha1_filter: Optional[set[str]] = None
-        if classes is not None or id_range is not None:
-            sha1_filter = {
-                d["url_sha1"]
-                for d in documentos_rows
-                if d.get("url_sha1")
-            }
-        _bulk_insert(con, "documentos", documentos_rows); documentos_rows.clear()
-        _bulk_insert(con, "pautas", pautas_rows); pautas_rows.clear()
-        _bulk_insert(con, "publicacoes_dje", publicacoes_dje_rows); publicacoes_dje_rows.clear()
-        _bulk_insert(con, "decisoes_dje", decisoes_dje_rows); decisoes_dje_rows.clear()
+
+        def _flush() -> None:
+            for table, rows in buffers.items():
+                if rows:
+                    _bulk_insert(con, table, rows)
+                    rows.clear()
+
+        for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
+            item = _load_case(path)
+            if item is None or "classe" not in item or "processo_id" not in item:
+                continue
+
+            case_row = _flatten_case(item, path)
+            key = (case_row["classe"], case_row["processo_id"])
+            buffers["cases"].append(case_row)
+            n_cases += 1
+            classes_seen.add(case_row["classe"])
+
+            partes = _flatten_partes(item)
+            if partes:
+                populated["partes"].add(key)
+            counts["partes"] += len(partes)
+            buffers["partes"].extend(partes)
+
+            andamentos = _flatten_andamentos(item, pdf_cache_root)
+            if andamentos:
+                populated["andamentos"].add(key)
+            counts["andamentos"] += len(andamentos)
+            buffers["andamentos"].extend(andamentos)
+
+            documentos = _flatten_documentos(item, pdf_cache_root)
+            counts["documentos"] += len(documentos)
+            buffers["documentos"].extend(documentos)
+            if sha1_filter is not None:
+                sha1_filter.update(
+                    d["url_sha1"] for d in documentos if d.get("url_sha1")
+                )
+
+            pautas = _flatten_pautas(item)
+            if pautas:
+                populated["pautas"].add(key)
+            counts["pautas"] += len(pautas)
+            buffers["pautas"].extend(pautas)
+
+            publicacoes_dje = _flatten_publicacoes_dje(item)
+            if publicacoes_dje:
+                populated["publicacoes_dje"].add(key)
+            counts["publicacoes_dje"] += len(publicacoes_dje)
+            buffers["publicacoes_dje"].extend(publicacoes_dje)
+
+            decisoes_dje = _flatten_decisoes_dje(item, pdf_cache_root)
+            counts["decisoes_dje"] += len(decisoes_dje)
+            buffers["decisoes_dje"].extend(decisoes_dje)
+
+            if item.get("sessao_virtual"):
+                sessao_virtual_populated += 1
+
+            if progress_every and (i + 1) % progress_every == 0:
+                print(f"  scanned {i + 1:,} cases", flush=True)
+            if n_cases % _CHUNK_SIZE == 0:
+                _flush()
+
+        _flush()  # tail chunk
+
+        # Population-rate validation: catches silent field-wide regressions
+        # (e.g. STF's 2026-04-21 DJe-listing JS-migration took our DJe capture
+        # rate from 20%+ to 0% corpus-wide; a threshold check here would have
+        # caught it immediately instead of three days later).
+        population_rates = _compute_population_rates(
+            n_cases=n_cases,
+            cases_with_partes=len(populated["partes"]),
+            cases_with_andamentos=len(populated["andamentos"]),
+            cases_with_pautas=len(populated["pautas"]),
+            cases_with_publicacoes_dje=len(populated["publicacoes_dje"]),
+            sessao_virtual_populated=sessao_virtual_populated,
+        )
+        validation_warnings, validation_lines = _validate_population_rates(
+            population_rates
+        )
+        print(f"\nbuild stats ({n_cases:,} cases):", flush=True)
+        for line in validation_lines:
+            print(line, flush=True)
+        if validation_warnings:
+            print(
+                f"  ⚠ {len(validation_warnings)} threshold miss(es) — see above",
+                flush=True,
+            )
+
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pdf_cache_root, sha1_filter)
@@ -945,14 +988,14 @@ def build(
             "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 datetime.now(),
-                classes_seen,
+                sorted(classes_seen),
                 n_cases,
-                n_partes,
-                n_andamentos,
-                n_documentos,
-                n_pautas,
-                n_publicacoes_dje,
-                n_decisoes_dje,
+                counts["partes"],
+                counts["andamentos"],
+                counts["documentos"],
+                counts["pautas"],
+                counts["publicacoes_dje"],
+                counts["decisoes_dje"],
                 n_pdfs,
                 wall,
                 _git_commit(),
@@ -973,12 +1016,12 @@ def build(
         )
     return BuildSummary(
         n_cases=n_cases,
-        n_partes=n_partes,
-        n_andamentos=n_andamentos,
-        n_documentos=n_documentos,
-        n_pautas=n_pautas,
-        n_publicacoes_dje=n_publicacoes_dje,
-        n_decisoes_dje=n_decisoes_dje,
+        n_partes=counts["partes"],
+        n_andamentos=counts["andamentos"],
+        n_documentos=counts["documentos"],
+        n_pautas=counts["pautas"],
+        n_publicacoes_dje=counts["publicacoes_dje"],
+        n_decisoes_dje=counts["decisoes_dje"],
         n_pdfs=n_pdfs,
         wall_s=time.monotonic() - t0,
         output_path=output_path,

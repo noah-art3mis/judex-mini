@@ -916,3 +916,61 @@ def test_build_strict_passes_when_all_thresholds_met(tmp_path: Path) -> None:
         strict=True,
     )
     assert summary.validation_warnings == []
+
+
+def test_chunked_scan_preserves_counts_and_rates(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The case-scan loop flushes rows to DuckDB in chunks to keep peak
+    RAM bounded — this test shrinks the chunk size and writes enough
+    cases to cross several chunk boundaries, then verifies the visible
+    build output (row counts, population rates, manifest) matches what
+    a single-chunk build would produce.
+
+    Regression guard for the 2026-04-24 refactor that turned the
+    list-accumulation build into a streamed chunked scan. Prevents
+    chunk-boundary bugs like: double-counting across flushes, losing
+    the last partial chunk, populated-case dedup breaking at a flush.
+    """
+    monkeypatch.setattr(builder, "_CHUNK_SIZE", 3)
+
+    cases = tmp_path / "cases"
+    # 10 cases across 4 chunks (3+3+3+1).
+    for n in range(1, 11):
+        _write_case(cases, _healthy_case(n))
+    # One case with no partes — so the populated-cases set must dedup
+    # correctly across chunks without over-counting.
+    sparse = _healthy_case(99)
+    sparse["partes"] = []
+    _write_case(cases, sparse)
+
+    out = tmp_path / "out.duckdb"
+    summary = builder.build(
+        cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out,
+    )
+
+    # Row counts: 11 cases × 2 partes/case, minus the 1 sparse case = 20.
+    assert summary.n_cases == 11
+    assert summary.n_partes == 20
+    assert summary.n_andamentos == 11  # 1 per case
+    assert summary.n_pautas == 11
+
+    # Population rates: 10/11 cases have partes; everyone has the rest.
+    assert summary.population_rates["partes"] == 10 / 11
+    assert summary.population_rates["andamentos"] == 1.0
+    assert summary.population_rates["pautas"] == 1.0
+    assert summary.population_rates["sessao_virtual"] == 1.0
+    assert summary.population_rates["publicacoes_dje"] == 1.0
+
+    # DB state mirrors the summary.
+    with _connect(out) as con:
+        assert con.execute("SELECT COUNT(*) FROM cases").fetchone()[0] == 11
+        assert con.execute("SELECT COUNT(*) FROM partes").fetchone()[0] == 20
+        assert con.execute("SELECT COUNT(*) FROM andamentos").fetchone()[0] == 11
+        # Manifest written once, not per chunk.
+        assert con.execute("SELECT COUNT(*) FROM manifest").fetchone()[0] == 1
+        n_cases_manifest, n_partes_manifest = con.execute(
+            "SELECT n_cases, n_partes FROM manifest"
+        ).fetchone()
+        assert n_cases_manifest == 11
+        assert n_partes_manifest == 20
