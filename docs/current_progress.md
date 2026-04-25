@@ -373,47 +373,28 @@ axis B (p95 wall_s). Both axes are window-full-gated as of
 
 ## Per-year completion tracker (HC)
 
-Three pipeline stages per year. Status legend: ✅ ≥95% content-fresh /
-landed · 🔄 actively in flight · 🟡 partial / older scrape, content-stale ·
-❌ not started or sparse-on-disk. **Sources:** `cases` from on-disk
-inventory + today's arm-A/B/C/recovery sweeps; `pecas` from
-`data/cache/pdf/*.pdf.gz` count and known sweep launches; `extracted`
-from `*.txt.gz` count. Per-year peças/extracted attribution is
-approximate (the cache is URL-keyed, not year-keyed); refine when a
-year-scoped probe is needed.
+Moved to [`docs/completion-tracker.md`](completion-tracker.md) —
+reference table for per-year HC coverage (cases / peça bytes / text),
+the cache-integrity caveat (bytes ∪ text is larger than either alone),
+and the backfill priority queue. Refresh the table using the snippet
+at the bottom of that doc.
 
-| year | width  | on-disk | cases                                     | peças                                   | extracted    |
-|-----:|-------:|--------:|-------------------------------------------|-----------------------------------------|--------------|
-| 2026 |  4,001 |   3,098 | ✅ done (initial sweep, pre-cycle)         | 🟡 partial (older ad-hoc runs)          | 🟡 partial   |
-| 2025 | 16,200 |  13,346 | ✅ arm A + recovery (96% landed)           | 🔄 ~52% in flight (direct-IP, ETA ~17h) | ❌            |
-| 2024 | 14,387 |  12,300 | ✅ arm B + recovery                        | ❌                                       | ❌            |
-| 2023 | 12,644 |  10,841 | ✅ arm C (100% / 0 cliffs)                 | ❌                                       | ❌            |
-| 2022 | 13,057 |   1,156 | ❌ **next backfill target — 11,901 missing** | ❌                                       | ❌            |
-| 2021 | 14,508 |   7,423 | 🟡 51% on-disk, content-stale              | ❌                                       | ❌            |
-| 2020 | 15,754 |   4,207 | 🟡 27% on-disk, content-stale              | ❌                                       | ❌            |
-| 2019 | 14,352 |     914 | ❌ 13,438 missing                          | ❌                                       | ❌            |
-| 2018 | 13,969 |     945 | ❌ 13,024 missing                          | ❌                                       | ❌            |
-| 2017 | 12,604 |   2,053 | ❌ 10,551 missing                          | ❌                                       | ❌            |
-| 2016 |  7,049 |   4,382 | 🟡 62% on-disk, content-stale              | ❌                                       | ❌            |
-| 2015 |  6,319 |   5,584 | 🟡 88% on-disk, content-stale              | ❌                                       | ❌            |
-| 2014 |  5,338 |   4,333 | 🟡 81% on-disk, content-stale              | ❌                                       | ❌            |
-
-**Cumulative cache as of 2026-04-22:** 37,997 PDFs (.pdf.gz) + 32,529
-extracted texts (.txt.gz) = 4.2 GB. The 86% extraction ratio reflects
-prior `extrair-pecas` runs that processed everything in cache at the
-time; new PDFs landed by the in-flight 2025 sweep are not yet
-extracted.
-
-**Backfill priority queue** (cases column, derived from %alive_have):
-1. **2022** (11,901 missing, near-zero coverage) — single arm-B-sized
-   sweep, ~25 min at 16-shard fresh-pool.
-2. **2019, 2018, 2017** (~37k missing combined) — three sequential
-   year sweeps; would close the 2017–2022 hole.
-3. **2021, 2020, 2016, 2015, 2014** (mixed-coverage, content-stale) —
-   `--full-range` re-scrapes, smaller marginal value than the missing-
-   year sweeps; defer until 2017–2022 closes.
-4. **Pre-2014** (paper-era, ≤47% density per `docs/process-space.md`) —
-   not a near-term priority; lower yield per request.
+**Quick summary (2026-04-24, end-of-cycle):**
+- ✅ Cases: 2026/2025/2024/2023 all content-fresh
+  (3,099 / 13,365 / 12,014 / 11,129 in the warehouse).
+- ✅ Peça bytes, 2025: **68% of substantive URLs** (16,685 / 24,414).
+  Resume run finished 14:46 BRT in 5h 14m, 7,159 new PDFs, zero
+  failures.
+- ✅ Peça text, 2025: **97% of substantive URLs** (23,735 / 24,414).
+  `extrair-pecas --provedor pypdf` ran in ~6 min, 6,740 new `.txt.gz`,
+  419 corrupt-bytes parse failures (pre-existing tail).
+- ✅ Warehouse rebuilt with streaming-chunks refactor: 309.7s, 1.3 GB,
+  `n_pdfs = 49,406`, fits in <1 GB RAM (old list-accumulation peaked
+  at 11 GB and OOM-killed WSL2).
+- ❌ Peça bytes, 2023/2024: ≤2% of substantive URLs; no dedicated
+  peça sweep yet. Text coverage (~28%) comes from legacy pre-split
+  scrapes of sessão-virtual Relatórios/Votos.
+- ❌ **Next backfill target: HC 2022** (~11,900 missing cases).
 
 ---
 
@@ -647,12 +628,31 @@ tail -5 runs/active/2026-04-22-hc-pecas-2025-direct/launcher-stdout.log
 pgrep -af 'baixar-pecas' | grep -v 'pgrep\|grep'
 ```
 
-**Estimated remaining work** at observed rates: ~21,200 URLs left;
-12.8 h at 0.50 rec/s recent rate, 17 h at 0.34 rec/s long-run rate.
-If the host IP is still as clean post-reboot as it was today, expect
-the upper end (recent rate). If the WAF starts pushing back (any
-403s in the first 200 records), abort and switch to the proxy-pool
-path per § Reference.
+**Estimated remaining work** (revised 2026-04-24 after measuring
+bytes-landed properly via disk join, not text-present). Earlier
+revisions conflated two different signals:
+
+- The pre-filter estimate (`~21,200 URLs`, 12.8–17 h) was the full-
+  tipos target list from the sweep's launcher banner. Still accurate
+  if you resume under `--todos-tipos`.
+- An intermediate revision said ~8,800 URLs / 5–7 h — that came from
+  `pdfs_substantive.text IS NOT NULL` as the downloaded-proxy, which
+  counts **extracted text**, not **landed bytes**. Those diverge
+  wildly here because 31k+ sha1s in the cache have text without
+  bytes (pre-split legacy extractions).
+
+**Authoritative bytes-based estimate:** join `pdfs_substantive.sha1`
+to the `.pdf.gz` filesystem set. 2025 tier-A: 9,776 of 24,174 URLs
+have bytes (40%). **Remaining ≈ 14,400 tier-A URLs.** At 0.34–0.50
+rec/s observed, wall-clock ≈ **~8–12 h**. Resume under the new
+`--apenas-substantivas` default (on since commit `e7ce6af`,
+2026-04-23) so the sweep only targets tier-A/B. If the host IP is
+still as clean post-reboot as it was today, expect the lower end.
+If the WAF starts pushing back (any 403s in the first 200 records),
+abort and switch to the proxy-pool path per § Reference.
+
+See [`docs/completion-tracker.md`](completion-tracker.md) for the
+per-year bytes/text breakdown and refresh snippet.
 
 **Why no shards:** this is a single-process direct-IP sweep — the
 launch invocation didn't include `--shards` / `--proxy-pool`, so

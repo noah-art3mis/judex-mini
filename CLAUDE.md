@@ -13,6 +13,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Tuning request pacing, retries, or proxy rotation | [`docs/rate-limits.md`](docs/rate-limits.md) — WAF behavior (403-not-429), validated defaults, cross-sweep cooldowns. |
 | **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
+| Checking per-year HC coverage (cases / peça bytes / text) or picking the next backfill target | [`docs/completion-tracker.md`](docs/completion-tracker.md) — per-year table, cache-integrity caveat, backfill priority queue. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
 | Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
 | Writing a PDF sweep | [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md). |
