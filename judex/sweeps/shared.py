@@ -127,6 +127,22 @@ class RegimeReading:
     promoted_by: PromotedBy
 
 
+def regime_kwargs(reading: Optional[RegimeReading]) -> dict[str, Any]:
+    if reading is None:
+        return {
+            "regime": None,
+            "regime_fail_rate": None,
+            "regime_p95_wall_s": None,
+            "regime_promoted_by": None,
+        }
+    return {
+        "regime": reading.label,
+        "regime_fail_rate": reading.fail_rate,
+        "regime_p95_wall_s": reading.p95_wall_s,
+        "regime_promoted_by": reading.promoted_by,
+    }
+
+
 class CliffDetector:
     """Rolling-window detector for WAF layer-2 engagement.
 

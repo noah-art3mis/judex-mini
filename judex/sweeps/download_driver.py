@@ -356,10 +356,7 @@ def _make_record(
         classe=tgt.classe,
         doc_type=tgt.doc_type,
         context=tgt.context,
-        regime=reading.label if reading is not None else None,
-        regime_fail_rate=reading.fail_rate if reading is not None else None,
-        regime_p95_wall_s=reading.p95_wall_s if reading is not None else None,
-        regime_promoted_by=reading.promoted_by if reading is not None else None,
+        **_shared.regime_kwargs(reading),
     )
 
 

@@ -602,10 +602,7 @@ def _to_attempt_record(
         retries=dict(res.retries),
         diff_count=res.diff_count,
         anomaly_count=len(res.anomalies),
-        regime=reading.label if reading is not None else None,
-        regime_fail_rate=reading.fail_rate if reading is not None else None,
-        regime_p95_wall_s=reading.p95_wall_s if reading is not None else None,
-        regime_promoted_by=reading.promoted_by if reading is not None else None,
+        **_shared.regime_kwargs(reading),
         filter_skip=filter_skip,
         body_head=res.body_head,
     )

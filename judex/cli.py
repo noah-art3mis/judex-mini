@@ -155,6 +155,91 @@ def exportar(
 
 
 # ---------------------------------------------------------------------------
+# `fazer-backup` — empacota data/cases + data/cache/pdf em um único .zip
+
+
+@app.command(name="fazer-backup")
+def fazer_backup(
+    saida: Optional[Path] = typer.Option(
+        None, "--saida", "-o",
+        help="Caminho do .zip de saída. Default: "
+             "runs/active/backups/judex-backup-<UTC>.zip.",
+    ),
+    sem_pecas: bool = typer.Option(
+        False, "--sem-pecas",
+        help="Não incluir data/cache/pdf (peças). Útil para um backup "
+             "leve só de metadados.",
+    ),
+    incluir_warehouse: bool = typer.Option(
+        False, "--incluir-warehouse",
+        help="Inclui data/warehouse/judex.duckdb. Por padrão fica de fora "
+             "— é artefato derivado, regenerável via `atualizar-warehouse`.",
+    ),
+    classe: Optional[list[str]] = typer.Option(
+        None, "--classe",
+        help="Restringe os processos a uma ou mais classes (HC, ADI, RE…). "
+             "Repita para várias. Omita para incluir todas.",
+    ),
+    diretorio_casos: Path = typer.Option(
+        Path("data/cases"), "--diretorio-casos",
+        help="Raiz dos JSONs de caso (particionados por classe).",
+    ),
+    diretorio_cache_pdf: Path = typer.Option(
+        Path("data/cache/pdf"), "--diretorio-cache-pdf",
+        help="Cache de PDFs (.pdf.gz / .txt.gz / .extractor / .elements.json.gz).",
+    ),
+    caminho_warehouse: Path = typer.Option(
+        Path("data/warehouse/judex.duckdb"), "--caminho-warehouse",
+        help="Caminho do warehouse DuckDB (usado só com --incluir-warehouse).",
+    ),
+    progresso_cada: int = typer.Option(
+        5000, "--progresso-cada",
+        help="Frequência (em arquivos) das linhas de progresso. 0 desliga.",
+    ),
+) -> None:
+    """Empacota data/cases + data/cache/pdf em um único .zip aberto pelo Windows.
+
+    Saída atômica: grava em <saida>.tmp e renomeia ao final. Compressão é
+    por entrada — JSON deflaciona, .gz/.pdf vão como ZIP_STORED.
+
+    Para um backup completo (sources + warehouse):
+
+        uv run judex fazer-backup --incluir-warehouse
+
+    Para só metadados de HC (sem peças, sem warehouse):
+
+        uv run judex fazer-backup --classe HC --sem-pecas
+    """
+    from judex.backup import make_backup
+
+    if saida is None:
+        stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        saida = Path("runs/active/backups") / f"judex-backup-{stamp}.zip"
+
+    typer.echo(f"empacotando -> {saida}")
+    typer.echo(f"  cases: {diretorio_casos}{f' (classes={classe})' if classe else ''}")
+    typer.echo(f"  peças: {'pulando' if sem_pecas else diretorio_cache_pdf}")
+    typer.echo(f"  warehouse: {'incluído (' + str(caminho_warehouse) + ')' if incluir_warehouse else 'pulando'}")
+
+    result = make_backup(
+        saida,
+        include_pecas=not sem_pecas,
+        include_warehouse=incluir_warehouse,
+        classes=classe or None,
+        cases_dir=diretorio_casos,
+        pdf_cache_dir=diretorio_cache_pdf,
+        warehouse_path=caminho_warehouse,
+        progress_every=progresso_cada,
+    )
+
+    size_gb = result.bytes_written / 1e9
+    typer.echo("")
+    typer.echo(f"done in {result.elapsed_s:.1f}s")
+    typer.echo(f"  {result.file_count:,} arquivos -> {size_gb:.2f} GB")
+    typer.echo(f"  saída: {result.output_path}")
+
+
+# ---------------------------------------------------------------------------
 # `varrer-processos` — varredura em massa de processos (encaminha para scripts.run_sweep)
 
 

@@ -2,6 +2,8 @@
 
 Extração automatizada de dados de processos do STF (Supremo Tribunal Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo de números de processo**; o programa acessa o portal do STF, extrai metadados de cada processo (partes, andamentos, relator, decisão, URLs dos PDFs anexados) e grava um arquivo `.json` por processo. Se quiser o texto dos PDFs também, há dois comandos dedicados (`baixar-pecas` + `extrair-pecas`) — descritos na seção 5.
 
+> **Glossário rápido.** *Processo* é cada caso julgado pelo STF — o `judex-mini` grava um JSON por processo com partes, andamentos, relator, decisão e URLs dos PDFs anexados. *Peça* é cada um desses PDFs (decisão monocrática, voto, manifestação da PGR, acórdão, etc.); o cache mantém bytes (`.pdf.gz`) e texto extraído (`.txt.gz`) lado a lado, identificados por `sha1(url)`.
+
 Este README é o **guia prático para rodar a ferramenta**. Detalhes de arquitetura, testes e convenções para quem contribui com o código estão em [`CLAUDE.md`](CLAUDE.md).
 
 ## Comandos
@@ -14,6 +16,7 @@ Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhad
 | `baixar-pecas`         | Baixa os bytes dos PDFs anexados para o cache local.                       |
 | `extrair-pecas`        | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
 | `atualizar-warehouse`  | Reconstrói o DuckDB analítico a partir dos JSONs + cache (zero HTTP).      |
+| `fazer-backup`         | Empacota `data/cases` + `data/cache/pdf` em um único `.zip` (Windows-friendly). |
 | `relatorio-diario`     | Relatório diário de novas distribuições (watchlist opcional para diffs).   |
 
 ## Fluxo completo
@@ -148,7 +151,7 @@ Para conferir que ficou tudo ok:
 uv run judex --help
 ```
 
-Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `atualizar-warehouse`, `exportar`, `relatorio-diario`, `probe`, `analisar-regimes`, `validar-gabarito`, `sondar-densidade`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
+Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `atualizar-warehouse`, `exportar`, `fazer-backup`, `relatorio-diario`, `probe`, `analisar-regimes`, `validar-gabarito`, `sondar-densidade`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
 
 ---
 
@@ -275,6 +278,21 @@ data/
 - **`data/logs/`** tem o log detalhado de cada sessão. Útil para reportar bugs.
 
 Detalhes completos em [`docs/data-layout.md`](docs/data-layout.md). Para mudar a pasta de saída, passe `--saida /caminho/da/pasta`.
+
+**Backup em um único arquivo (`.zip`).** Para empacotar processos + peças num único `.zip` que abre direto no Windows Explorer (e que você pode subir manualmente para Drive / OneDrive / disco externo):
+
+```bash
+# Tudo: data/cases + data/cache/pdf
+uv run judex fazer-backup
+
+# Só metadados (sem peças)
+uv run judex fazer-backup --sem-pecas
+
+# Só HC, com warehouse junto
+uv run judex fazer-backup --classe HC --incluir-warehouse
+```
+
+Saída padrão: `runs/active/backups/judex-backup-<UTC>.zip`. A escrita é atômica — se cair no meio, o arquivo final nunca aparece corrompido. JSONs deflacionam; `.pdf.gz` / `.txt.gz` entram como `ZIP_STORED` (já estão comprimidos por dentro). Confira o `--help` para todas as flags.
 
 ---
 

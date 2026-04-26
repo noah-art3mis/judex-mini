@@ -21,7 +21,7 @@ import json
 import os
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -331,6 +331,24 @@ MIN_POPULATION_RATES: dict[str, tuple[float, str]] = {
 # RAM handles the full HC corpus rebuild at this value. Tests
 # monkeypatch this down to 3 to exercise chunk-boundary code paths.
 _CHUNK_SIZE: int = 5_000
+
+
+@dataclass
+class BufferSet:
+    cases: list[dict] = field(default_factory=list)
+    partes: list[dict] = field(default_factory=list)
+    andamentos: list[dict] = field(default_factory=list)
+    documentos: list[dict] = field(default_factory=list)
+    pautas: list[dict] = field(default_factory=list)
+    publicacoes_dje: list[dict] = field(default_factory=list)
+    decisoes_dje: list[dict] = field(default_factory=list)
+
+    def flush(self, con: duckdb.DuckDBPyConnection) -> None:
+        for f in fields(self):
+            rows = getattr(self, f.name)
+            if rows:
+                _bulk_insert(con, f.name, rows)
+                rows.clear()
 
 
 def _compute_population_rates(
@@ -861,14 +879,12 @@ def build(
     # into DuckDB on each boundary — peak RAM scales with the chunk, not
     # the corpus. Before this refactor (2026-04-24) the full corpus sat
     # in memory at once, which OOM-killed on WSL2 at ~80k HC cases.
-    table_names = (
-        "cases", "partes", "andamentos", "documentos",
-        "pautas", "publicacoes_dje", "decisoes_dje",
-    )
-    buffers: dict[str, list[dict]] = {t: [] for t in table_names}
+    buffers = BufferSet()
 
     n_cases = 0
-    counts: dict[str, int] = {t: 0 for t in table_names if t != "cases"}
+    counts: dict[str, int] = {
+        f.name: 0 for f in fields(BufferSet) if f.name != "cases"
+    }
     # Populated-case sets: (classe, processo_id) keys per field that
     # participates in population-rate validation. Bounded at O(n_cases).
     populated: dict[str, set[tuple[str, int]]] = {
@@ -892,12 +908,6 @@ def build(
     try:
         con.execute(_SCHEMA_SQL)
 
-        def _flush() -> None:
-            for table, rows in buffers.items():
-                if rows:
-                    _bulk_insert(con, table, rows)
-                    rows.clear()
-
         for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
             item = _load_case(path)
             if item is None or "classe" not in item or "processo_id" not in item:
@@ -905,7 +915,7 @@ def build(
 
             case_row = _flatten_case(item, path)
             key = (case_row["classe"], case_row["processo_id"])
-            buffers["cases"].append(case_row)
+            buffers.cases.append(case_row)
             n_cases += 1
             classes_seen.add(case_row["classe"])
 
@@ -913,17 +923,17 @@ def build(
             if partes:
                 populated["partes"].add(key)
             counts["partes"] += len(partes)
-            buffers["partes"].extend(partes)
+            buffers.partes.extend(partes)
 
             andamentos = _flatten_andamentos(item, pdf_cache_root)
             if andamentos:
                 populated["andamentos"].add(key)
             counts["andamentos"] += len(andamentos)
-            buffers["andamentos"].extend(andamentos)
+            buffers.andamentos.extend(andamentos)
 
             documentos = _flatten_documentos(item, pdf_cache_root)
             counts["documentos"] += len(documentos)
-            buffers["documentos"].extend(documentos)
+            buffers.documentos.extend(documentos)
             if sha1_filter is not None:
                 sha1_filter.update(
                     d["url_sha1"] for d in documentos if d.get("url_sha1")
@@ -933,17 +943,17 @@ def build(
             if pautas:
                 populated["pautas"].add(key)
             counts["pautas"] += len(pautas)
-            buffers["pautas"].extend(pautas)
+            buffers.pautas.extend(pautas)
 
             publicacoes_dje = _flatten_publicacoes_dje(item)
             if publicacoes_dje:
                 populated["publicacoes_dje"].add(key)
             counts["publicacoes_dje"] += len(publicacoes_dje)
-            buffers["publicacoes_dje"].extend(publicacoes_dje)
+            buffers.publicacoes_dje.extend(publicacoes_dje)
 
             decisoes_dje = _flatten_decisoes_dje(item, pdf_cache_root)
             counts["decisoes_dje"] += len(decisoes_dje)
-            buffers["decisoes_dje"].extend(decisoes_dje)
+            buffers.decisoes_dje.extend(decisoes_dje)
 
             if item.get("sessao_virtual"):
                 sessao_virtual_populated += 1
@@ -951,9 +961,9 @@ def build(
             if progress_every and (i + 1) % progress_every == 0:
                 print(f"  scanned {i + 1:,} cases", flush=True)
             if n_cases % _CHUNK_SIZE == 0:
-                _flush()
+                buffers.flush(con)
 
-        _flush()  # tail chunk
+        buffers.flush(con)  # tail chunk
 
         # Population-rate validation: catches silent field-wide regressions
         # (e.g. STF's 2026-04-21 DJe-listing JS-migration took our DJe capture
