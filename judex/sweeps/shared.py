@@ -11,9 +11,10 @@ from __future__ import annotations
 import signal
 import time
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from statistics import median, quantiles
-from typing import Any, Callable, Optional, Sequence, TypeVar
+from typing import Any, Callable, Literal, Optional, Sequence, TypeVar
 
 import requests
 
@@ -86,14 +87,44 @@ class CircuitBreaker:
 
 # Regime labels mirror the operating-regime table in
 # docs/rate-limits.md § Wall taxonomy and severity timeline.
-REGIMES = (
+Regime = Literal[
     "warming",
     "under_utilising",
     "healthy",
     "l2_engaged",
     "approaching_collapse",
     "collapse",
+]
+PromotedBy = Literal["warming", "axis_a", "axis_b", "both", "default"]
+
+# Threshold ladder for the two-axis classifier, ordered most-severe first.
+# Either axis crossing its threshold promotes the regime to that band.
+_REGIME_BANDS: tuple[tuple[Regime, float, float], ...] = (
+    ("collapse", 0.30, 60.0),
+    ("approaching_collapse", 0.20, 30.0),
+    ("l2_engaged", 0.10, 15.0),
 )
+
+
+@dataclass(frozen=True)
+class RegimeReading:
+    """One CliffDetector reading: regime label plus the diagnostic axes
+    that produced it. Stamped on every sweep record so post-hoc cliff
+    analysis is a one-line jq query, not a manual reconstruction.
+
+    `promoted_by` names the code path that selected the label:
+
+    - ``warming``  — fewer than ``MIN_OBS`` records observed
+    - ``axis_a``   — WAF-shape-filtered fail rate crossed the band's threshold
+    - ``axis_b``   — p95 wall_s crossed the band's threshold
+    - ``both``     — both axes crossed simultaneously (rare, severe)
+    - ``default``  — neither axis crossed any threshold (under_utilising)
+    """
+
+    label: Regime
+    fail_rate: float
+    p95_wall_s: float
+    promoted_by: PromotedBy
 
 
 class CliffDetector:
@@ -142,10 +173,12 @@ class CliffDetector:
         self._statuses.append(status)
         return is_bad
 
-    def regime(self) -> str:
+    def regime(self) -> RegimeReading:
         n = len(self._waf_bad)
         if n < self.MIN_OBS:
-            return "warming"
+            return RegimeReading(
+                label="warming", fail_rate=0.0, p95_wall_s=0.0, promoted_by="warming"
+            )
         fails = sum(self._waf_bad)
         fail_rate = fails / n
         # Axis B (p95 wall_s) is unreliable on a partially-filled window:
@@ -163,15 +196,24 @@ class CliffDetector:
             p95 = walls_sorted[int(0.95 * n)]
         else:
             p95 = 0.0
-        if fail_rate > 0.30 or p95 > 60:
-            return "collapse"
-        if fail_rate > 0.20 or p95 > 30:
-            return "approaching_collapse"
-        if fail_rate > 0.10 or p95 > 15:
-            return "l2_engaged"
+
+        for label, fr_thresh, p95_thresh in _REGIME_BANDS:
+            a = fail_rate > fr_thresh
+            b = p95 > p95_thresh
+            if a or b:
+                return RegimeReading(
+                    label=label,
+                    fail_rate=fail_rate,
+                    p95_wall_s=p95,
+                    promoted_by="both" if (a and b) else ("axis_a" if a else "axis_b"),
+                )
         if fail_rate > 0.05:
-            return "healthy"
-        return "under_utilising"
+            return RegimeReading(
+                label="healthy", fail_rate=fail_rate, p95_wall_s=p95, promoted_by="axis_a"
+            )
+        return RegimeReading(
+            label="under_utilising", fail_rate=fail_rate, p95_wall_s=p95, promoted_by="default"
+        )
 
 
 def _is_waf_shape(

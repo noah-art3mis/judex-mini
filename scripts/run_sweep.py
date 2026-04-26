@@ -585,7 +585,7 @@ def _to_attempt_record(
     res: ProcessResult,
     attempt: int,
     ts: Optional[str] = None,
-    regime: Optional[str] = None,
+    reading: Optional[_shared.RegimeReading] = None,
     filter_skip: Optional[bool] = None,
 ) -> AttemptRecord:
     return AttemptRecord(
@@ -602,7 +602,10 @@ def _to_attempt_record(
         retries=dict(res.retries),
         diff_count=res.diff_count,
         anomaly_count=len(res.anomalies),
-        regime=regime,
+        regime=reading.label if reading is not None else None,
+        regime_fail_rate=reading.fail_rate if reading is not None else None,
+        regime_p95_wall_s=reading.p95_wall_s if reading is not None else None,
+        regime_promoted_by=reading.promoted_by if reading is not None else None,
         filter_skip=filter_skip,
         body_head=res.body_head,
     )
@@ -839,12 +842,12 @@ def _run_passes(
         # filter_skip = non-ok attempt the WAF-shape filter chose to IGNORE
         # (fast NoIncidente). Ok attempts aren't candidates for filtering.
         filter_skip = (res.status != "ok") and not is_bad
-        regime = detector.regime()
+        reading = detector.regime()
         store.record(
             _to_attempt_record(
                 res,
                 attempt=store.attempt_count(classe, processo) + 1,
-                regime=regime,
+                reading=reading,
                 filter_skip=filter_skip,
             )
         )
@@ -852,13 +855,14 @@ def _run_passes(
         totals["429"] += res.retries.get("429", 0)
         totals["5xx"] += res.retries.get("5xx", 0)
         _print_row(i, n, res)
-        if regime != last_regime["value"]:
+        if reading.label != last_regime["value"]:
             print(
-                f"  [regime] {last_regime['value']} → {regime}  "
-                f"(see docs/rate-limits.md § Wall taxonomy)",
+                f"  [regime] {last_regime['value']} → {reading.label}  "
+                f"(fail_rate={reading.fail_rate:.2f} p95={reading.p95_wall_s:.1f}s "
+                f"by={reading.promoted_by}; see docs/rate-limits.md § Wall taxonomy)",
                 flush=True,
             )
-            last_regime["value"] = regime
+            last_regime["value"] = reading.label
         # Proactive rotation: swap IP before L1 fires at all. Reactive
         # fallback covers the case where a proxy arrived pre-warmed.
         # Reactive rotation has a 30 s floor to prevent panic-rotation
@@ -871,11 +875,11 @@ def _run_passes(
             rotate_reason: Optional[str] = None
             if elapsed_on_proxy > args.proxy_rotate_seconds:
                 rotate_reason = f"time>{args.proxy_rotate_seconds:.0f}s"
-            elif regime == "approaching_collapse" and elapsed_on_proxy > 30.0:
+            elif reading.label == "approaching_collapse" and elapsed_on_proxy > 30.0:
                 rotate_reason = "approaching_collapse"
             if rotate_reason is not None:
                 rotate_session(reason=rotate_reason)
-        if regime == "collapse" and not args.no_stop_on_collapse:
+        if reading.label == "collapse" and not args.no_stop_on_collapse:
             print(
                 f"\n!! cliff detector: regime=collapse at {i}/{n}. "
                 f"Stopping cleanly — cool down ≥60 min before --resume. "

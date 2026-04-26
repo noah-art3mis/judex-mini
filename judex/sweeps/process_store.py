@@ -41,7 +41,14 @@ class AttemptRecord:
     retries: dict[str, int] = field(default_factory=dict)
     diff_count: int = 0
     anomaly_count: int = 0
-    regime: Optional[str] = None  # CliffDetector regime at time of record
+    regime: Optional[str] = None  # CliffDetector regime label at time of record
+    # WAF-shape-filtered fail rate (axis A) and p95 wall_s (axis B) over the
+    # rolling window when this record was written, plus which axis promoted
+    # the regime. Lets a one-line jq query answer "why did this cycle cliff?"
+    # without re-deriving the rolling window from the log.
+    regime_fail_rate: Optional[float] = None
+    regime_p95_wall_s: Optional[float] = None
+    regime_promoted_by: Optional[str] = None  # "warming"|"axis_a"|"axis_b"|"both"|"default"
     # True when a non-ok attempt was ignored by CliffDetector's WAF-shape
     # filter (fast NoIncidente, no retries). Makes the detector's per-record
     # decision auditable from the log alone.
