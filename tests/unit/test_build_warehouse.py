@@ -41,7 +41,9 @@ def _write_pdf(cache: Path, url: str, text: str, *, with_elements: bool = False)
     return sha
 
 
-def _v1_case(classe: str = "HC", n: int = 1, **overrides) -> dict:
+def _make_case(
+    *, version: int = 8, classe: str = "HC", n: int = 1, **overrides,
+) -> dict:
     base = {
         "incidente": 12345,
         "classe": classe,
@@ -77,26 +79,28 @@ def _v1_case(classe: str = "HC", n: int = 1, **overrides) -> dict:
         "extraido": "2026-04-01T12:00:00",
         "html": "<html/>",
     }
-    base.update(overrides)
-    return base
-
-
-def _v3_case(classe: str = "ADI", n: int = 100, **overrides) -> dict:
-    base = _v1_case(classe=classe, n=n)
-    base.pop("status", None)
-    base.pop("html", None)
-    base.update({
-        "schema_version": 3,
-        "url": f"https://portal.stf.jus.br/processos/detalhe.asp?incidente={base['incidente']}",
-        "data_protocolo_iso": "2020-03-15",
-        "status_http": 200,
-        "outcome": {
-            "verdict": "granted",
-            "source": "sessao_virtual",
-            "source_index": 0,
-            "date_iso": "2020-06-01",
-        },
-    })
+    if version >= 3:
+        base.pop("status", None)
+        base.pop("html", None)
+        base.update({
+            "schema_version": 3,
+            "url": f"https://portal.stf.jus.br/processos/detalhe.asp?incidente={base['incidente']}",
+            "data_protocolo_iso": "2020-03-15",
+            "status_http": 200,
+            "outcome": {
+                "verdict": "granted",
+                "source": "sessao_virtual",
+                "source_index": 0,
+                "date_iso": "2020-06-01",
+            },
+        })
+    if version >= 8:
+        base["_meta"] = {
+            "schema_version": 8,
+            "status_http": base.pop("status_http"),
+            "extraido": base.pop("extraido"),
+        }
+        base.pop("schema_version", None)
     base.update(overrides)
     return base
 
@@ -125,7 +129,7 @@ def test_empty_build_creates_db_with_manifest(tmp_path: Path) -> None:
 
 def test_v1_case_flattens_correctly(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case())
+    _write_case(cases, _make_case(version=1))
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -147,7 +151,7 @@ def test_v1_case_flattens_correctly(tmp_path: Path) -> None:
 
 def test_v3_case_unpacks_outcome_dict(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v3_case())
+    _write_case(cases, _make_case(version=3, classe="ADI", n=100))
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -169,7 +173,7 @@ def test_v3_case_unpacks_outcome_dict(tmp_path: Path) -> None:
 
 def test_data_protocolo_iso_derived_from_ddmmyyyy_when_missing(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(data_protocolo="07/11/2019"))
+    _write_case(cases, _make_case(version=1, data_protocolo="07/11/2019"))
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -181,7 +185,7 @@ def test_data_protocolo_iso_derived_from_ddmmyyyy_when_missing(tmp_path: Path) -
 
 def test_partes_one_row_per_entry(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case())
+    _write_case(cases, _make_case())
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -195,7 +199,7 @@ def test_partes_one_row_per_entry(tmp_path: Path) -> None:
 
 def test_andamentos_flatten_link_struct(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
             "complemento": None, "julgador": "Min. X", "link_descricao": "Ver",
@@ -219,7 +223,7 @@ def test_andamentos_flatten_link_struct(tmp_path: Path) -> None:
 
 def test_sessao_documentos_split_text_vs_url(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(sessao_virtual=[
+    _write_case(cases, _make_case(sessao_virtual=[
         {
             "metadata": {},
             "voto_relator": "",
@@ -248,7 +252,7 @@ def test_sessao_documentos_split_text_vs_url(tmp_path: Path) -> None:
 def test_sessao_documentos_v2_dict_of_dict_shape(tmp_path: Path) -> None:
     """v2/v3 — documentos is dict[tipo, {url, text}]."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(sessao_virtual=[
+    _write_case(cases, _make_case(sessao_virtual=[
         {
             "metadata": {}, "voto_relator": "", "votes": {},
             "documentos": {
@@ -282,7 +286,7 @@ def test_sessao_documentos_v4_list_shape_preserves_duplicates(tmp_path: Path) ->
     """v4 — documentos is list[{tipo, url, text, extractor}]; duplicate tipos
     must survive the flatten, disambiguated by doc_seq."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(sessao_virtual=[
+    _write_case(cases, _make_case(sessao_virtual=[
         {
             "metadata": {}, "voto_relator": "", "votes": {},
             "documentos": [
@@ -327,7 +331,7 @@ def test_andamentos_link_extractor_propagates(tmp_path: Path) -> None:
     """v4 — AndamentoLink.extractor lands in the warehouse so provenance
     queries (e.g. `WHERE link_extractor = 'unstructured'`) work."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
             "complemento": None, "julgador": None, "link_descricao": None,
@@ -384,7 +388,7 @@ def test_v8_warehouse_resolves_link_text_and_extractor_from_cache_when_json_is_n
     (pdfs / f"{sha1}.extractor").write_text("mistral", encoding="utf-8")
 
     # v8-shape case JSON: link carries url only, text/extractor are None.
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
             "complemento": None, "julgador": None, "link_descricao": None,
@@ -413,7 +417,7 @@ def test_v8_warehouse_cache_wins_over_stale_inline_text(tmp_path: Path) -> None:
     (pdfs / f"{sha1}.extractor").write_text("chandra", encoding="utf-8")
 
     # Stale inline text from a pre-v8 migration that pre-dates the re-OCR.
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
             "complemento": None, "julgador": None, "link_descricao": None,
@@ -435,7 +439,7 @@ def test_andamentos_link_extractor_null_on_v1_missing_field(tmp_path: Path) -> N
     """Pre-v4 case JSONs don't carry link.extractor; builder must still
     write a row (NULL in link_extractor) rather than crashing."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
             "complemento": None, "julgador": None, "link_descricao": None,
@@ -457,7 +461,7 @@ def test_andamentos_v5_link_tipo_read_from_link_struct(tmp_path: Path) -> None:
     """v5 — anchor label lives in `link.tipo`, not as a sibling field.
     No `link_descricao` key on the andamento at all in fresh v5 scrapes."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         # v5 shape: no link_descricao sibling; tipo is inside link
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
@@ -486,7 +490,7 @@ def test_andamentos_v5_link_text_only_anchor(tmp_path: Path) -> None:
     round-trip as `link={tipo, url=None, text=None, extractor=None}` —
     the row survives, url/sha1 are NULL, link_tipo carries the label."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {
             "index_num": 0, "data": "16/03/2020", "nome": "DECISÃO",
             "complemento": None, "julgador": None,
@@ -516,7 +520,7 @@ def test_pautas_v6_flatten(tmp_path: Path) -> None:
     import datetime
 
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(pautas=[
+    _write_case(cases, _make_case(pautas=[
         {
             "index": 2, "data": "2020-05-10", "nome": "PAUTA PUBLICADA",
             "complemento": "DJE 80", "julgador": "1ª TURMA",
@@ -546,9 +550,9 @@ def test_pautas_absent_or_empty_produces_no_rows(tmp_path: Path) -> None:
     pautas=None; v6 cases with no scheduled session have pautas=[].
     All three yield zero rows without crashing the builder."""
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(n=1, pautas=None))
-    _write_case(cases, _v1_case(n=2, pautas=[]))
-    c3 = _v1_case(n=3)
+    _write_case(cases, _make_case(n=1, pautas=None))
+    _write_case(cases, _make_case(n=2, pautas=[]))
+    c3 = _make_case(n=3)
     c3.pop("pautas", None)
     _write_case(cases, c3)
     out = tmp_path / "judex.duckdb"
@@ -583,7 +587,7 @@ def test_pdf_cache_joins_to_andamento_by_sha1(tmp_path: Path) -> None:
     pdfs = tmp_path / "pdf"
     url = "https://portal.stf.jus.br/peca.pdf"
     _write_pdf(pdfs, url, "Body text")
-    _write_case(cases, _v1_case(andamentos=[
+    _write_case(cases, _make_case(andamentos=[
         {"index_num": 0, "data": "16/03/2020", "nome": "DESPACHO",
          "complemento": None, "julgador": None, "link_descricao": None,
          "link": {"url": url, "text": None}},
@@ -602,9 +606,7 @@ def test_pdf_cache_joins_to_andamento_by_sha1(tmp_path: Path) -> None:
 
 def _dje_case(**overrides) -> dict:
     """Minimal v8 case with populated publicacoes_dje for warehouse tests."""
-    base = _v3_case(classe="HC", n=158802)
-    base["_meta"] = {"schema_version": 8, "status_http": 200, "extraido": "2026-04-19T00:00:00"}
-    base.pop("schema_version", None); base.pop("status_http", None); base.pop("extraido", None)
+    base = _make_case(version=8, classe="HC", n=158802)
     base["publicacoes_dje"] = [
         {
             "numero": 204, "data": "2020-08-17",
@@ -744,8 +746,8 @@ def test_decisoes_dje_join_to_pdfs_by_rtf_sha1(tmp_path: Path) -> None:
 
 def test_classes_filter_limits_ingest(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(classe="HC", n=1))
-    _write_case(cases, _v1_case(classe="ADI", n=10))
+    _write_case(cases, _make_case(classe="HC", n=1))
+    _write_case(cases, _make_case(classe="ADI", n=10))
     out = tmp_path / "judex.duckdb"
 
     builder.build(
@@ -762,14 +764,14 @@ def test_classes_filter_limits_ingest(tmp_path: Path) -> None:
 
 def test_rebuild_overwrites_prior_content(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case(relator="MIN. FIRST"))
+    _write_case(cases, _make_case(relator="MIN. FIRST"))
     out = tmp_path / "judex.duckdb"
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
 
     # Replace the case and rebuild
     for p in cases.rglob("*.json"):
         p.unlink()
-    _write_case(cases, _v1_case(relator="MIN. SECOND"))
+    _write_case(cases, _make_case(relator="MIN. SECOND"))
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
@@ -779,7 +781,7 @@ def test_rebuild_overwrites_prior_content(tmp_path: Path) -> None:
 
 def test_atomic_write_leaves_no_tmp(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case())
+    _write_case(cases, _make_case())
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -791,8 +793,8 @@ def test_atomic_write_leaves_no_tmp(tmp_path: Path) -> None:
 
 def test_manifest_records_row_counts_and_commit(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
-    _write_case(cases, _v1_case())
-    _write_case(cases, _v1_case(classe="ADI", n=20))
+    _write_case(cases, _make_case())
+    _write_case(cases, _make_case(classe="ADI", n=20))
     out = tmp_path / "judex.duckdb"
 
     builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
@@ -814,27 +816,22 @@ def test_manifest_records_row_counts_and_commit(tmp_path: Path) -> None:
 def _healthy_case(n: int) -> dict:
     """A case that exercises every populated-rate field above its threshold,
     so a corpus of these alone produces zero validation warnings."""
-    c = _v1_case(n=n)
-    # sessao_virtual with one entry
+    c = _make_case(n=n)
     c["sessao_virtual"] = [{
         "metadata": {"relator": "MIN. X"},
         "voto_relator": None, "votes": {},
         "documentos": [], "julgamento_item_titulo": "",
     }]
-    # pautas populated
     c["pautas"] = [{
         "index": 0, "data": "2024-01-01", "nome": "PAUTA",
         "complemento": None, "julgador": None,
     }]
-    # v8+ DJe shape with one entry
     c["publicacoes_dje"] = [{
         "seq": 0, "numero": 1, "data": "2024-01-02",
         "secao": "2ª Turma", "subsecao": "Sessão", "titulo": f"HC {n}",
         "detail_url": f"https://portal.stf.jus.br/dje?n={n}",
         "decisoes": [],
     }]
-    c["_meta"] = {"schema_version": 8, "status_http": 200,
-                  "extraido": "2026-04-21T00:00:00"}
     return c
 
 
