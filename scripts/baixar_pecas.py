@@ -39,86 +39,40 @@ from judex.sweeps.peca_classification import (
 )
 
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+def run_download_pecas(
+    *,
+    classe: str | None = None,
+    inicio: int | None = None,
+    fim: int | None = None,
+    csv: Path | None = None,
+    retentar_de: Path | None = None,
+    impte_contem: str = "",
+    tipos_doc: str = "",
+    relator_contem: str = "",
+    excluir_tipos_doc: str = "",
+    limite: int = 0,
+    apenas_substantivas: bool = True,
+    saida: Path | None = None,
+    forcar: bool = False,
+    dry_run: bool = False,
+    nao_perguntar: bool = False,
+    retomar: bool = False,
+    proxy_pool: Path | None = None,
+    proxy_rotate_seconds: float = 270.0,
+    proxy_cooldown_minutes: float = 4.0,
+) -> int:
+    args = argparse.Namespace(
+        classe=classe, inicio=inicio, fim=fim, csv=csv,
+        retentar_de=retentar_de,
+        impte_contem=impte_contem, tipos_doc=tipos_doc,
+        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
+        limite=limite, apenas_substantivas=apenas_substantivas,
+        saida=saida, forcar=forcar, dry_run=dry_run,
+        nao_perguntar=nao_perguntar, retomar=retomar,
+        proxy_pool=proxy_pool,
+        proxy_rotate_seconds=proxy_rotate_seconds,
+        proxy_cooldown_minutes=proxy_cooldown_minutes,
     )
-
-    # Input modes.
-    ap.add_argument("-c", "--classe", type=str, default=None,
-                    help='Classe (e.g. "HC"). Alone → filter. With -i/-f → range.')
-    ap.add_argument("-i", "--inicio", type=int, default=None,
-                    help="First processo in range (inclusive).")
-    ap.add_argument("-f", "--fim", type=int, default=None,
-                    help="Last processo in range (inclusive).")
-    ap.add_argument("--csv", type=Path, default=None,
-                    help="CSV of (classe, processo). Beats range/filter.")
-    ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
-                    help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
-
-    # Filters (fallback only).
-    ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="",
-                    help="Filter: comma-separated substrings for IMPTE.(S).")
-    ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="",
-                    help="Filter: comma-separated exact doc_type values.")
-    ap.add_argument("--relator-contem", dest="relator_contem", type=str, default="",
-                    help="Filter: comma-separated substrings in .relator.")
-    ap.add_argument("--excluir-tipos-doc", dest="excluir_tipos_doc",
-                    type=str, default="",
-                    help="Filter: comma-separated doc_types to skip.")
-    ap.add_argument("--limite", type=int, default=0,
-                    help="Truncate to N targets (0 = no limit). After filtering.")
-
-    # Substantive-only filter (on by default; ~55% fewer HTTP requests).
-    # Drops tier-C procedural stubs (certidões, termos, intimações,
-    # comunicações, decisão-de-julgamento). See docs/peca-tipo-classification.md.
-    ap.add_argument(
-        "--apenas-substantivas", dest="apenas_substantivas",
-        action="store_true", default=True,
-        help="Pula peças tier-C (certidões, termos, intimações). "
-             "Default: True. Desativar com --todos-tipos.",
-    )
-    ap.add_argument(
-        "--todos-tipos", dest="apenas_substantivas",
-        action="store_false",
-        help="Desativa o filtro substantivas; baixa TODAS as peças "
-             "(inclui certidões, termos, etc.).",
-    )
-
-    # Execution.
-    ap.add_argument("--saida", type=Path, default=None,
-                    help="Output directory. Holds pdfs.state.json, log, errors.")
-    ap.add_argument("--forcar", action="store_true",
-                    help="Re-download even if bytes are already cached.")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Preview only; do not fetch.")
-    ap.add_argument("--nao-perguntar", dest="nao_perguntar", action="store_true",
-                    help="Skip the interactive confirm. Required for non-TTY.")
-    ap.add_argument("--retomar", action="store_true",
-                    help="Skip targets already status=ok in pdfs.state.json.")
-
-    # Proxy rotation (optional — off by default; costs proxy bandwidth).
-    ap.add_argument(
-        "--proxy-pool", dest="proxy_pool", type=Path, default=None,
-        help="Path to a file with one proxy URL per line (# comments ok). "
-             "Enables proactive IP rotation: swap sessions every "
-             "--proxy-rotate-seconds so no single IP trips STF's WAF. "
-             "Mirrors scripts/run_sweep.py semantics. See docs/rate-limits.md.",
-    )
-    ap.add_argument(
-        "--proxy-rotate-seconds", dest="proxy_rotate_seconds",
-        type=float, default=270.0,
-        help="Seconds a proxy is used before rotating (default: 270). "
-             "Ignored when --proxy-pool is absent.",
-    )
-    ap.add_argument(
-        "--proxy-cooldown-minutes", dest="proxy_cooldown_minutes",
-        type=float, default=4.0,
-        help="Minutes a just-used proxy stays out of rotation (default: 4).",
-    )
-
-    args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -186,6 +140,49 @@ def main(argv: list[str] | None = None) -> int:
         proxy_cooldown_minutes=args.proxy_cooldown_minutes,
     )
     return 0 if failed == 0 else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument("-c", "--classe", type=str, default=None,
+                    help='Classe (e.g. "HC"). Alone → filter. With -i/-f → range.')
+    ap.add_argument("-i", "--inicio", type=int, default=None,
+                    help="First processo in range (inclusive).")
+    ap.add_argument("-f", "--fim", type=int, default=None,
+                    help="Last processo in range (inclusive).")
+    ap.add_argument("--csv", type=Path, default=None,
+                    help="CSV of (classe, processo). Beats range/filter.")
+    ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
+                    help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
+    ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="")
+    ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="")
+    ap.add_argument("--relator-contem", dest="relator_contem", type=str, default="")
+    ap.add_argument("--excluir-tipos-doc", dest="excluir_tipos_doc",
+                    type=str, default="")
+    ap.add_argument("--limite", type=int, default=0)
+    ap.add_argument(
+        "--apenas-substantivas", dest="apenas_substantivas",
+        action="store_true", default=True,
+    )
+    ap.add_argument(
+        "--todos-tipos", dest="apenas_substantivas",
+        action="store_false",
+    )
+    ap.add_argument("--saida", type=Path, default=None)
+    ap.add_argument("--forcar", action="store_true")
+    ap.add_argument("--dry-run", dest="dry_run", action="store_true")
+    ap.add_argument("--nao-perguntar", dest="nao_perguntar", action="store_true")
+    ap.add_argument("--retomar", action="store_true")
+    ap.add_argument("--proxy-pool", dest="proxy_pool", type=Path, default=None)
+    ap.add_argument("--proxy-rotate-seconds", dest="proxy_rotate_seconds",
+                    type=float, default=270.0)
+    ap.add_argument("--proxy-cooldown-minutes", dest="proxy_cooldown_minutes",
+                    type=float, default=4.0)
+    args = ap.parse_args(argv)
+    return run_download_pecas(**vars(args))
 
 
 if __name__ == "__main__":

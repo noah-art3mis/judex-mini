@@ -538,39 +538,6 @@ def varrer_processos(
 # `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
 
 
-def _argv_pdf_common(
-    *,
-    classe: Optional[str], inicio: Optional[int], fim: Optional[int],
-    csv: Optional[Path], retentar_de: Optional[Path],
-    impte_contem: str, tipos_doc: str,
-    relator_contem: str, excluir_tipos_doc: str, limite: int,
-    saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
-    retomar: bool,
-    apenas_substantivas: bool = True,
-) -> list[str]:
-    """Montar a parte comum de argv para baixar-pecas e extrair-pecas."""
-    a: list[str] = []
-    _push(a, "-c", classe)
-    _push(a, "-i", inicio)
-    _push(a, "-f", fim)
-    _push(a, "--csv", csv)
-    _push(a, "--retentar-de", retentar_de)
-    _push(a, "--impte-contem", impte_contem)
-    _push(a, "--tipos-doc", tipos_doc)
-    _push(a, "--relator-contem", relator_contem)
-    _push(a, "--excluir-tipos-doc", excluir_tipos_doc)
-    _push(a, "--limite", limite)
-    _push(a, "--saida", saida)
-    _push(a, "--dry-run", dry_run)
-    _push(a, "--nao-perguntar", nao_perguntar)
-    _push(a, "--retomar", retomar)
-    if apenas_substantivas:
-        a.append("--apenas-substantivas")
-    else:
-        a.append("--todos-tipos")
-    return a
-
-
 @app.command(name="baixar-pecas")
 def baixar_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
@@ -730,20 +697,17 @@ def baixar_pecas(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    argv = _argv_pdf_common(
+    from scripts.baixar_pecas import run_download_pecas
+    raise typer.Exit(code=run_download_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, saida=saida, dry_run=dry_run,
+        limite=limite, apenas_substantivas=apenas_substantivas,
+        saida=saida, forcar=forcar, dry_run=dry_run,
         nao_perguntar=nao_perguntar, retomar=retomar,
-        apenas_substantivas=apenas_substantivas,
-    )
-    _push(argv, "--forcar", forcar)
-    _push(argv, "--proxy-pool", proxy_pool)
-
-    from scripts.baixar_pecas import main as _baixar_main
-    raise typer.Exit(code=_baixar_main(argv))
+        proxy_pool=proxy_pool,
+    ))
 
 
 @app.command(name="extrair-pecas")
