@@ -12,7 +12,7 @@ captures the schema + pipeline shape for review before we build.
 - Join cases ↔ PDFs in one SQL query — today that join lives in
   ad-hoc Python via `judex.utils.pdf_cache.read(url)`.
 - Stay **derived**: the scraper never writes to the warehouse.
-  `data/cases/*.json` remains the single source of truth; the
+  `data/source/processos/*.json` remains the single source of truth; the
   warehouse is a rebuildable artifact.
 - Manual refresh (cron / post-sweep trigger), not continuous.
 
@@ -85,7 +85,7 @@ CREATE TABLE cases (
     outcome             VARCHAR,              -- derived (granted / denied / pending)
     status_http         INTEGER,
     extraido            TIMESTAMP,
-    source_path         VARCHAR,              -- data/cases/HC/judex-mini_HC_135041.json
+    source_path         VARCHAR,              -- data/source/processos/HC/judex-mini_HC_135041.json
     source_mtime        TIMESTAMP,
     PRIMARY KEY (classe, processo_id)
 );
@@ -148,7 +148,7 @@ CREATE TABLE documentos (
 CREATE INDEX documentos_url_idx ON documentos (url);
 ```
 
-### `pdfs` (one row per sha1, flat from `data/cache/pdf/`)
+### `pdfs` (one row per sha1, flat from `data/raw/pecas + data/derived/pecas-texto/`)
 
 ```sql
 CREATE TABLE pdfs (
@@ -208,8 +208,8 @@ invoked directly. Three phases, each idempotent:
 
 ```
 1. Enumerate inputs
-   cases_paths   = Path('data/cases').rglob('judex-mini_*_*.json')
-   pdf_paths     = Path('data/cache/pdf').glob('*.txt.gz')
+   cases_paths   = Path('data/source/processos').rglob('judex-mini_*_*.json')
+   pdf_paths     = Path('data/raw/pecas + data/derived/pecas-texto').glob('*.txt.gz')
 2. Build in-memory rows
    for p in cases_paths:
        item = json.loads(p.read_text())
@@ -221,13 +221,13 @@ invoked directly. Three phases, each idempotent:
        pdfs.append(read_pdf_row(p))
 
 3. Write to DuckDB (atomic)
-   tmp = 'data/warehouse/judex.duckdb.tmp'
+   tmp = 'data/derived/warehouse/judex.duckdb.tmp'
    with duckdb.connect(tmp) as con:
        con.execute(SCHEMA_SQL)
        con.executemany('INSERT INTO cases ...', cases)
        ...
        con.execute('INSERT INTO manifest VALUES (?, ...)', [...])
-   os.replace(tmp, 'data/warehouse/judex.duckdb')
+   os.replace(tmp, 'data/derived/warehouse/judex.duckdb')
 ```
 
 Full rebuild on every run keeps the code trivial: no
@@ -251,11 +251,11 @@ past 30 min, the escape hatch is per-classe parquet partitioning.
 
 If full rebuild becomes painful:
 - Track `manifest.built_at`
-- On refresh, `find data/cases -newer <manifest.built_at>` and
+- On refresh, `find data/source/processos -newer <manifest.built_at>` and
   upsert just those case records
 - Re-derive `partes` / `andamentos` / `documentos` for those cases
   only
-- `pdfs` table: walk `data/cache/pdf/` with a `sha1 NOT IN (SELECT
+- `pdfs` table: walk `data/raw/pecas + data/derived/pecas-texto/` with a `sha1 NOT IN (SELECT
   sha1 FROM pdfs)` filter
 
 Keep this for v2. v1 is full rebuild.
@@ -335,7 +335,7 @@ ORDER BY n_votes DESC;
 
 ## Relationship to the HTML cache
 
-The HTML cache (`data/cache/html/*.tar.gz`) is deliberately
+The HTML cache (`data/raw/html/*.tar.gz`) is deliberately
 **not** ingested. That data is pre-parse — useful only for
 re-running extractors (see `scripts/renormalize_cases.py`). The
 warehouse holds post-parse fields. Keeping the distinction clean

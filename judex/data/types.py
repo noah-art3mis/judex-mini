@@ -7,8 +7,8 @@ from typing import List, Literal, Optional, TypedDict
 # or lower-valued entries.
 #
 # v8 (2026-04-19) — Documento.text / Documento.extractor stripped from
-# JSON; `data/cache/pdf/<sha1(url)>.{txt.gz,extractor}` is now the
-# single source of truth. Fetchers still populate the cache during
+# JSON; `data/derived/pecas-texto/<sha1(url)>.{txt.gz,extractor}` is now
+# the single source of truth. Fetchers still populate the cache during
 # scrape; consumers (warehouse builder, notebooks) resolve text from
 # the cache at read time via `peca_cache.read(url)` +
 # `peca_cache.read_extractor(url)`. The TypedDict keys stay (`text`,
@@ -77,8 +77,8 @@ class Documento(TypedDict):
 
     As of v8, `text` and `extractor` are **always None on disk**. This
     struct is a pure pointer; the canonical extracted text + provider
-    label live in `data/cache/pdf/<sha1(url)>.txt.gz` and
-    `data/cache/pdf/<sha1(url)>.extractor`. Resolve via
+    label live in `data/derived/pecas-texto/<sha1(url)>.txt.gz` and
+    `data/derived/pecas-texto/<sha1(url)>.extractor`. Resolve via
     `peca_cache.read(url)` + `peca_cache.read_extractor(url)` at read
     time. The keys stay for backwards compatibility with v4–v7 files
     that still have them populated; the renormalizer strips them on

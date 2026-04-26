@@ -26,9 +26,9 @@ from judex.utils import peca_cache
 
 @pytest.fixture(autouse=True)
 def _isolated_pdf_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "judex.utils.peca_cache.CACHE_ROOT", tmp_path / "peca_cache",
-    )
+    root = tmp_path / "peca_cache"
+    monkeypatch.setattr("judex.utils.peca_cache.PECAS_ROOT", root)
+    monkeypatch.setattr("judex.utils.peca_cache.TEXTO_ROOT", root)
 
 
 def _write_case(

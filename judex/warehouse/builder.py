@@ -1,9 +1,9 @@
 """Full-rebuild warehouse builder.
 
-Walks `data/cases/**/*.json` + `data/cache/pdf/*.txt.gz` and emits a
-single `.duckdb` file with flat analytical tables. No incremental
-logic — the whole thing rebuilds every run, which keeps the code
-trivial (no UPSERT, no orphaned-row cleanup, no change-tracking
+Walks `data/source/processos/**/*.json` + `data/derived/pecas-texto/*.txt.gz`
+and emits a single `.duckdb` file with flat analytical tables. No
+incremental logic — the whole thing rebuilds every run, which keeps the
+code trivial (no UPSERT, no orphaned-row cleanup, no change-tracking
 manifest) and stays well under a few minutes at current scale.
 
 Schema-version tolerance: ~97 % of production case JSONs pre-date
@@ -33,31 +33,31 @@ from judex.scraping.extraction._shared import to_iso
 
 
 def _resolve_text(
-    url: Optional[str], inline_text: Optional[str], pdf_cache_root: Optional[Path]
+    url: Optional[str], inline_text: Optional[str], pecas_texto_root: Optional[Path]
 ) -> Optional[str]:
     """Resolve extracted text, preferring the peca_cache file as the canonical source (v8).
 
     Pre-v8 JSONs carry the text inline on each Documento; v8 JSONs
-    carry None and rely on the sha1-keyed cache under `pdf_cache_root`.
+    carry None and rely on the sha1-keyed cache under `pecas_texto_root`.
     This helper bridges both — cache first (authoritative under v8),
     inline as fallback for unmigrated JSONs. Either way the warehouse
-    column stays populated across corpus snapshots. `pdf_cache_root`
+    column stays populated across corpus snapshots. `pecas_texto_root`
     threads through from `build()` so tests can point at a tmp dir.
     """
-    if url and pdf_cache_root is not None:
+    if url and pecas_texto_root is not None:
         sha1 = hashlib.sha1(url.encode()).hexdigest()
-        txt_gz = pdf_cache_root / f"{sha1}.txt.gz"
+        txt_gz = pecas_texto_root / f"{sha1}.txt.gz"
         if txt_gz.exists():
             return gzip.decompress(txt_gz.read_bytes()).decode("utf-8")
     return inline_text
 
 
 def _resolve_extractor(
-    url: Optional[str], inline_extractor: Optional[str], pdf_cache_root: Optional[Path]
+    url: Optional[str], inline_extractor: Optional[str], pecas_texto_root: Optional[Path]
 ) -> Optional[str]:
-    if url and pdf_cache_root is not None:
+    if url and pecas_texto_root is not None:
         sha1 = hashlib.sha1(url.encode()).hexdigest()
-        extractor_path = pdf_cache_root / f"{sha1}.extractor"
+        extractor_path = pecas_texto_root / f"{sha1}.extractor"
         if extractor_path.exists():
             return extractor_path.read_text(encoding="utf-8").strip() or None
     return inline_extractor
@@ -491,7 +491,7 @@ def _flatten_partes(item: dict) -> list[dict]:
     return out
 
 
-def _flatten_andamentos(item: dict, pdf_cache_root: Optional[Path] = None) -> list[dict]:
+def _flatten_andamentos(item: dict, pecas_texto_root: Optional[Path] = None) -> list[dict]:
     """Flatten andamentos into warehouse rows.
 
     v5+: `link = {tipo, url, text, extractor}` or None.
@@ -505,8 +505,8 @@ def _flatten_andamentos(item: dict, pdf_cache_root: Optional[Path] = None) -> li
         # v8: text/extractor live canonically in peca_cache; fall back
         # to the inline value for pre-v8 JSONs so a mid-migration corpus
         # stays uniform.
-        text = _resolve_text(url, link.get("text"), pdf_cache_root)
-        extractor = _resolve_extractor(url, link.get("extractor"), pdf_cache_root)
+        text = _resolve_text(url, link.get("text"), pecas_texto_root)
+        extractor = _resolve_extractor(url, link.get("extractor"), pecas_texto_root)
         tipo = link.get("tipo") if link else None
         raw_data = a.get("data")
         # v6: data is already ISO. Pre-v6: data_iso sibling holds it.
@@ -575,7 +575,7 @@ def _flatten_publicacoes_dje(item: dict) -> list[dict]:
 
 
 def _flatten_decisoes_dje(
-    item: dict, pdf_cache_root: Optional[Path] = None
+    item: dict, pecas_texto_root: Optional[Path] = None
 ) -> list[dict]:
     """One row per DecisaoDJe block. rtf_text + rtf_extractor resolved via cache."""
     out: list[dict] = []
@@ -587,11 +587,11 @@ def _flatten_decisoes_dje(
                 continue
             rtf = dec.get("rtf") or {}
             rtf_url = rtf.get("url") if isinstance(rtf, dict) else None
-            rtf_text = _resolve_text(rtf_url, rtf.get("text") if isinstance(rtf, dict) else None, pdf_cache_root)
+            rtf_text = _resolve_text(rtf_url, rtf.get("text") if isinstance(rtf, dict) else None, pecas_texto_root)
             rtf_extractor = _resolve_extractor(
                 rtf_url,
                 rtf.get("extractor") if isinstance(rtf, dict) else None,
-                pdf_cache_root,
+                pecas_texto_root,
             )
             out.append({
                 "classe":         item["classe"],
@@ -640,7 +640,7 @@ def _flatten_pautas(item: dict) -> list[dict]:
     return out
 
 
-def _flatten_documentos(item: dict, pdf_cache_root: Optional[Path] = None) -> list[dict]:
+def _flatten_documentos(item: dict, pecas_texto_root: Optional[Path] = None) -> list[dict]:
     """Flatten sessao_virtual[*].documentos across all schema versions.
 
     Handles three shapes:
@@ -660,8 +660,8 @@ def _flatten_documentos(item: dict, pdf_cache_root: Optional[Path] = None) -> li
         for doc_seq, row in enumerate(entries):
             url = row.get("url")
             # v8: cache-first resolve; inline only for pre-v8 fallback.
-            text = _resolve_text(url, row.get("text"), pdf_cache_root)
-            extractor = _resolve_extractor(url, row.get("extractor"), pdf_cache_root)
+            text = _resolve_text(url, row.get("text"), pecas_texto_root)
+            extractor = _resolve_extractor(url, row.get("extractor"), pecas_texto_root)
             out.append({
                 "classe":      item["classe"],
                 "processo_id": item["processo_id"],
@@ -718,7 +718,7 @@ def _normalize_documentos(docs: Any) -> list[dict]:
 
 
 def _iter_pdf_rows(
-    pdf_cache_root: Path,
+    pecas_texto_root: Path,
     sha1_filter: Optional[set[str]] = None,
 ) -> Iterable[dict]:
     # Generator (not materialised list) — PDF text decompresses to ~1 GB
@@ -728,14 +728,14 @@ def _iter_pdf_rows(
     # sha1_filter: when provided, only yield PDFs whose sha1 is in the set.
     # Used by scoped builds (--classe or --year) to avoid pulling the
     # global cache into a narrow warehouse. None → include every PDF.
-    if not pdf_cache_root.exists():
+    if not pecas_texto_root.exists():
         return
-    for txt_gz in pdf_cache_root.glob("*.txt.gz"):
+    for txt_gz in pecas_texto_root.glob("*.txt.gz"):
         sha1 = txt_gz.name.removesuffix(".txt.gz")
         if sha1_filter is not None and sha1 not in sha1_filter:
             continue
         text = gzip.decompress(txt_gz.read_bytes()).decode("utf-8", errors="replace")
-        has_elements = (pdf_cache_root / f"{sha1}.elements.json.gz").exists()
+        has_elements = (pecas_texto_root / f"{sha1}.elements.json.gz").exists()
         yield {
             "sha1":         sha1,
             "n_chars":      len(text),
@@ -855,7 +855,7 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, table: str, rows: list[dict]) -
 def build(
     *,
     cases_root: Path,
-    pdf_cache_root: Path,
+    pecas_texto_root: Path,
     output_path: Path,
     classes: Optional[Iterable[str]] = None,
     id_range: Optional[tuple[int, int]] = None,
@@ -925,13 +925,13 @@ def build(
             counts["partes"] += len(partes)
             buffers.partes.extend(partes)
 
-            andamentos = _flatten_andamentos(item, pdf_cache_root)
+            andamentos = _flatten_andamentos(item, pecas_texto_root)
             if andamentos:
                 populated["andamentos"].add(key)
             counts["andamentos"] += len(andamentos)
             buffers.andamentos.extend(andamentos)
 
-            documentos = _flatten_documentos(item, pdf_cache_root)
+            documentos = _flatten_documentos(item, pecas_texto_root)
             counts["documentos"] += len(documentos)
             buffers.documentos.extend(documentos)
             if sha1_filter is not None:
@@ -951,7 +951,7 @@ def build(
             counts["publicacoes_dje"] += len(publicacoes_dje)
             buffers.publicacoes_dje.extend(publicacoes_dje)
 
-            decisoes_dje = _flatten_decisoes_dje(item, pdf_cache_root)
+            decisoes_dje = _flatten_decisoes_dje(item, pecas_texto_root)
             counts["decisoes_dje"] += len(decisoes_dje)
             buffers.decisoes_dje.extend(decisoes_dje)
 
@@ -991,7 +991,7 @@ def build(
 
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
         n_pdfs = _bulk_insert_iter(
-            con, "pdfs", _iter_pdf_rows(pdf_cache_root, sha1_filter)
+            con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter)
         )
         wall = time.monotonic() - t0
         con.execute(

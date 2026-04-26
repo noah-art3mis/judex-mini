@@ -154,7 +154,7 @@ def exportar(
 
 
 # ---------------------------------------------------------------------------
-# `fazer-backup` — empacota data/cases + data/cache/pdf em um único .zip
+# `fazer-backup` — empacota data/source/processos + data/raw/pecas + data/derived/pecas-texto em um único .zip
 
 
 @app.command(name="fazer-backup")
@@ -166,29 +166,35 @@ def fazer_backup(
     ),
     sem_pecas: bool = typer.Option(
         False, "--sem-pecas",
-        help="Não incluir data/cache/pdf (peças). Útil para um backup "
-             "leve só de metadados.",
+        help="Não incluir as peças (bytes em data/raw/pecas/ + texto em "
+             "data/derived/pecas-texto/). Útil para um backup leve só de "
+             "metadados.",
     ),
     incluir_warehouse: bool = typer.Option(
         False, "--incluir-warehouse",
-        help="Inclui data/warehouse/judex.duckdb. Por padrão fica de fora "
-             "— é artefato derivado, regenerável via `atualizar-warehouse`.",
+        help="Inclui data/derived/warehouse/judex.duckdb. Por padrão fica "
+             "de fora — é artefato derivado, regenerável via "
+             "`atualizar-warehouse`.",
     ),
     classe: Optional[list[str]] = typer.Option(
         None, "--classe",
         help="Restringe os processos a uma ou mais classes (HC, ADI, RE…). "
              "Repita para várias. Omita para incluir todas.",
     ),
-    diretorio_casos: Path = typer.Option(
-        Path("data/cases"), "--diretorio-casos",
-        help="Raiz dos JSONs de caso (particionados por classe).",
+    diretorio_processos: Path = typer.Option(
+        Path("data/source/processos"), "--diretorio-processos",
+        help="Raiz dos JSONs de processo (particionados por classe).",
     ),
-    diretorio_cache_pdf: Path = typer.Option(
-        Path("data/cache/pdf"), "--diretorio-cache-pdf",
-        help="Cache de PDFs (.pdf.gz / .txt.gz / .extractor / .elements.json.gz).",
+    diretorio_pecas: Path = typer.Option(
+        Path("data/raw/pecas"), "--diretorio-pecas",
+        help="Bytes brutos das peças (.pdf.gz, .rtf.gz, …; sha1(url)-keyed).",
+    ),
+    diretorio_pecas_texto: Path = typer.Option(
+        Path("data/derived/pecas-texto"), "--diretorio-pecas-texto",
+        help="Texto extraído das peças (.txt.gz / .extractor / .elements.json.gz).",
     ),
     caminho_warehouse: Path = typer.Option(
-        Path("data/warehouse/judex.duckdb"), "--caminho-warehouse",
+        Path("data/derived/warehouse/judex.duckdb"), "--caminho-warehouse",
         help="Caminho do warehouse DuckDB (usado só com --incluir-warehouse).",
     ),
     progresso_cada: int = typer.Option(
@@ -196,12 +202,12 @@ def fazer_backup(
         help="Frequência (em arquivos) das linhas de progresso. 0 desliga.",
     ),
 ) -> None:
-    """Empacota data/cases + data/cache/pdf em um único .zip aberto pelo Windows.
+    """Empacota processos + peças num único .zip aberto pelo Windows.
 
     Saída atômica: grava em <saida>.tmp e renomeia ao final. Compressão é
-    por entrada — JSON deflaciona, .gz/.pdf vão como ZIP_STORED.
+    por entrada — JSON deflaciona, .gz/.pdf/.rtf vão como ZIP_STORED.
 
-    Para um backup completo (sources + warehouse):
+    Para um backup completo (processos + peças + warehouse):
 
         uv run judex fazer-backup --incluir-warehouse
 
@@ -216,17 +222,19 @@ def fazer_backup(
         saida = Path("runs/active/backups") / f"judex-backup-{stamp}.zip"
 
     typer.echo(f"empacotando -> {saida}")
-    typer.echo(f"  cases: {diretorio_casos}{f' (classes={classe})' if classe else ''}")
-    typer.echo(f"  peças: {'pulando' if sem_pecas else diretorio_cache_pdf}")
-    typer.echo(f"  warehouse: {'incluído (' + str(caminho_warehouse) + ')' if incluir_warehouse else 'pulando'}")
+    typer.echo(f"  processos:    {diretorio_processos}{f' (classes={classe})' if classe else ''}")
+    typer.echo(f"  peças bytes:  {'pulando' if sem_pecas else diretorio_pecas}")
+    typer.echo(f"  peças texto:  {'pulando' if sem_pecas else diretorio_pecas_texto}")
+    typer.echo(f"  warehouse:    {'incluído (' + str(caminho_warehouse) + ')' if incluir_warehouse else 'pulando'}")
 
     result = make_backup(
         saida,
         include_pecas=not sem_pecas,
         include_warehouse=incluir_warehouse,
         classes=classe or None,
-        cases_dir=diretorio_casos,
-        pdf_cache_dir=diretorio_cache_pdf,
+        processos_dir=diretorio_processos,
+        pecas_dir=diretorio_pecas,
+        pecas_texto_dir=diretorio_pecas_texto,
         warehouse_path=caminho_warehouse,
         progress_every=progresso_cada,
     )
@@ -637,7 +645,7 @@ def baixar_pecas(
     """Baixa PDFs do STF para o cache local de bytes.
 
     Metade do pipeline que fala com o portal STF; escreve bytes crus
-    em ``data/cache/pdf/<sha1(url)>.pdf.gz``. A extração de texto é
+    em ``data/raw/pecas/<sha1(url)>.<ext>.gz``. A extração de texto é
     um comando separado (``extrair-pecas``).
 
     Prioridade de modos de entrada: ``--retentar-de`` > ``--csv`` >
@@ -758,10 +766,11 @@ def extrair_pecas(
 ) -> None:
     """Extrai texto dos PDFs já baixados em disco (zero HTTP).
 
-    Lê bytes de ``data/cache/pdf/<sha1(url)>.pdf.gz``, despacha
+    Lê bytes de ``data/raw/pecas/<sha1(url)>.<ext>.gz``, despacha
     para o provedor pedido via ``src.scraping.ocr.extract_pdf``,
-    escreve texto + sidecar ``.extractor`` de volta no cache. Pré-
-    requisito: rodar ``baixar-pecas`` antes.
+    escreve texto em ``data/derived/pecas-texto/<sha1(url)>.txt.gz``
+    + sidecar ``.extractor``. Pré-requisito: rodar ``baixar-pecas``
+    antes.
 
     Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
@@ -783,16 +792,16 @@ def extrair_pecas(
 
 @app.command(name="atualizar-warehouse")
 def atualizar_warehouse(
-    diretorio_casos: Path = typer.Option(
-        Path("data/cases"), "--diretorio-casos",
-        help="Raiz dos JSONs de caso (particionados por classe).",
+    diretorio_processos: Path = typer.Option(
+        Path("data/source/processos"), "--diretorio-processos",
+        help="Raiz dos JSONs de processo (particionados por classe).",
     ),
-    diretorio_cache_pdf: Path = typer.Option(
-        Path("data/cache/pdf"), "--diretorio-cache-pdf",
-        help="Cache de PDFs (.txt.gz / .elements.json.gz / .extractor).",
+    diretorio_pecas_texto: Path = typer.Option(
+        Path("data/derived/pecas-texto"), "--diretorio-pecas-texto",
+        help="Cache de texto extraído (.txt.gz / .elements.json.gz / .extractor).",
     ),
     saida: Path = typer.Option(
-        Path("data/warehouse/judex.duckdb"), "--saida",
+        Path("data/derived/warehouse/judex.duckdb"), "--saida",
         help="Caminho do arquivo .duckdb de saída (swap atômico).",
     ),
     classe: Optional[list[str]] = typer.Option(
@@ -816,12 +825,12 @@ def atualizar_warehouse(
              "é gravado para inspeção manual; só o exit code muda.",
     ),
 ) -> None:
-    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de PDFs.
+    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de texto.
 
     Full-rebuild com swap atômico — não há modo incremental. Os JSONs
-    em ``data/cases/`` continuam sendo a fonte de verdade; o warehouse
-    é um artefato derivado, regenerável. Custo típico: ~2–3 min para
-    ~55k casos, ~15–20 min para 350k.
+    em ``data/source/processos/`` continuam sendo a fonte de verdade;
+    o warehouse é um artefato derivado, regenerável. Custo típico:
+    ~2–3 min para ~55k processos, ~15–20 min para 350k.
 
     O comando não fala com a rede — é puro scan local de JSON + gzip.
     Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
@@ -830,8 +839,8 @@ def atualizar_warehouse(
     from scripts.build_warehouse import run_build_warehouse
 
     raise typer.Exit(code=run_build_warehouse(
-        cases_root=diretorio_casos,
-        pdf_cache_root=diretorio_cache_pdf,
+        cases_root=diretorio_processos,
+        pecas_texto_root=diretorio_pecas_texto,
         output=saida,
         classe=classe,
         year=ano,

@@ -509,7 +509,7 @@ the breaker handles pathological runaway.
 
 - **PDF extraction cost.** `pypdf.PdfReader.extract_text` and the Unstructured OCR path run at local-CPU / external-API speed; pacing the portal doesn't change them.
 - **Individual request latency.** The portal is what it is (~300–650 ms per tab). Pacing sits above that.
-- **Courtesy vs. just-faster-failure.** Faster scraping without proper caching is the same load concentrated in time. The HTML fragment cache (`data/cache/html/<CLASSE>_<N>/*.html.gz`) is the primary lever for being a good citizen.
+- **Courtesy vs. just-faster-failure.** Faster scraping without proper caching is the same load concentrated in time. The HTML fragment cache (`data/raw/html/<CLASSE>_<N>/*.html.gz`) is the primary lever for being a good citizen.
 
 ## The unresolved policy question — `robots.txt`
 

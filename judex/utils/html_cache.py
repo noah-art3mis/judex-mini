@@ -1,6 +1,6 @@
 """Per-case tar.gz HTML cache.
 
-Cache lives at `data/cache/html/{classe}_{processo}.tar.gz` — one
+Cache lives at `data/raw/html/{classe}_{processo}.tar.gz` — one
 archive per process containing every tab as a plain `.html` member
 plus `incidente.txt`. The outer gzip layer compresses across tabs
 (STF HTML shares a lot of boilerplate, and one case's ~30 KB of
@@ -21,7 +21,7 @@ import os
 import tarfile
 from pathlib import Path
 
-CACHE_ROOT = Path("data/cache/html")
+CACHE_ROOT = Path("data/raw/html")
 _INCIDENTE_MEMBER = "incidente.txt"
 
 

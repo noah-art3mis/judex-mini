@@ -37,7 +37,7 @@ from judex.scraping.scraper import (
 from judex.sweeps.discovery import discover_new_numeros
 
 
-_WAREHOUSE_PATH = Path("data/warehouse/judex.duckdb")
+_WAREHOUSE_PATH = Path("data/derived/warehouse/judex.duckdb")
 
 
 def _warehouse_max(classe: str) -> int:

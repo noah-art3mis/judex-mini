@@ -1,6 +1,6 @@
 """Unit tests for `scripts/generate_hc_year_gap_csv.py`.
 
-Covers the filename-parsing heuristic for `data/cases/HC/` and the
+Covers the filename-parsing heuristic for `data/source/processos/HC/` and the
 gap-CSV emission behaviour (descending order, captured IDs excluded,
 well-formed header).
 """

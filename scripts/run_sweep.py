@@ -335,9 +335,9 @@ class ProcessResult:
 def _write_item_json(items_dir: Path, classe: str, processo: int, item_dict: dict) -> None:
     """Atomic write of the scraped item to <items_dir>/judex-mini_<classe>_<n>-<n>.json.
 
-    One-file-per-process matches the canonical shape in data/cases/<CLASSE>/,
-    so passing --diretorio-itens data/cases/HC writes warehouse-ready JSONs
-    directly (no promote-with-unwrap step).
+    One-file-per-process matches the canonical shape in data/source/processos/<CLASSE>/,
+    so passing --diretorio-itens data/source/processos/HC writes warehouse-ready
+    JSONs directly (no promote-with-unwrap step).
     """
     items_dir.mkdir(parents=True, exist_ok=True)
     path = items_dir / f"judex-mini_{classe}_{processo}-{processo}.json"
@@ -628,7 +628,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap.add_argument(
         "--wipe-cache", action="store_true",
-        help="Remove data/cache/html entries for the processes in the sweep before starting.",
+        help="Remove data/raw/html entries for the processes in the sweep before starting.",
     )
     ap.add_argument(
         "--resume", action="store_true",
@@ -729,10 +729,11 @@ def _resolve_parity(
 
 
 def _wipe_html_caches(rows: list[tuple[str, int, Optional[str]]]) -> None:
+    from judex.utils import html_cache
     for classe, processo, _ in rows:
-        archive = Path("data/cache/html") / f"{classe}_{processo}.tar.gz"
+        archive = html_cache.CACHE_ROOT / f"{classe}_{processo}.tar.gz"
         archive.unlink(missing_ok=True)
-        legacy_dir = Path("data/cache/html") / f"{classe}_{processo}"
+        legacy_dir = html_cache.CACHE_ROOT / f"{classe}_{processo}"
         if legacy_dir.is_dir():
             shutil.rmtree(legacy_dir)
 

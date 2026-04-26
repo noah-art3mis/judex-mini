@@ -186,7 +186,7 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
         proxy_pool=proxy_pool,
         saida_root=saida,
         label_prefix="hc_backfill",
-        extra_args=["--resume", "--items-dir", "data/cases/HC"],
+        extra_args=["--resume", "--items-dir", "data/source/processos/HC"],
         spawn=fake_spawn,
     )
 
@@ -211,7 +211,7 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
         # extra_args forwarded verbatim and in order.
         assert "--resume" in argv
         assert "--items-dir" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/cases/HC"
+        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
         # driver.log lands under the shard's saida.
         assert driver_log.name == "driver.log"
         assert f"shard-{letter}" in str(driver_log)
@@ -286,7 +286,7 @@ def test_varrer_processos_shards_cli_forwards_flags(
         "--shards", "2",
         "--proxy-pool", str(proxy_pool),
         "--retomar",
-        "--diretorio-itens", "data/cases/HC",
+        "--diretorio-itens", "data/source/processos/HC",
     ])
 
     assert result.exit_code == 0, result.output
@@ -300,7 +300,7 @@ def test_varrer_processos_shards_cli_forwards_flags(
         assert "scripts/run_sweep.py" in " ".join(argv)
         assert argv[argv.index("--label") + 1] == f"hc_q2_shard_{letter}"
         assert "--resume" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/cases/HC"
+        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
         assert argv[argv.index("--proxy-pool") + 1].endswith(
             f"proxies/proxies.{letter}.txt"
         )

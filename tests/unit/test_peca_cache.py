@@ -11,13 +11,15 @@ from judex.utils import peca_cache
 
 
 def test_read_miss_returns_none(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.read("https://example.test/a.pdf") is None
 
 
 def test_read_after_write_returns_text(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "hello world")
 
@@ -25,7 +27,8 @@ def test_read_after_write_returns_text(tmp_path, monkeypatch) -> None:
 
 
 def test_different_urls_stored_separately(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "A")
     peca_cache.write("https://example.test/b.pdf", "B")
@@ -35,7 +38,8 @@ def test_different_urls_stored_separately(tmp_path, monkeypatch) -> None:
 
 
 def test_write_overwrites(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "old")
     peca_cache.write("https://example.test/a.pdf", "new")
@@ -47,13 +51,15 @@ def test_write_overwrites(tmp_path, monkeypatch) -> None:
 
 
 def test_read_elements_miss_returns_none(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.read_elements("https://example.test/a.pdf") is None
 
 
 def test_write_and_read_elements_round_trip(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     elements = [
         {"type": "Title", "text": "HABEAS CORPUS 135041"},
@@ -69,7 +75,8 @@ def test_write_and_read_elements_round_trip(tmp_path, monkeypatch) -> None:
 
 def test_elements_cache_is_separate_from_text_cache(tmp_path, monkeypatch) -> None:
     """Writing elements doesn't populate the text cache and vice versa."""
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "flat text")
     assert peca_cache.read_elements("https://example.test/a.pdf") is None
@@ -85,7 +92,8 @@ def test_elements_file_is_gzipped_json(tmp_path, monkeypatch) -> None:
     import gzip
     import json
 
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write_elements(
         "https://example.test/a.pdf", [{"type": "Title", "text": "hi"}],
@@ -101,13 +109,15 @@ def test_elements_file_is_gzipped_json(tmp_path, monkeypatch) -> None:
 
 
 def test_read_extractor_miss_returns_none(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.read_extractor("https://example.test/a.pdf") is None
 
 
 def test_write_with_extractor_persists_sidecar(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "hello", extractor="pypdf_plain")
 
@@ -123,7 +133,8 @@ def test_write_without_extractor_leaves_sidecar_untouched(tmp_path, monkeypatch)
     (pre-v4 scripts) can overwrite cached text without destroying a
     label that an OCR pass previously recorded.
     """
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "v1", extractor="unstructured")
     peca_cache.write("https://example.test/a.pdf", "v2")  # no extractor
@@ -133,7 +144,8 @@ def test_write_without_extractor_leaves_sidecar_untouched(tmp_path, monkeypatch)
 
 
 def test_write_overwrites_extractor_sidecar_when_provided(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write("https://example.test/a.pdf", "A", extractor="pypdf_plain")
     peca_cache.write("https://example.test/a.pdf", "B", extractor="unstructured")
@@ -146,13 +158,15 @@ def test_write_overwrites_extractor_sidecar_when_provided(tmp_path, monkeypatch)
 
 def test_has_text_false_when_missing(tmp_path, monkeypatch) -> None:
     """has_text is an O(1) file-stat — no read, no decompress."""
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.has_text("https://example.test/a.pdf") is False
 
 
 def test_has_text_true_after_write(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
     peca_cache.write("https://example.test/a.pdf", "body")
 
     assert peca_cache.has_text("https://example.test/a.pdf") is True
@@ -163,7 +177,8 @@ def test_has_text_independent_of_bytes_cache(tmp_path, monkeypatch) -> None:
     react to `.txt.gz`, not to `.pdf.gz` presence. This matters because
     the `baixar-pecas` / `extrair-pecas` split writes them at different
     stages (bytes first, text later)."""
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
     peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\n...")
 
     # Bytes are there, but nothing was extracted yet.
@@ -175,19 +190,22 @@ def test_has_text_independent_of_bytes_cache(tmp_path, monkeypatch) -> None:
 
 
 def test_has_bytes_false_when_missing(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.has_bytes("https://example.test/a.pdf") is False
 
 
 def test_read_bytes_miss_returns_none(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     assert peca_cache.read_bytes("https://example.test/a.pdf") is None
 
 
 def test_read_bytes_after_write_round_trips(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     body = b"%PDF-1.4\n...fake bytes...\n%%EOF"
     peca_cache.write_bytes("https://example.test/a.pdf", body)
@@ -197,7 +215,8 @@ def test_read_bytes_after_write_round_trips(tmp_path, monkeypatch) -> None:
 
 
 def test_write_bytes_overwrites(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write_bytes("https://example.test/a.pdf", b"v1")
     peca_cache.write_bytes("https://example.test/a.pdf", b"v2")
@@ -209,7 +228,8 @@ def test_bytes_file_is_gzipped_on_disk(tmp_path, monkeypatch) -> None:
     """Written file is `.pdf.gz` and decompresses to the original bytes."""
     import gzip
 
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     body = b"%PDF-1.4\nraw pdf contents\n%%EOF"
     peca_cache.write_bytes("https://example.test/a.pdf", body)
@@ -221,7 +241,8 @@ def test_bytes_file_is_gzipped_on_disk(tmp_path, monkeypatch) -> None:
 
 def test_bytes_cache_is_independent_from_text_cache(tmp_path, monkeypatch) -> None:
     """Writing bytes doesn't populate the text cache and vice versa."""
-    monkeypatch.setattr(peca_cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
     peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4")
     assert peca_cache.read("https://example.test/a.pdf") is None

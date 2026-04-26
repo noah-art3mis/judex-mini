@@ -28,3 +28,10 @@ proxies*.txt
 # The whole tree is gitignored; human-written narratives (REPORT,
 # SUMMARY, PLAN) get promoted to docs/reports/ instead.
 /runs/
+
+# Operational artifacts under state/. The directory itself is tracked
+# (daily_report.json, watchlist/ are persisted state we *want* in git),
+# but logs, request audit DBs, and canary outputs are not.
+/state/logs/
+/state/canary-outputs/
+/state/requests-archive.duckdb

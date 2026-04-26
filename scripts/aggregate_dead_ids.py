@@ -17,7 +17,7 @@ Usage:
     # Custom roots / stricter threshold
     uv run python scripts/aggregate_dead_ids.py --classe HC \\
         --runs-root runs/active --runs-root runs/archive \\
-        --out data/dead_ids --min-observations 3
+        --out data/derived/dead-ids --min-observations 3
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
              "Repeatable. Default: runs/",
     )
     ap.add_argument(
-        "--out", type=Path, default=Path("data/dead_ids"),
+        "--out", type=Path, default=Path("data/derived/dead-ids"),
         help="Output directory (creates <classe>.txt + <classe>.candidates.tsv).",
     )
     ap.add_argument(

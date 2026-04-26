@@ -9,7 +9,7 @@
 #      already-done HC is re-fetched.
 #   3. Launch N run_sweep.py workers via nohup, each with its own --out,
 #      --csv, --proxy-pool. All shards share --items-dir (per-process JSON
-#      filenames are unique across disjoint CSVs) and the data/cache/pdf/ cache
+#      filenames are unique across disjoint CSVs) and the data/raw/pecas/ cache
 #      (atomic writes land on 2026-04-17 via peca_cache._atomic_write).
 #   4. Record all PIDs to <out-root>/shards.pids for scripted stop/resume.
 #
@@ -34,7 +34,7 @@ SHARD_CSV_DIR="tests/sweep/shards"
 PROXY_FILES=(config/proxies.a.txt config/proxies.b.txt config/proxies.c.txt config/proxies.d.txt)
 N=${#PROXY_FILES[@]}
 
-mkdir -p "$ROOT" data/cases/HC "$SHARD_CSV_DIR"
+mkdir -p "$ROOT" data/source/processos/HC "$SHARD_CSV_DIR"
 LOG="$ROOT/launcher.log"
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
 
@@ -110,7 +110,7 @@ for i in $(seq 0 $((N - 1))); do
         --csv "$CSV" \
         --label "$LABEL" \
         --out "$SHARD_DIR" \
-        --items-dir data/cases/HC \
+        --items-dir data/source/processos/HC \
         --proxy-pool "$PROXY" \
         --resume \
         >> "$DRIVER_LOG" 2>&1 &
