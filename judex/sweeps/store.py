@@ -24,6 +24,8 @@ import os
 from pathlib import Path
 from typing import Any, Callable
 
+from judex.utils.atomic_write import atomic_write_text
+
 
 def replay_log(log_path: Path, key_fn: Callable[[dict], str]) -> dict[str, dict[str, Any]]:
     """Replay an append-only JSONL log into a compacted state dict.
@@ -118,19 +120,13 @@ class BaseStore:
 
     def write_errors_file(self) -> Path:
         errs = self.errors()
-        tmp = self.errors_path.with_suffix(self.errors_path.suffix + ".tmp")
-        with tmp.open("w", encoding="utf-8") as f:
-            for rec in errs:
-                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.errors_path)
+        text = "".join(json.dumps(rec, ensure_ascii=False) + "\n" for rec in errs)
+        atomic_write_text(self.errors_path, text, fsync=True)
         return self.errors_path
 
     def _write_state_atomically(self) -> None:
-        tmp = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-        with tmp.open("w", encoding="utf-8") as f:
-            json.dump(self._state, f, ensure_ascii=False, indent=0)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.state_path)
+        atomic_write_text(
+            self.state_path,
+            json.dumps(self._state, ensure_ascii=False, indent=0),
+            fsync=True,
+        )

@@ -13,8 +13,9 @@ Snapshots of each watched case are written under a caller-supplied
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
+
+from judex.utils.atomic_write import atomic_write_text
 
 
 def parse_watchlist(path: Path) -> list[tuple[str, int]]:
@@ -54,6 +55,4 @@ def save_snapshot(classe: str, numero: int, item: dict, *, root: Path) -> None:
     path = snapshot_path(classe, numero, root=root)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(item, ensure_ascii=False, indent=2, sort_keys=True)
-    tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(payload, encoding="utf-8")
-    os.replace(tmp, path)
+    atomic_write_text(path, payload)

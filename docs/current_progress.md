@@ -589,6 +589,135 @@ Tests: **538 green**. Cumulative cache: 1.5 GB PDFs, 90,196 HC cases.
 
 ## In flight
 
+**HC 2022 case-JSON backfill — three direct-IP cycles, 69.4%
+coverage, cycle 4 awaiting cooldown decision** (snapshot
+2026-04-25 21:12 BRT). Range mode `HC 210825..223881` (13,057
+pids; 1,160 already on disk pre-launch). Run dir:
+`runs/active/2026-04-24-hc-cases-2022-direct/`. Items land directly
+in `data/cases/HC/` via `--diretorio-itens` — no copy step.
+
+**Three-cycle pattern (all axis-B p95-wall_s collapses, none from
+hard 403-fails — tenacity absorbs 403s as `status=ok` records with
+inflated walls; axis-B trips on the wall p95):**
+
+| cycle | cooldown before        | wall    | fresh ok records | end records / coverage |
+|-------|------------------------|---------|------------------|------------------------|
+| 1     | n/a (cold)             | 3h 28m  | +2,454           | 2,833 / 27.7%          |
+| 2     | 6.2 h                  | 6h 49m  | +3,904           | 7,912 / 51.2%          |
+| 3     | 1.0 h (driver minimum) | 3h 47m  | +2,375           | 10,857 / 69.4%         |
+
+**Empirical rule (new — pin into throughput baselines).** Cooldown
+duration scales productive volume roughly linearly at **~400
+records per hour of cooldown** for direct-IP `varrer-processos`
+against `portal.stf.jus.br/processos/*`. Confirms H6's "L3-per-IP
+reputation persists across days" tip — partial recovery yields
+proportional productive window.
+
+**State as of cycle 3 cliff:**
+- ok records on disk: **9,063 / 13,057 ≈ 69.4% of HC 2022 width**
+- NoIncidente fails accumulated: **1,794** (all single-observation
+  candidates in `HC.candidates.tsv`; will promote to confirmed
+  `HC.txt` on the next *independent* HC 2022 sweep)
+- 142 cumulative 403-retry chains absorbed across three cycles
+- 3 SSLErrors in cycle 2 (cliff-aligned WAF connection drops with
+  `SSL: UNEXPECTED_EOF_WHILE_READING` — same RST-injection
+  signature as the 2025 PDF sweep stop on 2026-04-23)
+- remaining unvisited: **2,200 pids** (HC 218737 .. 223881 minus
+  cliff residue from cycles 1–3)
+
+**Aggregator same-sweep-dedup gotcha (newly discovered this
+session).** `scripts/aggregate_dead_ids.py` counts at most ONE
+NoIncidente observation per pid per source sweep dir. So
+in-session re-probes (which `--retomar` does for `status=fail`
+rows) don't help promotion. The 1,794 candidates will only
+graduate when a **different** sweep (different `runs/active/<X>/`)
+independently observes them as NoIncidente. Consequence:
+`--excluir-mortos` is a no-op for the cycle 4 resume; remaining
+2,200 pids must be re-probed even though many will return
+NoIncidente again. Concrete numbers from cycles 1–3:
+- pre-sweep `HC.txt`: 6,980 confirmed deads, none in 2022 range
+- after cycle 1 + aggregator run: 6,980 → 7,602 (+622, none in
+  2022 range — the +622 were 2023+ candidates from prior runs that
+  finally crossed threshold via this run as the "second" sweep)
+- after cycle 3 + aggregator run: still 7,602 (in-session re-probes
+  don't bump the per-sweep observation counter)
+
+**Cycle 4 resume options** (pick before relaunching):
+
+1. **Wait overnight (~8h) → single cleanup cycle finishes 2022.**
+   Per the empirical rule, 8h cooldown projects ~3,200 productive
+   records — well over the remaining 2,200, so cycle 4 should
+   finish without cliffing. **Recommended.**
+2. **60-min cooldown → cycle 4 likely cliffs at ~99% with a tiny
+   cycle 5 mop-up.** Per the rule, 1h yields ~400 records; 2h
+   yields ~800 — short of 2,200. Two-cycle finish.
+3. **Sharded fresh-pool resume.** Requires (i) refreshing
+   `config/proxies` from scrapegw (currently 4 days stale; only
+   159 IPs — H6 says non-refreshed is 3.6× slower) and (ii)
+   building a CSV from the unvisited remainder (sharded mode
+   requires `--csv` per Typer help). Then 16 shards finishes 2,200
+   pids in ~3–4 min wall. Costs one fresh proxy batch.
+
+**Cycle 4 launch command** (identical to cycles 2 + 3; `--retomar`
+skips the 9,063 ok rows; will start by re-probing the 1,794
+NoIncidente fails — fast burst at ~0.07s each — then advance to
+fresh new pids):
+
+```bash
+cd /home/noah-art3mis/projects/judex-mini
+nohup uv run judex varrer-processos \
+    --classe HC --processo-inicial 210825 --processo-final 223881 \
+    --saida runs/active/2026-04-24-hc-cases-2022-direct \
+    --rotulo hc_2022_direct \
+    --diretorio-itens data/cases/HC \
+    --retomar \
+    >> runs/active/2026-04-24-hc-cases-2022-direct/launcher-stdout.log 2>&1 &
+disown
+```
+
+**Health-check snippet** (since `judex probe` doesn't apply to
+single-process direct-IP runs):
+
+```bash
+# pid alive?
+pgrep -af 'varrer-processos.*hc_2022_direct' | grep -v 'pgrep\|grep'
+# aggregate counts (per-pid keyed state — NOT {ok,fail,total} shape)
+uv run python -c "
+import json, collections
+s = json.load(open('runs/active/2026-04-24-hc-cases-2022-direct/sweep.state.json'))
+c = collections.Counter(v.get('status') for v in s.values() if isinstance(v, dict))
+print('records:', sum(c.values()), '·', dict(c))
+"
+# regime trajectory (cliff is imminent if recent windows show
+# approaching_collapse > 50% of last-200)
+uv run python -c "
+import json, collections
+from pathlib import Path
+recent = []
+with Path('runs/active/2026-04-24-hc-cases-2022-direct/sweep.log.jsonl').open() as f:
+    for line in f:
+        recent.append(json.loads(line).get('regime'))
+print('last-200 regime:', dict(collections.Counter(recent[-200:])))
+"
+```
+
+**Lessons-learned (pin):**
+- `--nao-perguntar` is a `baixar-pecas`-only flag; `varrer-processos`
+  is non-interactive by default. Crashed the first launch attempt.
+- `sweep.state.json` is per-pid keyed (`HC_<pid>` → record), not
+  the `{ok,fail,total}` aggregate shape `agent-sweeps.md` documents
+  — monitor by tallying `.values()`, not by reading aggregate keys.
+- Driver-side ETA is unreliable mid-cycle: it averages over both
+  ~0.05s dead-pid re-probes (when `--retomar` is replaying fails)
+  and the ~0.17 rec/s sustained productive rate. Trust the sustained
+  number, not the driver's printout.
+- `--retomar` skips `status=ok` rows but RE-PROBES `status=fail`
+  rows. Cycle-startup is therefore a fast burst through prior fails
+  before reaching truly fresh pids. Useful for confirming dead pids
+  but doesn't help confirmed-dead promotion (see same-sweep-dedup).
+
+---
+
 **Stopped 2026-04-22 ~19:52 BRT for a host reboot — resume after
 boot.** `baixar-pecas` HC 2025 direct-IP sweep was halted with
 SIGTERM → SIGKILL after the graceful handler hung on a stuck HTTP
@@ -950,6 +1079,111 @@ of code; V3 is a design session.
 **Not doing (out of scope):** a proxy-provider change, a UA-
 identification scheme, or coordinated outreach to STF. Those are
 policy moves, not technical ones; queue separately if ever needed.
+
+### Refactoring sweep — 2026-04-26 (queued)
+
+Read-only review surfaced a punch list. Items are grouped **quick
+wins** (≤30 min, low risk, do first), **structural** (file splits +
+DRY-up, medium risk, do after the in-flight regime change lands),
+and **architectural** (questions to settle, not edits to schedule).
+The single biggest leverage move is collapsing `cli.py`; the single
+biggest *risk* avoided by ordering is leaving the in-flight
+`RegimeReading` change alone until the structural items start.
+
+Each item carries `file:line` refs so a cold session can land it
+without re-deriving the diagnosis.
+
+**Quick wins**
+
+1. ✅ **Drop unused import** `tempfile` from `judex/cli.py:34` —
+   *landed 2026-04-26.* (`sys` *is* used at `cli.py:953-958, 1012-1017`
+   for the `sys.argv` save-and-restore around script dispatch — the
+   original review was wrong; verified before editing.)
+2. ✅ **Extract atomic-write helper** — *landed 2026-04-26.* New
+   module `judex/utils/atomic_write.py` (`atomic_write_text(path, text,
+   *, fsync=False)`) replaces the inlined `tmp + os.replace` blocks at
+   `judex/sweeps/store.py:127,136`, `judex/reports/state.py:49`, and
+   `judex/reports/watchlist.py:59`. Bonus: store.py temp-file naming
+   changed from a fixed `.tmp` to `.tmp.<pid>`, eliminating a
+   theoretical collision when two sweep processes touch the same path.
+   +5 unit tests in `tests/unit/test_atomic_write.py`; full suite went
+   from 598 → 603 green.
+3. **`test_build_warehouse.py:44-100`** — seven `_v{1,3,6,8}_case`
+   builders are vestigial post-renormalizer. Replace with a single
+   `make_case(version="v8", **overrides)` factory; legacy versions
+   are tested implicitly through fixture overrides.
+
+**Structural**
+
+4. **`process_store.py` ↔ `peca_store.py` duplication.** Both grow the
+   same regime quartet in the in-flight diff (`process_store.py:43-51`,
+   `peca_store.py:43-52`). Move the regime-stamping helper into
+   `store.py`'s base; subclasses supply only the dataclass + key
+   function. **Land *after* the in-flight diff is committed** so the
+   refactor reads against the final shape.
+5. **`download_driver.py` (427) ↔ `extract_driver.py` (334) parallelism.**
+   Init / signal handlers / target loop / skip-or-resume / progress
+   reporting are essentially the same; only `process_item` differs.
+   Extract `BaseSweepDriver` in `judex/sweeps/driver_base.py`. Saves
+   ~150 lines + ensures regime stamping doesn't fork between the two
+   when extract_driver later needs it.
+6. **`judex/warehouse/builder.py` (1030 lines)** — the `_flush()`
+   nested inside `build()` (`builder.py:895-954`) is screaming for a
+   `BufferSet` dataclass with a `flush(con)` method. Lifts the
+   `flatten_*` functions into testable units and brings the file
+   under the 600-line ceiling.
+7. **`scripts/run_sweep.py` (1049 lines)** — `_run_passes` (line 842)
+   is the loop; everything else is argparse + reporting. Extract a
+   `judex/sweeps/process_sweep_runner.py` module that owns the loop
+   and state; `run_sweep.py` becomes ~200 lines of argparse +
+   orchestration.
+8. **`judex/scraping/scraper.py` (711 lines)** violates the CLAUDE.md
+   600-line rule that's literally written down. Either split (HTTP
+   session + tab orchestration vs. caching vs. extraction-glue) or
+   strike the rule from CLAUDE.md and pin a real ceiling with a
+   pre-commit check.
+
+**Architectural — decide, don't schedule**
+
+9. **`judex/cli.py` (965 lines) — Typer wrapping argparse is double
+   parsing.** Every command in `cli.py:163-666` rebuilds `argv` via
+   `_push()` (`cli.py:65-79`) and shells into the script's `main()`.
+   Two CLI frameworks, one user-facing surface. Decision needed:
+   (a) Typer wins → make script `main()` bodies pure functions, drop
+   argparse, kill `_push`; (b) argparse wins → drop Typer, write
+   argparse `--help` strings. Status quo is paying ~900 lines for
+   nice help text. **Pick one before the next CLI command lands.**
+10. **In-flight `RegimeReading` shape — four columns or one nested
+    dict?** Diff adds `regime` + `regime_fail_rate` + `regime_p95_wall_s`
+    + `regime_promoted_by` to *both* `AttemptRecord` and
+    `PecaAttemptRecord` (8 dataclass fields, 2× docstrings). A single
+    `regime: dict | None` carries the same data; jq becomes
+    `.regime.label` instead of `.regime`. **Decide before merging the
+    in-flight branch** — flattening four columns back into a dict
+    later is a corpus-wide migration; the reverse is one diff.
+11. **Three monitoring tools without a shared seam** — `AdaptiveThrottle`,
+    `CircuitBreaker`, `CliffDetector` (`shared.py:65-216`) each maintain
+    independent rolling windows over the same attempt stream. The
+    architecture is sound — they answer different questions — but
+    they don't share a window or a record-stamping path. Not urgent;
+    flag this as "the place over-engineering will compound first" so
+    the next monitor added doesn't blindly add a fourth window.
+12. **Portuguese subcommands → English scripts.** `varrer-processos`
+    → `scripts/run_sweep.py`, `baixar-pecas` → `scripts/baixar_pecas.py`,
+    `extrair-pecas` → `scripts/extrair_pecas.py`. Pick a language;
+    the translation friction shows up every time someone goes from
+    `--help` to source.
+
+**Symptoms-of, not work items**
+
+- `_push()` in `cli.py:65-79` exists *only* because of #9. It dies
+  when #9 is decided either way.
+- `_reset_shutdown_for_tests()` at `shared.py:59` is a test seam in
+  production code; a `monkeypatch` in conftest does the job.
+- `_REGIME_BANDS` table refactor in the in-flight `shared.py:96-101`
+  diff replaces a 6-line `if/elif` ladder with a 3-row table iterated
+  by a loop. Earns its keep only if more bands appear; if not, it's
+  more code, not less. Re-evaluate when the band count next changes.
 
 ## Known limitations
 
