@@ -801,20 +801,16 @@ def extrair_pecas(
 
     Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
-    argv = _argv_pdf_common(
+    from scripts.extrair_pecas import run_extract_pecas
+    raise typer.Exit(code=run_extract_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, saida=saida, dry_run=dry_run,
-        nao_perguntar=nao_perguntar, retomar=retomar,
-        apenas_substantivas=apenas_substantivas,
-    )
-    _push(argv, "--provedor", provedor)
-    _push(argv, "--forcar", forcar)
-
-    from scripts.extrair_pecas import main as _extrair_main
-    raise typer.Exit(code=_extrair_main(argv))
+        limite=limite, apenas_substantivas=apenas_substantivas,
+        provedor=provedor, forcar=forcar, saida=saida,
+        dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
+    ))
 
 
 # ---------------------------------------------------------------------------
