@@ -377,6 +377,13 @@ def _run_watch(out_root: Path, seconds: int, console: Console) -> int:
         return 0
 
 
+def run_probe(*, out_root: Path, watch: int = 0) -> int:
+    console = Console()
+    if watch > 0:
+        return _run_watch(out_root, watch, console)
+    return _run_once(out_root, console)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-root", type=Path, required=True)
@@ -385,11 +392,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Refresh interval in seconds (0 = probe once and exit).",
     )
     args = ap.parse_args(argv)
-
-    console = Console()
-    if args.watch > 0:
-        return _run_watch(args.out_root, args.watch, console)
-    return _run_once(args.out_root, console)
+    return run_probe(**vars(args))
 
 
 if __name__ == "__main__":

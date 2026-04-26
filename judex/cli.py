@@ -911,13 +911,9 @@ def probe_cmd(
     — gerado automaticamente pelo launcher de `varrer-processos
     --shards`.
     """
-    argv: list[str] = []
-    _push(argv, "--out-root", out_root)
-    _push(argv, "--watch", watch)
+    from scripts.probe_sharded import run_probe
 
-    from scripts.probe_sharded import main as _probe_main
-
-    raise typer.Exit(code=_probe_main(argv))
+    raise typer.Exit(code=run_probe(out_root=out_root, watch=watch))
 
 
 # ---------------------------------------------------------------------------
