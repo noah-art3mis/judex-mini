@@ -67,8 +67,11 @@ the picture.
 | `validar-gabarito`     | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
-for flag names / defaults is `judex/cli.py` (Typer decorators) + the
-underlying script's argparse.
+for flag names / defaults is `judex/cli.py` (Typer decorators); each
+script exposes a `run_X(**kwargs)` library function that the Typer
+command calls directly. The script's `main(argv) → argparse → run_X`
+shim is a thin compatibility layer so detached sweeps
+(`nohup uv run python scripts/baixar_pecas.py …`) keep working.
 
 **Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
 scrape layers support `--shards N --proxy-pool FILE` — one flat file
@@ -142,3 +145,4 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup` for the in-CLI pattern, or `varrer-processos` calling `scripts.run_sweep.run_process_sweep` for the script pattern. Scripts under `scripts/` keep a thin `main(argv) → argparse → run_X` shim for detached-sweep compatibility, but the Typer command must NOT reconstruct argv via the legacy `_push` helper. `_push` survives in only one role: building argv for child subprocesses spawned by `launch_sharded_sweep` / `launch_sharded_download` (those are real subprocesses, not framework wrappers).
