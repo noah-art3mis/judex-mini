@@ -65,7 +65,6 @@ the picture.
 | `exportar`             | (in-CLI)                           | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
 | `fazer-backup`         | (in-CLI, `judex/backup.py`)        | Bundle `data/cases` + `data/cache/pdf` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
 | `validar-gabarito`     | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
-| `sondar-densidade`     | `scripts/class_density_probe.py`   | Stratified density probe of process-id space per STF class (HC, ADI, RE, …).                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators) + the

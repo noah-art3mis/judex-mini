@@ -151,7 +151,7 @@ Para conferir que ficou tudo ok:
 uv run judex --help
 ```
 
-Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `atualizar-warehouse`, `exportar`, `fazer-backup`, `relatorio-diario`, `probe`, `analisar-regimes`, `validar-gabarito`, `sondar-densidade`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
+Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `atualizar-warehouse`, `exportar`, `fazer-backup`, `relatorio-diario`, `probe`, `analisar-regimes`, `validar-gabarito`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
 
 ---
 
@@ -415,7 +415,6 @@ uv run judex extrair-pecas -c HC -i 135041 -f 135041 \
 
 Menos usados, mas úteis em contextos específicos:
 
-- **`sondar-densidade`** — amostragem estratificada para estimar quantos `processo_id` de uma classe existem de verdade (antes de dimensionar um sweep). Ver [`docs/process-space.md`](docs/process-space.md).
 - **`validar-gabarito`** — diff da saída do raspador contra os gabaritos conferidos à mão em `tests/ground_truth/`. Rodar depois de qualquer mudança em extractor.
 - **`exportar`** — exporta os notebooks Marimo de HC como HTML autônomo para compartilhar resultados.
 - **`probe`** — monitora uma varredura sharded ao vivo. Lê `shard-*/sweep.state.json` sob `--out-root` e mostra done/target, throughput e regime de WAF por shard, com ETA agregada. Use `--watch N` para redesenhar a cada N segundos.

@@ -21,7 +21,6 @@ Exemplos:
         --provedor mistral --nao-perguntar                     # OCR a partir do cache
     uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
     uv run judex exportar --apenas hc_famous_lawyers
-    uv run judex sondar-densidade --classe HC --amostras 20
 """
 
 from __future__ import annotations
@@ -989,53 +988,6 @@ def validar_gabarito() -> None:
     from scripts.validate_ground_truth import main as _vgt_main
 
     raise typer.Exit(code=_vgt_main())
-
-
-# ---------------------------------------------------------------------------
-# `sondar-densidade` — sondagem estratificada de densidade de process_id
-
-
-@app.command(name="sondar-densidade")
-def sondar_densidade(
-    classe: str = typer.Option(
-        ..., "--classe",
-        help="Código da classe do STF (HC, ADI, RE, ...).",
-    ),
-    teto: Optional[int] = typer.Option(
-        None, "--teto",
-        help="Maior process_id a considerar. Assume o teto conhecido para "
-             "HC/ADI/RE; obrigatório para outras classes.",
-    ),
-    faixas: int = typer.Option(
-        8, "--faixas",
-        help="Número de faixas (bands).",
-    ),
-    amostras: int = typer.Option(
-        15, "--amostras",
-        help="Amostras aleatórias por faixa.",
-    ),
-    pacing: float = typer.Option(
-        1.5, "--pacing",
-        help="Segundos entre sondagens.",
-    ),
-    seed: int = typer.Option(20260416, "--seed"),
-) -> None:
-    """Sondagem estratificada de densidade de process_ids por classe do STF."""
-    argv: list[str] = ["class_density_probe", "--classe", classe]
-    _push(argv, "--ceiling", teto)
-    _push(argv, "--bands", faixas)
-    _push(argv, "--samples", amostras)
-    _push(argv, "--pacing", pacing)
-    _push(argv, "--seed", seed)
-
-    from scripts import class_density_probe as _dp
-
-    argv_original = sys.argv
-    sys.argv = argv
-    try:
-        _dp.main()
-    finally:
-        sys.argv = argv_original
 
 
 # ---------------------------------------------------------------------------
