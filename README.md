@@ -148,7 +148,7 @@ Para conferir que ficou tudo ok:
 uv run judex --help
 ```
 
-Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `exportar`, `validar-gabarito`, `sondar-densidade`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
+Deve aparecer o menu de subcomandos (`varrer-processos`, `baixar-pecas`, `extrair-pecas`, `atualizar-warehouse`, `exportar`, `relatorio-diario`, `probe`, `analisar-regimes`, `validar-gabarito`, `sondar-densidade`). Para ver as opções de cada um: `uv run judex <comando> --help`. (O comando longo `uv run python main.py …` também funciona — é apenas um atalho para o mesmo hub.)
 
 ---
 
@@ -400,6 +400,9 @@ Menos usados, mas úteis em contextos específicos:
 - **`sondar-densidade`** — amostragem estratificada para estimar quantos `processo_id` de uma classe existem de verdade (antes de dimensionar um sweep). Ver [`docs/process-space.md`](docs/process-space.md).
 - **`validar-gabarito`** — diff da saída do raspador contra os gabaritos conferidos à mão em `tests/ground_truth/`. Rodar depois de qualquer mudança em extractor.
 - **`exportar`** — exporta os notebooks Marimo de HC como HTML autônomo para compartilhar resultados.
+- **`probe`** — monitora uma varredura sharded ao vivo. Lê `shard-*/sweep.state.json` sob `--out-root` e mostra done/target, throughput e regime de WAF por shard, com ETA agregada. Use `--watch N` para redesenhar a cada N segundos.
+- **`analisar-regimes`** — análise post-hoc da trajetória do `CliffDetector` a partir de `sweep.log.jsonl` (varrer) ou `pdfs.log.jsonl` (baixar): responde "quando o regime mudou?" e "onde a queda começou?". Complementa o `probe` (que olha snapshot ao vivo) lendo o log append-only.
+- **`relatorio-diario`** — relatório diário de novas distribuições por classe (HC por padrão). Mantém marca d'água em `state/daily_report.json` e emite Markdown; aceita watchlist para diffs entre execuções.
 
 `uv run judex <comando> --help` em cada um para ver as flags.
 
@@ -411,7 +414,7 @@ Menos usados, mas úteis em contextos específicos:
 
 Você instalou o `uv` mas não reabriu o terminal. Feche e abra de novo.
 
-### `ModuleNotFoundError` ou `No module named 'src'`
+### `ModuleNotFoundError` ou `No module named 'judex'`
 
 Você provavelmente rodou `python main.py` em vez de `uv run python main.py`. **Sempre use `uv run`**. Se ainda assim der erro, rode `uv sync` de novo de dentro da pasta `judex-mini`.
 
