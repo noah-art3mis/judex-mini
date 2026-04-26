@@ -135,6 +135,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 
 ## Conventions
 
+- **Branch + PR for every change.** Never commit directly to `main`. Branch off latest `main` (prefix by intent: `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), commit there, push, open a PR via `gh pr create --base main`, and merge only after review (CI green + at least one approval, or self-review for solo work). One logical change per PR — keep the diff small enough that a reviewer can hold it in their head. Split unrelated changes onto separate branches even if you spotted them in the same session.
 - **No backwards-compat shims.** Change the call sites + tests.
 - **Always use code for non-trivial arithmetic** — `uv run python -c "..."`. Never mental math; numbers get quoted downstream.
 - **Keep files focused.** `scraper.py` past ~600 lines → split by concern.
