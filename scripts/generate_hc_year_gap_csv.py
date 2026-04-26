@@ -3,8 +3,8 @@
 Two modes:
 
 - **Gap mode** (default): exclude pids already on disk under
-  `data/cases/HC/` and (optionally) pids confirmed dead in
-  `data/dead_ids/HC.txt`. Output covers only uncaptured pids.
+  `data/source/processos/HC/` and (optionally) pids confirmed dead in
+  `data/derived/dead-ids/HC.txt`. Output covers only uncaptured pids.
 - **Full-range mode** (`--full-range` / `include_captured=True`):
   exclude only confirmed deads. Output covers every pid in the
   year's range — used when re-scraping on-disk cases to pick up
@@ -22,12 +22,12 @@ Usage:
     # Exclude dead IDs aggregated from past sweeps
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2026 --out /tmp/hc_2026_gap.csv \\
-        --dead-ids data/dead_ids/HC.txt
+        --dead-ids data/derived/dead-ids/HC.txt
 
     # Full-range re-scrape (keep on-disk pids; still drop deads)
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2025 --out /tmp/hc_2025_full.csv \\
-        --dead-ids data/dead_ids/HC.txt --full-range
+        --dead-ids data/derived/dead-ids/HC.txt --full-range
 """
 
 from __future__ import annotations
@@ -101,12 +101,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--year", type=int, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--cases-dir", type=Path, default=Path("data/cases/HC"))
+    ap.add_argument("--cases-dir", type=Path, default=Path("data/source/processos/HC"))
     ap.add_argument(
         "--dead-ids", type=Path, default=None,
         help="Optional path to a dead-ID file (one pid per line) — IDs "
              "listed there are excluded from the output. Typical: "
-             "data/dead_ids/HC.txt, produced by "
+             "data/derived/dead-ids/HC.txt, produced by "
              "scripts/aggregate_dead_ids.py.",
     )
     ap.add_argument(

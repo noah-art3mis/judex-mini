@@ -12,7 +12,7 @@ the PDF bytes from STF, and extract text from those bytes — apart
 into two independent CLI commands:
 
 1. **`baixar-pdfs`** — the only command that talks to the STF portal.
-   Downloads PDFs to `data/cache/pdf/<sha1(url)>.pdf.gz` and does
+   Downloads PDFs to `data/raw/pecas/<sha1(url)>.<ext>.gz` and does
    nothing else.
 2. **`extrair-pdfs --provedor {pypdf|mistral|chandra|unstructured}`** —
    reads those bytes from disk, runs the chosen OCR/text extractor,
@@ -74,7 +74,7 @@ Secondary wins:
 - **No elements-cache restructuring.** Provider-specific element
   shapes stay opaque. Unifying them is out of scope.
 - **No disk-retention policy.** PDFs accumulate in
-  `data/cache/pdf/<sha1>.pdf.gz`. We revisit when someone actually
+  `data/raw/pecas/<sha1>.<ext>.gz`. We revisit when someone actually
   feels the pinch (famous-lawyer tier ≈ 354 PDFs ≈ <1GB is trivial;
   full-HC ≈ 64k × ~5 × ~2MB ≈ ~640GB is the kind of number to scope
   by filter, not accumulate blindly).
@@ -104,7 +104,7 @@ uv run judex baixar-pdfs \
     --excluir-tipos-doc "…"
     --relator-contem "…"
     --limite N
-    --roots data/cases …
+    --roots data/source/processos …
 
     # EXECUTION
     --saida runs/active/<date>-<label>
@@ -192,7 +192,7 @@ Prosseguir? [s/N]
 
 ## Cache layout
 
-Four URL-keyed files under `data/cache/pdf/`:
+Four URL-keyed files under `data/raw/pecas + data/derived/pecas-texto/`:
 
 | file                                 | produced by     | content                        |
 |---|---|---|

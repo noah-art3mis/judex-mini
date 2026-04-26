@@ -2,7 +2,7 @@
 
 The WAF-bound half of the PDF pipeline: fetches
 `PecaTarget.url` from STF and writes raw bytes to
-`data/cache/pdf/<sha1>.pdf.gz`. Extraction is handled separately by
+`data/raw/pecas/<sha1>.<ext>.gz`. Extraction is handled separately by
 `scripts/extrair_pecas.py`.
 
 Usage:

@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_fetched_at ON requests(fetched_at);
 
 
 class RequestLog:
-    def __init__(self, db_path: Path | str = "data/requests.db") -> None:
+    def __init__(self, db_path: Path | str = "state/requests-archive.duckdb") -> None:
         self._path = Path(db_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._init_lock = threading.Lock()

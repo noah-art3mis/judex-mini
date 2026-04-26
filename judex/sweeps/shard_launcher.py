@@ -132,7 +132,7 @@ def launch_sharded_sweep(
       a single shard and so shard logs don't cross-contaminate.
     - **Target script** is ``scripts/run_sweep.py`` (the WAF-hot half).
     - ``extra_args`` typically includes ``--resume`` + ``--items-dir
-      data/cases/<CLASSE>``; the caller owns the choice.
+      data/source/processos/<CLASSE>``; the caller owns the choice.
 
     Raises :class:`ValueError` if ``label_prefix`` is empty, or if
     ``proxy_pool`` has fewer usable proxy lines than ``shards``.

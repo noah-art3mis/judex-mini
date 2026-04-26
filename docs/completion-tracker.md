@@ -18,7 +18,7 @@ post-warehouse rebuild).
   `year(data_protocolo_iso)` (cases with NULL protocolo dates — ~200
   for 2017 — don't appear in the per-year count but do exist on disk).
 - **peças (bytes)** — join of `pdfs_substantive` view's `sha1` column
-  against the set of `<sha1>.pdf.gz` filenames in `data/cache/pdf/`.
+  against the set of `<sha1>.pdf.gz` filenames in `data/raw/pecas + data/derived/pecas-texto/`.
   This measures what the scraper has actually downloaded.
 - **peças (text)** — join of the same `sha1` column against
   `<sha1>.txt.gz` filenames. This measures what's usable for
@@ -94,7 +94,7 @@ on a single direct IP. 2025 substantive bytes coverage went from
 - 49,406 `.txt.gz` files (+6,740 from today's `extrair-pecas
   --provedor pypdf`; 419 corrupt-bytes parse failures — pre-existing
   data-quality tail, not today's sweep)
-- 5.9 GB total in `data/cache/pdf/`
+- 5.9 GB total in `data/raw/pecas + data/derived/pecas-texto/`
 - Warehouse `n_pdfs` manifest now 49,406 (was 42,666); `built_at`
   2026-04-24 22:50, rebuild wall-clock 309.7s, commit `e7ce6af`.
 
@@ -140,11 +140,11 @@ biggest near-zero-coverage hole in the 2017–2022 backfill gap.
 ```bash
 uv run --no-project python <<'PY'
 import os, duckdb
-base = 'data/cache/pdf'
+base = 'data/raw/pecas + data/derived/pecas-texto'
 pdf_sha1s = {n[:-7] for n in os.listdir(base) if n.endswith('.pdf.gz')}
 txt_sha1s = {n[:-7] for n in os.listdir(base) if n.endswith('.txt.gz')}
 
-c = duckdb.connect('data/warehouse/judex.duckdb', read_only=True)
+c = duckdb.connect('data/derived/warehouse/judex.duckdb', read_only=True)
 c.execute('CREATE TEMP TABLE disk_bytes (sha1 VARCHAR)')
 c.executemany('INSERT INTO disk_bytes VALUES (?)', [(s,) for s in pdf_sha1s])
 c.execute('CREATE TEMP TABLE disk_txt (sha1 VARCHAR)')

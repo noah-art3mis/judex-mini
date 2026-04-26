@@ -52,7 +52,7 @@ The PDF pipeline is split into two commands (see
 
 - `scripts/baixar_pecas.py` — routes through
   `judex.sweeps.download_driver.run_download_sweep`. The only path that
-  talks to STF; writes raw bytes to `data/cache/pdf/<sha1>.pdf.gz`.
+  talks to STF; writes raw bytes to `data/raw/pecas/<sha1>.<ext>.gz`.
 - `scripts/extrair_pecas.py` — routes through
   `judex.sweeps.extract_driver.run_extract_sweep`. Reads cached bytes,
   dispatches via `--provedor {pypdf|mistral|chandra|unstructured}`,

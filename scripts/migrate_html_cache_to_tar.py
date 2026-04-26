@@ -2,7 +2,7 @@
 
 Background
 ----------
-`data/cache/html/` carries two generations side-by-side (see
+`data/raw/html/` carries two generations side-by-side (see
 `docs/current_progress.md § Operational hygiene`):
 
   (a) **tar-only** cases — `<classe>_<processo>.tar.gz` only. Current
@@ -62,7 +62,7 @@ from typing import Optional
 
 from judex.utils import html_cache
 
-CACHE_ROOT = Path("data/cache/html")
+CACHE_ROOT = Path("data/raw/html")
 
 logger = logging.getLogger("migrate_html_cache_to_tar")
 

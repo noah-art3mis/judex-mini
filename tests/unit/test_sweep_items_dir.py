@@ -5,9 +5,9 @@ from scripts.run_sweep import _write_item_json
 
 
 def test_writes_bare_dict_json(tmp_path: Path) -> None:
-    """Items land as bare dict — same canonical shape as data/cases/<CLASSE>/,
-    so `--diretorio-itens data/cases/HC` is safe to use directly without
-    a promote-with-unwrap step."""
+    """Items land as bare dict — same canonical shape as data/source/processos/<CLASSE>/,
+    so `--diretorio-itens data/source/processos/HC` is safe to use directly
+    without a promote-with-unwrap step."""
     items_dir = tmp_path / "items"
     item = {"classe": "HC", "processo_id": 12345, "partes": []}
 

@@ -296,7 +296,7 @@ def summary_to_gt_html(summary: pd.DataFrame) -> str:
         )
         .tab_source_note(
             source_note=html(
-                "Fonte: <code>data/warehouse/judex.duckdb</code> · "
+                "Fonte: <code>data/derived/warehouse/judex.duckdb</code> · "
                 "consulta <code>cases ⋈ partes</code> onde "
                 "<code>tipo = 'IMPTE.(S)'</code>. "
                 "<code>procedência</code> soma "

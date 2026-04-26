@@ -83,7 +83,7 @@ def _default_roots(args: argparse.Namespace) -> list[Path]:
     roots = getattr(args, "roots", None) or []
     if roots:
         return [Path(r) for r in roots]
-    return [Path("data/cases"), Path("data/output"), Path("data/output/sample")]
+    return [Path("data/source/processos")]
 
 
 # ----- Confirm / non-TTY fail-closed ---------------------------------------

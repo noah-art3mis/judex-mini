@@ -16,7 +16,7 @@ Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhad
 | `baixar-pecas`         | Baixa os bytes dos PDFs anexados para o cache local.                       |
 | `extrair-pecas`        | Extrai texto dos PDFs em cache (pypdf / mistral / chandra / unstructured). |
 | `atualizar-warehouse`  | Reconstrói o DuckDB analítico a partir dos JSONs + cache (zero HTTP).      |
-| `fazer-backup`         | Empacota `data/cases` + `data/cache/pdf` em um único `.zip` (Windows-friendly). |
+| `fazer-backup`         | Empacota `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` em um único `.zip` (Windows-friendly). |
 | `relatorio-diario`     | Relatório diário de novas distribuições (watchlist opcional para diffs).   |
 
 ## Fluxo completo
@@ -36,10 +36,10 @@ Do zero a um warehouse consultável em SQL, cinco passos em ordem. Os dois prime
 | 1 | `judex varrer-processos`                                    | nunca — é a base de tudo                                                    |
 | 2 | `judex baixar-pecas`                                        | só quer metadados                                                           |
 | 3 | `judex extrair-pecas`                                       | baixou bytes mas o texto não importa                                        |
-| 4 | `uv run python scripts/aggregate_dead_ids.py --classe HC`   | sweep pequeno; em sweeps de milhares, rode entre 1 e 5 — no próximo sweep passe `--excluir-mortos data/dead_ids/HC.txt` para pular IDs já confirmados como "não existem" no STF |
+| 4 | `uv run python scripts/aggregate_dead_ids.py --classe HC`   | sweep pequeno; em sweeps de milhares, rode entre 1 e 5 — no próximo sweep passe `--excluir-mortos data/derived/dead-ids/HC.txt` para pular IDs já confirmados como "não existem" no STF |
 | 5 | `judex atualizar-warehouse`                                 | consulta os JSONs direto (raro)                                             |
 
-O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este `processo_id` nunca foi alocado") de todos os sweeps já feitos e grava em `data/dead_ids/<classe>.txt` os IDs confirmados (≥ 2 observações com `body_head=""`). A tabela `<classe>.candidates.tsv` ao lado guarda a auditoria completa.
+O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este `processo_id` nunca foi alocado") de todos os sweeps já feitos e grava em `data/derived/dead-ids/<classe>.txt` os IDs confirmados (≥ 2 observações com `body_head=""`). A tabela `<classe>.candidates.tsv` ao lado guarda a auditoria completa.
 
 **Exemplo concreto para 2026** (HC, ids 267138..271138):
 
@@ -47,7 +47,7 @@ O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este 
 # 1. Metadados — sharded com rotação de proxy (~60 min em 8 shards)
 uv run judex varrer-processos -c HC -i 267138 -f 271138 \
   --rotulo hc_2026 --saida runs/active/hc-2026 \
-  --diretorio-itens data/cases/HC \
+  --diretorio-itens data/source/processos/HC \
   --shards 8 --proxy-pool config/proxies
 
 # 2. Bytes dos PDFs — sharded (~30 min)
@@ -61,11 +61,11 @@ uv run judex extrair-pecas -c HC -i 267138 -f 271138 \
 
 # 4. Agrega IDs mortos de todos os sweeps já feitos (~5 s, local)
 uv run python scripts/aggregate_dead_ids.py --classe HC
-# → data/dead_ids/HC.txt + HC.candidates.tsv
+# → data/derived/dead-ids/HC.txt + HC.candidates.tsv
 
 # 5. Rebuild do warehouse (só 2026, swap atômico, ~5 s)
 uv run judex atualizar-warehouse --ano 2026 --classe HC \
-  --saida data/warehouse/judex-2026.duckdb
+  --saida data/derived/warehouse/judex-2026.duckdb
 ```
 
 ## Funcionalidades
@@ -213,7 +213,7 @@ uv run judex --help
 
 O `varrer-processos` já coleta os **metadados** de cada processo, incluindo as URLs dos PDFs anexados (decisões, acórdãos, manifestações da PGR). Quando você quer o **texto** desses PDFs também, rode dois comandos em sequência — eles são independentes de propósito:
 
-1. **`baixar-pecas`** — baixa os bytes dos PDFs para `data/cache/pdf/<hash>.pdf.gz`. É a única parte que volta a falar com o STF, mas vai para um domínio diferente (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio orçamento de taxa — na prática, 403 aqui é bem mais raro que no `varrer-processos`. Aceita `--proxy-pool` e tem modo shardeado (`--shards`) para sweeps grandes.
+1. **`baixar-pecas`** — baixa os bytes das peças para `data/raw/pecas/<hash>.<ext>.gz` (`.pdf.gz` para PDFs, `.rtf.gz` para RTFs etc. — a chave é `sha1(url)`, agnóstica ao formato). É a única parte que volta a falar com o STF, mas vai para um domínio diferente (`sistemas.stf.jus.br`, não `portal.stf.jus.br`), com seu próprio orçamento de taxa — na prática, 403 aqui é bem mais raro que no `varrer-processos`. Aceita `--proxy-pool` e tem modo shardeado (`--shards`) para sweeps grandes.
 2. **`extrair-pecas --provedor <X>`** — lê os bytes do disco e extrai o texto via o provedor escolhido. Nenhuma chamada ao STF. Provedores suportados: `pypdf` (local, grátis, camada de texto; padrão), `mistral`, `chandra`, `unstructured` (OCR pagos; exigem chave de API).
 
 Exemplo típico para os HCs que você acabou de varrer:
@@ -231,7 +231,7 @@ uv run judex extrair-pecas -c HC -i 135041 -f 135041 \
   --provedor mistral --forcar --nao-perguntar
 ```
 
-O texto extraído fica em `data/cache/pdf/<hash>.txt.gz`, com um pequeno arquivo `.extractor` ao lado marcando **qual provedor** produziu aquele texto. Na próxima execução com o mesmo `--provedor`, a ferramenta pula os PDFs que já têm texto desse provedor; passe `--forcar` para reextrair.
+O texto extraído fica em `data/derived/pecas-texto/<hash>.txt.gz`, com um pequeno arquivo `.extractor` ao lado marcando **qual provedor** produziu aquele texto. Na próxima execução com o mesmo `--provedor`, a ferramenta pula os PDFs que já têm texto desse provedor; passe `--forcar` para reextrair.
 
 **Sempre use `--dry-run`** antes de uma extração paga (Mistral / Chandra / Unstructured). A prévia mostra quantas páginas serão processadas, custo estimado em dólares e tempo estimado. Detalhes técnicos em [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md).
 
@@ -239,50 +239,57 @@ O texto extraído fica em `data/cache/pdf/<hash>.txt.gz`, com um pequeno arquivo
 
 ## 6. Onde ficam os arquivos
 
-A ferramenta mantém três categorias de arquivos. As duas primeiras você apaga à vontade (regenerável); a terceira é o produto científico e deve ser preservada.
+A árvore `data/` é organizada por **custo de deleção**: três pastas no topo, cada uma respondendo "o que acontece se eu apagar isso?".
 
 ```
-runs/
-├── coletas/                               ← saída de varrer-processos
-│   └── <timestamp>-<rótulo>/
-│       ├── items/
-│       │   └── judex-mini_HC_135041-135041.json   (um por processo)
-│       ├── sweep.state.json               (estado atômico, retomável)
-│       ├── sweep.log.jsonl                (log append-only)
-│       ├── sweep.errors.jsonl             (só as falhas — use com --retentar-de)
-│       └── report.md                      (resumo humano)
-├── active/                                ← saída de baixar/extrair-pecas (em curso)
-└── archive/                               ← varreduras concluídas, arquivadas
-
 data/
-├── cases/<CLASSE>/                        ← produto final, um arquivo por processo
-│   └── judex-mini_HC_135041-135041.json
-├── cache/
-│   ├── html/<CLASSE>_<N>/                 ← fragmentos HTML por processo
-│   │   ├── detalhe.html.gz
-│   │   ├── abaPartes.html.gz
-│   │   ├── abaAndamentos.html.gz
-│   │   └── ... (um .html.gz por aba + incidente.txt)
-│   └── pdf/                               ← cache URL-keyed (sha1) dos PDFs
-│       ├── <sha1>.pdf.gz                  (bytes crus — baixar-pecas)
-│       ├── <sha1>.txt.gz                  (texto extraído — extrair-pecas)
-│       ├── <sha1>.extractor               (qual provedor produziu o texto)
-│       └── <sha1>.elements.json.gz        (elementos estruturados, OCR)
-└── logs/                                  ← log detalhado por sessão
-    └── scraper_YYYYMMDD_HHMMSS.log
+├── source/                                ← PRECIOSO. O produto científico. Não apagar.
+│   └── processos/<CLASSE>/                  um JSON por processo, fonte de verdade
+│       └── judex-mini_HC_135041-135041.json
+│
+├── raw/                                   ← BYTES IMUTÁVEIS do STF. Re-baixar custa horas + proxy.
+│   ├── html/<CLASSE>_<N>.tar.gz             fragmentos HTML por processo (1 tar por caso)
+│   └── pecas/<sha1>.<ext>.gz                bytes crus das peças (sha1(url)-keyed,
+│                                            agnóstico ao formato: .pdf.gz, .rtf.gz, …)
+│
+└── derived/                               ← REGENERÁVEL local em minutos. Apague à vontade.
+    ├── warehouse/judex.duckdb               warehouse DuckDB (rebuild ~3.7 min)
+    ├── exports/                             tabelas feather/parquet por estudo
+    ├── reports/<slug>/                      saídas dos notebooks de relatório
+    ├── dead-ids/<CLASSE>.txt                IDs confirmados inexistentes no STF
+    └── pecas-texto/                         texto extraído + sidecar + elementos OCR
+        ├── <sha1>.txt.gz                    extraído por extrair-pecas
+        ├── <sha1>.extractor                 qual provedor produziu (pypdf/mistral/…)
+        └── <sha1>.elements.json.gz          (opcional) elementos estruturados
+
+runs/                                      ← OPERACIONAL. Estado de cada varredura.
+├── coletas/<timestamp>-<rótulo>/            saída de varrer-processos
+│   ├── items/judex-mini_HC_<N>.json         (um por processo, atômico)
+│   ├── sweep.state.json                     estado retomável
+│   ├── sweep.log.jsonl                      log append-only
+│   ├── sweep.errors.jsonl                   só as falhas (use com --retentar-de)
+│   └── report.md                            resumo humano
+├── active/                                  saída de baixar/extrair-pecas (em curso)
+└── archive/                                 varreduras concluídas
+
+state/                                     ← OPERACIONAL persistente.
+├── daily_report.json                        marca d'água do relatório diário
+├── watchlist/                               snapshots da watchlist
+├── logs/scraper_*.log                       logs de sessão
+└── requests-archive.duckdb                  arquivo de auditoria HTTP
 ```
 
-- **`data/cases/`** é o que importa — um arquivo JSON por processo com todos os metadados (partes, andamentos, relator, decisão, etc.).
-- **`runs/coletas/<timestamp>-<rótulo>/`** é o diretório operacional de cada execução de `varrer-processos`. Pode apagar depois que a varredura terminou e você moveu os JSONs para `data/cases/` (ou deixe em `runs/archive/` como histórico).
-- **`data/cache/`** é cache regenerável. Se apagar (`rm -rf data/cache`), a próxima execução refaz — só fica mais lenta. Segunda-passagens com cache frio são ~60× mais lentas que com cache quente.
-- **`data/logs/`** tem o log detalhado de cada sessão. Útil para reportar bugs.
+- **`data/source/processos/`** é o que importa — um JSON por processo com partes, andamentos, relator, decisão, URLs das peças. Faça backup. Não apague.
+- **`data/raw/`** custa caro de regenerar (proxy + WAF) — recuperável via re-scrape, mas evite.
+- **`data/derived/`** é descartável: `rm -rf data/derived/` é seguro; `atualizar-warehouse` reconstrói em ~4 min, e `extrair-pecas` repopula `pecas-texto/` lendo de `raw/pecas/`.
+- **`runs/`** e **`state/logs/`** são operacionais — apague depois que a varredura terminou.
 
 Detalhes completos em [`docs/data-layout.md`](docs/data-layout.md). Para mudar a pasta de saída, passe `--saida /caminho/da/pasta`.
 
 **Backup em um único arquivo (`.zip`).** Para empacotar processos + peças num único `.zip` que abre direto no Windows Explorer (e que você pode subir manualmente para Drive / OneDrive / disco externo):
 
 ```bash
-# Tudo: data/cases + data/cache/pdf
+# Tudo: data/source/processos + data/raw/pecas + data/derived/pecas-texto
 uv run judex fazer-backup
 
 # Só metadados (sem peças)

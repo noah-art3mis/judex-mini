@@ -1,7 +1,7 @@
 # Data dictionary — `StfItem` and its inner structures
 
 This document catalogues every field emitted by the HTTP scraper into
-a case JSON (`data/cases/<CLASSE>/judex-mini_<CLASSE>_<N>.json`) —
+a case JSON (`data/source/processos/<CLASSE>/judex-mini_<CLASSE>_<N>.json`) —
 type, source, extraction logic, allowed values (where categorical),
 and preprocessing notes.
 
@@ -256,7 +256,7 @@ filings). Time-ordered by `data`, but **indexed newest-first**
   - `link` — `{"url": str, "text": Optional[str]}` or `None`. URL is joined against `https://portal.stf.jus.br`; `text` is populated later by the PDF-enrichment pass.
   - `link_descricao` — anchor text, uppercased.
 - **HC-specific:** The key events are `DECISÃO MONOCRÁTICA`, `ACÓRDÃO`, `BAIXA AO ARQUIVO DO STF`. Majority of HCs terminate with a monocrática. See [`andamentos-classifier-gaps.md`](andamentos-classifier-gaps.md) for the classifier gaps the HC analysis has to work around.
-- **PDF extraction:** `link` → PDF URL → downloaded by `scripts/baixar_pecas.py` to `data/cache/pdf/<sha1(url)>.pdf.gz` → text extracted by `scripts/extrair_pecas.py --provedor {pypdf|mistral|chandra|unstructured}` into `<sha1>.txt.gz` (+ `<sha1>.extractor` sidecar, + `<sha1>.elements.json.gz` for providers that emit element lists). Read text via `judex.utils.pdf_cache.read(url)`.
+- **PDF extraction:** `link` → PDF URL → downloaded by `scripts/baixar_pecas.py` to `data/raw/pecas/<sha1(url)>.<ext>.gz` → text extracted by `scripts/extrair_pecas.py --provedor {pypdf|mistral|chandra|unstructured}` into `<sha1>.txt.gz` (+ `<sha1>.extractor` sidecar, + `<sha1>.elements.json.gz` for providers that emit element lists). Read text via `judex.utils.pdf_cache.read(url)`.
 
 ### `deslocamentos: List[dict]`
 
@@ -630,7 +630,7 @@ cached HTML fragments.
 ### v8 — 2026-04-19 (current)
 
 Strip inline `.text` + `.extractor` from every `Documento` slot in
-the case JSON. `data/cache/pdf/<sha1(url)>.txt.gz` and `.extractor`
+the case JSON. `data/derived/pecas-texto/<sha1(url)>.txt.gz` and `.extractor`
 become the single source of truth for extracted text and provider
 label. The JSON is a pure pointer; consumers (warehouse builder,
 notebooks) resolve at read time.
@@ -671,7 +671,7 @@ outside the `abaX.asp` tab set.
 | `incidente_linked`| 3rd arg of the listing's `abreDetalheDiarioProcesso(dj, data, incidente, …)` onclick — may differ from the parent case's incidente because AG.REG./EMB.DECL. filings often file under their own incidente. Preserve as given; do not collapse to the parent's. |
 | RTF text storage  | `DecisaoDJe.rtf: Documento` — the standard `{tipo, url, text, extractor}` slot used everywhere else for PDFs/RTFs. `rtf.text` is populated via `peca_cache` (sha1(url) keying; `rtf` extractor via `striprtf`). |
 | UA fix (side effect) | `judex/utils/peca_utils.extract_document_text` now sends a Chrome User-Agent. Previously its bare `requests.get` sent `python-requests/*`, which STF's WAF permanently 403s; fix was needed for the DJe RTF fetches and also unblocks any prior silent failures on andamento PDFs on the `portal.stf.jus.br` host. |
-| cache layout      | New pseudo-tab members in `data/cache/html/{classe}_{processo}.tar.gz`: `dje_listing.html` (one per case) and `dje_detail_<sha1[:16]>.html` (one per entry). |
+| cache layout      | New pseudo-tab members in `data/raw/html/{classe}_{processo}.tar.gz`: `dje_listing.html` (one per case) and `dje_detail_<sha1[:16]>.html` (one per entry). |
 
 **v6 → v7 migration.** The renormalizer seeds `publicacoes_dje = []`
 via `reshape_to_v7` (shape-only mode), and `_rebuild_publicacoes_dje`

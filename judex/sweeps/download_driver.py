@@ -2,7 +2,7 @@
 
 This is the ONLY path that talks to STF after the 2026-04-19 split.
 It fetches `PecaTarget.url` via `_http_get_with_retry` and writes the
-raw bytes to `data/cache/pdf/<sha1>.pdf.gz`. Text extraction is an
+raw bytes to `data/raw/pecas/<sha1>.<ext>.gz`. Text extraction is an
 independent concern, handled by `extract_driver.run_extract_sweep`.
 
 Layout under `out_dir` is shared with the process sweep convention:

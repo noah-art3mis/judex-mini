@@ -196,7 +196,7 @@ Three independent hosts, three independent WAF buckets:
 Interleaving fetches across origins naturally paces each counter —
 see [`docs/rate-limits.md`](rate-limits.md).
 
-URL-keyed bytes+text cache at `data/cache/pdf/<sha1(url)>.*` — see
+URL-keyed bytes+text cache at `data/raw/pecas + data/derived/pecas-texto/<sha1(url)>.*` — see
 [`docs/data-layout.md`](data-layout.md). The cache is
 format-agnostic (sha1-of-URL keying), so RTFs and voto PDFs share the
 same quartet layout; only the extractor-sidecar label varies.
