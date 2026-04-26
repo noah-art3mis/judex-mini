@@ -1,9 +1,10 @@
 """Extract text from locally-cached STF PDFs.
 
-Reads bytes from `data/cache/pdf/<sha1>.pdf.gz` (populated by
+Reads bytes from `data/raw/pecas/<sha1>.<ext>.gz` (populated by
 `scripts/baixar_pecas.py`), dispatches text extraction via
 `src.scraping.ocr.extract_pdf` per `--provedor`, writes text +
-sidecar + optional element list back to the same cache. Zero HTTP.
+sidecar + optional element list to `data/derived/pecas-texto/`.
+Zero HTTP.
 
 Usage:
 

@@ -1,6 +1,6 @@
-"""One-shot postprocessor for the PDF text cache.
+"""One-shot postprocessor for the peça-text cache.
 
-Walks ``data/cache/pdf/*.txt.gz``, applies
+Walks ``data/derived/pecas-texto/*.txt.gz``, applies
 ``src.scraping.ocr.cleanup.clean_pdf_text``, and atomically rewrites
 each file. Idempotent — re-running is a no-op on already-clean texts.
 
@@ -13,7 +13,7 @@ Usage:
     uv run python scripts/clean_pdf_text.py --dry-run
 
     # Restrict to a subset (e.g. only files you just extracted):
-    uv run python scripts/clean_pdf_text.py --cache-dir data/cache/pdf
+    uv run python scripts/clean_pdf_text.py --cache-dir data/derived/pecas-texto
 
 The script reports: (files scanned, files changed, total before/after
 byte delta). Changed files get ``tempfile → os.replace`` semantics so
@@ -48,8 +48,8 @@ def _clean_one(path: Path, *, dry_run: bool) -> tuple[bool, int, int]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--cache-dir", type=Path, default=Path("data/cache/pdf"),
-                    help="Where .txt.gz files live (default: data/cache/pdf).")
+    ap.add_argument("--cache-dir", type=Path, default=Path("data/derived/pecas-texto"),
+                    help="Where .txt.gz files live (default: data/derived/pecas-texto).")
     ap.add_argument("--dry-run", action="store_true",
                     help="Scan + compute diffs but don't rewrite any file.")
     ap.add_argument("--progress-every", type=int, default=2000,

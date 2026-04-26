@@ -1,15 +1,15 @@
 """CLI wrapper around `src.warehouse.builder.build`.
 
-Rebuilds the DuckDB warehouse at `data/warehouse/judex.duckdb` from
-the current `data/cases/` + `data/cache/pdf/` stores. Full rebuild,
-atomic swap, no incremental logic.
+Rebuilds the DuckDB warehouse at `data/derived/warehouse/judex.duckdb`
+from the current `data/source/processos/` + `data/derived/pecas-texto/`
+stores. Full rebuild, atomic swap, no incremental logic.
 
 Usage:
     PYTHONPATH=. uv run python scripts/build_warehouse.py
     PYTHONPATH=. uv run python scripts/build_warehouse.py --classe HC
     PYTHONPATH=. uv run python scripts/build_warehouse.py --year 2026 --classe HC \\
-        --output data/warehouse/judex-2026.duckdb
-    PYTHONPATH=. uv run python scripts/build_warehouse.py --output data/warehouse/dev.duckdb
+        --output data/derived/warehouse/judex-2026.duckdb
+    PYTHONPATH=. uv run python scripts/build_warehouse.py --output data/derived/warehouse/dev.duckdb
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ from judex.warehouse import builder
 
 def run_build_warehouse(
     *,
-    cases_root: Path = Path("data/cases"),
-    pdf_cache_root: Path = Path("data/cache/pdf"),
-    output: Path = Path("data/warehouse/judex.duckdb"),
+    cases_root: Path = Path("data/source/processos"),
+    pecas_texto_root: Path = Path("data/derived/pecas-texto"),
+    output: Path = Path("data/derived/warehouse/judex.duckdb"),
     classe: list[str] | None = None,
     year: int | None = None,
     progress_every: int = 10_000,
@@ -40,15 +40,15 @@ def run_build_warehouse(
         print(f"  year {year} → id_range {id_range[0]}..{id_range[1]}")
 
     print(f"building warehouse → {output}")
-    print(f"  cases   from {cases_root}")
-    print(f"  pdfs    from {pdf_cache_root}")
+    print(f"  processos    from {cases_root}")
+    print(f"  pecas-texto  from {pecas_texto_root}")
     if classe:
         print(f"  classes {classe}")
 
     try:
         summary = builder.build(
             cases_root=cases_root,
-            pdf_cache_root=pdf_cache_root,
+            pecas_texto_root=pecas_texto_root,
             output_path=output,
             classes=classe,
             id_range=id_range,
@@ -78,9 +78,9 @@ def run_build_warehouse(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--cases-root", type=Path, default=Path("data/cases"))
-    parser.add_argument("--pdf-cache-root", type=Path, default=Path("data/cache/pdf"))
-    parser.add_argument("--output", type=Path, default=Path("data/warehouse/judex.duckdb"))
+    parser.add_argument("--cases-root", type=Path, default=Path("data/source/processos"))
+    parser.add_argument("--pecas-texto-root", type=Path, default=Path("data/derived/pecas-texto"))
+    parser.add_argument("--output", type=Path, default=Path("data/derived/warehouse/judex.duckdb"))
     parser.add_argument(
         "--classe", action="append",
         help="Restrict ingest to one or more classes (e.g. --classe HC --classe ADI)."

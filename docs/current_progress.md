@@ -11,7 +11,7 @@ direct L3-per-exit-IP reputation gradient data.
 arm-A fresh v8+DJe re-scrapes; 2025 now content-fresh for the 53.5%
 arm A covered; remaining 46.5% still stale pre-2026-04-17 content).
 PDF cache: **1.5 GB / 10,841 PDFs** (arm A didn't run baixar-pecas
-yet). Dead-ID graveyard: `data/dead_ids/HC.txt` (**3,348 confirmed
+yet). Dead-ID graveyard: `data/derived/dead-ids/HC.txt` (**3,348 confirmed
 pids**, pre-arm-A; arm-A's NoIncidente observations not yet
 aggregated). Main `judex.duckdb` and 2026 sub-warehouse unchanged.
 HC 2025 PDF sweep stopped 2026-04-22 ~19:52 BRT for a host reboot
@@ -594,7 +594,7 @@ coverage, cycle 4 awaiting cooldown decision** (snapshot
 2026-04-25 21:12 BRT). Range mode `HC 210825..223881` (13,057
 pids; 1,160 already on disk pre-launch). Run dir:
 `runs/active/2026-04-24-hc-cases-2022-direct/`. Items land directly
-in `data/cases/HC/` via `--diretorio-itens` — no copy step.
+in `data/source/processos/HC/` via `--diretorio-itens` — no copy step.
 
 **Three-cycle pattern (all axis-B p95-wall_s collapses, none from
 hard 403-fails — tenacity absorbs 403s as `status=ok` records with
@@ -669,7 +669,7 @@ nohup uv run judex varrer-processos \
     --classe HC --processo-inicial 210825 --processo-final 223881 \
     --saida runs/active/2026-04-24-hc-cases-2022-direct \
     --rotulo hc_2022_direct \
-    --diretorio-itens data/cases/HC \
+    --diretorio-itens data/source/processos/HC \
     --retomar \
     >> runs/active/2026-04-24-hc-cases-2022-direct/launcher-stdout.log 2>&1 &
 disown
@@ -837,7 +837,7 @@ HTTP to STF or any proxy provider.
    CPU, single-threaded, ~free; won't contend with the sweep for
    bandwidth. Obvious consumer of what `baixar-pecas` produces.
 2. **`atualizar-warehouse`** — full rebuild of
-   `data/warehouse/judex.duckdb` from case JSONs + text cache.
+   `data/derived/warehouse/judex.duckdb` from case JSONs + text cache.
    Atomic swap, zero HTTP, a few minutes. Will land arms A/B/C +
    recovery freshness + whatever extraction #1 produces. Build-stats
    validation from this cycle will flag `publicacoes_dje: 0.0% [WARN]`
@@ -1223,12 +1223,12 @@ uv run python scripts/validate_ground_truth.py
 # Full-range year re-scrape (what arms A/B/C use)
 uv run python scripts/generate_hc_year_gap_csv.py \
     --year <YYYY> --out tests/sweep/hc_<YYYY>_full.csv \
-    --dead-ids data/dead_ids/HC.txt --full-range
+    --dead-ids data/derived/dead-ids/HC.txt --full-range
 
 #   Then launch sharded:
 uv run judex varrer-processos --csv tests/sweep/hc_<YYYY>_full.csv \
     --rotulo hc_<YYYY> --saida runs/active/<date>-hc-<YYYY> \
-    --diretorio-itens data/cases/HC \
+    --diretorio-itens data/source/processos/HC \
     --shards <N> --proxy-pool config/proxies --retomar
 
 #   Aggregate dead-IDs periodically
@@ -1244,7 +1244,7 @@ uv run judex extrair-pecas -c HC -i <lo> -f <hi> --nao-perguntar
 
 #   Warehouse rebuild
 uv run judex atualizar-warehouse --ano <year> --classe HC \
-    --saida data/warehouse/judex-<year>.duckdb
+    --saida data/derived/warehouse/judex-<year>.duckdb
 # Or full corpus:
 uv run judex atualizar-warehouse
 ```

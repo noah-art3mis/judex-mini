@@ -1,9 +1,9 @@
 """Renormalize old-schema case JSONs against cached HTML fragments.
 
-Reads every `data/cases/<CLASSE>/judex-mini_<CLASSE>_<N>*.json`, checks
-its `schema_version`, and if < SCHEMA_VERSION re-runs the current
+Reads every `data/source/processos/<CLASSE>/judex-mini_<CLASSE>_<N>*.json`,
+checks its `schema_version`, and if < SCHEMA_VERSION re-runs the current
 extractors against the gzipped HTML cache at
-`data/cache/html/<CLASSE>_<N>/`. Writes the renormalized item back
+`data/raw/html/<CLASSE>_<N>/`. Writes the renormalized item back
 atomically (tmp + os.replace).
 
 **No network.** The script never calls STF or sistemas.stf.jus.br; all
@@ -90,7 +90,7 @@ from judex.scraping.scraper_dje import (
 from judex.data.reshape import reshape_to_v8
 from judex.utils import html_cache, peca_cache
 
-CASES_ROOT = Path("data/cases")
+CASES_ROOT = Path("data/source/processos")
 
 
 @dataclass
@@ -372,7 +372,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument(
         "--cases-root", type=Path, default=CASES_ROOT,
-        help="where to find case JSONs (default: data/cases).",
+        help="where to find case JSONs (default: data/source/processos).",
     )
     ap.add_argument(
         "--classe", action="append", default=None,

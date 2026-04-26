@@ -116,7 +116,7 @@ def test_empty_build_creates_db_with_manifest(tmp_path: Path) -> None:
     pdfs.mkdir()
     out = tmp_path / "judex.duckdb"
 
-    summary = builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    summary = builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     assert out.exists()
     with _connect(out) as con:
@@ -132,7 +132,7 @@ def test_v1_case_flattens_correctly(tmp_path: Path) -> None:
     _write_case(cases, _make_case(version=1))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -154,7 +154,7 @@ def test_v3_case_unpacks_outcome_dict(tmp_path: Path) -> None:
     _write_case(cases, _make_case(version=3, classe="ADI", n=100))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -176,7 +176,7 @@ def test_data_protocolo_iso_derived_from_ddmmyyyy_when_missing(tmp_path: Path) -
     _write_case(cases, _make_case(version=1, data_protocolo="07/11/2019"))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         iso = con.execute("SELECT data_protocolo_iso FROM cases").fetchone()[0]
@@ -188,7 +188,7 @@ def test_partes_one_row_per_entry(tmp_path: Path) -> None:
     _write_case(cases, _make_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -208,7 +208,7 @@ def test_andamentos_flatten_link_struct(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -236,7 +236,7 @@ def test_sessao_documentos_split_text_vs_url(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -269,7 +269,7 @@ def test_sessao_documentos_v2_dict_of_dict_shape(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -313,7 +313,7 @@ def test_sessao_documentos_v4_list_shape_preserves_duplicates(tmp_path: Path) ->
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -363,7 +363,7 @@ def test_andamentos_link_extractor_propagates(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -397,7 +397,7 @@ def test_v8_warehouse_resolves_link_text_and_extractor_from_cache_when_json_is_n
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -426,7 +426,7 @@ def test_v8_warehouse_cache_wins_over_stale_inline_text(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -448,7 +448,7 @@ def test_andamentos_link_extractor_null_on_v1_missing_field(tmp_path: Path) -> N
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -476,7 +476,7 @@ def test_andamentos_v5_link_tipo_read_from_link_struct(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -504,7 +504,7 @@ def test_andamentos_v5_link_text_only_anchor(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -532,7 +532,7 @@ def test_pautas_v6_flatten(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -557,7 +557,7 @@ def test_pautas_absent_or_empty_produces_no_rows(tmp_path: Path) -> None:
     _write_case(cases, c3)
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         n = con.execute("SELECT COUNT(*) FROM pautas").fetchone()[0]
@@ -571,7 +571,7 @@ def test_pdfs_ingested_with_sha1_and_n_chars(tmp_path: Path) -> None:
     _write_pdf(pdfs, "https://portal.stf.jus.br/other.pdf", "Short")
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -594,7 +594,7 @@ def test_pdf_cache_joins_to_andamento_by_sha1(tmp_path: Path) -> None:
     ]))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -658,7 +658,7 @@ def test_publicacoes_dje_flattens_one_row_per_entry(tmp_path: Path) -> None:
     _write_case(cases, _dje_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -677,7 +677,7 @@ def test_decisoes_dje_flattens_decisao_and_ementa_kinds(tmp_path: Path) -> None:
     _write_case(cases, _dje_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -709,7 +709,7 @@ def test_decisoes_dje_rtf_text_resolved_from_cache(tmp_path: Path) -> None:
     _write_case(cases, _dje_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         rows = con.execute(
@@ -732,7 +732,7 @@ def test_decisoes_dje_join_to_pdfs_by_rtf_sha1(tmp_path: Path) -> None:
     _write_case(cases, _dje_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=pdfs, output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
 
     with _connect(out) as con:
         # "Give me every ementa acórdão's char count."
@@ -751,7 +751,7 @@ def test_classes_filter_limits_ingest(tmp_path: Path) -> None:
     out = tmp_path / "judex.duckdb"
 
     builder.build(
-        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        cases_root=cases, pecas_texto_root=tmp_path / "pdf",
         output_path=out, classes=["HC"],
     )
 
@@ -766,13 +766,13 @@ def test_rebuild_overwrites_prior_content(tmp_path: Path) -> None:
     cases = tmp_path / "cases"
     _write_case(cases, _make_case(relator="MIN. FIRST"))
     out = tmp_path / "judex.duckdb"
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     # Replace the case and rebuild
     for p in cases.rglob("*.json"):
         p.unlink()
     _write_case(cases, _make_case(relator="MIN. SECOND"))
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         rows = con.execute("SELECT relator FROM cases").fetchall()
@@ -784,7 +784,7 @@ def test_atomic_write_leaves_no_tmp(tmp_path: Path) -> None:
     _write_case(cases, _make_case())
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     assert out.exists()
     tmp_leftovers = list(tmp_path.glob("*.tmp")) + list(tmp_path.glob(".*.tmp"))
@@ -797,7 +797,7 @@ def test_manifest_records_row_counts_and_commit(tmp_path: Path) -> None:
     _write_case(cases, _make_case(classe="ADI", n=20))
     out = tmp_path / "judex.duckdb"
 
-    builder.build(cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out)
+    builder.build(cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out)
 
     with _connect(out) as con:
         row = con.execute(
@@ -843,7 +843,7 @@ def test_build_stats_reports_population_rates(tmp_path: Path) -> None:
         _write_case(cases, _healthy_case(n))
 
     summary = builder.build(
-        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        cases_root=cases, pecas_texto_root=tmp_path / "pdf",
         output_path=tmp_path / "out.duckdb",
     )
 
@@ -869,7 +869,7 @@ def test_build_stats_warns_when_dje_below_threshold(tmp_path: Path) -> None:
         _write_case(cases, c)
 
     summary = builder.build(
-        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        cases_root=cases, pecas_texto_root=tmp_path / "pdf",
         output_path=tmp_path / "out.duckdb",
     )
 
@@ -893,7 +893,7 @@ def test_build_strict_raises_on_validation_warning(tmp_path: Path) -> None:
     import pytest
     with pytest.raises(builder.BuildValidationError) as excinfo:
         builder.build(
-            cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+            cases_root=cases, pecas_texto_root=tmp_path / "pdf",
             output_path=tmp_path / "out.duckdb",
             strict=True,
         )
@@ -908,7 +908,7 @@ def test_build_strict_passes_when_all_thresholds_met(tmp_path: Path) -> None:
         _write_case(cases, _healthy_case(n))
 
     summary = builder.build(
-        cases_root=cases, pdf_cache_root=tmp_path / "pdf",
+        cases_root=cases, pecas_texto_root=tmp_path / "pdf",
         output_path=tmp_path / "out.duckdb",
         strict=True,
     )
@@ -943,7 +943,7 @@ def test_chunked_scan_preserves_counts_and_rates(
 
     out = tmp_path / "out.duckdb"
     summary = builder.build(
-        cases_root=cases, pdf_cache_root=tmp_path / "pdf", output_path=out,
+        cases_root=cases, pecas_texto_root=tmp_path / "pdf", output_path=out,
     )
 
     # Row counts: 11 cases × 2 partes/case, minus the 1 sparse case = 20.

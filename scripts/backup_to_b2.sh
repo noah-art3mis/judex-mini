@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Back up to a Backblaze B2 bucket in two parts:
 #
-#   1. data/cache/ is additively synced (rclone copy, never --delete) to
-#      <bucket>/cache/. Files are mostly immutable — PDF texts are
+#   1. data/raw/ is additively synced (rclone copy, never --delete) to
+#      <bucket>/raw/. Files are mostly immutable — peça bytes are
 #      content-addressed by sha1(url), HTML fragments live under
-#      <CLASSE>_<N>/<tab>.html.gz and are only rewritten on re-scrape — so
-#      after the first ~8 GB run, each subsequent sync moves only newly
-#      scraped bytes. Enable B2 bucket versioning + a lifecycle rule on
-#      the bucket for history; the script never passes --delete, so it
-#      won't remove remote-only files itself.
+#      raw/html/<CLASSE>_<N>.tar.gz and are only rewritten on re-scrape —
+#      so after the first ~8 GB run, each subsequent sync moves only
+#      newly scraped bytes. Enable B2 bucket versioning + a lifecycle
+#      rule on the bucket for history; the script never passes --delete,
+#      so it won't remove remote-only files itself.
 #
-#   2. data/cases/ + analysis/ are tar+zstd'd into a timestamped
+#   2. data/source/ + analysis/ are tar+zstd'd into a timestamped
 #      snapshot at <bucket>/snapshots/judex-snapshot-<stamp>.tar.zst.
 #      These are plain JSON/text, compress well, and benefit from being a
 #      coherent point-in-time artifact. Cheap enough to keep many versions.
@@ -59,14 +59,14 @@ if ! rclone listremotes | grep -q "^${REMOTE}:$"; then
   exit 1
 fi
 
-for src in data/cache data/cases analysis; do
+for src in data/raw data/source analysis; do
   [[ -d "$src" ]] || { echo "missing source dir: $src" >&2; exit 1; }
 done
 
 stamp=$(date -u +%Y-%m-%dT%H%M%SZ)
 
 # ---------- part 1: additive sync of data/cache ----------
-echo ">>> syncing data/cache -> ${REMOTE}:${BUCKET}/cache"
+echo ">>> syncing data/raw -> ${REMOTE}:${BUCKET}/raw"
 copy_args=(
   --transfers 16
   --checkers 32
@@ -78,20 +78,20 @@ copy_args=(
 if [[ $DRY_RUN -eq 1 ]]; then
   copy_args+=(--dry-run)
 fi
-rclone copy "${copy_args[@]}" data/cache "${REMOTE}:${BUCKET}/cache"
+rclone copy "${copy_args[@]}" data/raw "${REMOTE}:${BUCKET}/raw"
 
-# ---------- part 2: timestamped snapshot of data/cases + analysis ----------
+# ---------- part 2: timestamped snapshot of data/source + analysis ----------
 archive=$(mktemp --suffix=".tar.zst" -t "judex-snapshot-${stamp}.XXXX")
 trap 'rm -f "$archive"' EXIT
 
-echo ">>> archiving: data/cases analysis"
+echo ">>> archiving: data/source analysis"
 tar \
   --exclude='__pycache__' \
   --exclude='__marimo__' \
   --exclude='*.pyc' \
   -I 'zstd -19 --threads=0' \
   -cf "$archive" \
-  data/cases analysis
+  data/source analysis
 
 size=$(du -h "$archive" | cut -f1)
 echo ">>> snapshot built: ${size}"

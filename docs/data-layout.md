@@ -2,36 +2,115 @@
 
 Where things live in judex-mini. New contributors start here.
 
-## Five axes, one directory per axis
+## One axis: cost of deletion
 
-Each top-level directory holds exactly one kind of thing. The rule
-is about *ownership and lifetime* — who writes it, who reads it,
-and whether it's safe to delete.
+Under `data/`, the path encodes "what happens if I `rm -rf` this?". Three
+top-level dirs, three answers.
 
-| axis           | top-level    | writer               | reader                  | git-tracked? | precious?                |
-|----------------|--------------|----------------------|-------------------------|--------------|--------------------------|
-| **INPUT**      | `config/`    | human (secrets)      | launcher scripts        | no           | yes — source of truth    |
-| **INPUT**      | `tests/sweep/` | human (CSVs)       | sweep drivers           | yes          | yes — source of truth    |
-| **OPERATIONAL**| `runs/`      | driver (live state)  | probe scripts / agents  | no           | no — regenerable         |
-| **CACHE**      | `data/cache/`| scraper (writes)     | scraper (reads)         | no           | no — regenerable         |
-| **PRODUCT**    | `data/cases/`| scraper (writes)     | notebooks / notebooks   | no           | **yes** — scientific     |
-| **DERIVED**    | `data/exports/`| notebook / script  | downstream consumers    | no           | partly — re-buildable    |
-| **KNOWLEDGE**  | `docs/`      | human (curated)      | everyone                | yes          | yes — the write-up       |
+| top-level         | cost of deletion                                    | example contents                                      | git-tracked? |
+|-------------------|-----------------------------------------------------|--------------------------------------------------------|--------------|
+| `data/source/`    | Catastrophic — irreplaceable scientific output      | `processos/<CLASSE>/judex-mini_<CLASSE>_<N>.json`     | no           |
+| `data/raw/`       | Expensive — re-fetch is hours + proxy budget        | `html/`, `pecas/<sha1>.<ext>.gz`                       | no           |
+| `data/derived/`   | Cheap — local rebuild in minutes                    | `warehouse/`, `exports/`, `reports/`, `dead-ids/`, `pecas-texto/` | no    |
 
-## The five directories in detail
+Operational artifacts (logs, request audit DB, canary outputs, sweep
+state, daily report watermarks) live **outside** `data/` — under
+`runs/` (per-sweep, ephemeral) and `state/` (persistent).
+
+| top-level         | role                                                | git-tracked?                                         |
+|-------------------|-----------------------------------------------------|------------------------------------------------------|
+| `config/`         | proxy pools, secrets                                | no                                                   |
+| `tests/sweep/`    | hand-staged input CSVs                              | yes (master) / no (`shards/`)                        |
+| `runs/`           | per-sweep operational state                         | no                                                   |
+| `state/`          | persistent operational state                        | partial — `daily_report.json`, `watchlist/` tracked; `logs/`, `canary-outputs/`, `requests-archive.duckdb` ignored |
+| `docs/`           | curated knowledge                                   | yes                                                  |
+
+## The three `data/` trees in detail
+
+### `data/source/` — the scientific product (precious)
+
+**Never tracked (too big); backed up via `judex fazer-backup`; precious.**
+
+```
+data/source/
+└── processos/
+    ├── HC/
+    │   └── judex-mini_HC_<N>.json        ← one record per HC
+    └── ADI/
+        └── judex-mini_ADI_<N>.json       ← one record per ADI (future)
+```
+
+One directory per `classe`; one JSON file per processo. Schema at
+`judex/data/types.py` (`StfItem` TypedDict). This is the final output
+that downstream analyses (marimo notebooks, research papers) consume.
+**Domain naming**: `processos/` matches the CLI verb (`varrer-processos`)
+and the README glossary.
+
+### `data/raw/` — immutable upstream bytes (expensive to refetch)
+
+**Never tracked; safe to delete-but-expensive (re-scrape costs hours + proxy budget).**
+
+```
+data/raw/
+├── html/
+│   └── <CLASSE>_<N>.tar.gz               ← per-processo HTML fragments (one tar)
+└── pecas/
+    └── <sha1(url)>.<ext>.gz              ← raw peça bytes from STF
+                                            (.pdf.gz, .rtf.gz, …;
+                                             format-agnostic, sha1-keyed)
+```
+
+The `pecas/` directory is **deliberately format-agnostic**. The cache
+key is `sha1(url)`; STF serves PDF for most documents but RTF for some
+(e.g. older `notaTaquigrafica`). The on-disk extension reflects the
+actual format STF served — naming the dir `pdf/` would lie. Read/write
+via `judex.utils.peca_cache` (see `PECAS_ROOT`).
+
+HTML cache: one `.tar.gz` per processo, members are gzipped tabs +
+`incidente.txt` + DJe pseudo-tabs. Read/write via
+`judex.utils.html_cache` (see `CACHE_ROOT`).
+
+### `data/derived/` — regenerable in minutes (cheap to rebuild)
+
+**Never tracked; safe to delete at any time.**
+
+```
+data/derived/
+├── warehouse/
+│   └── judex.duckdb                      ← analytical DuckDB, ~3.7 min rebuild
+├── exports/
+│   └── <study>/{*.feather,*.parquet}     ← per-study materialized tables
+├── reports/
+│   └── <slug>/{stats.json,summaries.jsonl,narrative.md}
+│                                            outputs of analysis/reports/*.py
+├── dead-ids/
+│   ├── <CLASSE>.txt                      ← confirmed-nonexistent process IDs
+│   └── <CLASSE>.candidates.tsv           ← audit table behind .txt
+└── pecas-texto/                          ← extracted-text + sidecars (peça quartet)
+    ├── <sha1>.txt.gz                     ← from extrair-pecas
+    ├── <sha1>.extractor                  ← provider label sidecar
+    └── <sha1>.elements.json.gz           ← (rare) structured OCR output
+```
+
+**Why `pecas-texto/` is `derived/`, not `raw/`**: text extraction is
+deterministic from bytes given a provider — `pypdf` is free, OCR
+providers (mistral, chandra, unstructured) cost money but the bytes
+themselves are upstream. The `.extractor` sidecar records which
+provider produced each text; re-running with the same provider is a
+no-op (skip), with a different provider rewrites both `.txt.gz` and
+`.extractor`. See `judex.utils.peca_cache` (`TEXTO_ROOT`).
+
+## Operational artifacts (outside `data/`)
 
 ### `config/` — secrets and hand-staged credentials
 
+**Never tracked (whole tree gitignored).** Bring your own proxy files
+here; the launcher scripts read by path.
+
 ```
 config/
-├── proxies.a.txt        ← ScrapeGW pool, 10 sessions (shard-0 uses)
-├── proxies.b.txt        ← 10 sessions (shard-1)
-├── proxies.c.txt        ← 12 sessions (shard-2)
-└── proxies.d.txt        ← 10 sessions (shard-3)
+└── proxies              ← one URL per line (any name; --proxy-pool path)
 ```
-
-`.gitignore`'s `/config/` rule covers the whole tree. Bring your own
-proxy files here; the launcher scripts read by path.
 
 ### `tests/sweep/` — CSV inputs
 
@@ -47,110 +126,43 @@ tests/sweep/
 `shards/` is regenerated by `scripts/shard_csv.py`; the master CSVs
 are source-of-truth and version-controlled.
 
-### `runs/` — operational state
+### `runs/` — per-sweep operational state
 
 **Never tracked in git.** Full `/runs/` rule in `.gitignore`.
 
 ```
 runs/
-├── active/
-│   └── <date>-<label>/                   ← in-flight sweep
-│       ├── manifest.json                 (optional: what/when/by-whom)
-│       ├── shards.pids                   (for sharded sweeps only)
-│       └── [shard-{0..N-1}/]             (sharded) OR (monolithic files here)
-│           ├── sweep.state.json          atomic per-item state
-│           ├── sweep.log.jsonl           append-only attempt log
-│           ├── sweep.errors.jsonl        derived non-ok entries
-│           └── driver.log                stdout / progress
-└── archive/
-    └── <date>-<label>/                   ← completed sweep
-        └── (same shape; plus report.md)
+├── active/<date>-<label>/                ← in-flight sweep
+│   ├── manifest.json                     (optional: what/when/by-whom)
+│   ├── shards.pids                       (sharded sweeps only)
+│   └── [shard-{0..N-1}/]                 (sharded) OR (monolithic files here)
+│       ├── sweep.state.json              atomic per-item state
+│       ├── sweep.log.jsonl               append-only attempt log
+│       ├── sweep.errors.jsonl            derived non-ok entries
+│       └── driver.log                    stdout / progress
+├── archive/<date>-<label>/               ← completed sweep (same shape + report.md)
+└── coletas/<timestamp>-<label>/          ← legacy varrer-processos default output
 ```
 
-When a sweep finishes cleanly, move its directory from `active/` to
-`archive/`. When a sweep produces a human-written narrative (SUMMARY,
-REPORT, PLAN), promote that single file to `docs/reports/<date>-<label>.md`
-and leave the operational artifacts under `archive/`.
+Promote one human-written narrative per finished sweep to
+`docs/reports/<date>-<label>.md`; leave operational artifacts under
+`archive/`.
 
-### `data/cache/` — regenerable caches
-
-**Never tracked; safe to delete at any time (slower re-run, same result).**
+### `state/` — persistent operational state
 
 ```
-data/cache/
-├── html/
-│   └── <CLASSE>_<N>/                     ← per-process HTML fragments
-│       ├── incidente.txt
-│       ├── abaInformacoes.html.gz
-│       ├── abaPartes.html.gz
-│       ├── abaDecisoes.html.gz
-│       ├── abaAndamentos.html.gz
-│       ├── abaDeslocamentos.html.gz
-│       ├── abaPeticoes.html.gz
-│       ├── abaRecursos.html.gz
-│       ├── abaPautas.html.gz
-│       ├── abaSessaoVirtual.html.gz
-│       ├── sessao_oi_<inc>.html.gz       (pseudo-tab for sessão JSON)
-│       ├── sessao_sessaoVirtual_<inc>.html.gz
-│       ├── dje_listing.html.gz            (pseudo-tab: listarDiarioJustica.asp, v7+)
-│       └── dje_detail_<sha1[:16]>.html.gz (pseudo-tab: verDiarioProcesso.asp per entry, v7+)
-├── pdf/
-│   ├── <sha1(url)>.pdf.gz                ← raw PDF bytes (written by baixar-pecas)
-│   ├── <sha1(url)>.txt.gz                ← extracted text (written by extrair-pecas)
-│   ├── <sha1(url)>.elements.json.gz      ← provider element list (optional)
-│   └── <sha1(url)>.extractor             ← provider label sidecar
-├── requests.db                           ← per-GET SQLite WAL archive
-└── scraper-session-logs/                 ← per-session log files
+state/
+├── daily_report.json                     ← marca d'água do relatorio-diario [tracked]
+├── watchlist/<id>.json                   ← snapshots da watchlist          [tracked]
+├── logs/scraper_*.log                    ← session logs                    [ignored]
+├── canary-outputs/                       ← canary fixtures                 [ignored]
+└── requests-archive.duckdb               ← per-GET HTTP audit              [ignored]
 ```
 
-Read/write via `judex.utils.html_cache` (classe/processo/tab-keyed)
-and `judex.utils.pdf_cache` (URL-sha1-keyed, atomic writes).
-
-Cache-keying is content-addressed where possible: PDF bytes and
-extracted text share one URL-derived sha1, so two cases citing the
-same PDF share one cache entry.
-
-**Re-extraction is sidecar-keyed, not length-keyed.**
-`baixar-pecas` writes `<sha1>.pdf.gz` once. `extrair-pecas --provedor X`
-writes `<sha1>.txt.gz` + `<sha1>.extractor = "X"`. On a later run,
-`--provedor X` sees the matching sidecar and skips; `--provedor Y`
-re-extracts (bytes already on disk, no STF fetch); `--forcar`
-overwrites unconditionally. No monotonic-by-length guard.
-
-### `data/cases/` — scientific product
-
-**Never tracked (too big); backed up separately; precious.**
-
-```
-data/cases/
-├── HC/
-│   └── judex-mini_HC_<N>.json            ← one record per HC
-└── ADI/
-    └── judex-mini_ADI_<N>.json           ← one record per ADI (future)
-```
-
-One directory per `classe`; one JSON file per process. Schema at
-`judex/data/types.py` (`StfItem` TypedDict). This is the final
-output that downstream analyses (marimo notebooks, research
-papers) consume.
-
-### `data/exports/` — derived tables
-
-**Never tracked; re-buildable from `data/cases/` + scripts.**
-
-```
-data/exports/
-├── archive-2025-10-adi/                  ← Oct 2025 one-shot ADI exports
-│   ├── adi.feather
-│   ├── andamentos.feather
-│   └── ...
-└── <future feather/parquet exports>
-```
-
-Aggregated pandas/feather dumps, CSV join tables, per-study
-extracts. If a notebook spends minutes re-deriving a table from
-`data/cases/`, promote the result here so the next notebook gets
-it in seconds.
+Why partial-tracking: `daily_report.json` and `watchlist/` are persistent
+*configuration* a fresh checkout needs. `logs/`, `canary-outputs/`, and
+`requests-archive.duckdb` are bulky operational byproducts — gitignored
+by explicit rules in `.gitignore`.
 
 ### `docs/` — curated knowledge
 
@@ -164,33 +176,20 @@ docs/
 ├── rate-limits.md                        ← WAF behavior + cooldowns
 ├── process-space.md                      ← HC / ADI / RE ceilings
 ├── performance.md                        ← HTTP vs Selenium numbers
-├── hc-who-wins.md                        ← HC research question + notebook layout
-├── hc-backfill-extension-plan.md
-├── peca-sweep-conventions.md              ← PDF-sweep directory conventions
-├── progress_archive/                     ← prior lab-notebook snapshots
-│   └── YYYY-MM-DD_HHMM_<slug>.md
-├── reports/                              ← promoted human-written narratives
-│   ├── 2026-04-16-D-rate-budget.md
-│   ├── 2026-04-16-E-full-1k-defaults.md
-│   ├── 2026-04-17-proxy-canary-v2.md
-│   └── ...
+├── progress_archive/<YYYY-MM-DD_HHMM_slug>.md  ← prior lab-notebook snapshots
+├── reports/<date>-<label>.md             ← promoted human-written narratives
 └── superpowers/specs/                    ← design specs for major features
-    └── ...
 ```
 
-One reportable artifact per completed sweep → `docs/reports/<date>-<label>.md`.
-The ephemeral triad (sweep.log.jsonl, sweep.errors.jsonl, report.md
-auto-generated) lives under `runs/archive/` and is not tracked.
+## The foreign key — processo → peça text
 
-## The foreign key — case → PDF text
-
-The join from a case record to its PDF text is a three-hop:
+The join from a processo record to its peça text is a three-hop:
 
 ```
-data/cases/HC/judex-mini_HC_135041.json   ← case record
-  └── andamentos[17].link                  ← STF portal URL for a PDF
-       └── sha1(link)                      ← content-addressed key
-            └── data/cache/pdf/<sha1>.txt.gz  ← the extracted text
+data/source/processos/HC/judex-mini_HC_135041.json   ← processo record
+  └── andamentos[17].link                            ← STF portal URL for a peça
+       └── sha1(link)                                ← content-addressed key
+            └── data/derived/pecas-texto/<sha1>.txt.gz  ← the extracted text
 ```
 
 Reading it in code:
@@ -198,64 +197,80 @@ Reading it in code:
 ```python
 import json
 from pathlib import Path
-from judex.utils import pdf_cache
+from judex.utils import peca_cache
 
-record = json.loads(Path("data/cases/HC/judex-mini_HC_135041.json").read_text())
+record = json.loads(Path("data/source/processos/HC/judex-mini_HC_135041.json").read_text())
 for a in record[0]["andamentos"]:
     link = a.get("link")
-    if not link or not link.lower().endswith(".pdf"):
+    if not link or not link.lower().endswith((".pdf", ".rtf")):
         continue
-    text = pdf_cache.read(link)           # None if cache miss; str if hit
+    text = peca_cache.read(link)             # None if cache miss; str if hit
     print(a["link_descricao"], len(text or ""))
 ```
 
-`pdf_cache.read` / `pdf_cache.write` handle the sha1 + gzip layer —
+`peca_cache.read` / `peca_cache.write` handle the sha1 + gzip layer —
 you never compute the hash yourself. For structure-aware consumers
 there's a parallel path:
 
 ```python
-elements = pdf_cache.read_elements(link)  # None if not OCR-sourced
+elements = peca_cache.read_elements(link)  # None if not OCR-sourced
 if elements:
     body = [e for e in elements if e["type"] not in ("Header", "Footer")]
     pages = [e["metadata"]["page_number"] for e in elements if "metadata" in e]
 ```
 
-Text cache is populated for every cached URL; the elements cache
-is populated only where OCR ran. Code that needs structure should
-gracefully fall back to flat text when `read_elements` returns `None`.
+Text cache is populated for every cached URL where extraction ran; the
+elements cache is populated only where OCR ran. Code that needs
+structure should gracefully fall back to flat text when `read_elements`
+returns `None`.
 
 ## Schema sources of truth
 
-- **Case JSON**: `judex/data/types.py` defines `StfItem` as a
+- **Processo JSON**: `judex/data/types.py` defines `StfItem` as a
   `TypedDict`. Fields are Optional for a reason — STF data is
   irregular; fields-that-can-be-absent must be nullable.
 - **Attempt records**: `judex/sweeps/process_store.AttemptRecord` (process
-  sweeps) and `judex/sweeps/pdf_store.PecaAttemptRecord` (PDF sweeps) are the
-  dataclasses written into the `.jsonl` files.
+  sweeps) and `judex/sweeps/peca_store.PecaAttemptRecord` (peça sweeps)
+  are the dataclasses written into the `.jsonl` files.
 - **Ground-truth fixtures**: `tests/ground_truth/*.json` — five
   hand-validated cases that `scripts/validate_ground_truth.py`
   diff-checks against. Don't break these.
 
 ## Non-obvious implications
 
-- **Deletion safety is path-visible.** `rm -rf data/cache/` is
-  always safe (slower re-run). `rm -rf data/cases/` loses the
-  scientific product (re-scrapable but expensive). The structure
-  encodes this — read the path, know the stakes.
-- **URL, not case, is the PDF-cache key.** Two cases that cite the
-  same PDF share a cache entry. Generally desirable (de-dup), but
-  it means cache-per-case accounting requires walking
-  `andamentos[].link` from each case.
+- **Deletion safety is path-visible.** `rm -rf data/derived/` is always
+  safe and cheap. `rm -rf data/raw/` is safe but expensive (must
+  re-scrape). `rm -rf data/source/` loses the scientific product.
+  The path tells you the cost.
+- **The peça quartet split between `raw/` and `derived/`**: bytes
+  (`<sha1>.<ext>.gz`) live in `data/raw/pecas/`; text + extractor
+  sidecar + elements live in `data/derived/pecas-texto/`. They share
+  `sha1(url)` so a join is one string operation. Don't merge them
+  back — the cost-of-deletion split is the whole point.
+- **URL, not processo, is the peça-cache key.** Two processos that cite
+  the same peça share one cache entry. Generally desirable (de-dup),
+  but it means cache-per-processo accounting requires walking
+  `andamentos[].link` from each processo. Also: the `--classe` filter
+  on `fazer-backup` only narrows the processos subtree — peças always
+  ship as a complete set (per-class scoping would break shared keys).
+- **Format-agnostic peça naming.** `data/raw/pecas/<sha1>.<ext>.gz`
+  carries whatever extension STF served. Today the corpus is mostly
+  `.pdf.gz`; RTF and other formats are real and the layout doesn't
+  pretend they aren't.
 - **`runs/` is fully gitignored.** Operational state never pollutes
   the git history. Human-written narratives get promoted to
   `docs/reports/` one file per run.
 - **`config/` is fully gitignored.** Proxy files, any future API
   keys or connection strings go here; never inline in code.
+- **`state/` is partially tracked.** Two whitelist exceptions
+  (`daily_report.json`, `watchlist/`) keep persistent runtime
+  configuration in version control; everything else under `state/` is
+  gitignored by explicit rules.
 
 ## Sibling docs
 
-This file is the spatial map; four sibling docs cover the rest of
-the conceptual surface:
+This file is the spatial map; sibling docs cover the rest of the
+conceptual surface:
 
 - [`docs/stf-portal.md`](stf-portal.md) — how the portal works (URL flow, auth triad, UTF-8, field→source map, DataJud dead-end).
 - [`docs/rate-limits.md`](rate-limits.md) — WAF behavior, validated sweep defaults, robots.txt posture question.

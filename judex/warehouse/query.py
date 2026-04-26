@@ -31,7 +31,7 @@ from typing import Optional
 
 import duckdb
 
-DEFAULT_PATH = Path("data/warehouse/judex.duckdb")
+DEFAULT_PATH = Path("data/derived/warehouse/judex.duckdb")
 
 
 def open_readonly(path: Optional[Path] = None) -> duckdb.DuckDBPyConnection:

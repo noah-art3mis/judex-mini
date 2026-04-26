@@ -35,7 +35,7 @@ PROXY_FILES=(
 )
 N=${#PROXY_FILES[@]}
 
-mkdir -p "$ROOT" data/cases/HC "$SHARD_CSV_DIR"
+mkdir -p "$ROOT" data/source/processos/HC "$SHARD_CSV_DIR"
 LOG="$ROOT/launcher.log"
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG"; }
 
@@ -79,7 +79,7 @@ for i in $(seq 0 $((N - 1))); do
         --csv "$SHARD_CSV" \
         --label "$LABEL" \
         --out "$SHARD_DIR" \
-        --items-dir data/cases/HC \
+        --items-dir data/source/processos/HC \
         --proxy-pool "$PROXY" \
         --resume \
         >> "$DRIVER_LOG" 2>&1 &

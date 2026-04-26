@@ -1,14 +1,14 @@
-"""Local backup: bundle case JSONs + PDF peças into a single Windows-friendly ZIP.
+"""Local backup: bundle processo JSONs + peças into a single Windows-friendly ZIP.
 
 The output is a regular ``.zip`` (ZIP64 when needed) so Windows Explorer
 opens it natively — no tarball, no 7-Zip dependency.
 
-Why per-entry compression: ``data/cases/*.json`` compresses ~4×, but
-``data/cache/pdf/*.gz`` is already gzipped at write time (the four-file
-quartet keyed on ``sha1(url)``), so deflating again costs CPU for ~0%
-savings. We pick ``ZIP_DEFLATED`` for plain text/JSON and ``ZIP_STORED``
-for anything already-compressed (``.gz``, ``.zst``) or already-binary
-(``.pdf``, ``.duckdb``).
+Why per-entry compression: ``data/source/processos/*.json`` compresses
+~4×, but ``data/raw/pecas/*.gz`` is already gzipped at write time (the
+content-addressed peça quartet keyed on ``sha1(url)``), so deflating
+again costs CPU for ~0% savings. We pick ``ZIP_DEFLATED`` for plain
+text/JSON and ``ZIP_STORED`` for anything already-compressed (``.gz``,
+``.zst``) or already-binary (``.pdf``, ``.rtf``, ``.duckdb``).
 
 The write is atomic: the zip lands at ``<output>.tmp`` and is renamed to
 ``<output>`` only after the central directory is closed cleanly. A crash
@@ -32,11 +32,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-DEFAULT_CASES_DIR = Path("data/cases")
-DEFAULT_PDF_CACHE_DIR = Path("data/cache/pdf")
-DEFAULT_WAREHOUSE_PATH = Path("data/warehouse/judex.duckdb")
+DEFAULT_PROCESSOS_DIR = Path("data/source/processos")
+DEFAULT_PECAS_DIR = Path("data/raw/pecas")
+DEFAULT_PECAS_TEXTO_DIR = Path("data/derived/pecas-texto")
+DEFAULT_WAREHOUSE_PATH = Path("data/derived/warehouse/judex.duckdb")
 
-_STORED_SUFFIXES = frozenset({".gz", ".zst", ".pdf", ".duckdb", ".png", ".jpg", ".jpeg"})
+_STORED_SUFFIXES = frozenset(
+    {".gz", ".zst", ".pdf", ".rtf", ".duckdb", ".png", ".jpg", ".jpeg"}
+)
 
 
 @dataclass
@@ -70,25 +73,34 @@ def make_backup(
     include_pecas: bool = True,
     include_warehouse: bool = False,
     classes: list[str] | None = None,
-    cases_dir: Path = DEFAULT_CASES_DIR,
-    pdf_cache_dir: Path = DEFAULT_PDF_CACHE_DIR,
+    processos_dir: Path = DEFAULT_PROCESSOS_DIR,
+    pecas_dir: Path = DEFAULT_PECAS_DIR,
+    pecas_texto_dir: Path = DEFAULT_PECAS_TEXTO_DIR,
     warehouse_path: Path = DEFAULT_WAREHOUSE_PATH,
     progress_every: int = 5000,
 ) -> BackupResult:
-    """Build a single ZIP containing case JSONs + (optionally) PDF peças + warehouse.
+    """Build a single ZIP containing processo JSONs + (optionally) peças + warehouse.
 
     Parameters
     ----------
     output_path
         Final ``.zip`` destination. Parent directories are created if missing.
     include_pecas
-        Bundle ``data/cache/pdf/`` (the four-file quartet per URL).
+        Bundle peça bytes (``data/raw/pecas/``) and extracted text
+        (``data/derived/pecas-texto/``). Both subtrees ship together — the
+        bytes alone aren't useful for downstream readers without the
+        already-extracted text, and the text alone is useless without the
+        provenance bytes you'd need for re-OCR.
     include_warehouse
-        Bundle ``data/warehouse/judex.duckdb``. Off by default — the warehouse
-        is regenerable in minutes from cases + cache via ``atualizar-warehouse``.
+        Bundle ``data/derived/warehouse/judex.duckdb``. Off by default —
+        the warehouse is regenerable in minutes from processos + pecas-texto
+        via ``atualizar-warehouse``.
     classes
-        Restrict the cases tree to listed STF classes (e.g. ``["HC"]``). When
-        ``None``, all classes under ``cases_dir`` are included.
+        Restrict the processos tree to listed STF classes (e.g. ``["HC"]``).
+        When ``None``, all classes under ``processos_dir`` are included.
+        Note: peça caches are sha1-keyed and shared across classes, so the
+        ``classes`` filter only narrows the processos subtree — peças always
+        ship as a complete set.
     progress_every
         Print a progress line every N files. ``0`` disables progress output.
     """
@@ -101,20 +113,21 @@ def make_backup(
     sources: list[tuple[Path, str]] = []
     if classes:
         for cls in classes:
-            sources.append((Path(cases_dir) / cls, f"data/cases/{cls}"))
+            sources.append((Path(processos_dir) / cls, f"data/source/processos/{cls}"))
     else:
-        sources.append((Path(cases_dir), "data/cases"))
+        sources.append((Path(processos_dir), "data/source/processos"))
     if include_pecas:
-        sources.append((Path(pdf_cache_dir), "data/cache/pdf"))
+        sources.append((Path(pecas_dir), "data/raw/pecas"))
+        sources.append((Path(pecas_texto_dir), "data/derived/pecas-texto"))
 
     entries = list(_iter_entries(sources))
     if include_warehouse and Path(warehouse_path).exists():
         wp = Path(warehouse_path)
-        entries.append((wp, f"data/warehouse/{wp.name}", _compress_type_for(wp)))
+        entries.append((wp, f"data/derived/warehouse/{wp.name}", _compress_type_for(wp)))
 
     started = time.monotonic()
     manifest = {
-        "schema": 1,
+        "schema": 2,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "include_pecas": include_pecas,
         "include_warehouse": include_warehouse,

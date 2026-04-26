@@ -1,25 +1,32 @@
-"""On-disk caches for PDF-derived content, keyed by URL sha1.
+"""On-disk caches for peça-derived content, keyed by URL sha1.
 
-Four parallel caches, all under `data/cache/pdf/`, all sha1(url)-keyed:
+Four parallel caches, all sha1(url)-keyed, split across two roots:
 
-- **Bytes cache** (`<sha1>.pdf.gz`): raw PDF bytes, gzip-wrapped.
-  Written by `baixar-pecas`; read by `extrair-pecas`. Splitting download
-  from extraction lets us switch OCR providers without re-hitting
-  STF's WAF.
-- **Text cache** (`<sha1>.txt.gz`): flat extracted text. Written by
-  every extractor path (pypdf, Unstructured OCR, RTF fallback). This
-  is what downstream notebooks read via `peca_cache.read(url)`.
-- **Elements cache** (`<sha1>.elements.json.gz`): structured element
-  list from OCR providers (each element has `type`, `text`, `metadata`,
-  `element_id`, …). Written by `extrair-pecas` when the provider
-  returns an element list. Absent for pypdf-sourced entries.
-- **Extractor sidecar** (`<sha1>.extractor`, plain text, no gzip):
-  the label of the extractor that produced the text. Values come from
-  the schema v4 open set ("rtf", "pypdf_plain", "pypdf_layout", "pypdf",
-  "unstructured", "mistral", "chandra"); the file is 5-20 bytes so
-  the storage overhead is noise. Read via `peca_cache.read_extractor`;
-  `None` when the sidecar is absent (pre-v4 cache entries) or the
-  extractor wasn't recorded.
+- **Bytes** under `data/raw/pecas/` (`<sha1>.<ext>.gz`, e.g. `.pdf.gz`,
+  `.rtf.gz`): raw bytes from STF, gzip-wrapped. Written by
+  `baixar-pecas`; read by `extrair-pecas`. The directory is format-
+  agnostic — the cache key is `sha1(url)` and the on-disk extension
+  reflects whatever STF served. Splitting download from extraction
+  lets us switch OCR providers without re-hitting STF's WAF.
+- **Text** under `data/derived/pecas-texto/<sha1>.txt.gz`: flat
+  extracted text. Written by every extractor path (pypdf, Unstructured
+  OCR, RTF fallback). This is what downstream notebooks read via
+  `peca_cache.read(url)`.
+- **Elements** under `data/derived/pecas-texto/<sha1>.elements.json.gz`:
+  structured element list from OCR providers (each element has `type`,
+  `text`, `metadata`, `element_id`, …). Written by `extrair-pecas` when
+  the provider returns an element list. Absent for pypdf-sourced entries.
+- **Extractor sidecar** under `data/derived/pecas-texto/<sha1>.extractor`
+  (plain text, no gzip): the label of the extractor that produced the
+  text. Values come from the schema v4 open set ("rtf", "pypdf_plain",
+  "pypdf_layout", "pypdf", "unstructured", "mistral", "chandra"); the
+  file is 5-20 bytes so the storage overhead is noise. Read via
+  `peca_cache.read_extractor`; `None` when the sidecar is absent
+  (pre-v4 cache entries) or the extractor wasn't recorded.
+
+The bytes-vs-text split mirrors the deletion-cost taxonomy: re-fetching
+bytes from STF takes hours plus proxy budget (`raw/`); re-extracting
+text from cached bytes is local and fast (`derived/`).
 
 The caches are independent — writing to one doesn't populate the
 others. Consumers that need boilerplate-free or section-aware text
@@ -48,7 +55,8 @@ def _atomic_write(path: Path, payload: bytes) -> None:
     tmp.write_bytes(payload)
     os.replace(tmp, path)
 
-CACHE_ROOT: Path = Path("data/cache/pdf")
+PECAS_ROOT: Path = Path("data/raw/pecas")
+TEXTO_ROOT: Path = Path("data/derived/pecas-texto")
 
 
 def _hash(url: str) -> str:
@@ -56,19 +64,19 @@ def _hash(url: str) -> str:
 
 
 def _text_path(url: str) -> Path:
-    return CACHE_ROOT / f"{_hash(url)}.txt.gz"
+    return TEXTO_ROOT / f"{_hash(url)}.txt.gz"
 
 
 def _elements_path(url: str) -> Path:
-    return CACHE_ROOT / f"{_hash(url)}.elements.json.gz"
+    return TEXTO_ROOT / f"{_hash(url)}.elements.json.gz"
 
 
 def _extractor_path(url: str) -> Path:
-    return CACHE_ROOT / f"{_hash(url)}.extractor"
+    return TEXTO_ROOT / f"{_hash(url)}.extractor"
 
 
 def _bytes_path(url: str) -> Path:
-    return CACHE_ROOT / f"{_hash(url)}.pdf.gz"
+    return PECAS_ROOT / f"{_hash(url)}.pdf.gz"
 
 
 def has_text(url: str) -> bool:

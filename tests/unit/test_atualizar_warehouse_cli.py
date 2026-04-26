@@ -58,8 +58,8 @@ def test_atualizar_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
 
     result = CliRunner().invoke(app, [
         "atualizar-warehouse",
-        "--diretorio-casos", str(cases),
-        "--diretorio-cache-pdf", str(pdfs),
+        "--diretorio-processos", str(cases),
+        "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
     ])
 
@@ -81,8 +81,8 @@ def test_atualizar_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> N
 
     result = CliRunner().invoke(app, [
         "atualizar-warehouse",
-        "--diretorio-casos", str(cases),
-        "--diretorio-cache-pdf", str(pdfs),
+        "--diretorio-processos", str(cases),
+        "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
         "--classe", "HC",
     ])
@@ -103,8 +103,8 @@ def test_atualizar_warehouse_year_requires_classe_hc(tmp_path: Path) -> None:
 
     result = CliRunner().invoke(app, [
         "atualizar-warehouse",
-        "--diretorio-casos", str(cases),
-        "--diretorio-cache-pdf", str(pdfs),
+        "--diretorio-processos", str(cases),
+        "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
         "--ano", "2020",
     ])
