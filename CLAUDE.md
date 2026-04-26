@@ -135,7 +135,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 
 ## Conventions
 
-- **Branch + PR for every change.** Never commit directly to `main`. Branch off latest `main` (prefix by intent: `feat/`, `fix/`, `refactor/`, `chore/`, `docs/`), commit there, push, open a PR via `gh pr create --base main`, and merge only after review (CI green + at least one approval, or self-review for solo work). One logical change per PR — keep the diff small enough that a reviewer can hold it in their head. Split unrelated changes onto separate branches even if you spotted them in the same session.
+- **`dev` is the trunk; `main` is promote-only.** Commit directly to `dev` for all routine work; never commit to `main`. Branch off `dev` only when a change is risky / experimental enough to warrant isolation (large refactor, work that might be abandoned). Promote `dev → main` at the end of each working session, or when `dev` is more than ~10 commits ahead of `main` — whichever comes first — via `gh pr create --base main --head dev` and `gh pr merge --squash`. Each promotion becomes one commit on `main`; the squash message is the session's narrative. After merge, reset `dev` to match: `git fetch origin && git reset --hard origin/main && git push --force-with-lease origin dev`. The force-push is safe — `dev` is the solo trunk, `main` is the protected canonical line.
 - **No backwards-compat shims.** Change the call sites + tests.
 - **Always use code for non-trivial arithmetic** — `uv run python -c "..."`. Never mental math; numbers get quoted downstream.
 - **Keep files focused.** `scraper.py` past ~600 lines → split by concern.
