@@ -965,12 +965,50 @@ def _run_passes(
     )
 
 
-def main(argv: list[str]) -> int:
-    args = parse_args(argv)
+def run_process_sweep(
+    *,
+    label: str,
+    out: Path,
+    csv: Path | None = None,
+    parity_dir: Path | None = None,
+    parity_csv: Path | None = None,
+    warm_pass: bool = False,
+    wipe_cache: bool = False,
+    resume: bool = False,
+    retry_from: Path | None = None,
+    progress_every: int = 25,
+    retry_403: bool = True,
+    circuit_window: int = 50,
+    circuit_threshold: float = 0.8,
+    items_dir: Path | None = None,
+    cliff_window: int = 50,
+    no_stop_on_collapse: bool = False,
+    proxy_pool: Path | None = None,
+    proxy_rotate_seconds: float = 270.0,
+    proxy_cooldown_minutes: float = 4.0,
+) -> int:
+    if retry_from is None and csv is None:
+        print("error: either csv or retry_from is required", file=sys.stderr)
+        return 2
+
+    args = argparse.Namespace(
+        label=label, out=out, csv=csv,
+        parity_dir=parity_dir, parity_csv=parity_csv,
+        warm_pass=warm_pass, wipe_cache=wipe_cache, resume=resume,
+        retry_from=retry_from, progress_every=progress_every,
+        retry_403=retry_403,
+        circuit_window=circuit_window, circuit_threshold=circuit_threshold,
+        items_dir=items_dir,
+        cliff_window=cliff_window, no_stop_on_collapse=no_stop_on_collapse,
+        proxy_pool=proxy_pool,
+        proxy_rotate_seconds=proxy_rotate_seconds,
+        proxy_cooldown_minutes=proxy_cooldown_minutes,
+    )
+
     rows, input_source = _load_rows(args)
     if args.wipe_cache:
         _wipe_html_caches(rows)
-    parity_csv, parity_source = _resolve_parity(args)
+    parity_csv_data, parity_source = _resolve_parity(args)
 
     store = SweepStore(args.out)
     counter = install_retry_counter()
@@ -989,7 +1027,7 @@ def main(argv: list[str]) -> int:
     )
 
     outcome = _run_passes(
-        args, rows, parity_csv, store, counter, config, started, pool=pool
+        args, rows, parity_csv_data, store, counter, config, started, pool=pool
     )
 
     finished = datetime.now(timezone.utc)
@@ -1040,6 +1078,11 @@ def main(argv: list[str]) -> int:
         return 2
     n_error = totals["error"] + totals["fail"]
     return 0 if n_error == 0 else 1
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    return run_process_sweep(**vars(args))
 
 
 if __name__ == "__main__":

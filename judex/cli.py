@@ -512,25 +512,25 @@ def varrer_processos(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    argv: list[str] = ["--label", rotulo, "--out", str(saida)]
-    _push(argv, "--csv", csv)
-    _push(argv, "--parity-dir", gabarito_dir)
-    _push(argv, "--parity-csv", paridade_csv)
-    _push(argv, "--warm-pass", passagem_quente)
-    _push(argv, "--wipe-cache", limpar_cache)
-    _push(argv, "--resume", retomar)
-    _push(argv, "--retry-from", retentar_de)
-    _push(argv, "--progress-every", progresso_cada)
-    if not retry_403:  # argparse do script usa a negação --no-retry-403
-        argv.append("--no-retry-403")
-    _push(argv, "--items-dir", diretorio_itens)
-    _push(argv, "--cliff-window", janela_cliff)
-    _push(argv, "--no-stop-on-collapse", ignorar_collapse)
-    _push(argv, "--proxy-pool", proxy_pool)
+    from scripts.run_sweep import run_process_sweep
 
-    from scripts.run_sweep import main as _run_sweep_main
-
-    raise typer.Exit(code=_run_sweep_main(argv))
+    raise typer.Exit(code=run_process_sweep(
+        label=rotulo,
+        out=saida,
+        csv=csv,
+        parity_dir=gabarito_dir,
+        parity_csv=paridade_csv,
+        warm_pass=passagem_quente,
+        wipe_cache=limpar_cache,
+        resume=retomar,
+        retry_from=retentar_de,
+        progress_every=progresso_cada,
+        retry_403=retry_403,
+        items_dir=diretorio_itens,
+        cliff_window=janela_cliff,
+        no_stop_on_collapse=ignorar_collapse,
+        proxy_pool=proxy_pool,
+    ))
 
 
 # ---------------------------------------------------------------------------
