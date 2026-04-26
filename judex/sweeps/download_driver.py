@@ -222,30 +222,36 @@ def run_download_sweep(
                 + (f" ({error})" if error else "")
             )
 
+        # Observe first so the regime stamped on this record includes its
+        # own contribution to the rolling window — the cliff-trigger record
+        # then carries the cliff label, not the prior-window-only label.
+        detector.observe(status, wall, http_status=http_status)
+        reading = detector.regime()
+
         store.record(_make_record(
             tgt, status=status, error=error, error_type=error_type,
             http_status=http_status, extractor="bytes",
             chars=len(body) if body is not None else None,
             wall_s=round(wall, 3),
             attempt=store.attempt_count(tgt.url) + 1,
+            reading=reading,
         ))
 
-        detector.observe(status, wall, http_status=http_status)
-        regime = detector.regime()
-        if regime != last_regime["value"]:
+        if reading.label != last_regime["value"]:
             print(
-                f"  [regime] {last_regime['value']} → {regime}"
-                f"  (see docs/rate-limits.md § Wall taxonomy)",
+                f"  [regime] {last_regime['value']} → {reading.label}"
+                f"  (fail_rate={reading.fail_rate:.2f} p95={reading.p95_wall_s:.1f}s "
+                f"by={reading.promoted_by}; see docs/rate-limits.md § Wall taxonomy)",
                 flush=True,
             )
-            last_regime["value"] = regime
+            last_regime["value"] = reading.label
 
         if pool_active:
             elapsed_on_proxy = time.monotonic() - session_holder["started_at"]
             rotate_reason: Optional[str] = None
             if elapsed_on_proxy > proxy_rotate_seconds:
                 rotate_reason = f"time>{proxy_rotate_seconds:.0f}s"
-            elif regime == "approaching_collapse" and elapsed_on_proxy > 30.0:
+            elif reading.label == "approaching_collapse" and elapsed_on_proxy > 30.0:
                 rotate_reason = "approaching_collapse"
             if rotate_reason is not None:
                 rotate_session(reason=rotate_reason)
@@ -333,6 +339,7 @@ def _make_record(
     http_status: Optional[int] = None,
     extractor: Optional[str] = None,
     chars: Optional[int] = None,
+    reading: Optional[_shared.RegimeReading] = None,
 ) -> PecaAttemptRecord:
     return PecaAttemptRecord(
         ts=datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -349,6 +356,10 @@ def _make_record(
         classe=tgt.classe,
         doc_type=tgt.doc_type,
         context=tgt.context,
+        regime=reading.label if reading is not None else None,
+        regime_fail_rate=reading.fail_rate if reading is not None else None,
+        regime_p95_wall_s=reading.p95_wall_s if reading is not None else None,
+        regime_promoted_by=reading.promoted_by if reading is not None else None,
     )
 
 

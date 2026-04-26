@@ -43,6 +43,13 @@ class PecaAttemptRecord:
     classe: Optional[str] = None
     doc_type: Optional[str] = None
     context: dict[str, Any] = field(default_factory=dict)
+    # CliffDetector reading at the moment the record was written. None on
+    # bytes-cache fast-path rows (no HTTP, no WAF measurement). On real
+    # download attempts, includes the current observation — see download_driver.py.
+    regime: Optional[str] = None
+    regime_fail_rate: Optional[float] = None
+    regime_p95_wall_s: Optional[float] = None
+    regime_promoted_by: Optional[str] = None  # "warming"|"axis_a"|"axis_b"|"both"|"default"
 
 
 def _state_key_from_rec(rec: dict[str, Any]) -> str:

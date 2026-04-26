@@ -126,6 +126,88 @@ def test_http_error_classified_and_recorded(tmp_path: Path) -> None:
     assert "nope" in snap["error"]
 
 
+def test_record_carries_regime_diagnostics_after_observe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each downloaded record stamps the CliffDetector reading at the moment
+    of the observation: label + fail_rate + p95_wall_s + promoted_by. Lets a
+    one-line jq query reconstruct cliff trajectory from pdfs.log.jsonl alone.
+    """
+    clock = [1000.0]
+    monkeypatch.setattr(
+        "judex.sweeps.download_driver.time.perf_counter", lambda: clock[0]
+    )
+
+    def getter(session, target, config):
+        clock[0] += 1.0  # 1 s wall per record → p95 = 1.0
+        return b"pdf"
+
+    run_download_sweep(
+        [_target(f"https://x.test/{i}.pdf") for i in range(55)],
+        **_kwargs(tmp_path / "sweep", getter=getter, cliff_window=50),
+    )
+
+    last = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/54.pdf"]
+    # 55 ok records all 1 s → fail_rate=0, p95=1.0 → under_utilising via default.
+    assert last["regime"] == "under_utilising"
+    assert last["regime_fail_rate"] == 0.0
+    assert last["regime_p95_wall_s"] == 1.0
+    assert last["regime_promoted_by"] == "default"
+
+
+def test_record_regime_reflects_its_own_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The regime stamped on a record includes that record's own observation —
+    so the record where a cliff first manifests carries the cliff label, not
+    the prior-window-only label. Pins the observe → regime → write order.
+    """
+    clock = [1000.0]
+    monkeypatch.setattr(
+        "judex.sweeps.download_driver.time.perf_counter", lambda: clock[0]
+    )
+
+    walls = [1.0] * 50 + [35.0] * 5  # 50 fast OK, then 5 slow OK → axis B trips
+    call_idx = [0]
+
+    def getter(session, target, config):
+        clock[0] += walls[call_idx[0]]
+        call_idx[0] += 1
+        return b"pdf"
+
+    run_download_sweep(
+        [_target(f"https://x.test/{i}.pdf") for i in range(55)],
+        **_kwargs(tmp_path / "sweep", getter=getter, cliff_window=50),
+    )
+
+    # Final-window content: records 5..54 → 45 × 1.0s + 5 × 35.0s.
+    # int(0.95 * 50) = 47; sorted-window[47] = 35.0 → axis B (>30) promotes.
+    last = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/54.pdf"]
+    assert last["regime"] == "approaching_collapse"
+    assert last["regime_promoted_by"] == "axis_b"
+    assert last["regime_p95_wall_s"] >= 30
+
+
+def test_cached_hit_record_has_no_regime(tmp_path: Path) -> None:
+    """Bytes-cache fast path doesn't observe the detector — record's regime
+    fields stay None to signal 'this row didn't measure WAF behavior'.
+    Filtering with `select(.regime != null)` then isolates real HTTP attempts.
+    """
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 prior")
+
+    run_download_sweep(
+        [_target("https://x.test/a.pdf")],
+        **_kwargs(tmp_path / "sweep", getter=lambda *_a: b"unused"),
+    )
+
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/a.pdf"]
+    assert snap["status"] == "cached"
+    assert snap.get("regime") is None
+    assert snap.get("regime_fail_rate") is None
+    assert snap.get("regime_p95_wall_s") is None
+    assert snap.get("regime_promoted_by") is None
+
+
 def test_retomar_skips_already_ok(tmp_path: Path) -> None:
     """Second run with resume=True never calls the getter for URLs
     already in state=ok. Bytes cache is irrelevant here — state wins.
