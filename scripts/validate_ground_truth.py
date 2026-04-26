@@ -41,7 +41,7 @@ def _split_filename(path: Path) -> tuple[str, int]:
     return m.group(1), int(m.group(2))
 
 
-def main() -> int:
+def run_validate_ground_truth() -> int:
     fixtures = sorted(Path("tests/ground_truth").glob("*.json"))
     if not fixtures:
         print("no fixtures found under tests/ground_truth/")
@@ -88,4 +88,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_validate_ground_truth())
