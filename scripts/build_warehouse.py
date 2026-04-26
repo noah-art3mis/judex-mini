@@ -20,6 +20,62 @@ from pathlib import Path
 from judex.warehouse import builder
 
 
+def run_build_warehouse(
+    *,
+    cases_root: Path = Path("data/cases"),
+    pdf_cache_root: Path = Path("data/cache/pdf"),
+    output: Path = Path("data/warehouse/judex.duckdb"),
+    classe: list[str] | None = None,
+    year: int | None = None,
+    progress_every: int = 10_000,
+    strict: bool = False,
+) -> int:
+    id_range = None
+    if year is not None:
+        if classe != ["HC"]:
+            print("ERROR: --year requires --classe HC (calendar is HC-only)")
+            return 2
+        from judex.utils.hc_calendar import year_to_id_range
+        id_range = year_to_id_range(year)
+        print(f"  year {year} → id_range {id_range[0]}..{id_range[1]}")
+
+    print(f"building warehouse → {output}")
+    print(f"  cases   from {cases_root}")
+    print(f"  pdfs    from {pdf_cache_root}")
+    if classe:
+        print(f"  classes {classe}")
+
+    try:
+        summary = builder.build(
+            cases_root=cases_root,
+            pdf_cache_root=pdf_cache_root,
+            output_path=output,
+            classes=classe,
+            id_range=id_range,
+            progress_every=progress_every,
+            strict=strict,
+        )
+    except builder.BuildValidationError as e:
+        # `strict=True` raises *after* writing the warehouse file + printing
+        # stats — so the user sees what failed. Return non-zero so CI / any
+        # scheduled rebuild catches the regression.
+        print(f"\nERROR: {e}")
+        return 2
+
+    size_mb = output.stat().st_size / 1024**2
+    print()
+    print(f"done in {summary.wall_s:.1f}s → {size_mb:.1f} MB")
+    print(f"  cases             {summary.n_cases:>10,}")
+    print(f"  partes            {summary.n_partes:>10,}")
+    print(f"  andamentos        {summary.n_andamentos:>10,}")
+    print(f"  documentos        {summary.n_documentos:>10,}")
+    print(f"  pautas            {summary.n_pautas:>10,}")
+    print(f"  publicacoes_dje   {summary.n_publicacoes_dje:>10,}")
+    print(f"  decisoes_dje      {summary.n_decisoes_dje:>10,}")
+    print(f"  pdfs              {summary.n_pdfs:>10,}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--cases-root", type=Path, default=Path("data/cases"))
@@ -43,50 +99,7 @@ def main(argv: list[str] | None = None) -> int:
              "Thresholds live in judex.warehouse.builder.MIN_POPULATION_RATES."
     )
     args = parser.parse_args(argv)
-
-    id_range = None
-    if args.year is not None:
-        if args.classe != ["HC"]:
-            parser.error("--year requires --classe HC (calendar is HC-only)")
-        from judex.utils.hc_calendar import year_to_id_range
-        id_range = year_to_id_range(args.year)
-        print(f"  year {args.year} → id_range {id_range[0]}..{id_range[1]}")
-
-    print(f"building warehouse → {args.output}")
-    print(f"  cases   from {args.cases_root}")
-    print(f"  pdfs    from {args.pdf_cache_root}")
-    if args.classe:
-        print(f"  classes {args.classe}")
-
-    try:
-        summary = builder.build(
-            cases_root=args.cases_root,
-            pdf_cache_root=args.pdf_cache_root,
-            output_path=args.output,
-            classes=args.classe,
-            id_range=id_range,
-            progress_every=args.progress_every,
-            strict=args.strict,
-        )
-    except builder.BuildValidationError as e:
-        # `strict=True` raises *after* writing the warehouse file + printing
-        # stats — so the user sees what failed. Return non-zero so CI / any
-        # scheduled rebuild catches the regression.
-        print(f"\nERROR: {e}")
-        return 2
-
-    size_mb = args.output.stat().st_size / 1024**2
-    print()
-    print(f"done in {summary.wall_s:.1f}s → {size_mb:.1f} MB")
-    print(f"  cases             {summary.n_cases:>10,}")
-    print(f"  partes            {summary.n_partes:>10,}")
-    print(f"  andamentos        {summary.n_andamentos:>10,}")
-    print(f"  documentos        {summary.n_documentos:>10,}")
-    print(f"  pautas            {summary.n_pautas:>10,}")
-    print(f"  publicacoes_dje   {summary.n_publicacoes_dje:>10,}")
-    print(f"  decisoes_dje      {summary.n_decisoes_dje:>10,}")
-    print(f"  pdfs              {summary.n_pdfs:>10,}")
-    return 0
+    return run_build_warehouse(**vars(args))
 
 
 if __name__ == "__main__":

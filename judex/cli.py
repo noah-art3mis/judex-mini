@@ -867,21 +867,17 @@ def atualizar_warehouse(
     Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
     quiser ver os dados novos nos notebooks / em SQL.
     """
-    argv: list[str] = []
-    _push(argv, "--cases-root", diretorio_casos)
-    _push(argv, "--pdf-cache-root", diretorio_cache_pdf)
-    _push(argv, "--output", saida)
-    if classe:
-        for c in classe:
-            argv.extend(["--classe", c])
-    _push(argv, "--year", ano)
-    _push(argv, "--progress-every", progresso_cada)
-    if estrito:
-        argv.append("--strict")
+    from scripts.build_warehouse import run_build_warehouse
 
-    from scripts.build_warehouse import main as _bw_main
-
-    raise typer.Exit(code=_bw_main(argv))
+    raise typer.Exit(code=run_build_warehouse(
+        cases_root=diretorio_casos,
+        pdf_cache_root=diretorio_cache_pdf,
+        output=saida,
+        classe=classe,
+        year=ano,
+        progress_every=progresso_cada,
+        strict=estrito,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -961,15 +957,15 @@ def analisar_regimes(
     monitoramento ao vivo) por ler o log append-only e responder
     perguntas históricas.
     """
-    argv: list[str] = [str(run_dir)]
-    _push(argv, "--apenas-transicoes", apenas_transicoes)
-    _push(argv, "--filtrar", filtrar)
-    _push(argv, "--limite", limite)
-    _push(argv, "--json", json_out)
+    from scripts.analyze_regimes import run_analyze_regimes
 
-    from scripts.analyze_regimes import main as _analyze_main
-
-    raise typer.Exit(code=_analyze_main(argv))
+    raise typer.Exit(code=run_analyze_regimes(
+        run_dir=run_dir,
+        apenas_transicoes=apenas_transicoes,
+        filtrar=filtrar,
+        limite=limite,
+        json_out=json_out,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -985,9 +981,9 @@ def validar_gabarito() -> None:
     o resumo final. Atinge o portal do STF na primeira execução; o
     cache HTML absorve as chamadas seguintes.
     """
-    from scripts.validate_ground_truth import main as _vgt_main
+    from scripts.validate_ground_truth import run_validate_ground_truth
 
-    raise typer.Exit(code=_vgt_main())
+    raise typer.Exit(code=run_validate_ground_truth())
 
 
 # ---------------------------------------------------------------------------
@@ -1030,24 +1026,18 @@ def relatorio_diario(
     ),
 ) -> None:
     """Gera o relatório diário de novas distribuições."""
-    argv: list[str] = ["daily_report", "--class", classe]
-    _push(argv, "--state-file", arquivo_estado)
-    _push(argv, "--out-dir", saida)
-    _push(argv, "--proxy-pool", proxy_pool)
-    _push(argv, "--stop-after-misses", paradas_apos_misses)
-    _push(argv, "--seed-from-warehouse", semente_warehouse)
-    _push(argv, "--watchlist", arquivo_lista)
-    _push(argv, "--snapshot-root", raiz_snapshots)
+    from scripts.daily_report import run_daily_report
 
-    from scripts import daily_report as _dr
-
-    argv_original = sys.argv
-    sys.argv = argv
-    try:
-        code = _dr.main()
-    finally:
-        sys.argv = argv_original
-    raise typer.Exit(code=code or 0)
+    raise typer.Exit(code=run_daily_report(
+        classe=classe,
+        state_file=arquivo_estado,
+        out_dir=saida,
+        proxy_pool=proxy_pool,
+        stop_after_misses=paradas_apos_misses,
+        seed_from_warehouse=semente_warehouse,
+        watchlist=arquivo_lista,
+        snapshot_root=raiz_snapshots,
+    ) or 0)
 
 
 if __name__ == "__main__":
