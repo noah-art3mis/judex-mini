@@ -64,26 +64,24 @@ def _now_iso() -> str:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--class", dest="classe", default="HC",
-                        help="Class to track (e.g. HC, ADI, ADPF). Default: HC.")
-    parser.add_argument("--state-file", type=Path,
-                        default=Path("state/daily_report.json"))
-    parser.add_argument("--out-dir", type=Path,
-                        default=Path("docs/reports/daily"))
-    parser.add_argument("--proxy-pool", type=Path, default=None,
-                        help="File with proxy URLs, one per line.")
-    parser.add_argument("--stop-after-misses", type=int, default=20)
-    parser.add_argument("--max-probes", type=int, default=1000)
-    parser.add_argument("--seed-from-warehouse", action="store_true",
-                        help="If state has no mark for --class, seed it from the warehouse.")
-    parser.add_argument("--watchlist", type=Path, default=None,
-                        help="Text file with one 'CLASSE NUMERO' per line; re-scrape and diff.")
-    parser.add_argument("--snapshot-root", type=Path,
-                        default=Path("state/watchlist"),
-                        help="Where per-case watch snapshots are read/written.")
-    args = parser.parse_args(argv)
+def run_daily_report(
+    *,
+    classe: str = "HC",
+    state_file: Path = Path("state/daily_report.json"),
+    out_dir: Path = Path("docs/reports/daily"),
+    proxy_pool: Path | None = None,
+    stop_after_misses: int = 20,
+    max_probes: int = 1000,
+    seed_from_warehouse: bool = False,
+    watchlist: Path | None = None,
+    snapshot_root: Path = Path("state/watchlist"),
+) -> int:
+    args = argparse.Namespace(
+        classe=classe, state_file=state_file, out_dir=out_dir,
+        proxy_pool=proxy_pool, stop_after_misses=stop_after_misses,
+        max_probes=max_probes, seed_from_warehouse=seed_from_warehouse,
+        watchlist=watchlist, snapshot_root=snapshot_root,
+    )
 
     logging.basicConfig(
         level=logging.INFO,
@@ -194,6 +192,29 @@ def main(argv: list[str] | None = None) -> int:
     logging.info("updated state → %s", args.state_file)
 
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--class", dest="classe", default="HC",
+                        help="Class to track (e.g. HC, ADI, ADPF). Default: HC.")
+    parser.add_argument("--state-file", type=Path,
+                        default=Path("state/daily_report.json"))
+    parser.add_argument("--out-dir", type=Path,
+                        default=Path("docs/reports/daily"))
+    parser.add_argument("--proxy-pool", type=Path, default=None,
+                        help="File with proxy URLs, one per line.")
+    parser.add_argument("--stop-after-misses", type=int, default=20)
+    parser.add_argument("--max-probes", type=int, default=1000)
+    parser.add_argument("--seed-from-warehouse", action="store_true",
+                        help="If state has no mark for --class, seed it from the warehouse.")
+    parser.add_argument("--watchlist", type=Path, default=None,
+                        help="Text file with one 'CLASSE NUMERO' per line; re-scrape and diff.")
+    parser.add_argument("--snapshot-root", type=Path,
+                        default=Path("state/watchlist"),
+                        help="Where per-case watch snapshots are read/written.")
+    args = parser.parse_args(argv)
+    return run_daily_report(**vars(args))
 
 
 if __name__ == "__main__":

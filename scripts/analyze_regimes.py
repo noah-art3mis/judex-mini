@@ -306,20 +306,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+def run_analyze_regimes(
+    *,
+    run_dir: Path,
+    apenas_transicoes: bool = False,
+    filtrar: Optional[str] = None,
+    limite: int = 50,
+    json_out: bool = False,
+) -> int:
     try:
-        kind, log_path = detect_log_kind(args.run_dir)
+        kind, log_path = detect_log_kind(run_dir)
     except FileNotFoundError as e:
         sys.stderr.write(f"error: {e}\n")
         return 2
 
     events = list(iter_regime_events(log_path))
-    if args.filtrar is not None:
-        events = [e for e in events if e.regime == args.filtrar]
+    if filtrar is not None:
+        events = [e for e in events if e.regime == filtrar]
 
-    if args.json_out:
-        stream = list(only_transitions(events)) if args.apenas_transicoes else events
+    if json_out:
+        stream = list(only_transitions(events)) if apenas_transicoes else events
         _render_json(stream)
         return 0
 
@@ -327,15 +333,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     cliffs = cliff_first_seen(events)
     summary = summarize(events)
     _render_human(
-        run_dir=args.run_dir,
+        run_dir=run_dir,
         kind=kind,
         events=events,
         transitions=transitions,
         cliffs=cliffs,
         summary=summary,
-        limit=args.limite,
+        limit=limite,
     )
     return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    args = parse_args(argv if argv is not None else sys.argv[1:])
+    return run_analyze_regimes(**vars(args))
 
 
 if __name__ == "__main__":

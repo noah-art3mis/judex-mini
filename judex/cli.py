@@ -21,7 +21,6 @@ Exemplos:
         --provedor mistral --nao-perguntar                     # OCR a partir do cache
     uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
     uv run judex exportar --apenas hc_famous_lawyers
-    uv run judex sondar-densidade --classe HC --amostras 20
 """
 
 from __future__ import annotations
@@ -513,63 +512,30 @@ def varrer_processos(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    argv: list[str] = ["--label", rotulo, "--out", str(saida)]
-    _push(argv, "--csv", csv)
-    _push(argv, "--parity-dir", gabarito_dir)
-    _push(argv, "--parity-csv", paridade_csv)
-    _push(argv, "--warm-pass", passagem_quente)
-    _push(argv, "--wipe-cache", limpar_cache)
-    _push(argv, "--resume", retomar)
-    _push(argv, "--retry-from", retentar_de)
-    _push(argv, "--progress-every", progresso_cada)
-    if not retry_403:  # argparse do script usa a negação --no-retry-403
-        argv.append("--no-retry-403")
-    _push(argv, "--items-dir", diretorio_itens)
-    _push(argv, "--cliff-window", janela_cliff)
-    _push(argv, "--no-stop-on-collapse", ignorar_collapse)
-    _push(argv, "--proxy-pool", proxy_pool)
+    from scripts.run_sweep import run_process_sweep
 
-    from scripts.run_sweep import main as _run_sweep_main
-
-    raise typer.Exit(code=_run_sweep_main(argv))
+    raise typer.Exit(code=run_process_sweep(
+        label=rotulo,
+        out=saida,
+        csv=csv,
+        parity_dir=gabarito_dir,
+        parity_csv=paridade_csv,
+        warm_pass=passagem_quente,
+        wipe_cache=limpar_cache,
+        resume=retomar,
+        retry_from=retentar_de,
+        progress_every=progresso_cada,
+        retry_403=retry_403,
+        items_dir=diretorio_itens,
+        cliff_window=janela_cliff,
+        no_stop_on_collapse=ignorar_collapse,
+        proxy_pool=proxy_pool,
+    ))
 
 
 # ---------------------------------------------------------------------------
 # `baixar-pecas` — baixa os PDFs brutos para o cache local
 # `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
-
-
-def _argv_pdf_common(
-    *,
-    classe: Optional[str], inicio: Optional[int], fim: Optional[int],
-    csv: Optional[Path], retentar_de: Optional[Path],
-    impte_contem: str, tipos_doc: str,
-    relator_contem: str, excluir_tipos_doc: str, limite: int,
-    saida: Optional[Path], dry_run: bool, nao_perguntar: bool,
-    retomar: bool,
-    apenas_substantivas: bool = True,
-) -> list[str]:
-    """Montar a parte comum de argv para baixar-pecas e extrair-pecas."""
-    a: list[str] = []
-    _push(a, "-c", classe)
-    _push(a, "-i", inicio)
-    _push(a, "-f", fim)
-    _push(a, "--csv", csv)
-    _push(a, "--retentar-de", retentar_de)
-    _push(a, "--impte-contem", impte_contem)
-    _push(a, "--tipos-doc", tipos_doc)
-    _push(a, "--relator-contem", relator_contem)
-    _push(a, "--excluir-tipos-doc", excluir_tipos_doc)
-    _push(a, "--limite", limite)
-    _push(a, "--saida", saida)
-    _push(a, "--dry-run", dry_run)
-    _push(a, "--nao-perguntar", nao_perguntar)
-    _push(a, "--retomar", retomar)
-    if apenas_substantivas:
-        a.append("--apenas-substantivas")
-    else:
-        a.append("--todos-tipos")
-    return a
 
 
 @app.command(name="baixar-pecas")
@@ -731,20 +697,17 @@ def baixar_pecas(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    argv = _argv_pdf_common(
+    from scripts.baixar_pecas import run_download_pecas
+    raise typer.Exit(code=run_download_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, saida=saida, dry_run=dry_run,
+        limite=limite, apenas_substantivas=apenas_substantivas,
+        saida=saida, forcar=forcar, dry_run=dry_run,
         nao_perguntar=nao_perguntar, retomar=retomar,
-        apenas_substantivas=apenas_substantivas,
-    )
-    _push(argv, "--forcar", forcar)
-    _push(argv, "--proxy-pool", proxy_pool)
-
-    from scripts.baixar_pecas import main as _baixar_main
-    raise typer.Exit(code=_baixar_main(argv))
+        proxy_pool=proxy_pool,
+    ))
 
 
 @app.command(name="extrair-pecas")
@@ -802,20 +765,16 @@ def extrair_pecas(
 
     Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
-    argv = _argv_pdf_common(
+    from scripts.extrair_pecas import run_extract_pecas
+    raise typer.Exit(code=run_extract_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
         impte_contem=impte_contem, tipos_doc=tipos_doc,
         relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, saida=saida, dry_run=dry_run,
-        nao_perguntar=nao_perguntar, retomar=retomar,
-        apenas_substantivas=apenas_substantivas,
-    )
-    _push(argv, "--provedor", provedor)
-    _push(argv, "--forcar", forcar)
-
-    from scripts.extrair_pecas import main as _extrair_main
-    raise typer.Exit(code=_extrair_main(argv))
+        limite=limite, apenas_substantivas=apenas_substantivas,
+        provedor=provedor, forcar=forcar, saida=saida,
+        dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -868,21 +827,17 @@ def atualizar_warehouse(
     Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
     quiser ver os dados novos nos notebooks / em SQL.
     """
-    argv: list[str] = []
-    _push(argv, "--cases-root", diretorio_casos)
-    _push(argv, "--pdf-cache-root", diretorio_cache_pdf)
-    _push(argv, "--output", saida)
-    if classe:
-        for c in classe:
-            argv.extend(["--classe", c])
-    _push(argv, "--year", ano)
-    _push(argv, "--progress-every", progresso_cada)
-    if estrito:
-        argv.append("--strict")
+    from scripts.build_warehouse import run_build_warehouse
 
-    from scripts.build_warehouse import main as _bw_main
-
-    raise typer.Exit(code=_bw_main(argv))
+    raise typer.Exit(code=run_build_warehouse(
+        cases_root=diretorio_casos,
+        pdf_cache_root=diretorio_cache_pdf,
+        output=saida,
+        classe=classe,
+        year=ano,
+        progress_every=progresso_cada,
+        strict=estrito,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -911,13 +866,9 @@ def probe_cmd(
     — gerado automaticamente pelo launcher de `varrer-processos
     --shards`.
     """
-    argv: list[str] = []
-    _push(argv, "--out-root", out_root)
-    _push(argv, "--watch", watch)
+    from scripts.probe_sharded import run_probe
 
-    from scripts.probe_sharded import main as _probe_main
-
-    raise typer.Exit(code=_probe_main(argv))
+    raise typer.Exit(code=run_probe(out_root=out_root, watch=watch))
 
 
 # ---------------------------------------------------------------------------
@@ -966,15 +917,15 @@ def analisar_regimes(
     monitoramento ao vivo) por ler o log append-only e responder
     perguntas históricas.
     """
-    argv: list[str] = [str(run_dir)]
-    _push(argv, "--apenas-transicoes", apenas_transicoes)
-    _push(argv, "--filtrar", filtrar)
-    _push(argv, "--limite", limite)
-    _push(argv, "--json", json_out)
+    from scripts.analyze_regimes import run_analyze_regimes
 
-    from scripts.analyze_regimes import main as _analyze_main
-
-    raise typer.Exit(code=_analyze_main(argv))
+    raise typer.Exit(code=run_analyze_regimes(
+        run_dir=run_dir,
+        apenas_transicoes=apenas_transicoes,
+        filtrar=filtrar,
+        limite=limite,
+        json_out=json_out,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -990,56 +941,9 @@ def validar_gabarito() -> None:
     o resumo final. Atinge o portal do STF na primeira execução; o
     cache HTML absorve as chamadas seguintes.
     """
-    from scripts.validate_ground_truth import main as _vgt_main
+    from scripts.validate_ground_truth import run_validate_ground_truth
 
-    raise typer.Exit(code=_vgt_main())
-
-
-# ---------------------------------------------------------------------------
-# `sondar-densidade` — sondagem estratificada de densidade de process_id
-
-
-@app.command(name="sondar-densidade")
-def sondar_densidade(
-    classe: str = typer.Option(
-        ..., "--classe",
-        help="Código da classe do STF (HC, ADI, RE, ...).",
-    ),
-    teto: Optional[int] = typer.Option(
-        None, "--teto",
-        help="Maior process_id a considerar. Assume o teto conhecido para "
-             "HC/ADI/RE; obrigatório para outras classes.",
-    ),
-    faixas: int = typer.Option(
-        8, "--faixas",
-        help="Número de faixas (bands).",
-    ),
-    amostras: int = typer.Option(
-        15, "--amostras",
-        help="Amostras aleatórias por faixa.",
-    ),
-    pacing: float = typer.Option(
-        1.5, "--pacing",
-        help="Segundos entre sondagens.",
-    ),
-    seed: int = typer.Option(20260416, "--seed"),
-) -> None:
-    """Sondagem estratificada de densidade de process_ids por classe do STF."""
-    argv: list[str] = ["class_density_probe", "--classe", classe]
-    _push(argv, "--ceiling", teto)
-    _push(argv, "--bands", faixas)
-    _push(argv, "--samples", amostras)
-    _push(argv, "--pacing", pacing)
-    _push(argv, "--seed", seed)
-
-    from scripts import class_density_probe as _dp
-
-    argv_original = sys.argv
-    sys.argv = argv
-    try:
-        _dp.main()
-    finally:
-        sys.argv = argv_original
+    raise typer.Exit(code=run_validate_ground_truth())
 
 
 # ---------------------------------------------------------------------------
@@ -1082,24 +986,18 @@ def relatorio_diario(
     ),
 ) -> None:
     """Gera o relatório diário de novas distribuições."""
-    argv: list[str] = ["daily_report", "--class", classe]
-    _push(argv, "--state-file", arquivo_estado)
-    _push(argv, "--out-dir", saida)
-    _push(argv, "--proxy-pool", proxy_pool)
-    _push(argv, "--stop-after-misses", paradas_apos_misses)
-    _push(argv, "--seed-from-warehouse", semente_warehouse)
-    _push(argv, "--watchlist", arquivo_lista)
-    _push(argv, "--snapshot-root", raiz_snapshots)
+    from scripts.daily_report import run_daily_report
 
-    from scripts import daily_report as _dr
-
-    argv_original = sys.argv
-    sys.argv = argv
-    try:
-        code = _dr.main()
-    finally:
-        sys.argv = argv_original
-    raise typer.Exit(code=code or 0)
+    raise typer.Exit(code=run_daily_report(
+        classe=classe,
+        state_file=arquivo_estado,
+        out_dir=saida,
+        proxy_pool=proxy_pool,
+        stop_after_misses=paradas_apos_misses,
+        seed_from_warehouse=semente_warehouse,
+        watchlist=arquivo_lista,
+        snapshot_root=raiz_snapshots,
+    ) or 0)
 
 
 if __name__ == "__main__":

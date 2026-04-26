@@ -65,11 +65,13 @@ the picture.
 | `exportar`             | (in-CLI)                           | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
 | `fazer-backup`         | (in-CLI, `judex/backup.py`)        | Bundle `data/cases` + `data/cache/pdf` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
 | `validar-gabarito`     | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
-| `sondar-densidade`     | `scripts/class_density_probe.py`   | Stratified density probe of process-id space per STF class (HC, ADI, RE, …).                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
-for flag names / defaults is `judex/cli.py` (Typer decorators) + the
-underlying script's argparse.
+for flag names / defaults is `judex/cli.py` (Typer decorators); each
+script exposes a `run_X(**kwargs)` library function that the Typer
+command calls directly. The script's `main(argv) → argparse → run_X`
+shim is a thin compatibility layer so detached sweeps
+(`nohup uv run python scripts/baixar_pecas.py …`) keep working.
 
 **Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
 scrape layers support `--shards N --proxy-pool FILE` — one flat file
@@ -136,10 +138,11 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 
 ## Conventions
 
-- **`dev` is the trunk; `main` is promote-only.** Commit directly to `dev` for all routine work; never commit to `main`. Branch off `dev` only when a change is risky / experimental enough to warrant isolation (large refactor, work that might be abandoned). Promote `dev → main` at the end of each working session, or when `dev` is more than ~10 commits ahead of `main` — whichever comes first — via `gh pr create --base main --head dev` and `gh pr merge --squash`. Each promotion becomes one commit on `main`; the squash message is the session's narrative. After merge, reset `dev` to match: `git fetch origin && git reset --hard origin/main && git push --force-with-lease origin dev`. The force-push is safe — `dev` is the solo trunk, `main` is the protected canonical line.
+- **`dev` is the trunk; `main` is promote-only.** Commit directly to `dev` for all routine work; never commit to `main`. Branch off `dev` only when a change is risky / experimental enough to warrant isolation (large refactor, work that might be abandoned). **Push `dev → origin/dev` after each commit** (`git push origin dev`) — this keeps `origin/dev` current so `gh pr create --head dev` always sees the full state. Batching commits locally and pushing only at promote-time is how PR #5 (2026-04-26) lost 8 of 12 commits in its squash; required a corrective PR. Promote `dev → main` at the end of each working session, or when `dev` is more than ~10 commits ahead of `main` — whichever comes first — via `gh pr create --base main --head dev` and `gh pr merge --squash`. Each promotion becomes one commit on `main`; the squash message is the session's narrative. **Before opening the PR**, verify `origin/dev` matches local `dev` (`git status` shows "up to date with origin/dev"; if ahead, push first). After merge, reset `dev` to match: `git fetch origin && git reset --hard origin/main && git push --force-with-lease origin dev`. The force-push is safe — `dev` is the solo trunk, `main` is the protected canonical line.
 - **No backwards-compat shims.** Change the call sites + tests.
 - **Always use code for non-trivial arithmetic** — `uv run python -c "..."`. Never mental math; numbers get quoted downstream.
 - **Keep files focused.** `scraper.py` past ~600 lines → split by concern.
 - **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup` for the in-CLI pattern, or `varrer-processos` calling `scripts.run_sweep.run_process_sweep` for the script pattern. Scripts under `scripts/` keep a thin `main(argv) → argparse → run_X` shim for detached-sweep compatibility, but the Typer command must NOT reconstruct argv via the legacy `_push` helper. `_push` survives in only one role: building argv for child subprocesses spawned by `launch_sharded_sweep` / `launch_sharded_download` (those are real subprocesses, not framework wrappers).
