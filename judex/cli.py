@@ -837,6 +837,63 @@ def probe_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `analisar-regimes` — análise post-hoc da trajetória do CliffDetector
+
+
+@app.command(name="analisar-regimes")
+def analisar_regimes(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório da varredura (contém sweep.log.jsonl ou pdfs.log.jsonl).",
+    ),
+    apenas_transicoes: bool = typer.Option(
+        False, "--apenas-transicoes",
+        help="Mostra só os eventos onde o regime muda. Recomendado para "
+             "varreduras grandes — o stream completo cabe melhor em --json.",
+    ),
+    filtrar: Optional[str] = typer.Option(
+        None, "--filtrar",
+        help="Filtra para um único rótulo de regime (ex.: approaching_collapse).",
+    ),
+    limite: int = typer.Option(
+        50, "--limite",
+        help="Máximo de transições renderizadas na tabela humana.",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Emite uma linha JSON por evento (jq-compatível). "
+             "Stream completo por padrão; combine com --apenas-transicoes "
+             "para obter só as mudanças.",
+    ),
+) -> None:
+    """Reconstrói a trajetória de regime de um sweep a partir de seu log.
+
+    Lê ``sweep.log.jsonl`` (varrer-processos) ou ``pdfs.log.jsonl``
+    (baixar-pecas) — auto-detectado — e responde duas perguntas
+    operacionais sem ``jq``:
+
+    1. **Quando o regime mudou?** Lista as transições com ``fail_rate``,
+       ``p95`` e qual eixo (A=fail-rate / B=p95) promoveu cada banda.
+    2. **Onde a queda começou?** Para cada banda severa
+       (``l2_engaged`` / ``approaching_collapse`` / ``collapse``),
+       o primeiro registro que a atingiu.
+
+    Distingue-se de ``probe`` (que lê o snapshot ``*.state.json`` para
+    monitoramento ao vivo) por ler o log append-only e responder
+    perguntas históricas.
+    """
+    argv: list[str] = [str(run_dir)]
+    _push(argv, "--apenas-transicoes", apenas_transicoes)
+    _push(argv, "--filtrar", filtrar)
+    _push(argv, "--limite", limite)
+    _push(argv, "--json", json_out)
+
+    from scripts.analyze_regimes import main as _analyze_main
+
+    raise typer.Exit(code=_analyze_main(argv))
+
+
+# ---------------------------------------------------------------------------
 # `validar-gabarito` — diff contra as fixtures de gabarito
 
 
