@@ -74,7 +74,6 @@ from judex.scraping.scraper import (
     TAB_ANDAMENTOS,
     TAB_DECISOES,
     TAB_DESLOCAMENTOS,
-    TAB_DJE_LISTING,
     TAB_INFORMACOES,
     TAB_PARTES,
     TAB_PAUTAS,
@@ -82,8 +81,11 @@ from judex.scraping.scraper import (
     TAB_RECURSOS,
     TAB_SESSAO,
     _canonical_url,
-    _dje_detail_cache_key,
     _extract_tema_from_abasessao,
+)
+from judex.scraping.scraper_dje import (
+    TAB_DJE_LISTING,
+    _dje_detail_cache_key,
 )
 from judex.data.reshape import reshape_to_v8
 from judex.utils import html_cache, peca_cache
