@@ -17,9 +17,10 @@ in STF, so one entry per tracked class.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from judex.utils.atomic_write import atomic_write_text
 
 
 @dataclass
@@ -44,6 +45,4 @@ class DailyState:
             indent=2,
             sort_keys=True,
         )
-        tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-        tmp.write_text(payload, encoding="utf-8")
-        os.replace(tmp, path)
+        atomic_write_text(path, payload)
