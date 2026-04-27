@@ -7,16 +7,146 @@ re-scrape (13,755 pids). Cliffed cascade overnight — 8/8 shards,
 53.5% coverage (7,356 records), 6,399 pids in recovery queue. First
 direct L3-per-exit-IP reputation gradient data.
 
-**Status as of 2026-04-21 08:09.** Corpus: **90,196 HC files** (+7,356
-arm-A fresh v8+DJe re-scrapes; 2025 now content-fresh for the 53.5%
-arm A covered; remaining 46.5% still stale pre-2026-04-17 content).
-PDF cache: **1.5 GB / 10,841 PDFs** (arm A didn't run baixar-pecas
-yet). Dead-ID graveyard: `data/derived/dead-ids/HC.txt` (**3,348 confirmed
-pids**, pre-arm-A; arm-A's NoIncidente observations not yet
-aggregated). Main `judex.duckdb` and 2026 sub-warehouse unchanged.
-HC 2025 PDF sweep stopped 2026-04-22 ~19:52 BRT for a host reboot
-at ~58% URL coverage / 52% case coverage. Resume command in
-§ In flight.
+**Status as of 2026-04-27 11:35 BRT.** Corpus: 90,762 cases.
+PDF cache: **62,426 `.pdf.gz`** (~6 GB; +14,142 today). Text cache:
+~86k `.txt.gz` (extrair-pecas backfill in flight). Warehouse
+rebuilt 2026-04-26 22:50 BRT, 286s wall-clock.
+
+**Active cycle: HC 2024/2025 peça backfill.** See
+[`docs/completion-tracker.md`](completion-tracker.md) for the
+canonical per-year coverage table and priority queue (refreshed
+2026-04-27).
+
+The lab-notebook below this banner (§ Active task — lab notebook)
+is the **prior cycle's writeup** (8-vs-16 shard A/B from
+2026-04-21, closed). Overdue for archival; left in place until
+session-boundary cleanup.
+
+## Active task — HC 2024 peça backfill (2026-04-26 → 2026-04-27)
+
+### What landed this cycle
+
+- ✅ **HC 2025 retry direct-IP** (2026-04-26 evening): closed the
+  residual gap from 2026-04-22/24 substantive resume. **234 new
+  bytes**, 12 min wall-clock, monolithic, zero failures. The
+  warehouse said "7,488 missing"; case-JSON-walk dry-run said
+  "234". 33× over-count. **New caveat pinned in the tracker
+  (§ Warehouse-vs-case-JSON drift).**
+- ❌ **HC 2025 retry sharded sweep** (2026-04-26, 2h10m wasted,
+  killed): `config/proxies` was 5 days old; auth had expired;
+  every fresh fetch hit `407 Proxy Authentication Required`. Zero
+  bytes landed. **Lesson:** before any sharded launch, smoke-test
+  the proxy pool with a 1-URL `curl --proxy <one-line>` — would
+  have caught this in 30s. Forensic record at
+  `runs/active/2026-04-26-hc-pecas-2025-retry/`.
+- 🟡 **HC 2024 main pass direct-IP** (2026-04-26 22:08 → 2026-04-27
+  12:25, stopped at 98.0%): **15,439 new bytes** landed across
+  ~14h 56m overnight (53,745s elapsed per the auto-generated
+  `report.md`). **22 SSLErrors (~0.14%); zero 403s** on
+  `portal.stf.jus.br` — direct IP held WAF reputation cleanly all
+  night. Latency stayed flat: p50 801ms, p90 1182ms. Throughput
+  trajectory: 2.85 rec/s honeymoon → 0.54 rec/s mid →
+  0.245 rec/s late. Stopped manually; **324 URLs remaining**.
+- ✅ **`extrair-pecas --provedor pypdf`** corpus-wide backfill
+  (2026-04-26 20:55 → 2026-04-27 12:23, stopped manually):
+  **5,132 new `.txt.gz` files extracted**. Walked 88,544 / 120,578
+  substantive URLs (73%); the unwalked 27% are mostly `no_bytes`
+  for years not yet downloaded. 42 `unknown_type` edge cases.
+  Local-only, zero HTTP.
+
+### Resume command for the HC 2024 tail (~324 URLs)
+
+State file is `--retomar`-safe — `pdfs.state.json` has 15,439 ok
+records to skip, 22 SSLErrors to retry, 324 not-yet-touched.
+
+```bash
+uv run judex baixar-pecas \
+    --csv runs/active/2026-04-26-hc-pecas-2024-direct/hc_2024_all.csv \
+    --saida runs/active/2026-04-26-hc-pecas-2024-direct \
+    --apenas-substantivas \
+    --retomar \
+    --nao-perguntar
+```
+
+Detached form (background, survives session death — see
+`docs/agent-sweeps.md`):
+
+```bash
+nohup uv run judex baixar-pecas \
+    --csv runs/active/2026-04-26-hc-pecas-2024-direct/hc_2024_all.csv \
+    --saida runs/active/2026-04-26-hc-pecas-2024-direct \
+    --apenas-substantivas --retomar --nao-perguntar \
+    > runs/active/2026-04-26-hc-pecas-2024-direct/launcher-stdout.log 2>&1 & disown
+```
+
+324 URLs at the post-saturation rate (~0.245 rec/s) ≈ **~22 min**
+to finish. Foreground is fine; no need for the detached form
+unless you want to do something else in this window.
+
+### Resume command for `extrair-pecas` corpus-wide backfill
+
+State file at
+`runs/active/2026-04-26-hc-extract-2025-retry/pdfs.state.json`
+has 88,544 records done. To continue iterating the remaining
+~32,000 corpus URLs (mostly `no_bytes`, will surface text files
+for any new bytes that land between now and resume):
+
+```bash
+uv run judex extrair-pecas \
+    --provedor pypdf \
+    --saida runs/active/2026-04-26-hc-extract-2025-retry \
+    --nao-perguntar
+```
+
+Local-only, zero HTTP, zero throttle. Cheap to leave running
+while doing other work. After landing more bytes (e.g. HC 2024
+tail or HC 2023 sweep), re-running `extrair-pecas` picks them
+up automatically; the state file's "no_bytes" records get
+re-checked and flip to "ok" once their bytes are present.
+
+### Next priority (per refreshed tracker)
+
+1. **Finish HC 2024 tail** (~1,773 URLs) — command above.
+2. **HC 2023 peça sweep** — case-JSON walk says 15,318 fresh URLs.
+   Same shape as 2024. Decision pending: direct-IP overnight again,
+   or refresh proxies + sharded.
+3. **HC 2022 case sweep** — 11,900 missing cases, ~25 min at
+   16-shard fresh-pool (after proxies refreshed). Once cases land,
+   2022 peça population becomes enumerable.
+
+### Lessons pinned (this cycle)
+
+- **Warehouse `pdfs_substantive` over-counts the operational fetch
+  tail** by N× due to `sessao_virtual[]` fan-out (one sha1 → many
+  warehouse rows). Always size sweeps from `--dry-run` output's
+  "a baixar:" line, not from the warehouse "missing %" column.
+  Lives now in `docs/completion-tracker.md § Warehouse-vs-case-JSON
+  drift`.
+- **A 5-day-old proxy file is an unverified proxy file.** 30-second
+  smoke test before fanning out: `curl --proxy "$(head -1
+  config/proxies)" -I https://portal.stf.jus.br/processos/`.
+- **SIGTERM is honored cleanly when the worker is in active HTTP**;
+  it's queued behind tenacity retry-backoff sleeps. Last night's
+  sharded sweep needed SIGKILL because workers were stuck in
+  ProxyError retry loops; tonight's direct-IP sweep took TERM
+  immediately and wrote a clean `report.md` on exit.
+- **`pkill -f "baixar_pecas"` (underscore) silently misses
+  monolithic Typer launches.** The CLI form's argv reads
+  `judex baixar-pecas …` (hyphen); only sharded children running
+  `scripts/baixar_pecas.py` directly carry the underscore. The
+  right pattern is `pkill -f "baixar[-_]pecas"` (or kill by PID
+  from the launcher's stdout / `pdfs.state.json` directory).
+  Tripped this once tonight: an earlier `pkill` no-op'd silently;
+  caught only on the next status check when the same PIDs were
+  still alive ~50 min later.
+- **Don't extrapolate sweep ETA from the first 10 minutes.** The
+  pre-WAF-engagement honeymoon throughput is structurally
+  optimistic. Tonight: 2.85 rec/s in min 1–10 → 0.245 rec/s by
+  hour 13. ~12× drop.
+
+---
+
+
 
 Single live file covering the **active task's lab notebook** and the
 **strategic state** across work-sessions. Archive to
