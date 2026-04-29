@@ -358,6 +358,12 @@ def varrer_processos(
              "equilibrando qualquer dimensão correlacionada com a "
              "ordem do CSV. 'range' mantém pids contíguos por shard.",
     ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo (single direct-IP vs "
+             "16 shards) e sai sem rodar a varredura. Anchors em "
+             "judex/utils/forecasts.py.",
+    ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
 
@@ -407,6 +413,44 @@ def varrer_processos(
             "Modos de entrada mutuamente exclusivos: escolha apenas um "
             "entre range (-c/-i/-f), --csv ou --retentar-de."
         )
+
+    # `--prever`: count targets per mode + print forecast table + exit.
+    # Runs before any side-effecting setup (temp-CSV write, dead-id load,
+    # saída/ mkdir) so users can plan recipes without leaving artifacts.
+    if prever:
+        from judex.utils.forecasts import (
+            forecast_varrer_processos,
+            render_forecast_table,
+        )
+
+        if range_mode:
+            assert (
+                classe is not None
+                and processo_inicial is not None
+                and processo_final is not None
+            )
+            n_cases = processo_final - processo_inicial + 1
+            if excluir_mortos is not None:
+                from judex.utils.dead_ids import load_dead_ids
+                dead = load_dead_ids(excluir_mortos)
+                n_cases -= sum(
+                    1 for p in range(processo_inicial, processo_final + 1)
+                    if p in dead
+                )
+        elif csv is not None:
+            with csv.open(encoding="utf-8") as fp:
+                # CSV has a (classe, processo) header — subtract it.
+                n_cases = max(0, sum(1 for _ in fp) - 1)
+        else:
+            assert retentar_de is not None
+            with retentar_de.open(encoding="utf-8") as fp:
+                n_cases = sum(1 for _ in fp)
+
+        fcs = forecast_varrer_processos(n_cases)
+        typer.echo(render_forecast_table(
+            fcs, n_units=n_cases, unit_label="cases",
+        ))
+        raise typer.Exit(code=0)
 
     # Modo range: sintetiza CSV temporário + auto-defaults de rótulo/saída
     tmp_csv: Optional[Path] = None
@@ -641,6 +685,12 @@ def baixar_pecas(
              "(ex.: URLs já em cache vs. fresh). 'range' mantém pids "
              "contíguos por shard.",
     ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo (single direct-IP vs "
+             "16 shards) e sai sem baixar. Atalho para "
+             "--dry-run --nao-perguntar; ignora --shards.",
+    ),
 ) -> None:
     """Baixa PDFs do STF para o cache local de bytes.
 
@@ -656,6 +706,14 @@ def baixar_pecas(
     ``--proxy-pool``, o driver troca de sessão/IP proativamente — janela
     alinhada com o tempo que o WAF do STF leva para esquecer um IP.
     """
+    if prever:
+        # Forecast-only path: short-circuit to the monolithic dry-run flow,
+        # which lets `print_download_preview` render the side-by-side
+        # forecast table without resolving shards or touching state.
+        dry_run = True
+        nao_perguntar = True
+        shards = 0
+
     if shards > 1:
         if csv is None:
             raise typer.BadParameter(
@@ -763,6 +821,11 @@ def extrair_pecas(
     dry_run: bool = typer.Option(False, "--dry-run"),
     nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
     retomar: bool = typer.Option(False, "--retomar"),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo do OCR e sai sem "
+             "extrair. Atalho para --dry-run --nao-perguntar.",
+    ),
 ) -> None:
     """Extrai texto dos PDFs já baixados em disco (zero HTTP).
 
@@ -774,6 +837,10 @@ def extrair_pecas(
 
     Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
+    if prever:
+        dry_run = True
+        nao_perguntar = True
+
     from scripts.extrair_pecas import run_extract_pecas
     raise typer.Exit(code=run_extract_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,

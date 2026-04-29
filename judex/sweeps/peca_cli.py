@@ -24,15 +24,11 @@ from judex.utils import peca_cache
 from judex.utils.filters import split_csv
 
 
-# Rough anchors used by the preview. The ~2 MB/PDF and ~5 pg/PDF numbers
-# are order-of-magnitude — precise wall/disk come from post-run reports.
-_AVG_PDF_MB = 2.0
-_AVG_PAGES_PER_PDF = 5
-
-# Baked-in throttle used by the download driver. The preview estimates wall
-# time against this value; if `download_driver` ever changes its default,
-# update this constant to match.
-_THROTTLE_SLEEP_S = 2.0
+# Pages-per-PDF anchor for the extract preview. Re-measured 2026-04-29
+# from a pypdf sample of 1,904 cached PDFs: mean 4.90, median 3, p90 12,
+# p99 22. The download anchors live in `judex/utils/forecasts.py` (the
+# download preview defers to that module's forecast table).
+_AVG_PAGES_PER_PDF = 4.9
 
 
 # ----- Input-mode resolver --------------------------------------------------
@@ -121,24 +117,33 @@ def print_download_preview(
     mode_label: str,
     stream: TextIO = sys.stdout,
 ) -> None:
-    """Baixar-pdfs preview: bytes-cache split + disk / wall estimates."""
+    """Baixar-pdfs preview: bytes-cache split + side-by-side cost/wall
+    forecast for single direct-IP and 16-shard + proxy modes.
+
+    Math + anchors live in `judex.utils.forecasts`; this function is
+    the renderer.
+    """
+    from judex.utils.forecasts import (
+        forecast_baixar_pecas,
+        render_forecast_table,
+    )
+
     already = sum(1 for t in targets if peca_cache.has_bytes(t.url))
     to_download = len(targets) - already
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
-    space_mb = to_download * _AVG_PDF_MB
-    # Wall: pure HTTP + sleep per target. ~1s HTTP + _THROTTLE_SLEEP_S.
-    wall_s = to_download * (1.0 + _THROTTLE_SLEEP_S)
 
     lines = [
         f"targets: {len(targets)} PDFs across {n_procs} processes (modo: {mode_label})",
         f"já em disco (pulados):   {already:>6d}",
         f"a baixar:               {to_download:>6d}",
-        f"espaço estimado:     ~{space_mb:>6.0f} MB (at ~{_AVG_PDF_MB:.1f} MB/PDF)",
-        f"tempo estimado:      ~{wall_s / 60:>6.1f} min "
-        f"(at ~{_THROTTLE_SLEEP_S:.1f}s/req throttle + HTTP)",
         "",
     ]
     stream.write("\n".join(lines))
+    forecasts = forecast_baixar_pecas(to_download)
+    stream.write(render_forecast_table(
+        forecasts, n_units=to_download, unit_label="PDFs"
+    ))
+    stream.write("\n")
 
 
 def print_extract_preview(
@@ -163,7 +168,7 @@ def print_extract_preview(
             cached += 1
     to_extract = len(targets) - cached - no_bytes
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
-    n_pages = to_extract * _AVG_PAGES_PER_PDF
+    n_pages = int(to_extract * _AVG_PAGES_PER_PDF)
     cost = estimate_cost(provedor, n_pages) if provedor else 0.0
     wall_s = estimate_wall(provedor, to_extract) if provedor else 0.0
 
