@@ -7,22 +7,27 @@ re-scrape (13,755 pids). Cliffed cascade overnight — 8/8 shards,
 53.5% coverage (7,356 records), 6,399 pids in recovery queue. First
 direct L3-per-exit-IP reputation gradient data.
 
-**Status as of 2026-04-27 11:35 BRT.** Corpus: 90,762 cases.
-PDF cache: **62,426 `.pdf.gz`** (~6 GB; +14,142 today). Text cache:
-~86k `.txt.gz` (extrair-pecas backfill in flight). Warehouse
-rebuilt 2026-04-26 22:50 BRT, 286s wall-clock.
+**Status as of 2026-04-29 21:05 BRT.** Corpus: 90,762 cases.
+PDF cache: **~86k `.pdf.gz`** (HC 2024 closed 15,997 ok / 0 fails;
+HC 2023 closed 15,318 ok + 74 cached / 0 fails after a 34-URL
+SSL-retry pass). Text cache: ~86k `.txt.gz` baseline; pypdf
+extract resumed 2026-04-29 21:02 BRT (PID 559405) to absorb the
+HC 2024 tail + HC 2023 new bytes. Warehouse rebuilt 2026-04-26
+22:50 BRT, 286s wall-clock — needs another rebuild after extract
+finishes.
 
-**Active cycle: HC 2024/2025 peça backfill.** See
+**Active cycle: HC 2024 + HC 2023 peça backfill — closed.** See
 [`docs/completion-tracker.md`](completion-tracker.md) for the
-canonical per-year coverage table and priority queue (refreshed
-2026-04-27).
+canonical per-year coverage table and priority queue (HC 2022
+cases is the next backlog item, but needs proxy-pool refresh
+first per CLAUDE.md).
 
 The lab-notebook below this banner (§ Active task — lab notebook)
 is the **prior cycle's writeup** (8-vs-16 shard A/B from
 2026-04-21, closed). Overdue for archival; left in place until
 session-boundary cleanup.
 
-## Active task — HC 2024 peça backfill (2026-04-26 → 2026-04-27)
+## Active task — HC 2024 + HC 2023 peça backfill (2026-04-26 → 2026-04-29)
 
 ### What landed this cycle
 
@@ -39,49 +44,35 @@ session-boundary cleanup.
   the proxy pool with a 1-URL `curl --proxy <one-line>` — would
   have caught this in 30s. Forensic record at
   `runs/active/2026-04-26-hc-pecas-2025-retry/`.
-- 🟡 **HC 2024 main pass direct-IP** (2026-04-26 22:08 → 2026-04-27
-  12:25, stopped at 98.0%): **15,439 new bytes** landed across
-  ~14h 56m overnight (53,745s elapsed per the auto-generated
-  `report.md`). **22 SSLErrors (~0.14%); zero 403s** on
-  `portal.stf.jus.br` — direct IP held WAF reputation cleanly all
-  night. Latency stayed flat: p50 801ms, p90 1182ms. Throughput
-  trajectory: 2.85 rec/s honeymoon → 0.54 rec/s mid →
-  0.245 rec/s late. Stopped manually; **324 URLs remaining**.
+- ✅ **HC 2024 main pass direct-IP + tail closeout** (2026-04-26
+  22:08 → 2026-04-27 23:47): main pass landed **15,439 new bytes**
+  across ~14h 56m overnight (53,745s elapsed). **22 SSLErrors
+  (~0.14%); zero 403s** on `portal.stf.jus.br` — direct IP held
+  WAF reputation cleanly all night. Latency flat: p50 801ms, p90
+  1182ms. Throughput trajectory: 2.85 rec/s honeymoon → 0.54
+  rec/s mid → 0.245 rec/s late. Tail (324 URLs) closed in a
+  separate 311-second resume run 2026-04-27 23:42 UTC. **Final
+  state: 15,482 ok + 515 cached + 0 fails (100% coverage).**
+- ✅ **HC 2023 peça sweep direct-IP** (2026-04-29 03:33 → 16:28
+  UTC, ~12h 55m): **8,218 new bytes** landed (resumed from a
+  partial start of 7,066 cached). Hit a TLS-handshake degraded
+  tail at hour 8 — 25 fails / 19 ok over 6h with each fail eating
+  864s on SSL EOF; throttle controller demoted to `collapse`
+  regime. **Self-healed in ~30 min with no intervention** —
+  controller backed off frequency, IP cooled at the TLS layer,
+  `under_utilising` regime resumed. Final main-pass state: 15,284
+  ok / 74 cached / 34 SSL fails. 34-URL retry pass at 2026-04-29
+  21:00 UTC cleared all 34 in 131s. **Final state: 15,318 ok + 74
+  cached + 0 fails (100% coverage).** 0 × 403, 0 × 5xx across
+  16,213 requests.
 - ✅ **`extrair-pecas --provedor pypdf`** corpus-wide backfill
   (2026-04-26 20:55 → 2026-04-27 12:23, stopped manually):
   **5,132 new `.txt.gz` files extracted**. Walked 88,544 / 120,578
   substantive URLs (73%); the unwalked 27% are mostly `no_bytes`
   for years not yet downloaded. 42 `unknown_type` edge cases.
-  Local-only, zero HTTP.
-
-### Resume command for the HC 2024 tail (~324 URLs)
-
-State file is `--retomar`-safe — `pdfs.state.json` has 15,439 ok
-records to skip, 22 SSLErrors to retry, 324 not-yet-touched.
-
-```bash
-uv run judex baixar-pecas \
-    --csv runs/active/2026-04-26-hc-pecas-2024-direct/hc_2024_all.csv \
-    --saida runs/active/2026-04-26-hc-pecas-2024-direct \
-    --apenas-substantivas \
-    --retomar \
-    --nao-perguntar
-```
-
-Detached form (background, survives session death — see
-`docs/agent-sweeps.md`):
-
-```bash
-nohup uv run judex baixar-pecas \
-    --csv runs/active/2026-04-26-hc-pecas-2024-direct/hc_2024_all.csv \
-    --saida runs/active/2026-04-26-hc-pecas-2024-direct \
-    --apenas-substantivas --retomar --nao-perguntar \
-    > runs/active/2026-04-26-hc-pecas-2024-direct/launcher-stdout.log 2>&1 & disown
-```
-
-324 URLs at the post-saturation rate (~0.245 rec/s) ≈ **~22 min**
-to finish. Foreground is fine; no need for the detached form
-unless you want to do something else in this window.
+  Local-only, zero HTTP. **Resumed 2026-04-29 21:02 UTC** (PID
+  559405, detached) to absorb the HC 2024 tail + HC 2023 new
+  bytes; expected to flip ~24k `no_bytes` records to `ok`.
 
 ### Resume command for `extrair-pecas` corpus-wide backfill
 
@@ -106,16 +97,41 @@ re-checked and flip to "ok" once their bytes are present.
 
 ### Next priority (per refreshed tracker)
 
-1. **Finish HC 2024 tail** (~1,773 URLs) — command above.
-2. **HC 2023 peça sweep** — case-JSON walk says 15,318 fresh URLs.
-   Same shape as 2024. Decision pending: direct-IP overnight again,
-   or refresh proxies + sharded.
+1. **`extrair-pecas` already running** (PID 559405, detached).
+   Will flip ~24k `no_bytes` records to `ok` as it walks the new
+   HC 2024 tail + HC 2023 bytes. Cheap to leave; check back in
+   ~1h with `pgrep -af extrair-pecas` or
+   `tail -f runs/active/2026-04-26-hc-extract-2025-retry/launcher-stdout-2.log`.
+2. **Warehouse rebuild** — once `extrair-pecas` finishes (or at
+   any natural stopping point), `uv run judex atualizar-warehouse`
+   to fold the HC 2023 + HC 2024-tail text into the DuckDB.
 3. **HC 2022 case sweep** — 11,900 missing cases, ~25 min at
-   16-shard fresh-pool (after proxies refreshed). Once cases land,
-   2022 peça population becomes enumerable.
+   16-shard fresh-pool (after proxies refreshed). **Mandatory
+   30-second proxy smoke-test before launch** — see lesson below.
+   Once cases land, 2022 peça population becomes enumerable.
+4. **Session-boundary cleanup**: archive this writeup to
+   `docs/progress_archive/2026-04-29_*_hc-2024-2023-backfill.md`
+   and start a fresh active-task block for HC 2022 / next cycle.
 
 ### Lessons pinned (this cycle)
 
+- **SSL-EOF tail-storms self-heal in 30–40 min — don't kill,
+  wait.** HC 2023's hour-8 tail saw 25 fails / 19 ok over 6h with
+  each fail eating ~864s on `SSLEOFError(8, '[SSL:
+  UNEXPECTED_EOF_WHILE_READING]')`. Effective rate dropped to
+  0.002 rec/s. The throttle controller correctly demoted to
+  `collapse` regime; backed off frequency; the IP cooled at the
+  TLS layer; controller promoted back to `under_utilising` and
+  the run finished cleanly with 0 final fails after a 34-URL
+  retry pass. **Default action for SSL-EOF storms in `collapse`
+  regime: wait 30 min, re-check.** Killing the worker would have
+  thrown away the cooling that had already happened (TLS-layer
+  reputation goes with the worker's connection state) and
+  possibly re-tripped immediately on restart. This is **two-data-
+  point pattern now** (HC 2024 had 22 SSL fails / 14h, HC 2023
+  had 34 / 13h, both 0 × 403). SSL-EOF storms are a TLS-layer
+  effect, completely separate from the 403 rate-limit
+  behavior — different timescale, different recovery path.
 - **Warehouse `pdfs_substantive` over-counts the operational fetch
   tail** by N× due to `sessao_virtual[]` fan-out (one sha1 → many
   warehouse rows). Always size sweeps from `--dry-run` output's
