@@ -326,11 +326,27 @@ MIN_POPULATION_RATES: dict[str, tuple[float, str]] = {
 
 
 # How many cases buffer in memory before flushing to DuckDB. Smaller →
-# lower peak RAM, more Arrow-conversion overhead per insert. 5000 cases
-# is empirically ~250–400 MB peak at 20 rows/case; WSL2 with 3.8 GB
-# RAM handles the full HC corpus rebuild at this value. Tests
+# lower peak RAM, more Arrow-conversion overhead per insert. Tests
 # monkeypatch this down to 3 to exercise chunk-boundary code paths.
-_CHUNK_SIZE: int = 5_000
+#
+# Sized for WSL2's 3.8 GB physical-RAM ceiling. The dominant per-chunk
+# heap consumer is `buffers.andamentos`: every andamento whose
+# `link.url` has a cached `.txt.gz` carries the decompressed text
+# (avg ~9 KB) inline as `link_text`, and `_bulk_insert` materializes a
+# second Arrow copy during the flush. Empirically:
+#   N=5000 → ~900 MB peak (andamentos buffer + Arrow), OOM-killed on
+#            full HC corpus once `.txt.gz` cache passed ~100k files.
+#   N=1500 → ~270 MB peak, comfortable margin under WSL2 ceiling.
+# Re-anchor downward if the per-row text payload grows further (e.g.
+# if `documentos.text` starts pulling cached PDFs at the same rate as
+# `andamentos.link_text`).
+#
+# The redundancy of `andamentos.link_text` vs `pdfs.text` (the same
+# content lands in both tables; queries should join via
+# `pdfs_substantive`) is a schema bug noted 2026-04-30 — fixing it
+# would let this constant climb back to 5000+. Out of scope for the
+# OOM hotfix.
+_CHUNK_SIZE: int = 1_500
 
 
 @dataclass
@@ -906,6 +922,15 @@ def build(
 
     con = duckdb.connect(str(tmp))
     try:
+        # Cap DuckDB's buffer pool so it spills to disk on memory
+        # pressure instead of competing with the Python heap for
+        # WSL2's 3.8 GB RAM (DuckDB defaults to 80% of physical RAM →
+        # ~3 GB on this box, which leaves nothing for the per-chunk
+        # Arrow conversions and gets the build OOM-killed at the
+        # pdfs-load tail). 800 MB is empirical; raise if the build
+        # gets I/O-bound.
+        con.execute("SET memory_limit='800MB'")
+        con.execute("SET threads=2")
         con.execute(_SCHEMA_SQL)
 
         for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
