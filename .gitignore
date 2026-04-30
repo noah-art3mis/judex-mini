@@ -35,3 +35,7 @@ proxies*.txt
 /state/logs/
 /state/canary-outputs/
 /state/requests-archive.duckdb
+
+# Local scratch space for agent skills (PRDs, in-flight issue notes
+# under .scratch/<feature>/). Per docs/agents/issue-tracker.md.
+/.scratch/
