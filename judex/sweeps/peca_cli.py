@@ -40,6 +40,12 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
     Priority: `--retentar-de` > `--csv` > range (`-c` + `-i`/`-f`) >
     filter fallback. The label is human-readable for the preview
     block ("retry foo", "csv alvos.csv", "range HC 100-200", "filtros").
+
+    Bare invocation (none of the four modes specified) raises
+    ``ValueError``. Walking the entire corpus is a perf-cliff
+    footgun: `pdfs.state.json` atomic-rewrites cap downstream
+    throughput at ~0.13 rec/s on WSL2, putting a 120k-record extract
+    at ~9 days. The caller must always opt into a scope.
     """
     if getattr(args, "retentar_de", None):
         path = Path(args.retentar_de)
@@ -62,15 +68,36 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
             f"range {classe} {ini}-{end}",
         )
 
-    # Filter fallback.
+    impte_contains = split_csv(getattr(args, "impte_contem", "") or "")
+    doc_types = split_csv(getattr(args, "tipos_doc", "") or "")
+    relator_contains = split_csv(getattr(args, "relator_contem", "") or "")
+    exclude_doc_types = split_csv(
+        getattr(args, "excluir_tipos_doc", "") or ""
+    )
+    has_filter = bool(
+        classe or impte_contains or doc_types
+        or relator_contains or exclude_doc_types
+    )
+    if not has_filter:
+        raise ValueError(
+            "scope required: pass --retentar-de, --csv, range "
+            "(-c CLASSE -i N -f M), or at least one filter "
+            "(--classe / --impte-contem / --tipos-doc / "
+            "--relator-contem / --excluir-tipos-doc). Bare "
+            "invocation walks the full corpus and is structurally "
+            "too slow (atomic state-write floor → ~0.13 rec/s, days "
+            "for what should be minutes). See CLAUDE.md § Non-obvious "
+            "gotchas."
+        )
+
     roots = _default_roots(args)
     targets = collect_peca_targets(
         roots,
         classe=classe,
-        impte_contains=split_csv(getattr(args, "impte_contem", "") or ""),
-        doc_types=split_csv(getattr(args, "tipos_doc", "") or ""),
-        relator_contains=split_csv(getattr(args, "relator_contem", "") or ""),
-        exclude_doc_types=split_csv(getattr(args, "excluir_tipos_doc", "") or ""),
+        impte_contains=impte_contains,
+        doc_types=doc_types,
+        relator_contains=relator_contains,
+        exclude_doc_types=exclude_doc_types,
     )
     return targets, "filtros"
 

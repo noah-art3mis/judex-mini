@@ -76,7 +76,11 @@ def run_download_pecas(
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    targets, mode_label = _pdf_cli.resolve_targets(args)
+    try:
+        targets, mode_label = _pdf_cli.resolve_targets(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     if args.apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
