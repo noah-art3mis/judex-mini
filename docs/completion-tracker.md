@@ -2,9 +2,10 @@
 
 Reference table for HC corpus coverage: cases scraped, PDF bytes
 downloaded, and text extracted — per case-protocolo year. Last
-refreshed **2026-04-26** (post-2025 retry sweep direct-IP,
-post-warehouse rebuild). Counters now drawn from `data/raw/pecas/`
-(post `f4b5604` data reorg).
+refreshed **2026-04-30** (post HC 2024 + 2023 + 2022 peça backfill +
+warehouse rebuild on the new memory-capped builder). Counters drawn
+from `data/raw/pecas/` + `data/derived/pecas-texto/` (post `f4b5604`
+data reorg).
 
 ## Status legend
 
@@ -32,21 +33,21 @@ post-warehouse rebuild). Counters now drawn from `data/raw/pecas/`
 
 ## Table
 
-| year | width  | cases  | peças (bytes)            | peças (text)              | tier-A bytes      | tier-A URLs |
-|-----:|-------:|-------:|--------------------------|---------------------------|-------------------|------------:|
-| 2026 |  4,001 |  3,099 | 🟡 3,722 / 5,078 = 73%   | 🟡 1,315 / 5,078 = 26%   | 🟡 3,319 / 4,670 = 71%  |     4,670 |
-| 2025 | 16,200 | 13,365 | ✅ 16,926 / 24,414 = 69% | ✅ 23,735 / 24,414 = 97% | ✅ 16,686 / 24,174 = 69% |    24,174 |
-| 2024 | 14,387 | 12,014 | ❌ 526 / 23,298 = 2%     | 🟡 6,720 / 23,298 = 29% (documentos only) | ❌ 382 / 21,680 = 2%   |    21,680 |
-| 2023 | 12,644 | 11,129 | ❌ 73 / 22,831 = 0.3%    | 🟡 6,471 / 22,831 = 28% (documentos only) | ❌ 73 / 21,186 = 0.3%  |    21,186 |
-| 2022 | 13,057 |  1,160 | ❌ 5 / 21,693 = 0.0%     | ❌ 5,628 / 21,693 = 26%  | ❌ 5 / 20,013 = 0.0%     |    20,013 |
-| 2021 | 14,508 |  7,423 | ❌ 61 / 11,605 = 0.5%    | ❌ 104 / 11,605 = 1%     | ❌ 59 / 10,252 = 0.6%    |    10,252 |
-| 2020 | 15,754 |  4,207 | ❌ 41 / 6,775 = 0.6%     | ❌ 65 / 6,775 = 1%       | ❌ 39 / 5,687 = 0.7%     |     5,687 |
-| 2019 | 14,352 |    914 | ❌ 4 / 2,245 = 0.2%      | ❌ 26 / 2,245 = 1%       | ❌ 4 / 1,527 = 0.3%      |     1,527 |
-| 2018 | 13,969 |    945 | ❌ 6 / 1,756 = 0.3%      | ❌ 16 / 1,756 = 1%       | ❌ 6 / 1,348 = 0.4%      |     1,348 |
-| 2017 | 12,604 |  1,852 | ❌ 15 / 3,273 = 0.5%     | ❌ 26 / 3,273 = 1%       | ❌ 12 / 2,829 = 0.4%     |     2,829 |
-| 2016 |  7,049 |  4,582 | ❌ 57 / 8,700 = 0.7%     | ❌ 364 / 8,700 = 4%      | ❌ 53 / 7,415 = 0.7%     |     7,415 |
-| 2015 |  6,319 |  5,584 | ❌ 89 / 10,712 = 0.8%    | ❌ 371 / 10,712 = 3%     | ❌ 82 / 9,406 = 0.9%     |     9,406 |
-| 2014 |  5,338 |  4,342 | ❌ 35 / 8,463 = 0.4%     | ❌ 131 / 8,463 = 2%      | ❌ 31 / 7,135 = 0.4%     |     7,135 |
+| year | width  | cases  | peças (bytes)             | peças (text)              | tier-A bytes              | tier-A URLs |
+|-----:|-------:|-------:|---------------------------|---------------------------|---------------------------|------------:|
+| 2026 |  4,001 |  3,099 | 🟡 3,722 / 5,078 = 73%    | 🟡 1,315 / 5,078 = 26%    | 🟡 3,319 / 4,670 = 71%    |     4,670 |
+| 2025 | 16,200 | 13,365 | ✅ 16,926 / 24,414 = 69%  | ✅ 23,735 / 24,414 = 97%  | ✅ 16,686 / 24,174 = 69%  |    24,174 |
+| 2024 | 14,387 | 12,014 | ✅ 15,598 / 22,267 = 70%  | 🟡 17,843 / 22,267 = 80%  | ✅ 15,011 / 21,680 = 69%  |    21,680 |
+| 2023 | 12,644 | 11,129 | ✅ 15,044 / 21,458 = 70%  | ✅ 20,767 / 21,458 = 97%  | ✅ 14,772 / 21,186 = 70%  |    21,186 |
+| 2022 | 13,057 | 10,824 | ✅ 14,591 / 20,224 = 72%  | ✅ 20,068 / 20,224 = 99%  | ✅ 14,380 / 20,013 = 72%  |    20,013 |
+| 2021 | 14,508 |  7,562 | ❌ 61 / 11,894 = 0.5%     | ❌ 132 / 11,894 = 1%      | ❌ 59 / 10,443 = 0.6%     |    10,443 |
+| 2020 | 15,754 |  4,208 | ❌ 41 / 6,791 = 0.6%      | ❌ 65 / 6,791 = 1%        | ❌ 39 / 5,701 = 0.7%      |     5,701 |
+| 2019 | 14,352 |    914 | ❌ 4 / 2,245 = 0.2%       | ❌ 26 / 2,245 = 1%        | ❌ 4 / 1,527 = 0.3%       |     1,527 |
+| 2018 | 13,969 |    945 | ❌ 6 / 1,756 = 0.3%       | ❌ 16 / 1,756 = 1%        | ❌ 6 / 1,348 = 0.4%       |     1,348 |
+| 2017 | 12,604 |  1,852 | ❌ 15 / 3,273 = 0.5%      | ❌ 26 / 3,273 = 1%        | ❌ 12 / 2,829 = 0.4%      |     2,829 |
+| 2016 |  7,049 |  4,582 | ❌ 57 / 8,700 = 0.7%      | ❌ 364 / 8,700 = 4%       | ❌ 53 / 7,415 = 0.7%      |     7,415 |
+| 2015 |  6,319 |  5,584 | ❌ 89 / 10,712 = 0.8%     | ❌ 371 / 10,712 = 3%      | ❌ 82 / 9,406 = 0.9%      |     9,406 |
+| 2014 |  5,338 |  4,342 | ❌ 35 / 8,463 = 0.4%      | ❌ 131 / 8,463 = 2%       | ❌ 31 / 7,135 = 0.4%      |     7,135 |
 
 `width` is the STF-side case-id-space width for HC that year (from
 `docs/process-space.md`); `cases` is what's on disk in the warehouse.
@@ -89,13 +90,19 @@ in 5h 14m wall-clock with **zero failures** at 0.93 tgt/s sustained
 on a single direct IP. 2025 substantive bytes coverage went from
 **39% → 69%**.
 
-## Cumulative cache (2026-04-26, post 2025-retry direct-IP)
+## Cumulative cache (2026-04-30, post HC 2022 extract close-out)
 
-- 48,284 `.pdf.gz` files (+234 from today's HC 2025 retry direct-IP)
-- 64,606 `.txt.gz` files (extrair-pecas backfill in flight; corpus-wide)
-- ~6.0 GB in `data/raw/pecas/`; text in `data/derived/pecas-texto/`
-- Warehouse `pdfs` row count 64,606; built_at 2026-04-26, rebuild
-  wall-clock 286.0s, 90,762 cases.
+- 94,091 `.pdf.gz` files (+15,007 from HC 2022 baixar-pecas, +15,482
+  from HC 2024, +15,318 from HC 2023 across the four-day cycle).
+- 105,821 `.txt.gz` files (+14,865 from HC 2022 extract; matches the
+  `extrair-pecas` report ok count exactly).
+- Warehouse `pdfs` row count 105,821; built_at 2026-04-30 17:45 BRT,
+  rebuild wall-clock 530s on the memory-capped builder
+  (`SET memory_limit='800MB'` + `_CHUNK_SIZE=1500`), 90,763 cases,
+  3.02 GB on disk. The previous default (5000-case chunks, no
+  DuckDB memory cap) OOM-killed on this dataset once the `.txt.gz`
+  cache passed ~100k files — text payload in `andamentos.link_text`
+  + Arrow conversion peak crossed the WSL2 3.8 GB ceiling.
 
 ## Warehouse-vs-case-JSON drift (caveat for reading this table)
 
@@ -126,25 +133,45 @@ URL count the runner would actually issue.
 Ordered by **case-JSON-walk fetch tail** (the runner's real-work
 estimate), not by warehouse "% missing" (over-counts; see § drift).
 
-1. **2024 peça sweep** — case-JSON walk: **15,482 fresh URLs to
-   fetch** (verified 2026-04-26 dry-run). ~13h direct-IP at 2s/req,
-   or ~1–2h sharded with refreshed proxies.
-2. **2023 peça sweep** — case-JSON walk: **15,318 fresh URLs**.
-   Same shape as 2024.
-3. **2022 cases** — only 1,160 / 13,057 case widths on disk;
-   ~11,900 missing cases. Single sweep, ~25 min at 16-shard
-   fresh-pool. Once cases land, 2022 peça population becomes
-   enumerable.
-4. **2019, 2018, 2017 cases** — ~37k missing cases combined; three
-   sequential year sweeps; closes the 2017–2022 hole.
-5. **2021, 2020, 2016, 2015, 2014 case re-scrapes** (mixed-coverage,
+The **2025 → 2022 ladder is now closed for peças** (all four years
+≥97% on text via direct-IP overnight sweeps). Remaining priorities
+are the older case-id-space gaps and HC 2024's 80% text plateau.
+
+1. **2024 extract second pass** — text coverage is 80% (17,843 /
+   22,267) vs the 97–99% achieved on 2023 and 2022. Investigate
+   why ~3k 2024 PDFs didn't extract cleanly (provider failures,
+   RTF mistypes, scanned originals?). Likely a focused
+   `extrair-pecas --csv` retry on 2024 with a different provider
+   tier (chandra / mistral) covers the gap; cost is small. See
+   `runs/active/2026-04-27-*` for the original extract artifacts.
+2. **2019, 2018, 2017 cases** — ~37k missing cases combined; three
+   sequential year sweeps; closes the 2017–2022 hole. Followed by
+   the matching peça sweeps (~13–15k URLs each, same shape as
+   2024/2023/2022).
+3. **2021 cases** — 7,562 / 14,508 widths on disk; ~6,950 missing.
+   Single sweep at 16-shard fresh-pool; once cases land, peça
+   sweep follows.
+4. **2020 cases** — 4,208 / 15,754 widths on disk; ~11,500 missing.
+   Same shape as 2021.
+5. **2016, 2015, 2014 case re-scrapes** (mixed-coverage,
    content-stale) — `--full-range` re-scrapes, smaller marginal value
-   than the missing-year sweeps; defer until 2017–2022 closes.
+   than the missing-year sweeps; defer until 2017–2021 closes.
 6. **Pre-2014** (paper-era, ≤47% density per
    `docs/process-space.md`) — not a near-term priority; lower yield
    per request.
 
 **Recently completed:**
+- ✅ **HC 2022 peça sweep direct-IP** (2026-04-30 00:21 → 13:15 BRT,
+  ~13h overnight + tail closeout): main pass landed **15,007 fresh
+  PDFs** (15,007 ok + 7 cached, 0 fails) on a single direct IP.
+  Same shape as HC 2024 / HC 2023 — direct-IP held WAF reputation
+  cleanly all night with no SSL-EOF tail-storm intervention needed.
+  Took 2022 substantive bytes coverage from **0% → 72%**.
+- ✅ **HC 2022 `extrair-pecas --provedor pypdf`** (2026-04-30 14:48 →
+  16:17 BRT, 1h28m): 14,865 ok / 142 unknown_type / 133 no_bytes /
+  7 cached out of 15,147 targets. 98.1% extraction rate. Took 2022
+  substantive text coverage from **26% → 99%** — closes the
+  2025–2022 four-year ladder.
 - ✅ **HC 2025 retry direct-IP** (2026-04-26): 234 new tier-A bytes
   landed in ~12 min monolithic on direct IP, **0 failures**. Closed
   the residual gap from the 2026-04-22/24 substantive resume. The
