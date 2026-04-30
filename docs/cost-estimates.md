@@ -147,11 +147,16 @@ Disaster-recovery sizing — corpus is mostly cached already.
 |---:|---:|
 | R$ 10/GB | R$ 28.07 |
 | R$ 15/GB | R$ 42.10 |
-| **R$ 20/GB (current)** | **R$ 56.13** |
+| **R$ 18.25/GB (= $3.65/GB default at 5.0 BRL/USD; actual scrapegw rate)** | **R$ 51.28** |
+| R$ 20/GB | R$ 56.13 |
 | R$ 30/GB | R$ 84.20 |
-| R$ 40/GB ($8/GB default) | R$ 112.27 |
+| R$ 40/GB | R$ 112.27 |
 
-OCR cost (R$ 371) is unaffected by the proxy rate.
+OCR cost (R$ 371) is unaffected by the proxy rate. The $3.65/GB
+default in `judex/utils/pricing.py:_DEFAULT_PROXY_USD_PER_GB` reflects
+the actual scrapegw bill (re-anchored 2026-04-30); previously the
+default was $8/GB, an unverified ballpark that doubled all historical
+forecasts.
 
 ## Live cost reporting
 
@@ -206,8 +211,15 @@ sidecar. Switching providers does **not** require re-downloading.
   but a higher-level aggregate WAF signal across proxy IPs may surface.
   Run a bounded smoke test (~1k records) before committing a full year.
 - **BRL↔USD is load-bearing.** All env-var rates are USD; this doc
-  assumes 5.0 BRL/USD. At 5.5, set `PROXY_PRICE_USD_PER_GB=3.64`.
-  Refresh at sweep time.
+  uses **5.0 BRL/USD** as the conversion anchor. The codebase default
+  `_DEFAULT_PROXY_USD_PER_GB = 3.65` reflects scrapegw's actual USD
+  bill, which at 5.0 BRL/USD is R$ 18.25/GB. Several historical tables
+  in this doc were anchored to a round R$ 20/GB (≈ $4.00/GB at 5.0),
+  ~9.6% above the actual default — the difference is below this doc's
+  precision floor ("is this $1 or $100" reasoning, not billing).
+  Override with the env var if your real rate drifts: at R$ 20 actual
+  set `PROXY_PRICE_USD_PER_GB=4.00`; at R$ 15, `=3.00`. Refresh at sweep
+  time.
 - **Direct IP isn't free, it's slow.** R$ 371 at 1.8 days vs R$ 427 at
   3.4 h: paying R$ 56 buys back ~40 hours of wall. Direct IP only
   makes sense for one-off cases (HC 189844: $0 in 1.56s).

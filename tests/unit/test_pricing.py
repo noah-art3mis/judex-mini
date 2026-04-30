@@ -27,11 +27,11 @@ def test_proxy_cost_zero_when_direct_ip() -> None:
 
 
 def test_proxy_cost_scales_with_bytes_and_rate() -> None:
-    # 500 MB at $8/GB = $4.00
+    # 1 GB at $3.65/GB = $3.65
     c = estimate_proxy_cost(
-        bytes_downloaded=500_000_000, used_proxy=True, usd_per_gb=8.0,
+        bytes_downloaded=1_000_000_000, used_proxy=True, usd_per_gb=3.65,
     )
-    assert c.dollars == pytest.approx(4.0)
+    assert c.dollars == pytest.approx(3.65)
 
 
 def test_proxy_cost_reads_env_default(monkeypatch: pytest.MonkeyPatch) -> None:
