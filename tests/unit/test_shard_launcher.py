@@ -154,12 +154,13 @@ def test_launch_sharded_download_partitions_csv_and_spawns(tmp_path: Path) -> No
 
 
 def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
-    """Sibling of :func:`launch_sharded_download`, targeting
-    ``scripts/run_sweep.py``.
+    """Sibling of :func:`launch_sharded_download`, targeting the Typer
+    command ``judex varrer-processos`` (which the launcher spawns via
+    ``uv run``).
 
-    Each shard must get a distinct ``--label`` (so sweep.state.json /
+    Each shard must get a distinct ``--rotulo`` (so sweep.state.json /
     pgrep-by-label stay workable per-shard), the right ``--csv`` /
-    ``--out`` / ``--proxy-pool``, and any ``extra_args`` forwarded
+    ``--saida`` / ``--proxy-pool``, and any ``extra_args`` forwarded
     verbatim. PIDs file and ``driver.log`` location mirror
     ``launch_sharded_download``'s contract.
     """
@@ -186,7 +187,7 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
         proxy_pool=proxy_pool,
         saida_root=saida,
         label_prefix="hc_backfill",
-        extra_args=["--resume", "--items-dir", "data/source/processos/HC"],
+        extra_args=["--retomar", "--diretorio-itens", "data/source/processos/HC"],
         spawn=fake_spawn,
     )
 
@@ -200,18 +201,19 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
     for i, (argv, driver_log) in enumerate(spawns):
         letter = "ab"[i]
         joined = " ".join(argv)
-        assert "scripts/run_sweep.py" in joined
+        # Typer command via uv run, not the deprecated python scripts/ path.
+        assert argv[:4] == ["uv", "run", "judex", "varrer-processos"]
         assert f"shard.{i}.csv" in joined
         assert f"proxies/proxies.{letter}.txt" in joined
         assert f"shard-{letter}" in joined
-        # Per-shard label — critical for run_sweep (state + pgrep).
-        assert "--label" in argv
-        label_val = argv[argv.index("--label") + 1]
+        # Per-shard rótulo — critical for varrer-processos (state + pgrep).
+        assert "--rotulo" in argv
+        label_val = argv[argv.index("--rotulo") + 1]
         assert label_val == f"hc_backfill_shard_{letter}"
         # extra_args forwarded verbatim and in order.
-        assert "--resume" in argv
-        assert "--items-dir" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
+        assert "--retomar" in argv
+        assert "--diretorio-itens" in argv
+        assert argv[argv.index("--diretorio-itens") + 1] == "data/source/processos/HC"
         # driver.log lands under the shard's saida.
         assert driver_log.name == "driver.log"
         assert f"shard-{letter}" in str(driver_log)
@@ -248,11 +250,11 @@ def test_varrer_processos_shards_cli_forwards_flags(
 ) -> None:
     """CLI-level contract: ``judex varrer-processos --shards N
     --proxy-pool FILE`` partitions the CSV and spawns N children via
-    ``launch_sharded_sweep``. The Typer wrapper must forward
-    ``--retomar`` (→ ``--resume``), ``--diretorio-itens`` (→
-    ``--items-dir``), and ``--rotulo`` (→ per-shard ``--label``)
-    correctly — that translation is the most likely regression point
-    when ``cli.py`` evolves.
+    ``launch_sharded_sweep``. After the CLI cleanup, the per-shard
+    children are spawned as ``uv run judex varrer-processos ...`` —
+    same Typer command, just one subprocess per shard. The Typer wrapper
+    must forward ``--retomar``, ``--diretorio-itens``, and ``--rotulo``
+    verbatim (no translation step now that the argparse layer is gone).
     """
     from typer.testing import CliRunner
 
@@ -293,14 +295,15 @@ def test_varrer_processos_shards_cli_forwards_flags(
     assert "Lançou 2 shards" in result.output
     assert len(spawned) == 2
 
-    # Per-shard argv must carry the English script-layer flags with
-    # values translated from the Portuguese CLI flags.
+    # Per-shard argv carries the same Portuguese Typer flags forwarded
+    # from the parent CLI — no translation step (the argparse layer was
+    # eliminated when run_sweep moved into judex/sweeps/).
     for i, argv in enumerate(spawned):
         letter = "ab"[i]
-        assert "scripts/run_sweep.py" in " ".join(argv)
-        assert argv[argv.index("--label") + 1] == f"hc_q2_shard_{letter}"
-        assert "--resume" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
+        assert argv[:4] == ["uv", "run", "judex", "varrer-processos"]
+        assert argv[argv.index("--rotulo") + 1] == f"hc_q2_shard_{letter}"
+        assert "--retomar" in argv
+        assert argv[argv.index("--diretorio-itens") + 1] == "data/source/processos/HC"
         assert argv[argv.index("--proxy-pool") + 1].endswith(
             f"proxies/proxies.{letter}.txt"
         )

@@ -1,9 +1,9 @@
 """Read-only connection helper for the DuckDB warehouse.
 
-Primary audience is marimo notebooks in `analysis/`. The read-only
+Primary audience is marimo notebooks in ``analysis/``. The read-only
 mode means multiple notebooks can attach to the same .duckdb file
 concurrently without stepping on each other or interfering with a
-`scripts/build_warehouse.py` rebuild (DuckDB lets read-only clients
+``judex atualizar-warehouse`` rebuild (DuckDB lets read-only clients
 keep old snapshots open while a separate writer produces a new file
 via tempfile + os.replace — the usual atomic-swap trick).
 
@@ -20,8 +20,8 @@ Usage (marimo):
     ''').df()
 
 Remember to regenerate the .duckdb file after a sweep via
-`uv run python scripts/build_warehouse.py` — this helper doesn't
-refresh anything.
+``uv run judex atualizar-warehouse`` — this helper doesn't refresh
+anything.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def open_readonly(path: Optional[Path] = None) -> duckdb.DuckDBPyConnection:
     if not p.exists():
         raise FileNotFoundError(
             f"warehouse not found at {p}. Build it first:\n"
-            f"    PYTHONPATH=. uv run python scripts/build_warehouse.py"
+            f"    uv run judex atualizar-warehouse"
         )
     return duckdb.connect(str(p), read_only=True)
 

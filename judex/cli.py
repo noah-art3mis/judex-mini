@@ -528,15 +528,15 @@ def varrer_processos(
 
         from judex.sweeps.shard_launcher import launch_sharded_sweep
 
-        # Flags que valem a pena carregar para todos os shards. Tradução
-        # Typer(pt) → argparse do run_sweep(en) acontece aqui — o launcher
-        # fala a linguagem do script, não do Typer.
+        # Flags que valem a pena carregar para todos os shards. O launcher
+        # spawna `uv run judex varrer-processos ...` por shard, então as
+        # flags abaixo são as mesmas do Typer (em português).
         extra: list[str] = []
-        _push(extra, "--resume", retomar)
-        _push(extra, "--items-dir", diretorio_itens)
-        _push(extra, "--progress-every", progresso_cada)
-        _push(extra, "--cliff-window", janela_cliff)
-        _push(extra, "--no-stop-on-collapse", ignorar_collapse)
+        _push(extra, "--retomar", retomar)
+        _push(extra, "--diretorio-itens", diretorio_itens)
+        _push(extra, "--progresso-cada", progresso_cada)
+        _push(extra, "--janela-cliff", janela_cliff)
+        _push(extra, "--ignorar-collapse", ignorar_collapse)
         if not retry_403:
             extra.append("--no-retry-403")
 
@@ -564,7 +564,7 @@ def varrer_processos(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    from scripts.run_sweep import run_process_sweep
+    from judex.sweeps.run_sweep import run_process_sweep
 
     raise typer.Exit(code=run_process_sweep(
         label=rotulo,
@@ -763,7 +763,7 @@ def baixar_pecas(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    from scripts.baixar_pecas import run_download_pecas
+    from judex.sweeps.baixar_pecas import run_download_pecas
     raise typer.Exit(code=run_download_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
@@ -841,7 +841,7 @@ def extrair_pecas(
         dry_run = True
         nao_perguntar = True
 
-    from scripts.extrair_pecas import run_extract_pecas
+    from judex.sweeps.extrair_pecas import run_extract_pecas
     raise typer.Exit(code=run_extract_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
@@ -903,7 +903,7 @@ def atualizar_warehouse(
     Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
     quiser ver os dados novos nos notebooks / em SQL.
     """
-    from scripts.build_warehouse import run_build_warehouse
+    from judex.sweeps.build_warehouse import run_build_warehouse
 
     raise typer.Exit(code=run_build_warehouse(
         cases_root=diretorio_processos,

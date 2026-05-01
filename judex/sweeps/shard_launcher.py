@@ -2,9 +2,9 @@
 
 Used by:
 - ``judex varrer-processos --shards N --proxy-pool FILE`` (case JSON,
-  WAF-hot; routed through ``scripts/run_sweep.py``).
+  WAF-hot; spawns ``uv run judex varrer-processos`` per shard).
 - ``judex baixar-pecas      --shards N --proxy-pool FILE`` (PDF bytes;
-  routed through ``scripts/baixar_pecas.py``).
+  spawns ``uv run judex baixar-pecas`` per shard).
 
 Both callers partition an input CSV into N disjoint shards and detach
 one child process per shard, each bound to a slice of the proxy pool.
@@ -118,20 +118,19 @@ def launch_sharded_sweep(
     spawn: Optional[SpawnFn] = None,
     strategy: ShardStrategy = "interleave",
 ) -> Path:
-    """Partition CSV, spawn N detached run_sweep children, return PIDs file.
+    """Partition CSV, spawn N detached varrer-processos children, return PIDs file.
 
     Sibling of :func:`launch_sharded_download`, targeting
-    ``scripts/run_sweep.py`` (case JSON scrape) instead of
-    ``scripts/baixar_pecas.py`` (PDF bytes). Same partition rule, same
+    ``judex varrer-processos`` (case JSON scrape) instead of
+    ``judex baixar-pecas`` (PDF bytes). Same partition rule, same
     per-shard directory layout, same pids-file contract — the
     differences are:
 
-    - **Label is mandatory.** ``run_sweep`` requires ``--label`` to
-      name its sweep.state.json + sweep.log.jsonl; per-shard label is
+    - **Label is mandatory.** ``varrer-processos`` requires ``--rotulo``
+      to name its sweep.state.json + sweep.log.jsonl; per-shard label is
       ``<label_prefix>_shard_<letter>`` so ``pgrep -f <label>`` targets
       a single shard and so shard logs don't cross-contaminate.
-    - **Target script** is ``scripts/run_sweep.py`` (the WAF-hot half).
-    - ``extra_args`` typically includes ``--resume`` + ``--items-dir
+    - ``extra_args`` typically includes ``--retomar`` + ``--diretorio-itens
       data/source/processos/<CLASSE>``; the caller owns the choice.
 
     Raises :class:`ValueError` if ``label_prefix`` is empty, or if
@@ -167,10 +166,10 @@ def launch_sharded_sweep(
         shard_saida.mkdir(parents=True, exist_ok=True)
 
         argv = [
-            "uv", "run", "python", "scripts/run_sweep.py",
+            "uv", "run", "judex", "varrer-processos",
             "--csv", str(shard_csv_path),
-            "--label", f"{label_prefix}_shard_{letter}",
-            "--out", str(shard_saida),
+            "--rotulo", f"{label_prefix}_shard_{letter}",
+            "--saida", str(shard_saida),
             "--proxy-pool", str(pool_path),
             *extra_args,
         ]
@@ -200,9 +199,8 @@ def launch_sharded_download(
       2. Split ``proxy_pool`` round-robin into N per-shard files under
          ``<saida_root>/proxies/proxies.<letter>.txt``.
       3. For each shard, mkdir ``<saida_root>/shard-<letter>/`` and
-         spawn ``uv run python scripts/baixar_pecas.py --csv SHARD
-         --saida SHARD_DIR --proxy-pool POOL [extra_args]``. Child is
-         detached.
+         spawn ``uv run judex baixar-pecas --csv SHARD --saida SHARD_DIR
+         --proxy-pool POOL [extra_args]``. Child is detached.
       4. Write one ``<pid>  shard-<letter>`` line per child to
          ``<saida_root>/shards.pids``.
       5. Return the pids-file path.
@@ -232,7 +230,7 @@ def launch_sharded_download(
         shard_saida.mkdir(parents=True, exist_ok=True)
 
         argv = [
-            "uv", "run", "python", "scripts/baixar_pecas.py",
+            "uv", "run", "judex", "baixar-pecas",
             "--csv", str(shard_csv_path),
             "--saida", str(shard_saida),
             "--proxy-pool", str(pool_path),

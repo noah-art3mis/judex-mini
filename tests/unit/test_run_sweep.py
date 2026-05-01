@@ -1,5 +1,6 @@
-"""Tests for scripts.run_sweep helpers that need care: CSV parsing for
-the sweep input and Selenium-baseline row parsing for parity comparisons.
+"""Tests for judex.sweeps.run_sweep helpers that need care: CSV parsing
+for the sweep input and Selenium-baseline row parsing for parity
+comparisons.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from unittest.mock import Mock
 
 import requests
 
-from scripts.run_sweep import (
+from judex.sweeps.run_sweep import (
     parse_selenium_row,
     parse_sweep_csv,
 )

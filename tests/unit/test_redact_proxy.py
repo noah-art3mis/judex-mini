@@ -8,7 +8,7 @@ inspected without leaking the provider auth.
 
 from __future__ import annotations
 
-from scripts.run_sweep import _redact_proxy
+from judex.sweeps.run_sweep import _redact_proxy
 
 
 def test_redact_none_returns_direct_sentinel():
