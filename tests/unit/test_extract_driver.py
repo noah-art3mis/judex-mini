@@ -205,8 +205,18 @@ def test_rtf_bytes_bypass_ocr_provider(tmp_path: Path) -> None:
 
 
 def test_unknown_bytes_type_records_unknown_type(tmp_path: Path) -> None:
-    """Bytes that are neither PDF nor RTF → status=unknown_type, no dispatch."""
-    peca_cache.write_bytes("https://x.test/a.pdf", b"<html>not a pdf</html>")
+    """Bytes that are neither PDF nor RTF → status=unknown_type, no dispatch.
+
+    Post-2026-05 the bytes cache rejects unknown payloads at write time,
+    so this branch only fires for legacy cache entries written before the
+    guard landed. Simulate that by writing the gzip directly, bypassing
+    `peca_cache.write_bytes`.
+    """
+    import gzip
+    peca_cache._bytes_path("https://x.test/a.pdf").parent.mkdir(parents=True, exist_ok=True)
+    peca_cache._bytes_path("https://x.test/a.pdf").write_bytes(
+        gzip.compress(b"<html>not a pdf</html>")
+    )
 
     def dispatcher(body, cfg):
         return ExtractResult(text="unreachable", provider="mistral")

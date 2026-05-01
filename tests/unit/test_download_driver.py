@@ -96,10 +96,10 @@ def test_forcar_bypasses_cache_and_overwrites(tmp_path: Path) -> None:
     """--forcar re-downloads even if bytes are cached, and the new
     bytes replace the old ones on disk.
     """
-    peca_cache.write_bytes("https://x.test/a.pdf", b"OLD")
+    peca_cache.write_bytes("https://x.test/a.pdf", b"%PDF-1.4 OLD")
 
     def getter(session, target, config):
-        return b"NEW"
+        return b"%PDF-1.4 NEW"
 
     downloaded, cached, failed = run_download_sweep(
         [_target("https://x.test/a.pdf")],
@@ -107,7 +107,54 @@ def test_forcar_bypasses_cache_and_overwrites(tmp_path: Path) -> None:
     )
 
     assert (downloaded, cached, failed) == (1, 0, 0)
-    assert peca_cache.read_bytes("https://x.test/a.pdf") == b"NEW"
+    assert peca_cache.read_bytes("https://x.test/a.pdf") == b"%PDF-1.4 NEW"
+
+
+def test_empty_body_recorded_as_failure_not_cached(tmp_path: Path) -> None:
+    """STF returning 200 OK with empty body must not crash the sweep nor
+    cache an empty `<sha1>.pdf.gz`. The URL goes to `pdfs.errors.jsonl`
+    so `--retentar-de` can replay it.
+
+    Pre-2026-05 the driver wrote `gzip.compress(b'')` to disk and called
+    it `status=ok`, leaving 1,506 dead entries in the production cache
+    that pretended to be PDFs. The post-fix contract: empty body →
+    `status=empty_response`, no cache write, no crash.
+    """
+    def getter(session, target, config):
+        return b""
+
+    _, _, failed = run_download_sweep(
+        [_target("https://x.test/empty.pdf")],
+        **_kwargs(tmp_path / "sweep", getter=getter),
+    )
+
+    assert failed == 1
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/empty.pdf"]
+    assert snap["status"] == "empty_response"
+    assert peca_cache.has_bytes("https://x.test/empty.pdf") is False
+
+    errors_path = tmp_path / "sweep" / "pdfs.errors.jsonl"
+    assert "https://x.test/empty.pdf" in errors_path.read_text()
+
+
+def test_non_document_body_recorded_as_failure_not_cached(tmp_path: Path) -> None:
+    """STF returning a 200 OK HTML soft-error page (or any non-PDF /
+    non-RTF magic) must not crash the sweep nor land in the cache. The
+    cache rejects it at write time; the driver catches the rejection
+    and records `status=non_document_response`.
+    """
+    def getter(session, target, config):
+        return b"<html><body>Documento nao encontrado</body></html>"
+
+    _, _, failed = run_download_sweep(
+        [_target("https://x.test/html.pdf")],
+        **_kwargs(tmp_path / "sweep", getter=getter),
+    )
+
+    assert failed == 1
+    snap = PecaStore(tmp_path / "sweep").snapshot()["https://x.test/html.pdf"]
+    assert snap["status"] == "non_document_response"
+    assert peca_cache.has_bytes("https://x.test/html.pdf") is False
 
 
 def test_http_error_classified_and_recorded(tmp_path: Path) -> None:
@@ -140,7 +187,7 @@ def test_record_carries_regime_diagnostics_after_observe(
 
     def getter(session, target, config):
         clock[0] += 1.0  # 1 s wall per record → p95 = 1.0
-        return b"pdf"
+        return b"%PDF-1.4\nstub"
 
     run_download_sweep(
         [_target(f"https://x.test/{i}.pdf") for i in range(55)],
@@ -173,7 +220,7 @@ def test_record_regime_reflects_its_own_observation(
     def getter(session, target, config):
         clock[0] += walls[call_idx[0]]
         call_idx[0] += 1
-        return b"pdf"
+        return b"%PDF-1.4\nstub"
 
     run_download_sweep(
         [_target(f"https://x.test/{i}.pdf") for i in range(55)],
@@ -213,7 +260,7 @@ def test_retomar_skips_already_ok(tmp_path: Path) -> None:
     already in state=ok. Bytes cache is irrelevant here — state wins.
     """
     def getter(session, target, config):
-        return b"pdf bytes"
+        return b"%PDF-1.4 pdf bytes"
 
     sweep_dir = tmp_path / "sweep"
     run_download_sweep(
@@ -224,7 +271,7 @@ def test_retomar_skips_already_ok(tmp_path: Path) -> None:
     calls: list[str] = []
     def tripwire(session, target, config):
         calls.append(target.url)
-        return b"should not be called"
+        return b"%PDF-1.4 should not be called"
 
     run_download_sweep(
         [_target("https://x.test/a.pdf")],
@@ -240,7 +287,7 @@ def test_retry_from_filters_to_errors_only(tmp_path: Path) -> None:
     """
     def first_getter(session, target, config):
         if target.url.endswith("a.pdf"):
-            return b"ok"
+            return b"%PDF-1.4 ok"
         raise RuntimeError("boom")
 
     sweep_dir = tmp_path / "sweep"
@@ -254,7 +301,7 @@ def test_retry_from_filters_to_errors_only(tmp_path: Path) -> None:
     seen: list[str] = []
     def retry_getter(session, target, config):
         seen.append(target.url)
-        return b"retry"
+        return b"%PDF-1.4 retry"
 
     run_download_sweep(
         [_target("https://x.test/a.pdf"), _target("https://x.test/b.pdf")],
@@ -284,7 +331,7 @@ def test_proxy_pool_rotates_session_after_rotate_seconds(
     def getter(session, target, config):
         sessions_seen.append(id(session))
         clock[0] += 300.0
-        return b"x"
+        return b"%PDF-1.4\nx"
 
     run_download_sweep(
         [_target(f"https://x.test/{i}.pdf") for i in range(3)],
@@ -335,7 +382,7 @@ def test_proxy_pool_reactive_rotation_on_approaching_collapse(
     def getter(session, target, config):
         sessions_seen.append(id(session))
         clock[0] += 35.0  # p95 > 30 ⇒ WAF-shaped slow, promotes regime
-        return b"x"
+        return b"%PDF-1.4\nx"
 
     run_download_sweep(
         [_target(f"https://x.test/{i}.pdf") for i in range(55)],
@@ -362,7 +409,7 @@ def test_no_pool_keeps_single_session(tmp_path: Path) -> None:
 
     def getter(session, target, config):
         sessions_seen.append(id(session))
-        return b"x"
+        return b"%PDF-1.4\nx"
 
     run_download_sweep(
         [_target(f"https://x.test/{i}.pdf") for i in range(3)],

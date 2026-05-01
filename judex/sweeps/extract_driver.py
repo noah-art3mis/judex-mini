@@ -243,12 +243,36 @@ def run_extract_sweep(
         started=started, finished=finished, cost=cost,
     )
 
+    status_counts = Counter(r.get("status", "unknown") for r in snap.values())
     print(
         f"\nsummary: extracted={counters.extracted} cached={counters.cached_hits} "
         f"no_bytes={counters.no_bytes} failed={counters.failed}"
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
+    fail_breakdown = " ".join(
+        f"{s}={n}"
+        for s, n in sorted(status_counts.items(), key=lambda kv: -kv[1])
+        if s not in ("ok", "cached") and n > 0
+    )
+    if fail_breakdown:
+        print(f"  by status: {fail_breakdown}")
+    # Anomalies = non-transient extraction failures that won't fix themselves
+    # on retry: bytes that aren't PDF/RTF (legacy cache pollution from before
+    # the write-time guard), and provider crashes (often a real bug or quota
+    # issue, not a network blip).
+    anomaly_counts = {
+        s: status_counts.get(s, 0)
+        for s in ("unknown_type", "provider_error", "empty")
+        if status_counts.get(s, 0) > 0
+    }
+    if anomaly_counts:
+        print(
+            "  ATTENTION — anomalies (NOT transient, investigate before replaying):"
+            f" {' '.join(f'{s}={n}' for s, n in anomaly_counts.items())}"
+        )
+        print(f"     grep -E 'unknown_type|provider_error|\"status\":\"empty\"' {store.log_path}")
+        print(f"     replay all errors: --retentar-de {errors_path}")
     print(f"  {cost.summary_line()}")
     print(f"  state:  {store.state_path}")
     print(f"  log:    {store.log_path}")

@@ -50,13 +50,15 @@ def test_baixar_shard_finishes_faster_than_single_ip() -> None:
 
 
 def test_baixar_bandwidth_matches_anchor() -> None:
-    """Bandwidth = n × 0.139 MB. Anchor is the corpus mean of 79,084
-    cached `.pdf.gz` (re-measured 2026-04-29). Bounds are generous so
-    re-anchoring within ±10% does not require updating the test."""
+    """Bandwidth = n × _AVG_PDF_MB. Anchor is the corpus mean of 90,168
+    cached `.pdf.gz` (re-measured 2026-05-01 after the .pdf.gz/.rtf.gz
+    split — the prior 0.139 was biased low by RTFs + empty downloads
+    contaminating the .pdf.gz set). Bounds are generous so re-anchoring
+    within ±10% does not require updating the test."""
     fcs = cost.forecast_baixar_pecas(10_000)
     assert fcs[0].bandwidth_gb == fcs[1].bandwidth_gb
-    # 10k PDFs × 0.139 MB / 1024 ≈ 1.36 GB
-    assert 1.2 < fcs[0].bandwidth_gb < 1.5
+    # 10k PDFs × 0.1685 MB / 1024 ≈ 1.65 GB
+    assert 1.5 < fcs[0].bandwidth_gb < 1.8
 
 
 def test_baixar_shard_mode_uses_a_proxy_rate_env_override() -> None:

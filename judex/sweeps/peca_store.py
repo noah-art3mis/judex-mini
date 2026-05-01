@@ -26,8 +26,14 @@ class PecaAttemptRecord:
     attempt: int
     wall_s: float
     # Status values across download + extract drivers:
-    #   download: "ok" | "cached" | "http_error"
-    #   extract:  "ok" | "cached" | "no_bytes" | "empty" | "provider_error" | "unknown_type"
+    #   download: "ok" | "cached" | "http_error" | "empty_response"
+    #             | "non_document_response"
+    #   extract:  "ok" | "cached" | "no_bytes" | "empty" | "provider_error"
+    #             | "unknown_type"
+    # `empty_response` = STF returned 200 OK with no body (transient edge
+    # glitch; URL goes to errors.jsonl for replay). `non_document_response`
+    # = body had unexpected magic bytes (HTML soft-error page, etc.;
+    # `peca_cache.write_bytes` rejects → driver routes to errors.jsonl).
     # Legacy `varrer-pdfs` also emitted "extract_error" (fetch+extract fused);
     # that driver was retired in the 2026-04-19 split.
     status: str
