@@ -1,20 +1,20 @@
-"""CLI wrapper around `src.warehouse.builder.build`.
+"""Library wrapper around ``judex.warehouse.builder.build``.
 
-Rebuilds the DuckDB warehouse at `data/derived/warehouse/judex.duckdb`
-from the current `data/source/processos/` + `data/derived/pecas-texto/`
+Rebuilds the DuckDB warehouse at ``data/derived/warehouse/judex.duckdb``
+from the current ``data/source/processos/`` + ``data/derived/pecas-texto/``
 stores. Full rebuild, atomic swap, no incremental logic.
 
-Usage:
-    PYTHONPATH=. uv run python scripts/build_warehouse.py
-    PYTHONPATH=. uv run python scripts/build_warehouse.py --classe HC
-    PYTHONPATH=. uv run python scripts/build_warehouse.py --year 2026 --classe HC \\
+Surfaced via Typer at ``judex atualizar-warehouse``; library entry point
+is :func:`run_build_warehouse`. Examples:
+
+    uv run judex atualizar-warehouse
+    uv run judex atualizar-warehouse --classe HC
+    uv run judex atualizar-warehouse --year 2026 --classe HC \\
         --output data/derived/warehouse/judex-2026.duckdb
-    PYTHONPATH=. uv run python scripts/build_warehouse.py --output data/derived/warehouse/dev.duckdb
 """
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 from judex.warehouse import builder
@@ -76,31 +76,3 @@ def run_build_warehouse(
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--cases-root", type=Path, default=Path("data/source/processos"))
-    parser.add_argument("--pecas-texto-root", type=Path, default=Path("data/derived/pecas-texto"))
-    parser.add_argument("--output", type=Path, default=Path("data/derived/warehouse/judex.duckdb"))
-    parser.add_argument(
-        "--classe", action="append",
-        help="Restrict ingest to one or more classes (e.g. --classe HC --classe ADI)."
-    )
-    parser.add_argument(
-        "--year", type=int,
-        help="Filter to one HC year via hc_calendar.year_to_id_range (requires --classe HC)."
-    )
-    parser.add_argument("--progress-every", type=int, default=10_000)
-    parser.add_argument(
-        "--strict", action="store_true",
-        help="Exit non-zero if any case-level population rate (partes, "
-             "andamentos, pautas, sessao_virtual, publicacoes_dje) falls "
-             "below its threshold. Warehouse file is still written so the "
-             "bad build can be inspected manually; this only gates CI. "
-             "Thresholds live in judex.warehouse.builder.MIN_POPULATION_RATES."
-    )
-    args = parser.parse_args(argv)
-    return run_build_warehouse(**vars(args))
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

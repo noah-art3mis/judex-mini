@@ -526,7 +526,7 @@ def varrer_processos(
                 "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import launch_sharded_sweep
+        from judex.sweeps.shard_launcher import launch_sharded
 
         # Flags que valem a pena carregar para todos os shards. O launcher
         # spawna `uv run judex varrer-processos ...` por shard, então as
@@ -546,7 +546,8 @@ def varrer_processos(
                 "Use 'interleave' ou 'range'."
             )
         try:
-            pids_path = launch_sharded_sweep(
+            pids_path = launch_sharded(
+                command="varrer-processos",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -729,7 +730,7 @@ def baixar_pecas(
                 "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import launch_sharded_download
+        from judex.sweeps.shard_launcher import launch_sharded
 
         extra: list[str] = []
         _push(extra, "--retomar", retomar)
@@ -746,7 +747,8 @@ def baixar_pecas(
                 "Use 'interleave' ou 'range'."
             )
         try:
-            pids_path = launch_sharded_download(
+            pids_path = launch_sharded(
+                command="baixar-pecas",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,

@@ -1,24 +1,17 @@
 """Extract text from locally-cached STF PDFs.
 
-Reads bytes from `data/raw/pecas/<sha1>.<ext>.gz` (populated by
-`scripts/baixar_pecas.py`), dispatches text extraction via
-`src.scraping.ocr.extract_pdf` per `--provedor`, writes text +
-sidecar + optional element list to `data/derived/pecas-texto/`.
+Reads bytes from ``data/raw/pecas/<sha1>.<ext>.gz`` (populated by
+``judex.sweeps.baixar_pecas``), dispatches text extraction via
+``judex.scraping.ocr.extract_pdf`` per ``--provedor``, writes text +
+sidecar + optional element list to ``data/derived/pecas-texto/``.
 Zero HTTP.
 
-Usage:
+Surfaced via Typer at ``judex extrair-pecas``; library entry point is
+:func:`run_extract_pecas`. Detached invocation:
 
-    # Default: pypdf (free, fast, text-layer only)
-    PYTHONPATH=. uv run python scripts/extrair_pecas.py \\
-        -c HC -i 252920 -f 253000 \\
-        --provedor pypdf --nao-perguntar
+    nohup uv run judex extrair-pecas --csv X.csv --provedor pypdf ...
 
-    # Mistral OCR (re-extract a prior pypdf run; no network)
-    PYTHONPATH=. uv run python scripts/extrair_pecas.py \\
-        -c HC -i 252920 -f 253000 \\
-        --provedor mistral --forcar --nao-perguntar
-
-Input-mode priority matches `baixar-pecas`: retry > csv > range > filter.
+Input-mode priority matches ``baixar-pecas``: retry > csv > range > filter.
 """
 
 from __future__ import annotations
@@ -161,48 +154,3 @@ def run_extract_pecas(
     return 0 if failed == 0 else 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    ap.add_argument("-c", "--classe", type=str, default=None,
-                    help='Classe (e.g. "HC"). Alone → filter. With -i/-f → range.')
-    ap.add_argument("-i", "--inicio", type=int, default=None,
-                    help="First processo in range (inclusive).")
-    ap.add_argument("-f", "--fim", type=int, default=None,
-                    help="Last processo in range (inclusive).")
-    ap.add_argument("--csv", type=Path, default=None,
-                    help="CSV of (classe, processo). Beats range/filter.")
-    ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
-                    help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
-    ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="")
-    ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="")
-    ap.add_argument("--relator-contem", dest="relator_contem", type=str, default="")
-    ap.add_argument("--excluir-tipos-doc", dest="excluir_tipos_doc",
-                    type=str, default="")
-    ap.add_argument("--limite", type=int, default=0)
-    ap.add_argument(
-        "--apenas-substantivas", dest="apenas_substantivas",
-        action="store_true", default=True,
-        help="Pula peças tier-C. Default: True. Desativar com --todos-tipos.",
-    )
-    ap.add_argument(
-        "--todos-tipos", dest="apenas_substantivas",
-        action="store_false",
-    )
-    ap.add_argument("--provedor", type=str, default="pypdf", choices=_PROVIDERS,
-                    help="Text extractor. Default: pypdf.")
-    ap.add_argument("--forcar", action="store_true",
-                    help="Re-extract even if sidecar already matches --provedor.")
-    ap.add_argument("--saida", type=Path, default=None)
-    ap.add_argument("--dry-run", dest="dry_run", action="store_true",
-                    help="Preview only; do not run the extractor.")
-    ap.add_argument("--nao-perguntar", dest="nao_perguntar", action="store_true")
-    ap.add_argument("--retomar", action="store_true")
-    args = ap.parse_args(argv)
-    return run_extract_pecas(**vars(args))
-
-
-if __name__ == "__main__":
-    sys.exit(main())

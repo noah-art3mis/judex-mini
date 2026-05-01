@@ -99,7 +99,7 @@ or `pgrep -af <rotulo>_shard_` (varrer) / `pgrep -af baixar_pecas`
 (baixar), or read each `out/shard-<letter>/sweep.state.json` /
 `.../pdfs.state.json`. `xargs -a out/shards.pids kill -TERM` stops
 cleanly. Both launchers live in `judex/sweeps/shard_launcher.py`
-(`launch_sharded_sweep` / `launch_sharded_download`). The CLI path is
+(`launch_sharded(command=...)`). The CLI path is
 preferred for new sharded sweeps; `scripts/launch_hc_backfill_sharded.sh`
 is still valid when you need to **pre-seed each shard's
 `sweep.state.json` from an archived monolithic sweep** (to avoid
@@ -151,7 +151,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
-- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded_sweep` / `launch_sharded_download`, which now spawn `uv run judex varrer-processos` / `uv run judex baixar-pecas` per shard.
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex varrer-processos` / `uv run judex baixar-pecas` per shard.
 
 ## Agent skills
 
