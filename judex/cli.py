@@ -358,6 +358,12 @@ def varrer_processos(
              "equilibrando qualquer dimensão correlacionada com a "
              "ordem do CSV. 'range' mantém pids contíguos por shard.",
     ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo (single direct-IP vs "
+             "16 shards) e sai sem rodar a varredura. Anchors em "
+             "judex/utils/cost.py.",
+    ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
 
@@ -407,6 +413,44 @@ def varrer_processos(
             "Modos de entrada mutuamente exclusivos: escolha apenas um "
             "entre range (-c/-i/-f), --csv ou --retentar-de."
         )
+
+    # `--prever`: count targets per mode + print forecast table + exit.
+    # Runs before any side-effecting setup (temp-CSV write, dead-id load,
+    # saída/ mkdir) so users can plan recipes without leaving artifacts.
+    if prever:
+        from judex.utils.cost import (
+            forecast_varrer_processos,
+            render_forecast_table,
+        )
+
+        if range_mode:
+            assert (
+                classe is not None
+                and processo_inicial is not None
+                and processo_final is not None
+            )
+            n_cases = processo_final - processo_inicial + 1
+            if excluir_mortos is not None:
+                from judex.utils.dead_ids import load_dead_ids
+                dead = load_dead_ids(excluir_mortos)
+                n_cases -= sum(
+                    1 for p in range(processo_inicial, processo_final + 1)
+                    if p in dead
+                )
+        elif csv is not None:
+            with csv.open(encoding="utf-8") as fp:
+                # CSV has a (classe, processo) header — subtract it.
+                n_cases = max(0, sum(1 for _ in fp) - 1)
+        else:
+            assert retentar_de is not None
+            with retentar_de.open(encoding="utf-8") as fp:
+                n_cases = sum(1 for _ in fp)
+
+        fcs = forecast_varrer_processos(n_cases)
+        typer.echo(render_forecast_table(
+            fcs, n_units=n_cases, unit_label="cases",
+        ))
+        raise typer.Exit(code=0)
 
     # Modo range: sintetiza CSV temporário + auto-defaults de rótulo/saída
     tmp_csv: Optional[Path] = None
@@ -482,17 +526,17 @@ def varrer_processos(
                 "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import launch_sharded_sweep
+        from judex.sweeps.shard_launcher import launch_sharded
 
-        # Flags que valem a pena carregar para todos os shards. Tradução
-        # Typer(pt) → argparse do run_sweep(en) acontece aqui — o launcher
-        # fala a linguagem do script, não do Typer.
+        # Flags que valem a pena carregar para todos os shards. O launcher
+        # spawna `uv run judex varrer-processos ...` por shard, então as
+        # flags abaixo são as mesmas do Typer (em português).
         extra: list[str] = []
-        _push(extra, "--resume", retomar)
-        _push(extra, "--items-dir", diretorio_itens)
-        _push(extra, "--progress-every", progresso_cada)
-        _push(extra, "--cliff-window", janela_cliff)
-        _push(extra, "--no-stop-on-collapse", ignorar_collapse)
+        _push(extra, "--retomar", retomar)
+        _push(extra, "--diretorio-itens", diretorio_itens)
+        _push(extra, "--progresso-cada", progresso_cada)
+        _push(extra, "--janela-cliff", janela_cliff)
+        _push(extra, "--ignorar-collapse", ignorar_collapse)
         if not retry_403:
             extra.append("--no-retry-403")
 
@@ -502,7 +546,8 @@ def varrer_processos(
                 "Use 'interleave' ou 'range'."
             )
         try:
-            pids_path = launch_sharded_sweep(
+            pids_path = launch_sharded(
+                command="varrer-processos",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -520,7 +565,7 @@ def varrer_processos(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    from scripts.run_sweep import run_process_sweep
+    from judex.sweeps.run_sweep import run_process_sweep
 
     raise typer.Exit(code=run_process_sweep(
         label=rotulo,
@@ -641,6 +686,12 @@ def baixar_pecas(
              "(ex.: URLs já em cache vs. fresh). 'range' mantém pids "
              "contíguos por shard.",
     ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo (single direct-IP vs "
+             "16 shards) e sai sem baixar. Atalho para "
+             "--dry-run --nao-perguntar; ignora --shards.",
+    ),
 ) -> None:
     """Baixa PDFs do STF para o cache local de bytes.
 
@@ -656,6 +707,14 @@ def baixar_pecas(
     ``--proxy-pool``, o driver troca de sessão/IP proativamente — janela
     alinhada com o tempo que o WAF do STF leva para esquecer um IP.
     """
+    if prever:
+        # Forecast-only path: short-circuit to the monolithic dry-run flow,
+        # which lets `print_download_preview` render the side-by-side
+        # forecast table without resolving shards or touching state.
+        dry_run = True
+        nao_perguntar = True
+        shards = 0
+
     if shards > 1:
         if csv is None:
             raise typer.BadParameter(
@@ -671,7 +730,7 @@ def baixar_pecas(
                 "o launcher divide round-robin entre os shards)."
             )
 
-        from judex.sweeps.shard_launcher import launch_sharded_download
+        from judex.sweeps.shard_launcher import launch_sharded
 
         extra: list[str] = []
         _push(extra, "--retomar", retomar)
@@ -688,7 +747,8 @@ def baixar_pecas(
                 "Use 'interleave' ou 'range'."
             )
         try:
-            pids_path = launch_sharded_download(
+            pids_path = launch_sharded(
+                command="baixar-pecas",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -705,7 +765,7 @@ def baixar_pecas(
         typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
         raise typer.Exit(code=0)
 
-    from scripts.baixar_pecas import run_download_pecas
+    from judex.sweeps.baixar_pecas import run_download_pecas
     raise typer.Exit(code=run_download_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
@@ -763,6 +823,11 @@ def extrair_pecas(
     dry_run: bool = typer.Option(False, "--dry-run"),
     nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
     retomar: bool = typer.Option(False, "--retomar"),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo do OCR e sai sem "
+             "extrair. Atalho para --dry-run --nao-perguntar.",
+    ),
 ) -> None:
     """Extrai texto dos PDFs já baixados em disco (zero HTTP).
 
@@ -774,7 +839,11 @@ def extrair_pecas(
 
     Prioridade de modos de entrada igual a ``baixar-pecas``.
     """
-    from scripts.extrair_pecas import run_extract_pecas
+    if prever:
+        dry_run = True
+        nao_perguntar = True
+
+    from judex.sweeps.extrair_pecas import run_extract_pecas
     raise typer.Exit(code=run_extract_pecas(
         classe=classe, inicio=inicio, fim=fim, csv=csv,
         retentar_de=retentar_de,
@@ -836,7 +905,7 @@ def atualizar_warehouse(
     Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
     quiser ver os dados novos nos notebooks / em SQL.
     """
-    from scripts.build_warehouse import run_build_warehouse
+    from judex.sweeps.build_warehouse import run_build_warehouse
 
     raise typer.Exit(code=run_build_warehouse(
         cases_root=diretorio_processos,

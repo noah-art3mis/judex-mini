@@ -125,6 +125,37 @@ def test_resolve_falls_back_to_filter_when_no_direct_selector(tmp_path: Path) ->
     assert "filtr" in mode.lower()
 
 
+def test_resolve_raises_when_no_scope_specified(tmp_path: Path) -> None:
+    """Bare invocation (no retentar / csv / range / filter) is forbidden.
+
+    Walking the entire corpus to find targets has structural perf
+    cliffs — `pdfs.state.json` atomic-rewrites cap throughput at
+    ~0.13 rec/s on WSL2 once it hits ~50 MB, which puts a
+    120k-record extract at ~9 days. The user must always specify a
+    scope. See CLAUDE.md § Non-obvious gotchas. Pre-2026-04-30 the
+    resolver fell through to corpus-wide enumeration; the guard
+    moved that footgun to a refused error.
+    """
+    with pytest.raises(ValueError) as excinfo:
+        _pdf_cli.resolve_targets(_args(roots=[tmp_path]))
+    msg = str(excinfo.value).lower()
+    assert "scope" in msg or "filtro" in msg or "csv" in msg or "--" in msg
+
+
+def test_resolve_filter_with_only_impte_contem_is_allowed(tmp_path: Path) -> None:
+    """Filter mode with at least one filter input is fine — only the
+    no-input-at-all case is forbidden."""
+    _write_case(
+        tmp_path / "HC" / "judex-mini_HC_100.json",
+        classe="HC", processo_id=100,
+        urls=[("https://x.test/a.pdf", "DECISÃO")],
+    )
+    _, mode = _pdf_cli.resolve_targets(_args(
+        impte_contem="DEFENSORIA", roots=[tmp_path],
+    ))
+    assert "filtr" in mode.lower()
+
+
 # ----- confirm_or_exit -----------------------------------------------------
 
 

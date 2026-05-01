@@ -17,7 +17,7 @@ from io import BytesIO
 
 from pypdf import PdfReader
 
-from judex.scraping.ocr.base import ExtractResult, OCRConfig
+from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 
 def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
@@ -34,3 +34,23 @@ def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
         pages_processed=len(reader.pages),
         provider="pypdf",
     )
+
+
+def cost(n_pages: int, config: OCRConfig) -> float:
+    # Local text-layer parse — zero API cost.
+    return 0.0
+
+
+def wall(n_pdfs: int, config: OCRConfig) -> float:
+    # ~0.1 s / pdf (anchored on 2026-04-19 bakeoff).
+    return n_pdfs * 0.1
+
+
+SPEC = ProviderSpec(
+    name="pypdf",
+    extract=extract,
+    cost=cost,
+    wall=wall,
+    env_var="",
+    supports_batch=False,
+)

@@ -1,22 +1,66 @@
 # Current progress — judex-mini
 
-Branch: `main`. Prior cycle archived at
-[`docs/progress_archive/2026-04-21_0805_hc-2025-arm-a-8-shard-cliff-cascade.md`](progress_archive/2026-04-21_0805_hc-2025-arm-a-8-shard-cliff-cascade.md)
-— arm A of the 8-vs-16 experiment: HC 2025 @ 8 shards, full-range
-re-scrape (13,755 pids). Cliffed cascade overnight — 8/8 shards,
-53.5% coverage (7,356 records), 6,399 pids in recovery queue. First
-direct L3-per-exit-IP reputation gradient data.
+Branch: `dev`. Prior cycle archived at
+[`docs/progress_archive/2026-04-29_2200_hc-2024-2023-backfill.md`](progress_archive/2026-04-29_2200_hc-2024-2023-backfill.md)
+— HC 2024 + HC 2023 peça backfill close-out (2026-04-26 → 2026-04-29).
+HC 2024 closed 15,997 ok / 0 fails; HC 2023 closed 15,318 ok + 74
+cached / 0 fails after a 34-URL SSL-retry pass.
 
-**Status as of 2026-04-21 08:09.** Corpus: **90,196 HC files** (+7,356
-arm-A fresh v8+DJe re-scrapes; 2025 now content-fresh for the 53.5%
-arm A covered; remaining 46.5% still stale pre-2026-04-17 content).
-PDF cache: **1.5 GB / 10,841 PDFs** (arm A didn't run baixar-pecas
-yet). Dead-ID graveyard: `data/derived/dead-ids/HC.txt` (**3,348 confirmed
-pids**, pre-arm-A; arm-A's NoIncidente observations not yet
-aggregated). Main `judex.duckdb` and 2026 sub-warehouse unchanged.
-HC 2025 PDF sweep stopped 2026-04-22 ~19:52 BRT for a host reboot
-at ~58% URL coverage / 52% case coverage. Resume command in
-§ In flight.
+**Status as of 2026-04-30 17:50 BRT.** Corpus: **90,763** cases.
+PDF cache 94,091 `.pdf.gz`, 105,821 `.txt.gz`. Warehouse rebuilt
+2026-04-30 17:45 BRT (530s, 3.02 GB; cases 90,763, partes 316,933,
+andamentos 1,241,331, pdfs 105,821 — all field-population thresholds
+OK, no DJe regression). **HC 2022 peça sweep closed (2026-04-30
+00:21 → 16:17 BRT)** — bytes 0% → 72%, text 26% → 99%; 25–22 ladder
+now ≥97% on text. Between-cycles state.
+
+## Last cycle — HC 2022 peça sweep close-out (2026-04-30)
+
+Plan-pivot vs `completion-tracker.md` 2026-04-26 snapshot. Tracker
+said HC 2022 had 1,160 cases on disk; rebuilt warehouse showed
+**10,824** (83% of the 13,057 case-id-space width). HC 2022 was a
+peça gap, not a case gap. Skipped the case sweep; went straight to
+peças.
+
+**Bytes pass** (2026-04-30 00:21 → ~13:15 BRT, single direct-IP):
+**15,007 ok + 7 cached / 0 fails** out of 15,014 substantive URLs.
+Same shape as HC 2024 / HC 2023. Direct-IP held WAF reputation
+cleanly all night, no SSL-EOF tail-storm intervention.
+
+**Text pass** (2026-04-30 14:48 → 16:17 BRT, `extrair-pecas pypdf`):
+**14,865 ok / 142 unknown_type / 133 no_bytes / 7 cached** out of
+15,147 targets, 1h28m elapsed, 98.1% extraction rate.
+
+**Result.** HC 2022 substantive bytes 0% → 72%; text 26% → 99%.
+Closes the **2025–2022 four-year ladder** at ≥97% text on direct
+IP, zero proxy spend.
+
+**Builder OOM hotfix landed mid-cycle.** First post-extract warehouse
+rebuild OOM-killed at peak RSS 2.3 GB (WSL2 has 3.8 GB physical;
+swap was already 1.9/2 GB used). Root cause: `andamentos.link_text`
+populates from cached `.txt.gz` per row, doubling the chunk Arrow
+peak now that `.txt.gz` count crossed 100k. Fix in
+`judex/warehouse/builder.py`: `SET memory_limit='800MB'` on the
+build connection + `_CHUNK_SIZE` 5000 → 1500. Build wall went 5min
+→ 9min, peak RSS 1.99 GB → 1.27 GB, exit clean. Schema-level
+redundancy (`andamentos.link_text` vs `pdfs.text` joined via
+`pdfs_substantive`) is a separate bug to address in a future cycle —
+that's where the headroom for re-raising `_CHUNK_SIZE` lives.
+
+**Next, between cycles:**
+1. **HC 2024 extract second pass** — text coverage at 80% vs 97-99%
+   on 2023/2022. Investigate ~3k-row gap (provider failures, RTF
+   mistypes, scanned originals?) and run a focused
+   `extrair-pecas --csv` retry, possibly with chandra/mistral.
+2. **HC 2017–2021 case sweeps** — ~37k missing case widths combined,
+   ordered by year-density. Once cases land, peça sweeps follow in
+   the proven 15k-URL/year shape.
+3. **Schema cleanup** — drop `andamentos.link_text` /
+   `documentos.text` / `decisoes_dje.rtf_text` from the build path
+   (queries already use `pdfs_substantive`'s join). Lets
+   `_CHUNK_SIZE` climb back toward 5000 + halves warehouse build
+   peak RAM.
+
 
 Single live file covering the **active task's lab notebook** and the
 **strategic state** across work-sessions. Archive to
@@ -44,359 +88,6 @@ behave, class sizes, perf numbers, where data lives), read:
 
 ---
 
-# Active task — lab notebook
-
-## Task
-
-**HC 2023/2024 backfill + 8-vs-16 shard experiment arm B + arm-A
-recovery.** Three concrete deliverables from this cycle:
-
-1. **Arm B — HC 2024 @ 16 shards.** The A/B's treatment arm. Generate
-   `hc_2024_full.csv` via `--full-range --dead-ids`; launch all 16
-   pools `proxies.{a..p}.txt`. Cooldown since arm A's last cliff is
-   ~7h40m — past the overnight reset threshold per
-   `docs/rate-limits.md § Two-layer model`. **With arm A's data in
-   hand, the revised prediction is that 16 may cliff *less* than 8**
-   (smaller per-shard slices → less time past L2 engagement horizon).
-2. **Arm-A recovery** — 6,399 ungrabbed 2025 pids from cliffed
-   shards. Build recovery CSV from each shard's `sweep.state.json`
-   (pids present in input CSV but missing from state); relaunch
-   direct-IP single-thread with `--no-stop-on-collapse`. Yesterday's
-   2026 recovery did this in ~45 min for 654 pids — so ~7–10h for
-   6,399 is the budget. Queue **after** arm B to avoid confounding
-   pool state.
-3. **Arm C — HC 2023** at the winner's cadence. Only after the A/B
-   writeup.
-
-## Experiment — 8 vs 16 shards (arm B pending)
-
-Arm A is complete; see archive 2026-04-21_0805 for the full
-writeup. **Cliff cascade forced a metric recast** — instead of
-"wall-clock to finish 13,755 pids", compare arms on: (i) records
-landed per hour of productive work, (ii) coverage at fixed
-wall-clock (e.g. at the 3h mark), (iii) cliff count per shard-hour.
-
-**Revised hypothesis** (the key recalibration from arm A): the
-original framing missed a third axis — **per-shard workload size vs.
-L2 engagement window**. Arm A's 1,720-pid-per-shard slice kept shards
-in the post-L2 danger zone 4.4× longer than 2026's 387-pid slices.
-At 16 shards, per-shard workload roughly halves, so each shard may
-finish before sustained axis-B engagement. The A/B now tests three
-competing effects:
-(i) pool-independence gain (favors 16),
-(ii) per-pool request-rate penalty (favors 8 if ASN-level),
-(iii) per-shard-time-in-danger-zone (favors 16 on large workloads).
-
-**H4 — Pool-headroom-vs-workload budget model.** A new,
-falsifiable prediction derived from arm A's cliff-ordering data.
-
-A shard cliffs iff its *workload_time* exceeds its pool's
-*effective_budget*:
-
-  workload_time      ≈ slice_size / rps                   (observed rps ≈ 0.15)
-  effective_budget   ≈ N_proxies × T_L2 − residual_L3_debt (N=10, T_L2≈25 min)
-
-The pool's fresh theoretical budget is 10 × 25 min ≈ **4h 10m**.
-Residual L3 debt from yesterday's session scales linearly with how
-much scraping each IP in the pool absorbed the day before —
-empirically estimated from arm A's cliff-order data:
-- Pools that finished yesterday clean (`a`): **~3h effective**
-- Pools that finished yesterday seasoned (`b`, `d`): **~2h effective**
-- Pools that finished yesterday hot (`c`, `e`, `f`, `g`): **~1–2h effective**
-- Pools that finished yesterday already-cliffed (`h`): **~35 min effective**
-
-**Predicted cliff behavior per arm:**
-
-| Arm | Shards | slice | workload_time | typical budget | cliff? |
-|-----|--------|-------|---------------|----------------|--------|
-| A (observed)    | 8  | 1,720 | ~3h 10m | 0.5–3h after debt | **8 / 8 cliffed** ✓ |
-| B (prediction)  | 16 |   899 | ~1h 40m | ~2–3h after 36h-idle (fresh ~160 IPs) | **≤ 3 / 16 cliffed** |
-| 2026 (observed) | 8  | 387   | ~45m    | ~3–4h (fresh-ish)          | **3 / 8 cliffed** (workload borderline) ✓ |
-
-Arm B scrape target confirmed at **14,387 pids** (range
-236,529..250,915, 11,113 on disk, 0 confirmed deads in range). The
-total workload is only ~5% larger than arm A's 13,755 — so any
-cliff-count improvement on arm B is attributable to per-shard
-slice size (899 vs 1,720), not less total work. Controlled
-comparison.
-
-Arm B's 16 pools will have had ~36h idle by launch (21h overnight
-gap + another ~15h from arm A ending to arm B starting). That's
-closer to the "overnight full reset" threshold than arm A got, so
-residual-L3 should be lower per pool than arm A saw — further
-favoring the "≤ 3 cliffs" prediction.
-
-**H4 falsification test.** If arm B at 16 shards / ~860 pids
-cliffs ≥ 6 of 16 shards, the headroom-budget model is wrong (or
-missing a term, e.g. request-rate-density effects, WAF time-of-day
-behavior, or pool-independence violation via ASN-level
-degradation). If arm B cliffs ≤ 3, the model is supported and
-becomes the operational planning heuristic for arm C and future
-backfills ("size per-shard slice ≤ 70% of pool's effective budget,
-accounting for residual debt").
-
-**H5 — Sticky session duration: 10 min → 5 min.** Piggyback
-experiment on arm B. Scrapegw's sticky-session knob controls how
-long a session ID holds an exit IP reserved before the sticky
-expires. Our driver rotates session IDs every 270s (~4.5 min) by
-time-based rotation, so:
-
-- **sticky=10** (current): IP is held for the full 10 min; after
-  we rotate off at 4.5 min, the IP sits idle-reserved to our
-  account for another 5.5 min. Any residual reputation debt
-  ages during that idle window but the IP can't be re-leased
-  to someone else mid-sticky.
-- **sticky=5** (proposed): IP is released ~30s after we rotate
-  off at 4.5 min. Over a 3h sweep, each IP holds a tighter
-  residency → scrapegw can recycle it out of our pool sooner →
-  the "IPs that are ours today" set changes faster within the
-  sweep, potentially spreading L3 reputation accumulation
-  across more distinct upstream IPs.
-
-**Hypothesis.** sticky=5 shortens the per-IP sustained-load
-window by a factor of ~10/5 = 2× in steady-state, which should
-modestly reduce per-IP L2 engagement at the cost of slightly more
-session-cookie re-establishment overhead (first few requests on a
-new IP are slower while auth triad warms).
-
-**Confound.** Arm B changes **both** shard count (8 → 16) and
-sticky duration (10 → 5) from arm A. A cleaner cliff count on
-arm B can't cleanly attribute to either change alone. Two ways to
-de-confound if results are interesting:
-
-1. **Arm C — HC 2023 with sticky reverted to 10 min** at the
-   shard count the A/B picks. Compare cliff rate vs arm B → shows
-   sticky effect in isolation.
-2. Or: run a small targeted A/B on the 6,399-pid arm-A recovery
-   CSV, one half at sticky=5 and the other at sticky=10 — closer
-   sample size, same pool state. Cheaper.
-
-**Falsification.** If arm B's cliff count is indistinguishable from
-the H4-predicted range (≤ 3), sticky change likely didn't help or
-hurt. If arm B cliffs ≤ 1 (meaningfully better than H4 predicts),
-sticky=5 is plausibly contributing. If arm B cliffs ≥ 6 with
-sticky=5 while H4 predicted ≤ 3, sticky=5 may actually hurt.
-
-**H6 — Proxy freshness dominates throughput, not shard count or
-sticky duration.** Live evidence from arm B (2026-04-21, 13.5 min
-in): cluster throughput 10.52 rec/s vs arm A's peak 1.24 rec/s
-(~8.5×). Decomposition:
-
-- 2× from shard count (8 → 16), linear parallelism.
-- **4.4× from per-shard throughput (0.15 → 0.66 rec/s)** —
-  dominant factor.
-
-The 4.4× per-shard gain traces almost entirely to **tenacity
-retry-403 chains not firing** on fresh IPs. Arm A driver logs
-show records returning `ok` with walls of 5–13s (tenacity
-absorbing 403s and averaging in exponential backoff). Arm B
-driver logs show walls of 0.5–1.5s (one HTTP call per record, no
-retries). Per-IP L1 reputation (~80–100 req / 5-min window) is
-at zero for freshly-fetched proxies, so requests don't nudge
-into 403 territory → no retries to absorb → ~5–10× faster
-per-request walls.
-
-**Operational consequence (high confidence, landed as ops
-heuristic):** the highest-leverage knob for sweep throughput is
-**refreshing proxies before every sustained scrape**. Proxy
-freshness > shard count > sticky duration > everything else. A
-fresh 160-IP batch from scrapegw before each year's backfill
-gets us arm-B-equivalent speed; reusing yesterday's pool gets us
-arm-A-equivalent cascade.
-
-**Falsification / controlled follow-up.** Can't cleanly isolate
-proxy-freshness from (i) time-of-day effects (arm A ran evening
-BRT vs arm B's early morning) and (ii) sticky-5 vs sticky-10.
-Clean test: run arm-A's remaining 6,399-pid recovery CSV twice —
-once with yesterday's `config/proxies.{a..h}.txt` (sticky-10, old
-IPs) and once with `config/proxies` (fresh, sticky-5), at the
-same time of day. If freshness dominates, the fresh run is ≥ 3×
-faster per-shard regardless of time match. Queue under § Data
-recovery below.
-
-**Decision rule** (updated for the recast metrics) — apply after
-arm B completes:
-- **16 wins** → 16-arm coverage at 3h is ≥ 1.3× 8-arm's **and**
-  cliff_count_B ≤ cliff_count_A. Use 16 for arm C.
-- **16 loses** → 16-arm coverage at 3h is < 0.8× 8-arm's **or**
-  cliff_count_B ≥ 1.5× cliff_count_A. Use 8 for arm C.
-- **Ambiguous** → default to 8 conservatively, flag for follow-up.
-
-## Next steps
-
-**Completed this session:** arm B (HC 2024 @ 16 shards, 92% in ~32 min),
-arm C launched (HC 2023 @ 16 shards, in flight from 09:16 BRT). A/B
-decision landed: **16 wins, 8 retired for sustained jobs.** Full
-writeup: [`docs/reports/2026-04-21-8-vs-16-shards.md`](reports/2026-04-21-8-vs-16-shards.md).
-
-**What's still ahead** (HC 2025 PDF sweep stopped at ~58% for a
-reboot — resume command in § In flight; parallel-safe zero-HTTP
-queue also listed there):
-
-a. ✅ **Arm-A + arm-B + arm-C recovery pass** — *landed 2026-04-21*.
-   7,672-pid union-recovery at 16 shards; 96.0% / 1 cliff / 43.5 min
-   wall-clock. See § In flight § Recently completed for the H6
-   lesson (non-refreshed pool cost 3.6× throughput). 305-pid
-   shard-k residue deferred per § Data recovery #3.
-b. **`baixar-pecas` for 2023/2024/2025** — new PDFs from v8 content
-   path (arms A/B/C + recovery fresh case JSONs now have accurate
-   `documentos[]` link lists). Separate WAF counter on
-   `sistemas.stf.jus.br`, 16 shards safe (doesn't share reputation
-   with `/processos/*`). **Refresh proxies first** per H6 — don't
-   repeat today's 3.6× cost of skipping the preflight.
-c. **`extrair-pecas` on newly-downloaded PDFs** — zero HTTP, local
-   CPU. Provider choice (`pypdf` cheap / `mistral` | `chandra` high
-   quality) decided per-tier.
-d. **Full warehouse rebuild** at end-of-cycle. One atomic swap picks
-   up all fresh content from arms A/B/C + recovery + PDFs +
-   extraction. Build-stats validation now catches silent regressions
-   (DJe at 0% will show as WARN, loud signal if any other field
-   regresses).
-e. **DJe content re-capture (not warehouse flatten).** Warehouse
-   flatten turned out to already exist; the real gap is the
-   extractor regression — STF migrated DJe to `digital.stf.jus.br`
-   on 2022-12-19 and our scraper still hits the stub-serving old
-   endpoint. Pick **§ Backlog DJe capture path 1** (andamentos-side
-   metadata, 1–2h) for a cheap 80% unblock; **path 2** (Playwright
-   for the new platform, 1–2 days) when full DJe index is worth
-   the infra cost. Full diagnosis in § What just landed.
-
-## Practical tips from today's experiments (landed as ops discipline)
-
-These are the reusable rules extracted from the 8-vs-16 A/B. The
-*situational* numbers live in the report; the *rules* live here.
-
-1. **Proxy freshness is the single highest-leverage knob** (H6,
-   strongly supported). The 4.4× per-shard throughput jump from arm A
-   to arm B traces almost entirely to tenacity retry-403 chains *not*
-   firing on fresh IPs. Refresh the pool before every sustained
-   sweep — this dominates shard count and sticky duration combined.
-   **Preflight step, not a tweak.**
-2. **16 shards + fresh pool + sticky=5 is the default** for
-   year-backfill workloads. 8-shard config retired for sustained
-   jobs (remains available for small/ad-hoc sweeps).
-3. **H4 sizing heuristic** (confirmed by arm B). Size per-shard slice
-   so `workload_time ≤ 0.3 × effective_budget`. Practical shortcut:
-   **keep each shard ≤ ~800 pids on a freshly-fetched pool.** The
-   ~7,546-pid recovery at 16 shards = 472 pids/shard, ratio 0.08 —
-   safe by a wide margin.
-4. **One proxy file, one flag.** Both `varrer-processos` and
-   `baixar-pecas` take `--proxy-pool FILE` (a flat list, one URL per
-   line; `#` comments + blank lines tolerated). In sharded mode the
-   launcher round-robin-splits the file into N per-shard pools at
-   `<saida>/proxies/proxies.<letra>.txt` automatically. Paste a fresh
-   scrapegw batch into `config/proxies` once; never maintain
-   per-pool files by hand.
-5. **L3-per-IP reputation persists across days.** Arm A's cliff
-   ordering matched each pool's state at the *prior day's* 2026 sweep
-   end — overnight idle partially clears but not fully. Consequence:
-   a "rested but used" pool is not the same as a fresh one. When in
-   doubt, refresh.
-6. **CliffDetector axis-B window-full gate** (landed this session).
-   p95 is only consulted once the rolling window fills (n = window
-   size, default 50). Axis-A (WAF-shaped fail rate) stays un-gated
-   so V-style collapse still catches early. Eliminates the n=20
-   false-positive class arm B's shard-o hit.
-7. **Unmeasured confounds to stay honest about:** time-of-day (arm A
-   evening BRT vs arm B morning BRT) and ASN-level WAF thresholds
-   above 16 shards (~63 STF req/s on arm B; 32 shards would push
-   ~125 req/s). **Land § Backlog Request-footprint reduction items
-   before any 32-shard experiment** — each cuts 15–20% of per-case
-   STF HTTP calls; stacked, they buy a 30–50% politeness cushion.
-8. **A second proxy provider is the only true redundancy** against
-   scrapegw L3-per-IP decay. Not acted on yet; logged as the one
-   structural hedge against today's single-provider fragility.
-
-## Throughput + regime baselines (anchor for future predictions)
-
-Empirical numbers from today's runs + prior validations. Use these
-to set expectations *before* a sweep launches; deviations are the
-signal that something's off (pool fatigue, time-of-day, WAF policy
-shift). All "per-shard rec/s" are steady-state medians, not peaks;
-cluster rec/s = per-shard × N_shards. Regime % = share of records
-in the named regime over the whole sweep.
-
-### `varrer-processos` (case JSON, `portal.stf.jus.br`)
-
-| config                                          | per-shard rec/s | cluster rec/s | typical regime mix              | cliff rate    |
-|-------------------------------------------------|-----------------|---------------|---------------------------------|---------------|
-| 1 worker, no proxy (sweep E baseline)           | ~0.28           | ~0.28         | 90% good, 10% warn              | n/a (1 worker)|
-| 4 shards + aged proxies (sweep V validation)    | ~0.26           | ~1.02         | 75% good, 20% warn, ~5% l2      | low           |
-| **8 shards + aged proxies** (arm A)             | **0.15**        | **1.24**      | 60% good, 30% warn, 10% l2      | **8 / 8 (cascade)** |
-| **16 shards + fresh proxies** (arm B)           | **0.66**        | **10.52**     | 95% good, 5% warn, 0% l2        | 2 / 16 (genuine) |
-| **16 shards + fresh proxies** (arm C, smaller)  | **0.65**        | **9.0**       | 96% good, 4% warn, 0% l2        | 0 / 16        |
-| **16 shards + 8h-cooled-not-refreshed** (recovery) | **0.22**     | **3.45**      | 78% good, 12% warn, 1.6% l2     | 1 / 16        |
-
-Rules-of-thumb derived:
-- **Per-shard floor ≈ 0.15 rec/s** when retry-403 chains are firing
-  (aged pool + portal-WAF-fatigue). Anything below this means proxies
-  are exhausted; investigate before continuing.
-- **Per-shard ceiling ≈ 0.7 rec/s** on a fresh batch — bottlenecked
-  by the 5-XHR-fan-out per case + proxy wall, not WAF.
-- **Cluster throughput is roughly linear in shard count** as long as
-  per-shard stays in the green; sub-linear when individual shards drop
-  into warn/l2.
-- **`good` < 80% over a full sweep** = the pool is no longer fresh
-  for this host; refresh it or expect a cliff cascade.
-
-### `baixar-pecas` (PDF bytes, mostly `portal.stf.jus.br`)
-
-| config                                              | per-shard rec/s | cluster rec/s | typical regime mix    | cliff rate |
-|-----------------------------------------------------|-----------------|---------------|-----------------------|------------|
-| 16 shards + portal-fatigued pool (HC 2025, 2026-04-21) | **0.06–0.17** | **2.14**      | mostly ok, sparse fail/http_error | none observed yet |
-| 16 shards + fresh pool against `sistemas` host (no clean datapoint) | (projected) ~0.7 | (projected) ~12 | (projected) all ok    | n/a        |
-
-`baixar-pecas` is bytes-only (one GET per PDF, no XHR fan-out), so on
-a fresh-vs-host pool it should outpace `varrer-processos` per shard.
-The current 2025 sweep is much slower because andamento attachments
-come from `portal.stf.jus.br/processos/downloadPeca.asp` — the same
-WAF bucket as case JSONs, which our pool already exhausted today.
-**The fresh-host projection is unmeasured** — the next 2024 PDF run
-on a refreshed batch is the cleanest opportunity to nail it down.
-
-### Regime ladder reference
-
-Source: `docs/rate-limits.md § Operating regimes`. CliffDetector
-classifies each rolling window of records into one of:
-
-| regime              | meaning                                            | typical fail-rate | action                       |
-|---------------------|----------------------------------------------------|-------------------|------------------------------|
-| `under_utilising`   | wastefully polite; pool has slack                  | 0–5%              | could push harder            |
-| `healthy`           | steady scraping, L1 absorbed, L2 not engaged       | 5–10%             | nothing — this is the target |
-| `l2_engaged`        | Pareto frontier; as fast as WAF tolerates pre-block | 10–20%           | fine for short bursts        |
-| `approaching_collapse` | adaptive block firing; retry budget at risk     | 20–30%            | rotation; consider stopping  |
-| `collapse`          | V-style cliff; gaps < 15 records between cycles    | > 30%             | stop, cool down ≥ 60 min     |
-
-Decision is the worse of axis A (WAF-shape-filtered fail rate) and
-axis B (p95 wall_s). Both axes are window-full-gated as of
-2026-04-21 to suppress the n=20 false-positive class.
-
-## Per-year completion tracker (HC)
-
-Moved to [`docs/completion-tracker.md`](completion-tracker.md) —
-reference table for per-year HC coverage (cases / peça bytes / text),
-the cache-integrity caveat (bytes ∪ text is larger than either alone),
-and the backfill priority queue. Refresh the table using the snippet
-at the bottom of that doc.
-
-**Quick summary (2026-04-24, end-of-cycle):**
-- ✅ Cases: 2026/2025/2024/2023 all content-fresh
-  (3,099 / 13,365 / 12,014 / 11,129 in the warehouse).
-- ✅ Peça bytes, 2025: **68% of substantive URLs** (16,685 / 24,414).
-  Resume run finished 14:46 BRT in 5h 14m, 7,159 new PDFs, zero
-  failures.
-- ✅ Peça text, 2025: **97% of substantive URLs** (23,735 / 24,414).
-  `extrair-pecas --provedor pypdf` ran in ~6 min, 6,740 new `.txt.gz`,
-  419 corrupt-bytes parse failures (pre-existing tail).
-- ✅ Warehouse rebuilt with streaming-chunks refactor: 309.7s, 1.3 GB,
-  `n_pdfs = 49,406`, fits in <1 GB RAM (old list-accumulation peaked
-  at 11 GB and OOM-killed WSL2).
-- ❌ Peça bytes, 2023/2024: ≤2% of substantive URLs; no dedicated
-  peça sweep yet. Text coverage (~28%) comes from legacy pre-split
-  scrapes of sessão-virtual Relatórios/Votos.
-- ❌ **Next backfill target: HC 2022** (~11,900 missing cases).
-
----
 
 # Strategic state
 

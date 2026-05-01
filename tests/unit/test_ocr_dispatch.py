@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from judex.scraping.ocr import (
     ExtractResult,
     OCRConfig,
+    ProviderSpec,
     cheapest_provider,
     estimate_cost,
     extract_pdf,
@@ -17,28 +16,32 @@ from judex.scraping.ocr import dispatch as d
 from judex.scraping.ocr.dispatch import estimate_wall
 
 
+def _fake_spec(name: str, text: str) -> ProviderSpec:
+    def fake_extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
+        return ExtractResult(text=text, provider=name)
+
+    return ProviderSpec(
+        name=name,
+        extract=fake_extract,
+        cost=lambda n, c: 0.0,
+        wall=lambda n, c: 0.0,
+        env_var="",
+        supports_batch=False,
+    )
+
+
 def test_extract_pdf_routes_by_provider_name(monkeypatch):
-    seen: dict[str, Any] = {}
-
-    def fake_mistral(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
-        seen["called"] = "mistral"
-        return ExtractResult(text="m", provider="mistral")
-
-    def fake_chandra(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
-        seen["called"] = "chandra"
-        return ExtractResult(text="c", provider="chandra")
-
-    monkeypatch.setitem(d._REGISTRY, "mistral", fake_mistral)
-    monkeypatch.setitem(d._REGISTRY, "chandra", fake_chandra)
+    monkeypatch.setitem(d.REGISTRY, "mistral", _fake_spec("mistral", "m"))
+    monkeypatch.setitem(d.REGISTRY, "chandra", _fake_spec("chandra", "c"))
 
     cfg = OCRConfig(provider="mistral", api_key="k")
     out = extract_pdf(b"%PDF-1.4", config=cfg)
-    assert seen["called"] == "mistral"
     assert out.text == "m"
+    assert out.provider == "mistral"
 
     out2 = extract_pdf(b"%PDF-1.4", config=OCRConfig(provider="chandra", api_key="k"))
-    assert seen["called"] == "chandra"
     assert out2.text == "c"
+    assert out2.provider == "chandra"
 
 
 def test_extract_pdf_unknown_provider_raises():
@@ -66,20 +69,28 @@ def test_estimate_cost_unknown_provider_raises():
         estimate_cost("bogus", 100)
 
 
-def test_cheapest_provider_prefers_mistral_batch():
-    """Pricing as of April 2026: Mistral batch ($1/1k) is the cheapest
-    hosted option. If this flips (Mistral price hike, Chandra public
-    rate drops), this assertion needs an explicit update — not silent
-    drift."""
-    assert cheapest_provider(batch_ok=True) == "mistral"
+def test_cheapest_provider_picks_lowest_listed_rate():
+    """`cheapest_provider` scans every registered provider's `cost(1, ...)`
+    and returns the lowest. As of 2026-04 the lowest *listed* rate is
+    paddle ($0.080/1k, Modal-hosted) — note this is a placeholder until
+    the first Modal-billing-anchored bakeoff lands. Among the API-priced
+    set, mistral batch ($1/1k) wins.
+
+    If a registered provider's listed rate changes, this assertion needs
+    an explicit update — not silent drift. Quality / latency / placeholder
+    status are NOT considered here; that's documented in the cheapest_provider
+    docstring."""
+    assert cheapest_provider(batch_ok=True) == "paddle"
 
 
-def test_cheapest_provider_falls_back_when_batch_disallowed():
-    """Without batch, Mistral sync ($2) > Unstructured fast ($1).
-    The Unstructured fast strategy isn't a real OCR though — caller
-    needs to know what `cheapest_provider` is actually returning."""
+def test_cheapest_provider_responds_to_batch_flag():
+    """When batch is disallowed, providers that only have batch pricing
+    (mistral, gemini) fall back to their sync rate. The cheapest still
+    needs to be a registered provider name."""
     out = cheapest_provider(batch_ok=False)
-    assert out in {"unstructured", "mistral"}  # pricing-tied; either is valid
+    assert out in d.REGISTRY  # any registered name is structurally valid
+    # Paddle is the cheapest at the listed Modal placeholder rate either way.
+    assert out == "paddle"
 
 
 # ----- estimate_wall — sync provider picker for the preview block ----------
@@ -111,5 +122,7 @@ def test_estimate_wall_mistral_batch_is_submit_and_exit():
 
 
 def test_estimate_wall_unknown_provider_raises():
-    with pytest.raises(KeyError):
+    # Same error class as estimate_cost — unified by the deepening so
+    # callers don't have to remember which one raises which exception.
+    with pytest.raises(ValueError, match="unknown OCR provider"):
         estimate_wall("bogus", 10)

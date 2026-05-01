@@ -2,8 +2,8 @@
 
 CircuitBreaker, signal handlers, exception classifier, percentile
 helper, and a generic guarded-iteration driver — used by both the
-process sweep (scripts/run_sweep.py) and the PDF sweep
-(src/sweeps/pdf_driver.py).
+process sweep (``judex.sweeps.run_sweep``) and the PDF sweeps
+(``judex.sweeps.download_driver`` / ``judex.sweeps.extract_driver``).
 """
 
 from __future__ import annotations

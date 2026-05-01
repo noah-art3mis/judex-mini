@@ -91,4 +91,4 @@ class PecaStore(BaseStore):
         return int(rec["attempt"]) if rec else 0
 
     def record(self, rec: PecaAttemptRecord) -> None:
-        self._append_and_compact(asdict(rec))
+        self._record(asdict(rec))

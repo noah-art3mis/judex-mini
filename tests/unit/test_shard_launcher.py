@@ -3,13 +3,14 @@
 Covers:
 - ``split_proxy_file(file, n, dir)`` round-robin-splits a flat proxy
   file into N per-shard pools and tolerates blank/comment lines.
-- ``launch_sharded_download`` and ``launch_sharded_sweep`` partition
-  the CSV, materialize the per-shard pools, and spawn one subprocess
-  per shard with the right argv. Spawn is injected so the test
-  doesn't fork real processes.
+- ``launch_sharded(command=..., ...)`` partitions the CSV, materializes
+  the per-shard pools, and spawns one subprocess per shard with the
+  right argv. Spawn is injected so the test doesn't fork real processes.
+  Tested for both supported commands (``baixar-pecas``, which has no
+  ``--rotulo``, and ``varrer-processos``, which requires one).
 - The Typer CLI surface (``judex varrer-processos --shards N
-  --proxy-pool FILE``) wires through to ``launch_sharded_sweep`` with
-  the right flag translations.
+  --proxy-pool FILE``) wires through to ``launch_sharded`` with the
+  right per-command argv shape.
 """
 
 from __future__ import annotations
@@ -19,11 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from judex.sweeps.shard_launcher import (
-    launch_sharded_download,
-    launch_sharded_sweep,
-    split_proxy_file,
-)
+from judex.sweeps.shard_launcher import launch_sharded, split_proxy_file
 
 
 # --- split_proxy_file ------------------------------------------------------
@@ -79,15 +76,16 @@ def test_split_proxy_file_errors_when_fewer_lines_than_shards(tmp_path: Path) ->
         split_proxy_file(src, n=4, out_dir=tmp_path / "pools")
 
 
-# --- launch_sharded_download -----------------------------------------------
+# --- launch_sharded for baixar-pecas (no --rotulo) ------------------------
 
 
-def test_launch_sharded_download_partitions_csv_and_spawns(tmp_path: Path) -> None:
-    """The launcher:
+def test_launch_sharded_baixar_pecas_partitions_csv_and_spawns(tmp_path: Path) -> None:
+    """For ``command="baixar-pecas"`` the launcher:
     - partitions the input CSV into N shards under ``<saida>/shards/``
     - splits ``proxy_pool`` round-robin into ``<saida>/proxies/proxies.<letter>.txt``
     - calls ``spawn(argv, cwd, driver_log)`` exactly N times with the right args
     - writes ``shards.pids``
+    No ``--rotulo`` flag is emitted (baixar-pecas doesn't have one).
     """
     src_csv = tmp_path / "input.csv"
     with src_csv.open("w", newline="") as f:
@@ -106,7 +104,8 @@ def test_launch_sharded_download_partitions_csv_and_spawns(tmp_path: Path) -> No
         spawns.append((argv, driver_log))
         return 10000 + len(spawns)  # fake PID
 
-    pids_path = launch_sharded_download(
+    pids_path = launch_sharded(
+        command="baixar-pecas",
         csv_path=src_csv,
         shards=3,
         proxy_pool=proxy_pool,
@@ -131,6 +130,9 @@ def test_launch_sharded_download_partitions_csv_and_spawns(tmp_path: Path) -> No
     for i, (argv, driver_log) in enumerate(spawns):
         letter = "abc"[i]
         joined = " ".join(argv)
+        # Typer command, not --rotulo (baixar-pecas has no --rotulo).
+        assert argv[:4] == ["uv", "run", "judex", "baixar-pecas"]
+        assert "--rotulo" not in argv
         assert f"shard.{i}.csv" in joined
         assert f"proxies/proxies.{letter}.txt" in joined
         assert f"shard-{letter}" in joined
@@ -150,18 +152,16 @@ def test_launch_sharded_download_partitions_csv_and_spawns(tmp_path: Path) -> No
         assert len(rows) == 5
 
 
-# --- launch_sharded_sweep --------------------------------------------------
+# --- launch_sharded for varrer-processos (with --rotulo) -------------------
 
 
-def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
-    """Sibling of :func:`launch_sharded_download`, targeting
-    ``scripts/run_sweep.py``.
-
-    Each shard must get a distinct ``--label`` (so sweep.state.json /
-    pgrep-by-label stay workable per-shard), the right ``--csv`` /
-    ``--out`` / ``--proxy-pool``, and any ``extra_args`` forwarded
-    verbatim. PIDs file and ``driver.log`` location mirror
-    ``launch_sharded_download``'s contract.
+def test_launch_sharded_varrer_processos_partitions_csv_and_spawns(tmp_path: Path) -> None:
+    """For ``command="varrer-processos"`` the launcher emits per-shard
+    ``--rotulo`` (synthesised from ``label_prefix``) since
+    ``judex varrer-processos`` requires it. Same partition rule, same
+    per-shard directory layout, same pids-file contract as the
+    ``baixar-pecas`` path; the per-command differences are isolated to
+    the argv (command name + ``--rotulo`` flag).
     """
     src_csv = tmp_path / "input.csv"
     with src_csv.open("w", newline="") as f:
@@ -180,13 +180,14 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
         spawns.append((argv, driver_log))
         return 20000 + len(spawns)
 
-    pids_path = launch_sharded_sweep(
+    pids_path = launch_sharded(
+        command="varrer-processos",
         csv_path=src_csv,
         shards=2,
         proxy_pool=proxy_pool,
         saida_root=saida,
         label_prefix="hc_backfill",
-        extra_args=["--resume", "--items-dir", "data/source/processos/HC"],
+        extra_args=["--retomar", "--diretorio-itens", "data/source/processos/HC"],
         spawn=fake_spawn,
     )
 
@@ -200,26 +201,28 @@ def test_launch_sharded_sweep_partitions_csv_and_spawns(tmp_path: Path) -> None:
     for i, (argv, driver_log) in enumerate(spawns):
         letter = "ab"[i]
         joined = " ".join(argv)
-        assert "scripts/run_sweep.py" in joined
+        # Typer command via uv run, not the deprecated python scripts/ path.
+        assert argv[:4] == ["uv", "run", "judex", "varrer-processos"]
         assert f"shard.{i}.csv" in joined
         assert f"proxies/proxies.{letter}.txt" in joined
         assert f"shard-{letter}" in joined
-        # Per-shard label — critical for run_sweep (state + pgrep).
-        assert "--label" in argv
-        label_val = argv[argv.index("--label") + 1]
+        # Per-shard rótulo — critical for varrer-processos (state + pgrep).
+        assert "--rotulo" in argv
+        label_val = argv[argv.index("--rotulo") + 1]
         assert label_val == f"hc_backfill_shard_{letter}"
         # extra_args forwarded verbatim and in order.
-        assert "--resume" in argv
-        assert "--items-dir" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
+        assert "--retomar" in argv
+        assert "--diretorio-itens" in argv
+        assert argv[argv.index("--diretorio-itens") + 1] == "data/source/processos/HC"
         # driver.log lands under the shard's saida.
         assert driver_log.name == "driver.log"
         assert f"shard-{letter}" in str(driver_log)
 
 
-def test_launch_sharded_sweep_requires_label_prefix(tmp_path: Path) -> None:
-    """``run_sweep``'s ``--label`` is mandatory; refuse to spawn without a
-    prefix rather than synthesizing one silently."""
+def test_launch_sharded_varrer_requires_label_prefix(tmp_path: Path) -> None:
+    """``judex varrer-processos`` requires ``--rotulo``; the launcher refuses
+    to spawn without a non-empty ``label_prefix`` rather than synthesizing
+    one silently. Other commands (e.g. ``baixar-pecas``) don't need it."""
     src_csv = tmp_path / "input.csv"
     with src_csv.open("w", newline="") as f:
         w = csv.writer(f)
@@ -229,8 +232,9 @@ def test_launch_sharded_sweep_requires_label_prefix(tmp_path: Path) -> None:
     proxy_pool = tmp_path / "proxies.txt"
     proxy_pool.write_text("ip1\nip2\n")
 
-    with pytest.raises(ValueError, match="label"):
-        launch_sharded_sweep(
+    with pytest.raises(ValueError, match="label_prefix"):
+        launch_sharded(
+            command="varrer-processos",
             csv_path=src_csv,
             shards=2,
             proxy_pool=proxy_pool,
@@ -248,11 +252,12 @@ def test_varrer_processos_shards_cli_forwards_flags(
 ) -> None:
     """CLI-level contract: ``judex varrer-processos --shards N
     --proxy-pool FILE`` partitions the CSV and spawns N children via
-    ``launch_sharded_sweep``. The Typer wrapper must forward
-    ``--retomar`` (→ ``--resume``), ``--diretorio-itens`` (→
-    ``--items-dir``), and ``--rotulo`` (→ per-shard ``--label``)
-    correctly — that translation is the most likely regression point
-    when ``cli.py`` evolves.
+    ``launch_sharded(command="varrer-processos", ...)``. After the CLI
+    cleanup, the per-shard children are spawned as
+    ``uv run judex varrer-processos ...`` — same Typer command, just one
+    subprocess per shard. The Typer wrapper must forward ``--retomar``,
+    ``--diretorio-itens``, and ``--rotulo`` verbatim (no translation step
+    now that the argparse layer is gone).
     """
     from typer.testing import CliRunner
 
@@ -293,14 +298,15 @@ def test_varrer_processos_shards_cli_forwards_flags(
     assert "Lançou 2 shards" in result.output
     assert len(spawned) == 2
 
-    # Per-shard argv must carry the English script-layer flags with
-    # values translated from the Portuguese CLI flags.
+    # Per-shard argv carries the same Portuguese Typer flags forwarded
+    # from the parent CLI — no translation step (the argparse layer was
+    # eliminated when run_sweep moved into judex/sweeps/).
     for i, argv in enumerate(spawned):
         letter = "ab"[i]
-        assert "scripts/run_sweep.py" in " ".join(argv)
-        assert argv[argv.index("--label") + 1] == f"hc_q2_shard_{letter}"
-        assert "--resume" in argv
-        assert argv[argv.index("--items-dir") + 1] == "data/source/processos/HC"
+        assert argv[:4] == ["uv", "run", "judex", "varrer-processos"]
+        assert argv[argv.index("--rotulo") + 1] == f"hc_q2_shard_{letter}"
+        assert "--retomar" in argv
+        assert argv[argv.index("--diretorio-itens") + 1] == "data/source/processos/HC"
         assert argv[argv.index("--proxy-pool") + 1].endswith(
             f"proxies/proxies.{letter}.txt"
         )

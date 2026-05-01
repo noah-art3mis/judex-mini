@@ -1,124 +1,129 @@
-"""Provider registry + cost estimator.
+"""Provider registry + thin metadata facade.
 
-`extract_pdf(pdf_bytes, config)` is the single entry point — looks up
-`config.provider` in the registry and forwards the call. Adding a new
-provider means: implement `extract(pdf_bytes, *, config) -> ExtractResult`
-and register it here.
+Each provider module exposes a ``SPEC: ProviderSpec`` constant that
+self-describes its ``extract`` callable, ``cost`` function, ``wall``
+function, env-var name, and batch support. This module imports each
+provider, builds a name → spec registry, and surfaces three thin
+facades for the rest of the codebase:
 
-`estimate_cost(provider, n_pages, *, batch=False)` returns USD assuming
-April-2026 list prices (see PRICING dict). Use for dry-run gates before
-launching a bulk sweep.
+- ``extract_pdf(pdf_bytes, config)`` — single dispatch entry point;
+  forwards to ``REGISTRY[config.provider].extract``.
+- ``estimate_cost(provider, n_pages, **opts)`` — backwards-compat
+  wrapper that builds an :class:`OCRConfig` from kwargs and delegates
+  to the provider's ``cost`` method. Prefer ``get_provider(name).cost``
+  for new call sites.
+- ``estimate_wall(provider, n_pdfs, **opts)`` — same shape for wall
+  anchors. Some providers (Modal-hosted) raise ``NotImplementedError``
+  until their first bakeoff anchors a real number.
+
+Adding a new provider means: implement ``extract``/``cost``/``wall``
+plus a ``SPEC`` in ``judex/scraping/ocr/<provider>.py``; add one line
+to the ``_PROVIDERS`` list below. The previous central ``PRICING`` dict
++ ``estimate_cost`` if/elif chain are gone — pricing now lives with
+the provider that owns it.
 """
 
 from __future__ import annotations
 
-from typing import Callable
-
 from judex.scraping.ocr import chandra as _chandra
+from judex.scraping.ocr import gemini as _gemini
 from judex.scraping.ocr import mistral as _mistral
+from judex.scraping.ocr import paddle as _paddle
 from judex.scraping.ocr import pypdf as _pypdf
+from judex.scraping.ocr import surya as _surya
+from judex.scraping.ocr import tesseract as _tesseract
 from judex.scraping.ocr import unstructured as _unstructured
-from judex.scraping.ocr.base import ExtractResult, OCRConfig
+from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 
-_REGISTRY: dict[str, Callable[..., ExtractResult]] = {
-    "pypdf": _pypdf.extract,
-    "unstructured": _unstructured.extract,
-    "mistral": _mistral.extract,
-    "chandra": _chandra.extract,
-}
+_PROVIDERS: list[ProviderSpec] = [
+    _pypdf.SPEC,
+    _unstructured.SPEC,
+    _mistral.SPEC,
+    _chandra.SPEC,
+    _gemini.SPEC,
+    _surya.SPEC,
+    _paddle.SPEC,
+    _tesseract.SPEC,
+]
 
 
-# USD per page. Source notes:
-# - pypdf: local text-layer parse; zero API cost. Listed so
-#   estimate_cost treats "pypdf" uniformly instead of special-casing
-#   the default provider at the call site.
-# - unstructured: $10 / 1k on hi_res, $1 / 1k on fast (unstructured.io/pricing)
-# - mistral: $2 / 1k sync, $1 / 1k batch (mistral.ai/news/mistral-ocr-3)
-# - chandra: not publicly listed; community ~$3 / 1k (verify on dashboard)
-PRICING: dict[tuple[str, str], float] = {
-    ("pypdf", "local"): 0.0,
-    ("unstructured", "hi_res"): 10.0 / 1000,
-    ("unstructured", "ocr_only"): 10.0 / 1000,
-    ("unstructured", "fast"): 1.0 / 1000,
-    ("unstructured", "auto"): 10.0 / 1000,  # conservative
-    ("mistral", "sync"): 2.0 / 1000,
-    ("mistral", "batch"): 1.0 / 1000,
-    ("chandra", "accurate"): 3.0 / 1000,
-    ("chandra", "balanced"): 3.0 / 1000,
-    ("chandra", "fast"): 3.0 / 1000,
-}
+REGISTRY: dict[str, ProviderSpec] = {p.name: p for p in _PROVIDERS}
+
+
+def get_provider(name: str) -> ProviderSpec:
+    """Look up a provider's spec by name. Raises ``ValueError`` on miss."""
+    if name not in REGISTRY:
+        raise ValueError(
+            f"unknown OCR provider {name!r}; known: {sorted(REGISTRY)}"
+        )
+    return REGISTRY[name]
 
 
 def extract_pdf(pdf_bytes: bytes, config: OCRConfig) -> ExtractResult:
-    if config.provider not in _REGISTRY:
-        raise ValueError(
-            f"unknown OCR provider {config.provider!r}; "
-            f"known: {sorted(_REGISTRY)}"
-        )
-    return _REGISTRY[config.provider](pdf_bytes, config=config)
+    return get_provider(config.provider).extract(pdf_bytes, config=config)
 
 
 def estimate_cost(
-    provider: str, n_pages: int, *,
-    strategy: str = "hi_res", mode: str = "accurate", batch: bool = False,
+    provider: str,
+    n_pages: int,
+    *,
+    strategy: str = "hi_res",
+    mode: str = "accurate",
+    batch: bool = False,
 ) -> float:
-    """USD for `n_pages` on the given provider/tier."""
-    if provider == "pypdf":
-        key = ("pypdf", "local")
-    elif provider == "mistral":
-        key = ("mistral", "batch" if batch else "sync")
-    elif provider == "unstructured":
-        key = ("unstructured", strategy)
-    elif provider == "chandra":
-        key = ("chandra", mode)
-    else:
-        raise ValueError(f"unknown OCR provider {provider!r}")
-    if key not in PRICING:
-        raise ValueError(f"no price for ({provider}, {key[1]})")
-    return PRICING[key] * n_pages
+    """USD for ``n_pages`` on the given provider/tier.
 
-
-# Per-PDF wall anchors (sync, seconds). Measured on the 2026-04-19
-# bakeoff (5-PDF canary, runs/active/2026-04-19-ocr-bakeoff/). These
-# drive the `extrair-pecas` preview ETA; re-anchor when a new bakeoff
-# lands.
-_WALL_PER_PDF: dict[str, float] = {
-    "pypdf": 0.1,
-    "mistral": 3.5,
-    "chandra": 15.0,
-    "unstructured": 25.0,
-}
-
-# Mistral batch is submit-and-exit: the call blocks on the upload +
-# job creation but then returns immediately. Actual fulfilment is
-# Mistral's SLA (~24 h ceiling, usually much faster). The preview
-# reports this as "submit now, collect with coletar-lote later" and
-# should NOT multiply by n_pdfs.
-_BATCH_SUBMIT_WALL_S = 30.0
-
-
-def estimate_wall(provider: str, n_pdfs: int, *, batch: bool = False) -> float:
-    """Wall-seconds estimate for a sweep of `n_pdfs` through `provider`.
-
-    Raises KeyError for unknown providers — callers should validate
-    the provider against `_REGISTRY` before calling (same guard as
-    `extract_pdf`).
+    Backwards-compat shape: builds an :class:`OCRConfig` from the kwargs
+    and delegates to the provider's ``cost`` method. Each provider reads
+    only the config fields its pricing model cares about.
     """
-    if batch and provider == "mistral":
-        return _BATCH_SUBMIT_WALL_S
-    return n_pdfs * _WALL_PER_PDF[provider]
+    spec = get_provider(provider)
+    config = OCRConfig(
+        provider=provider, strategy=strategy, mode=mode, batch=batch,
+    )
+    return spec.cost(n_pages, config)
+
+
+def estimate_wall(
+    provider: str,
+    n_pdfs: int,
+    *,
+    batch: bool = False,
+) -> float:
+    """Wall-seconds estimate for a sweep of ``n_pdfs`` through ``provider``.
+
+    Raises ``ValueError`` for unknown providers (consistent with
+    ``estimate_cost``); raises ``NotImplementedError`` for providers
+    whose wall anchor has not been measured yet (Modal-hosted providers
+    awaiting their first bakeoff).
+    """
+    spec = get_provider(provider)
+    config = OCRConfig(provider=provider, batch=batch)
+    return spec.wall(n_pdfs, config)
 
 
 def cheapest_provider(*, batch_ok: bool = True) -> str:
-    """Return the provider name with the lowest list price.
+    """Return the cheapest provider's name across the full registry.
 
-    Pure helper for `--provider auto` style flags. Doesn't account for
-    quality, latency, or feature differences.
+    Compares per-page cost at the spec's preferred config (batch when
+    ``batch_ok`` and the provider supports it; sync otherwise). Excludes
+    ``pypdf`` since it returns text-layer parses, not OCR. Doesn't
+    account for quality, latency, or feature differences.
     """
-    candidates = [
-        ("mistral", PRICING[("mistral", "batch" if batch_ok else "sync")]),
-        ("chandra", PRICING[("chandra", "accurate")]),
-        ("unstructured", PRICING[("unstructured", "fast")]),
-    ]
+    candidates: list[tuple[str, float]] = []
+    for spec in _PROVIDERS:
+        if spec.name == "pypdf":
+            continue
+        config = OCRConfig(
+            provider=spec.name,
+            batch=batch_ok and spec.supports_batch,
+        )
+        try:
+            per_page = spec.cost(1, config)
+        except (ValueError, NotImplementedError):
+            continue
+        candidates.append((spec.name, per_page))
+    if not candidates:
+        raise RuntimeError("no providers available for cheapest_provider()")
     return min(candidates, key=lambda x: x[1])[0]

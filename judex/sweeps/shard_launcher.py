@@ -2,9 +2,9 @@
 
 Used by:
 - ``judex varrer-processos --shards N --proxy-pool FILE`` (case JSON,
-  WAF-hot; routed through ``scripts/run_sweep.py``).
+  WAF-hot; spawns ``uv run judex varrer-processos`` per shard).
 - ``judex baixar-pecas      --shards N --proxy-pool FILE`` (PDF bytes;
-  routed through ``scripts/baixar_pecas.py``).
+  spawns ``uv run judex baixar-pecas`` per shard).
 
 Both callers partition an input CSV into N disjoint shards and detach
 one child process per shard, each bound to a slice of the proxy pool.
@@ -42,6 +42,11 @@ from scripts.shard_csv import ShardStrategy, shard_csv
 SpawnFn = Callable[[list[str], Path, Path], int]
 """(argv, cwd, driver_log) -> pid. driver_log is the file where stdout+stderr
 of the child should be written (create/truncate)."""
+
+
+# Commands that take ``--rotulo`` (which the launcher synthesises per-shard).
+# Other supported commands omit the flag entirely.
+_COMMANDS_WITH_ROTULO: frozenset[str] = frozenset({"varrer-processos"})
 
 
 def split_proxy_file(proxy_file: Path, n: int, out_dir: Path) -> list[Path]:
@@ -107,43 +112,61 @@ def _real_spawn(argv: list[str], cwd: Path, driver_log: Path) -> int:
     return proc.pid
 
 
-def launch_sharded_sweep(
+def launch_sharded(
     *,
+    command: str,
     csv_path: Path,
     shards: int,
     proxy_pool: Path,
     saida_root: Path,
-    label_prefix: str,
+    label_prefix: Optional[str] = None,
     extra_args: Optional[list[str]] = None,
     spawn: Optional[SpawnFn] = None,
     strategy: ShardStrategy = "interleave",
 ) -> Path:
-    """Partition CSV, spawn N detached run_sweep children, return PIDs file.
+    """Partition CSV, spawn N detached children of ``judex <command>``,
+    return the PIDs file.
 
-    Sibling of :func:`launch_sharded_download`, targeting
-    ``scripts/run_sweep.py`` (case JSON scrape) instead of
-    ``scripts/baixar_pecas.py`` (PDF bytes). Same partition rule, same
-    per-shard directory layout, same pids-file contract — the
-    differences are:
+    Steps (uniform across all sharded sweeps):
 
-    - **Label is mandatory.** ``run_sweep`` requires ``--label`` to
-      name its sweep.state.json + sweep.log.jsonl; per-shard label is
-      ``<label_prefix>_shard_<letter>`` so ``pgrep -f <label>`` targets
-      a single shard and so shard logs don't cross-contaminate.
-    - **Target script** is ``scripts/run_sweep.py`` (the WAF-hot half).
-    - ``extra_args`` typically includes ``--resume`` + ``--items-dir
-      data/source/processos/<CLASSE>``; the caller owns the choice.
+      1. Create ``<saida_root>/shards/`` and partition ``csv_path`` into
+         N files via :func:`scripts.shard_csv.shard_csv` (strategy-driven).
+      2. Split ``proxy_pool`` round-robin into N per-shard files under
+         ``<saida_root>/proxies/proxies.<letter>.txt``.
+      3. For each shard, mkdir ``<saida_root>/shard-<letter>/`` and spawn
+         ``uv run judex <command> --csv SHARD --saida SHARD_DIR
+         --proxy-pool POOL [--rotulo <label_prefix>_shard_<letter>]
+         [extra_args]``. Child is detached.
+      4. Write one ``<pid>  shard-<letter>`` line per child to
+         ``<saida_root>/shards.pids``.
+      5. Return the pids-file path.
 
-    Raises :class:`ValueError` if ``label_prefix`` is empty, or if
-    ``proxy_pool`` has fewer usable proxy lines than ``shards``.
+    Per-command behaviour:
+
+    - **varrer-processos** requires ``label_prefix`` (a non-empty string).
+      The launcher emits ``--rotulo <label_prefix>_shard_<letter>`` so
+      ``pgrep -f <label>`` targets a single shard and shard logs don't
+      cross-contaminate. Typical extra_args: ``--retomar``,
+      ``--diretorio-itens data/source/processos/<CLASSE>``.
+    - **baixar-pecas** has no ``--rotulo`` flag; ``label_prefix`` is
+      ignored (pass ``None``). Per-shard isolation is via the saída
+      directory name only. Typical extra_args: ``--retomar``,
+      ``--apenas-substantivas``.
+
+    Raises :class:`ValueError` if ``shards < 2``, if ``proxy_pool`` has
+    fewer usable proxy lines than ``shards``, or if a command that
+    requires ``label_prefix`` is invoked without one.
     """
     if shards < 2:
-        raise ValueError("launch_sharded_sweep requires shards >= 2")
-    if not label_prefix:
+        raise ValueError("launch_sharded requires shards >= 2")
+
+    needs_rotulo = command in _COMMANDS_WITH_ROTULO
+    if needs_rotulo and not label_prefix:
         raise ValueError(
-            "launch_sharded_sweep requires a non-empty label_prefix "
-            "(run_sweep's --label is mandatory)"
+            f"launch_sharded for {command!r} requires a non-empty "
+            f"label_prefix (synthesised into per-shard --rotulo)"
         )
+
     # Resolve spawn at call time so monkeypatching _real_spawn (e.g. from
     # CLI integration tests) reaches this path without callers needing to
     # pass spawn= explicitly.
@@ -166,78 +189,18 @@ def launch_sharded_sweep(
         shard_saida = saida_root / f"shard-{letter}"
         shard_saida.mkdir(parents=True, exist_ok=True)
 
-        argv = [
-            "uv", "run", "python", "scripts/run_sweep.py",
+        argv: list[str] = [
+            "uv", "run", "judex", command,
             "--csv", str(shard_csv_path),
-            "--label", f"{label_prefix}_shard_{letter}",
-            "--out", str(shard_saida),
-            "--proxy-pool", str(pool_path),
-            *extra_args,
         ]
-        driver_log = shard_saida / "driver.log"
-        pid = spawn(argv, repo_root, driver_log)
-        lines.append(f"{pid}  shard-{letter}")
-
-    pids_path.write_text("\n".join(lines) + "\n")
-    return pids_path
-
-
-def launch_sharded_download(
-    *,
-    csv_path: Path,
-    shards: int,
-    proxy_pool: Path,
-    saida_root: Path,
-    extra_args: Optional[list[str]] = None,
-    spawn: SpawnFn = _real_spawn,
-    strategy: ShardStrategy = "interleave",
-) -> Path:
-    """Partition CSV, spawn N detached baixar_pecas children, return PIDs file.
-
-    Steps:
-      1. Create ``<saida_root>/shards/`` and call ``shard_csv`` to
-         partition ``csv_path`` into N files (strategy-driven).
-      2. Split ``proxy_pool`` round-robin into N per-shard files under
-         ``<saida_root>/proxies/proxies.<letter>.txt``.
-      3. For each shard, mkdir ``<saida_root>/shard-<letter>/`` and
-         spawn ``uv run python scripts/baixar_pecas.py --csv SHARD
-         --saida SHARD_DIR --proxy-pool POOL [extra_args]``. Child is
-         detached.
-      4. Write one ``<pid>  shard-<letter>`` line per child to
-         ``<saida_root>/shards.pids``.
-      5. Return the pids-file path.
-
-    Raises :class:`ValueError` if ``proxy_pool`` has fewer usable proxy
-    lines than ``shards``.
-    """
-    if shards < 2:
-        raise ValueError("launch_sharded_download requires shards >= 2")
-    extra_args = list(extra_args or [])
-
-    saida_root.mkdir(parents=True, exist_ok=True)
-    shards_dir = saida_root / "shards"
-    shard_files = shard_csv(csv_path, shards, shards_dir, strategy=strategy)
-
-    pools = split_proxy_file(proxy_pool, shards, saida_root / "proxies")
-
-    repo_root = Path.cwd()
-    pids_path = saida_root / "shards.pids"
-    lines: list[str] = []
-
-    for shard_csv_path, pool_path in zip(shard_files, pools):
-        # Shard letter follows the pool's letter (a, b, c, ...) for easy
-        # "shard-a uses proxies.a.txt" reasoning.
-        letter = pool_path.stem.split(".")[1]  # proxies.a.txt -> "a"
-        shard_saida = saida_root / f"shard-{letter}"
-        shard_saida.mkdir(parents=True, exist_ok=True)
-
-        argv = [
-            "uv", "run", "python", "scripts/baixar_pecas.py",
-            "--csv", str(shard_csv_path),
+        if needs_rotulo:
+            argv.extend(["--rotulo", f"{label_prefix}_shard_{letter}"])
+        argv.extend([
             "--saida", str(shard_saida),
             "--proxy-pool", str(pool_path),
             *extra_args,
-        ]
+        ])
+
         driver_log = shard_saida / "driver.log"
         pid = spawn(argv, repo_root, driver_log)
         lines.append(f"{pid}  shard-{letter}")

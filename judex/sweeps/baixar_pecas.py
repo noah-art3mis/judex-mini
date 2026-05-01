@@ -1,25 +1,15 @@
 """Download STF PDFs to the local bytes cache.
 
-The WAF-bound half of the PDF pipeline: fetches
-`PecaTarget.url` from STF and writes raw bytes to
-`data/raw/pecas/<sha1>.<ext>.gz`. Extraction is handled separately by
-`scripts/extrair_pecas.py`.
+The WAF-bound half of the PDF pipeline: fetches `PecaTarget.url` from
+STF and writes raw bytes to ``data/raw/pecas/<sha1>.<ext>.gz``.
+Extraction is handled separately by ``judex.sweeps.extrair_pecas``.
 
-Usage:
+Surfaced via Typer at ``judex baixar-pecas``; library entry point is
+:func:`run_download_pecas`. Detached invocation:
 
-    # Range mode (parallel to varrer-processos)
-    PYTHONPATH=. uv run python scripts/baixar_pecas.py \\
-        -c HC -i 252920 -f 253000 \\
-        --saida runs/active/2026-04-19-hc-bytes \\
-        --nao-perguntar
+    nohup uv run judex baixar-pecas --csv X.csv --saida out/ ...
 
-    # Filter fallback
-    PYTHONPATH=. uv run python scripts/baixar_pecas.py \\
-        --classe HC --impte-contem TORON \\
-        --tipos-doc "DECISÃO MONOCRÁTICA,INTEIRO TEOR DO ACÓRDÃO" \\
-        --saida runs/active/2026-04-19-toron
-
-Input-mode priority: `--retentar-de` > `--csv` > range > filter.
+Input-mode priority: ``--retentar-de`` > ``--csv`` > range > filter.
 """
 
 from __future__ import annotations
@@ -76,7 +66,11 @@ def run_download_pecas(
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-    targets, mode_label = _pdf_cli.resolve_targets(args)
+    try:
+        targets, mode_label = _pdf_cli.resolve_targets(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     if args.apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
@@ -142,48 +136,3 @@ def run_download_pecas(
     return 0 if failed == 0 else 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    ap.add_argument("-c", "--classe", type=str, default=None,
-                    help='Classe (e.g. "HC"). Alone → filter. With -i/-f → range.')
-    ap.add_argument("-i", "--inicio", type=int, default=None,
-                    help="First processo in range (inclusive).")
-    ap.add_argument("-f", "--fim", type=int, default=None,
-                    help="Last processo in range (inclusive).")
-    ap.add_argument("--csv", type=Path, default=None,
-                    help="CSV of (classe, processo). Beats range/filter.")
-    ap.add_argument("--retentar-de", dest="retentar_de", type=Path, default=None,
-                    help="Path to a prior pdfs.errors.jsonl; re-runs those URLs.")
-    ap.add_argument("--impte-contem", dest="impte_contem", type=str, default="")
-    ap.add_argument("--tipos-doc", dest="tipos_doc", type=str, default="")
-    ap.add_argument("--relator-contem", dest="relator_contem", type=str, default="")
-    ap.add_argument("--excluir-tipos-doc", dest="excluir_tipos_doc",
-                    type=str, default="")
-    ap.add_argument("--limite", type=int, default=0)
-    ap.add_argument(
-        "--apenas-substantivas", dest="apenas_substantivas",
-        action="store_true", default=True,
-    )
-    ap.add_argument(
-        "--todos-tipos", dest="apenas_substantivas",
-        action="store_false",
-    )
-    ap.add_argument("--saida", type=Path, default=None)
-    ap.add_argument("--forcar", action="store_true")
-    ap.add_argument("--dry-run", dest="dry_run", action="store_true")
-    ap.add_argument("--nao-perguntar", dest="nao_perguntar", action="store_true")
-    ap.add_argument("--retomar", action="store_true")
-    ap.add_argument("--proxy-pool", dest="proxy_pool", type=Path, default=None)
-    ap.add_argument("--proxy-rotate-seconds", dest="proxy_rotate_seconds",
-                    type=float, default=270.0)
-    ap.add_argument("--proxy-cooldown-minutes", dest="proxy_cooldown_minutes",
-                    type=float, default=4.0)
-    args = ap.parse_args(argv)
-    return run_download_pecas(**vars(args))
-
-
-if __name__ == "__main__":
-    sys.exit(main())

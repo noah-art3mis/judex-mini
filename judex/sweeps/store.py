@@ -1,26 +1,42 @@
 """Generic append-log + atomic compacted-state store.
 
-Shared skeleton behind `src/sweeps/process_store.py` (keyed by classe/processo)
-and `src/sweeps/peca_store.py` (keyed by URL). Both subclasses supply:
+Shared skeleton behind `judex/sweeps/process_store.py` (keyed by
+classe/processo) and `judex/sweeps/peca_store.py` (keyed by URL). Both
+subclasses supply:
 
 - class-level filename constants (LOG_NAME, STATE_NAME, ERRORS_NAME)
 - a `_state_key(rec_dict)` classmethod that derives the state dict key
   from a serialised record
 
-Atomic-write contracts (same as the per-domain docstrings):
+Durability + recovery contract:
 
-- `record()` appends a line to the log, flushes + fsyncs, then rewrites
-  state atomically via temp-file + `os.replace`. A kill between the two
-  loses at most the state update; the log replays cleanly.
-- Opening on an existing directory picks up state if present, otherwise
-  replays the log. Both writes survive torn state.
+- The append-only log (`<out>/<LOG_NAME>`) is the canonical durable
+  record. Every `record()` flushes + fsyncs one JSON line.
+- The compacted state file (`<out>/<STATE_NAME>`) is a *snapshot* of
+  the in-memory state, atomically rewritten on a hybrid threshold (every
+  ~10 seconds OR every ~500 records, whichever fires first) and on
+  explicit `compact()` calls.
+- On `__init__`, state is always reconstructed by replaying the log
+  (state.json is treated as a write-only snapshot for external readers
+  like `judex probe --watch`, never trusted on read). A fresh state.json
+  is written at the end of `__init__`.
+- A kill at any point loses at most pending log records that hadn't
+  been fsynced (bounded to one record); state.json is rewritten
+  atomically via temp-file + `os.replace` so external readers always see
+  either the prior or the new snapshot, never partial.
 - `write_errors_file()` emits an atomic snapshot of non-ok rows.
+
+This shape replaces an earlier per-record state rewrite that scaled
+O(records × state_size) and capped corpus-wide unsharded passes at
+~0.13 rec/s on a 53 MB state. Threshold-based compaction makes
+state-file write cost amortise to constant per record.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -75,7 +91,16 @@ class BaseStore:
     STATE_NAME: str = ""
     ERRORS_NAME: str = ""
 
-    def __init__(self, out_dir: Path) -> None:
+    DEFAULT_COMPACT_INTERVAL_SECONDS: float = 10.0
+    DEFAULT_COMPACT_INTERVAL_RECORDS: int = 500
+
+    def __init__(
+        self,
+        out_dir: Path,
+        *,
+        compact_interval_seconds: float | None = None,
+        compact_interval_records: int | None = None,
+    ) -> None:
         assert self.LOG_NAME and self.STATE_NAME and self.ERRORS_NAME, (
             "Subclass must define LOG_NAME/STATE_NAME/ERRORS_NAME"
         )
@@ -85,13 +110,26 @@ class BaseStore:
         self.state_path = self.out_dir / self.STATE_NAME
         self.errors_path = self.out_dir / self.ERRORS_NAME
 
-        if self.state_path.exists():
-            self._state = json.loads(self.state_path.read_text())
-        elif self.log_path.exists():
-            self._state = replay_log(self.log_path, self._state_key)
-            self._write_state_atomically()
-        else:
-            self._state = {}
+        self._compact_seconds: float = (
+            compact_interval_seconds
+            if compact_interval_seconds is not None
+            else self.DEFAULT_COMPACT_INTERVAL_SECONDS
+        )
+        self._compact_records: int = (
+            compact_interval_records
+            if compact_interval_records is not None
+            else self.DEFAULT_COMPACT_INTERVAL_RECORDS
+        )
+        self._records_since_compact: int = 0
+
+        # Log is canonical: always replay to reconstruct in-memory state.
+        # state.json is treated as a write-only snapshot for external readers.
+        self._state = replay_log(self.log_path, self._state_key)
+
+        # Write a fresh snapshot so external readers (probe --watch) see a
+        # consistent file from process startup.
+        self._write_state_atomically()
+        self._last_compact_ts: float = time.monotonic()
 
     # Subclasses override.
     @classmethod
@@ -108,15 +146,41 @@ class BaseStore:
 
     # ----- Writes -----
 
-    def _append_and_compact(self, rec_dict: dict[str, Any]) -> None:
-        """Append to log (fsynced), then atomically rewrite state."""
+    def _record(self, rec_dict: dict[str, Any]) -> None:
+        """Append to the log (fsynced), update in-memory state, maybe-compact.
+
+        State.json is rewritten when either threshold is exceeded; otherwise
+        it stays at the last compacted snapshot. External readers see an
+        atomic snapshot, never partial.
+        """
         line = json.dumps(rec_dict, ensure_ascii=False)
         with self.log_path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
             f.flush()
             os.fsync(f.fileno())
         self._state[self._state_key(rec_dict)] = rec_dict
+        self._records_since_compact += 1
+        if self._should_compact():
+            self.compact()
+
+    def compact(self) -> None:
+        """Atomically rewrite state.json with the current in-memory state.
+
+        Resets the threshold counters. Safe to call at any time; idempotent
+        if no records have been written since the last compact. Callers
+        should invoke at process-exit / SIGTERM and at the end of a batch
+        to leave a fresh snapshot on disk.
+        """
         self._write_state_atomically()
+        self._records_since_compact = 0
+        self._last_compact_ts = time.monotonic()
+
+    def _should_compact(self) -> bool:
+        if self._records_since_compact >= self._compact_records:
+            return True
+        if (time.monotonic() - self._last_compact_ts) >= self._compact_seconds:
+            return True
+        return False
 
     def write_errors_file(self) -> Path:
         errs = self.errors()

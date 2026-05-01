@@ -1,28 +1,27 @@
 """CSV-driven validation sweep for the HTTP backend.
 
 Reads a list of (classe, processo) pairs from CSV, scrapes each via
-`scrape_processo_http`, optionally compares against ground-truth fixtures
+``scrape_processo_http``, optionally compares against ground-truth fixtures
 or a Selenium baseline CSV, and writes a Markdown report.
 
-Every sweep run materialises three files under `--out`:
+Every sweep run materialises three files under ``--saida``:
 
-    <out>/sweep.log.jsonl      append-only attempt log, one JSON line per attempt
-    <out>/sweep.state.json     compacted state, one entry per (classe, processo)
-    <out>/sweep.errors.jsonl   current non-ok entries (derived from state)
-    <out>/report.md            human-readable summary
+    <saida>/sweep.log.jsonl      append-only attempt log, one JSON line per attempt
+    <saida>/sweep.state.json     compacted state, one entry per (classe, processo)
+    <saida>/sweep.errors.jsonl   current non-ok entries (derived from state)
+    <saida>/report.md            human-readable summary
 
-`--resume` skips processes already recorded as ok. `--retry-from <errors>`
-re-runs only the processes listed in a prior `sweep.errors.jsonl`.
-SIGINT/SIGTERM stops cleanly after the in-flight process finishes.
+``--retomar`` skips processes already recorded as ok.
+``--retentar-de <errors>`` re-runs only the processes listed in a prior
+``sweep.errors.jsonl``. SIGINT/SIGTERM stops cleanly after the in-flight
+process finishes.
 
-See `docs/superpowers/specs/2026-04-16-validation-sweep-design.md`.
+Surfaced via Typer at ``judex varrer-processos``; library entry point is
+:func:`run_process_sweep`. Detached invocation:
 
-Run:
-    PYTHONPATH=. uv run python scripts/run_sweep.py \\
-        --csv tests/sweep/shape_coverage.csv \\
-        --label shape_coverage \\
-        --parity-dir tests/ground_truth \\
-        --out runs/active/2026-04-16-A-shape-coverage
+    nohup uv run judex varrer-processos --csv X.csv --rotulo foo --saida out/
+
+See ``docs/superpowers/specs/2026-04-16-validation-sweep-design.md``.
 """
 
 from __future__ import annotations
@@ -608,105 +607,6 @@ def _to_attempt_record(
     )
 
 
-# ----- Main ---------------------------------------------------------------
-
-
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--csv", type=Path, help="Input CSV of (classe, processo) pairs")
-    ap.add_argument("--label", required=True)
-    ap.add_argument(
-        "--out", required=True, type=Path,
-        help="Output DIRECTORY. Holds sweep.log.jsonl, sweep.state.json, "
-             "sweep.errors.jsonl, report.md.",
-    )
-    ap.add_argument("--parity-dir", type=Path, help="Dir of GT fixtures")
-    ap.add_argument("--parity-csv", type=Path, help="Selenium baseline CSV")
-    ap.add_argument(
-        "--warm-pass", action="store_true",
-        help="Second pass over the same list without wiping cache.",
-    )
-    ap.add_argument(
-        "--wipe-cache", action="store_true",
-        help="Remove data/raw/html entries for the processes in the sweep before starting.",
-    )
-    ap.add_argument(
-        "--resume", action="store_true",
-        help="Skip processes that already have a status=ok record in sweep.state.json.",
-    )
-    ap.add_argument(
-        "--retry-from", type=Path,
-        help="Path to an existing sweep.errors.jsonl; re-run only those processes. "
-             "Takes precedence over --csv.",
-    )
-    ap.add_argument(
-        "--progress-every", type=int, default=25,
-        help="Print running totals every N processes (default: 25).",
-    )
-    ap.add_argument(
-        "--no-retry-403", dest="retry_403", action="store_false", default=True,
-        help="Disable the default retry-on-403 behavior. STF's WAF uses 403 "
-             "(not 429) as its throttle signal; retry-403 rides out block cycles.",
-    )
-    ap.add_argument(
-        "--circuit-window", type=int, default=50,
-        help="Rolling window of recent processes the circuit breaker watches "
-             "(default: 50). Pass 0 to disable the breaker.",
-    )
-    ap.add_argument(
-        "--items-dir", type=Path, default=None,
-        help="If set, write one judex-mini_<CLASSE>_<n>-<n>.json per ok "
-             "process into this directory. Eliminates the post-sweep "
-             "cache-hot replay step used to populate output/sample/*/.",
-    )
-    ap.add_argument(
-        "--circuit-threshold", type=float, default=0.8,
-        help="Non-ok fraction of the window that trips the breaker (default: "
-             "0.8 — permissive, since retry-403 normally absorbs WAF blocks; "
-             "only a pathological cascade should trip this). Sweep aborts "
-             "with exit code 2 once exceeded.",
-    )
-    ap.add_argument(
-        "--cliff-window", type=int, default=50,
-        help="Rolling window the CliffDetector uses to classify the sweep's "
-             "operating regime (default: 50). Regime is written to each "
-             "record in sweep.log.jsonl and printed on transitions. See "
-             "docs/rate-limits.md § Wall taxonomy and severity timeline.",
-    )
-    ap.add_argument(
-        "--no-stop-on-collapse", action="store_true",
-        help="Disable the CliffDetector's stop-on-collapse behavior. By "
-             "default, regime=collapse triggers a clean SIGTERM-equivalent "
-             "shutdown; pass this flag to keep scraping through collapse "
-             "(e.g. for observational studies of the cliff itself).",
-    )
-    ap.add_argument(
-        "--proxy-pool", type=Path, default=None,
-        help="Path to a file with one proxy URL per line (# comments ok). "
-             "Enables proactive IP rotation: swap sessions every "
-             "--proxy-rotate-seconds, well under STF's WAF L1 window, so "
-             "no IP ever trips a block. See docs/rate-limits.md § Wall "
-             "taxonomy and severity timeline.",
-    )
-    ap.add_argument(
-        "--proxy-rotate-seconds", type=float, default=270.0,
-        help="Seconds to use each proxy before rotating to the next "
-             "(default: 270 = 4.5 min, safely under STF's ~5-min WAF "
-             "sliding window). Ignored when --proxy-pool is absent.",
-    )
-    ap.add_argument(
-        "--proxy-cooldown-minutes", type=float, default=4.0,
-        help="Minutes a just-used proxy stays out of rotation (default: "
-             "4). Should be ≈ (pool_size - 1) × proxy-rotate-seconds / 60 "
-             "so each proxy has cooled by the time its turn returns.",
-    )
-    args = ap.parse_args(argv)
-
-    if args.retry_from is None and args.csv is None:
-        ap.error("either --csv or --retry-from is required")
-    return args
-
-
 def _load_rows(args: argparse.Namespace) -> tuple[list[tuple[str, int, Optional[str]]], str]:
     if args.retry_from:
         retry_rows = load_retry_list(args.retry_from)
@@ -1032,6 +932,7 @@ def run_process_sweep(
     )
 
     finished = datetime.now(timezone.utc)
+    store.compact()
     errors_path = store.write_errors_file()
     report_path = args.out / "report.md"
     render_report(
@@ -1057,7 +958,7 @@ def run_process_sweep(
         avg_bytes = int(os.environ.get("PROCESS_AVG_BYTES", AVG_BYTES_PER_PROCESS))
     except ValueError:
         avg_bytes = AVG_BYTES_PER_PROCESS
-    from judex.utils.pricing import estimate_proxy_cost
+    from judex.utils.cost import estimate_proxy_cost
     pool_was_active = pool is not None and pool.size() > 0
     cost = estimate_proxy_cost(
         bytes_downloaded=totals["ok"] * avg_bytes,
@@ -1081,10 +982,3 @@ def run_process_sweep(
     return 0 if n_error == 0 else 1
 
 
-def main(argv: list[str]) -> int:
-    args = parse_args(argv)
-    return run_process_sweep(**vars(args))
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))

@@ -21,7 +21,7 @@ from typing import Any
 
 import requests
 
-from judex.scraping.ocr.base import ExtractResult, OCRConfig
+from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 DEFAULT_API_URL = "https://www.datalab.to/api/v1/convert"
 
@@ -90,3 +90,28 @@ def poll(check_url: str, *, config: OCRConfig) -> ExtractResult:
 
 def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
     return poll(submit(pdf_bytes, config=config), config=config)
+
+
+# ----- ProviderSpec ---------------------------------------------------------
+
+
+def cost(n_pages: int, config: OCRConfig) -> float:
+    # All three Chandra modes (accurate / balanced / fast) share the same
+    # ~$3 / 1k community-reported rate as of 2026-04. Verify against the
+    # Datalab dashboard before bulk runs.
+    return n_pages * 3.0 / 1000
+
+
+def wall(n_pdfs: int, config: OCRConfig) -> float:
+    # ~15 s / pdf (2026-04-19 bakeoff anchor).
+    return n_pdfs * 15.0
+
+
+SPEC = ProviderSpec(
+    name="chandra",
+    extract=extract,
+    cost=cost,
+    wall=wall,
+    env_var="DATALAB_API_KEY",
+    supports_batch=False,
+)

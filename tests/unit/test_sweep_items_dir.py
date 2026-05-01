@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from scripts.run_sweep import _write_item_json
+from judex.sweeps.run_sweep import _write_item_json
 
 
 def test_writes_bare_dict_json(tmp_path: Path) -> None:

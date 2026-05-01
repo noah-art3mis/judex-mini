@@ -13,6 +13,9 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Tuning request pacing, retries, or proxy rotation | [`docs/rate-limits.md`](docs/rate-limits.md) — WAF behavior (403-not-429), validated defaults, cross-sweep cooldowns. |
 | **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
+| Pricing a sweep in money + wall time (year-of-HC, OCR, direct-IP vs proxy) | [`docs/cost-estimates.md`](docs/cost-estimates.md) — per-unit anchors, per-pass tables, override env vars. |
+| Forecasting a specific sweep before launch (single direct-IP vs 16 shards) | `judex {varrer-processos,baixar-pecas,extrair-pecas} --prever` — exits with a real-anchored cost+wall table; math in [`judex/utils/cost.py`](judex/utils/cost.py). |
+| Checking on a live or completed run (rate, regime, cliff diagnosis) | `judex probe --out-root <dir>` (sharded, live `--watch` mode) / `judex analisar-regimes <run_dir>` (mono+sharded, post-hoc regime trajectory; `--json` for jq). Both in [`judex/cli.py`](judex/cli.py). |
 | Checking per-year HC coverage (cases / peça bytes / text) or picking the next backfill target | [`docs/completion-tracker.md`](docs/completion-tracker.md) — per-year table, cache-integrity caveat, backfill priority queue. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
 | Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
@@ -42,7 +45,7 @@ work with no env var.
 
 ```bash
 uv run python scripts/validate_ground_truth.py
-uv run python scripts/run_sweep.py ...
+uv run judex varrer-processos ...
 ```
 
 ## CLI (`judex`)
@@ -50,28 +53,26 @@ uv run python scripts/run_sweep.py ...
 User-facing surface lives in `judex/cli.py` (Typer app, registered via
 `[project.scripts] judex = "judex.cli:app"` in pyproject). `uv sync`
 installs the `judex` console entry; commands below also work as
-`uv run judex …`. Each subcommand is a thin Typer wrapper that
-rebuilds argv and calls the `main()` of an argparse-based script in
-`scripts/` — so the same sweep can be launched detached
-(`nohup uv run python scripts/baixar_pecas.py …`) without Typer in
-the picture.
+`uv run judex …`. Each subcommand is a thin Typer wrapper that calls
+the matching `run_X(**kwargs)` library function in `judex/sweeps/`
+directly — detached invocation is `nohup uv run judex <command> …`.
 
-| Command                | Source                             | What it does                                                                                            |
-|------------------------|------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `varrer-processos`     | `scripts/run_sweep.py`             | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--items-dir`; sharded mode via `--shards N --proxy-pool FILE` (round-robin split into N pools at launch). |
-| `baixar-pecas`         | `scripts/baixar_pecas.py`          | PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.               |
-| `extrair-pecas`        | `scripts/extrair_pecas.py`         | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured}`.|
-| `atualizar-warehouse`  | `scripts/build_warehouse.py`       | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `exportar`             | (in-CLI)                           | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
-| `fazer-backup`         | (in-CLI, `judex/backup.py`)        | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
-| `validar-gabarito`     | `scripts/validate_ground_truth.py` | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+| Command                | Source                                | What it does                                                                                            |
+|------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `varrer-processos`     | `judex/sweeps/run_sweep.py`           | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE` (round-robin split into N pools at launch). |
+| `baixar-pecas`         | `judex/sweeps/baixar_pecas.py`        | PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.               |
+| `extrair-pecas`        | `judex/sweeps/extrair_pecas.py`       | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract}`.|
+| `atualizar-warehouse`  | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
+| `exportar`             | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
+| `fazer-backup`         | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
+| `validar-gabarito`     | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each
-script exposes a `run_X(**kwargs)` library function that the Typer
-command calls directly. The script's `main(argv) → argparse → run_X`
-shim is a thin compatibility layer so detached sweeps
-(`nohup uv run python scripts/baixar_pecas.py …`) keep working.
+sweep module exposes a `run_X(**kwargs)` library function that the Typer
+command calls directly. There is no longer an argparse shim —
+detached sweeps invoke `uv run judex <command>` and the sharded
+launcher's child subprocesses do the same.
 
 **Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
 scrape layers support `--shards N --proxy-pool FILE` — one flat file
@@ -98,7 +99,7 @@ or `pgrep -af <rotulo>_shard_` (varrer) / `pgrep -af baixar_pecas`
 (baixar), or read each `out/shard-<letter>/sweep.state.json` /
 `.../pdfs.state.json`. `xargs -a out/shards.pids kill -TERM` stops
 cleanly. Both launchers live in `judex/sweeps/shard_launcher.py`
-(`launch_sharded_sweep` / `launch_sharded_download`). The CLI path is
+(`launch_sharded(command=...)`). The CLI path is
 preferred for new sharded sweeps; `scripts/launch_hc_backfill_sharded.sh`
 is still valid when you need to **pre-seed each shard's
 `sweep.state.json` from an archived monolithic sweep** (to avoid
@@ -120,13 +121,18 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **`abaX.asp` endpoints need all three**: `ASPSESSIONID…` + `AWSALB` cookies, `Referer: detalhe.asp?incidente=N`, and `X-Requested-With: XMLHttpRequest`. Otherwise 403.
 - **`extract_partes` reads `#todas-partes`**, not `#partes-resumidas` (which collapses multi-lawyer IMPTE entries and drops PROC on HC).
 - **Use `judex.analysis.lawyer_canonical` for any ADV/IMPTE name work; don't roll your own regex in a notebook.** The raw `partes[].nome` column is a minefield: OAB parentheticals (`(12345/SP)`, `(12345/SP) E OUTRO(A/S)`), portal sentinels meaning "same as previous row" (`O MESMO`, `OS MESMOS`, typos like `O MESM0`, `IO MESMO`, ~3k phantom IMPTE rows if not filtered), accent-missing institutional variants (`DEFENSORIA PUBLICA DA UNIAO` — 4.7k rows — slips past any `DEFENSORIA PÚBLICA` prefix check), non-parenthetical OAB forms (`OAB/SP 148022`, `OAB-PE 48215`), law firms / unions / federations that are not individual lawyers, and courts-as-parties. `canonical_lawyer(nome)` returns `(key, oab_codes)` with tail/paren/sentinel handling; `classify(nome)` returns `LawyerEntry(kind, key, oab_codes)` with `kind ∈ {sentinel, placeholder, pro_se, institutional, juridical, court, with_oab, bare}`. Tests in `tests/unit/test_lawyer_canonical.py` pin every real-data edge case surfaced by a full-corpus stress test. Sample callers: `analysis/hc_judge_lawyer_network.py`, `analysis/hc_top_volume.py`.
+- **Use `judex analisar-regimes <run_dir>` to detect cliffs / SSL-EOF storms / saturation tails — don't compute regime buckets by hand from `pdfs.log.jsonl`.** Reads `sweep.log.jsonl` (varrer) or `pdfs.log.jsonl` (baixar/extrair) — auto-detected — and reconstructs the regime trajectory via the same `CliffDetector` the live sweep used. `--apenas-transicoes` shows only state changes (warming → under_utilising → approaching_collapse → collapse); `--json` emits one event per line for jq pipelines. For a live monolithic run, `tail -f .../launcher-stdout.log` + `pgrep -af baixar[-_]pecas` gives liveness; for sharded, `judex probe --out-root <dir> --watch N` is the rich-rendered live table. There's no first-class "live status of a monolithic run" command — composing `tail` + `pgrep` + `analisar-regimes` post-hoc is the documented path. Hand-rolling 5-min throughput buckets from `pdfs.log.jsonl` reinvents `analisar-regimes`'s output and missed a real SSL-EOF tail-storm in at least one Claude session.
+- **Use `judex {varrer,baixar,extrair}-pecas --prever` to forecast cost + wall before launching, not handrolled arithmetic.** Returns a side-by-side table for single direct-IP and 16-shard + proxy modes. Constants live in `judex/utils/cost.py` (which also covers post-hoc cost attribution — pre-launch forecasting and end-of-run `report.md` cost line are the same module): `_AVG_PDF_MB = 0.139` (mean of 79,084 cached `.pdf.gz`), `_AVG_REQ_WALL_S_DIRECT = 3.0` (HC 2024 + 2023 overnight averages incl. saturation tail + SSL fails), `_SHARD_SPEEDUP_X = 12.7` (cost-estimates.md TL;DR ratio, below the 16× theoretical because of per-pool budget tax). Re-anchor when the corpus doubles or after any major scrape change; the rule of thumb (in the module docstring) is "if a recent `report.md` shows `elapsed/reqs` more than 30% off `_AVG_REQ_WALL_S_DIRECT`, refresh from the latest two overnight runs". Tests at `tests/unit/test_cost.py` use bounds, not exact values, so re-anchoring within ±10% doesn't break them. OCR rates flow from each provider's `SPEC` (post the OCR-deepening), so `judex/utils/cost.py` doesn't carry per-provider duplicates.
+- **Use `judex.sweeps.peca_targets.collect_peca_targets` for any "how many PDFs / which PDFs" question over the corpus; don't walk source JSONs by hand.** It walks `andamentos[].link.url` (the only surface `baixar-pecas` actually fetches — `sessao_virtual[].documentos[].url` and `publicacoes_dje[].decisoes[].rtf.url` are populated at scrape time and never re-fetched), handles the two `andamento.link` shapes (string vs `{url, tipo}` dict via `_andamento_link`), filters by `_is_supported_doc_url` (`.pdf` / `.rtf` / `ext=RTF`), and dedupes by URL across cases (4,936 cross-case duplicates exist in the HC corpus via apenso/conexão — same PGR opinion linked from multiple consolidated cases — and the `sha1(url)`-keyed cache only stores one copy). Pair with `judex.sweeps.peca_classification.filter_substantive` to match the runner's `--apenas-substantivas` default — drops ~56% of the andamento URLs as tier-C procedural (CERTIDÃO, INTIMAÇÃO, COMUNICAÇÃO ASSINADA, etc.; full list in `peca_classification.TIER_C_DOC_TYPES`). Empirical chain on full HC corpus: raw andamento refs **280,838** → URL-deduped **275,902** → substantive **120,587** (≈1.33/case). Cross-validates `docs/completion-tracker.md:129` (2024 dry-run "15,482 fresh URLs"). Variants for scoping: `targets_from_range` (CSV-free range mode), `targets_from_csv` (explicit list), `targets_from_errors_jsonl` (replay only failed). Tests at `tests/unit/test_peca_targets.py` and `tests/unit/test_peca_classification.py`. Sample callers: `judex/sweeps/peca_cli.py`, `docs/cost-estimates.md` (year-of-HC budget). Handrolling this walk has bitten at least one Claude session — over- or under-counts depending on which step you skip.
 - **PDF URLs live on `sistemas.stf.jus.br`**, not `portal.stf.jus.br`. Separate origin, separate throttle counter.
 - **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pecas`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pecas`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
 - **`varrer-pdfs` is split into two commands.** `baixar-pecas` is the only path that talks to STF (WAF-bound; throttle, proxy pool, circuit breaker all live here). `extrair-pecas --provedor {pypdf|mistral|chandra|unstructured}` reads cached bytes and writes text — zero HTTP, no throttle, no breaker. Switch providers / re-OCR a tier without re-downloading. See `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md` for the spec.
+- **Scope follow-up passes to what you just collected — `--csv` is the scoping knob, `--saida` only locates state.** After a `baixar-pecas` sweep on year-N, the natural next step is `extrair-pecas` to flip those bytes into text. Always pair them: `extrair-pecas --csv <sweep>/cases.csv --saida <sweep>/`. The 2026-04-30 design hardening makes `judex/sweeps/peca_cli.py:resolve_targets` *raise* `ValueError` on bare invocation (no `--retentar-de`, no `--csv`, no range, no filter), so both `baixar-pecas` and `extrair-pecas` exit-2 with a clean error instead of falling through to corpus-wide enumeration — the historical footgun. The guard's primary role today is **over-scoping protection**: bare resolve walks the full corpus target list (`collect_peca_targets` over all `data/source/processos/HC/`), so a 15k-record year-sweep follow-up would walk 120k records — 8× wasted work just from scope. (Pre-deepening, a second compounding cliff hit: `peca_store.py` rewrote the entire `pdfs.state.json` per record, so a 53 MB corpus state capped `extrair-pecas` at ~0.13 rec/s — a further 27× rate gap. The state-store deepening on this commit makes state.json a periodic snapshot rather than a per-record rewrite, so that cliff is gone; only the 8× over-scoping cost remains.) The guard is pinned by `tests/unit/test_peca_cli.py::test_resolve_raises_when_no_scope_specified`. Same scoping rule still applies to analysis: when "I want to look at what we just collected", point DuckDB/pandas at `<sweep>/pdfs.log.jsonl` or rebuild a year-scoped warehouse — don't grep the corpus-wide warehouse for a single year.
 - **Corpus is uniformly v8 on disk (as of 2026-04-19).** `SCHEMA_VERSION = 8` in `judex/data/types.py`; every file under `data/source/processos/HC/` carries `_meta.schema_version = 8` and dict-shaped (or `None`) `outcome`. The renormalizer (`scripts/renormalize_cases.py`) has been run full-corpus twice — bare-string `outcome` no longer exists in production data. The warehouse builder's `_unpack_outcome` and the pre-v8 inline-text fallback in `_flatten_documentos` are retained as legacy-tolerant guards for cold checkouts / old backups, not because current data needs them. See [`docs/data-dictionary.md § Schema history`](docs/data-dictionary.md#schema-history) for the v1→v8 changelog.
 - **`judex/scraping/extraction/__init__.py` is intentionally empty** to keep the HTTP backend Selenium-free. Pinned by `tests/unit/test_http_backend_no_selenium.py`.
 - **DataJud does not have STF.** `api_publica_stf` returns 404. Don't re-check.
 - **`sessao_virtual[].documentos` entries with `url=None` are capture gaps, not inline-text documents.** Every `Relatório` / `Voto` row *is* a URL-linked PDF — a null URL means the scrape didn't capture the link (older scrape versions, or the link wasn't live yet on STF). Consequence: a year-scoped warehouse's `pdfs` table count reflects *captured URLs*, not the total PDF population for that year. If a `--year 2026` warehouse comes out with `pdfs=0`, investigate the scraper's link-capture path before assuming those cases genuinely have no PDFs.
+- **After `extrair-pecas` finishes, spot-check a handful of `.txt.gz` files before declaring the cycle closed.** The `report.md` `ok` count only confirms the extractor returned without raising — it does **not** confirm the text is usable. pypdf in particular fails silently on scanned/image-only PDFs (returns mostly whitespace), borked encodings (returns mojibake), and PDFs with vector-rendered text that isn't extractable at all. Sample 5–10 sha1s spanning the run and decompress-and-read: `gzip -dc data/derived/pecas-texto/<sha1>.txt.gz | head -50`. Look for: (1) actual sentences (not just headers/footers), (2) Portuguese words spelled correctly (no `Ã§` / `Ã£` corruption), (3) length plausible for the document type (a `DECISÃO MONOCRÁTICA` should be ≥1k chars, not 200). If a meaningful fraction look bad, re-extract that subset with `--provedor chandra` or `mistral` (`extrair-pecas --csv <subset> --provedor chandra --forcar`). The 2026-04-30 HC 2024 anomaly (text 80% vs 97-99% on 2023/2022) is exactly the kind of gap a spot-check would have surfaced before the warehouse rebuild.
 
 ## Don't break these
 
@@ -145,4 +151,18 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
-- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup` for the in-CLI pattern, or `varrer-processos` calling `scripts.run_sweep.run_process_sweep` for the script pattern. Scripts under `scripts/` keep a thin `main(argv) → argparse → run_X` shim for detached-sweep compatibility, but the Typer command must NOT reconstruct argv via the legacy `_push` helper. `_push` survives in only one role: building argv for child subprocesses spawned by `launch_sharded_sweep` / `launch_sharded_download` (those are real subprocesses, not framework wrappers).
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex varrer-processos` / `uv run judex baixar-pecas` per shard.
+
+## Agent skills
+
+### Issue tracker
+
+Issues for this repo live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage states (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a `Status:` line in each issue file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` at the repo root, ADRs under `docs/adr/`. See `docs/agents/domain.md`.
