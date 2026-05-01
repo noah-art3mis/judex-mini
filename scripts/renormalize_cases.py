@@ -7,27 +7,21 @@ extractors against the gzipped HTML cache at
 atomically (tmp + os.replace).
 
 **No network.** The script never calls STF or sistemas.stf.jus.br; all
-rebuilds come from the HTML fragment cache + the URL-keyed PDF text
-cache. Cases with no / incomplete HTML cache are reported as
-`needs_rescrape` and left untouched.
+rebuilds come from the HTML fragment cache. Cases with no / incomplete
+HTML cache are reported as `needs_rescrape` and left untouched.
 
 Why this works
 --------------
 Each schema bump (commits 45d86df → current) changed parsing, not
 source HTML. The HTML fragments STF served are still in the cache;
 running the current `src.scraping.extraction.*` modules against them
-produces the new shape. The PDF text cache (URL-keyed) is untouched
-by schema bumps, so sessao_virtual's `documentos` `text` values
-survive too.
+produces the new shape.
 
-v4 note (2026-04-19). The v3 → v4 jump adds `extractor: Optional[str]`
-on every link/documento and restructures `documentos` from dict to
-list. Both fall out naturally: re-running `_build_documentos` emits
-the list shape, and `_cache_only_pdf_fetcher` now returns
-`(text, extractor)` with the extractor label read from the
-`<sha1>.extractor` sidecar. Cache entries that predate the sidecar
-(most of them, today) get `extractor: null` — an agreed lossy
-backfill that new scrapes will populate as PDFs are re-extracted.
+v8 note (ADR-0001). Peça references on every surface (andamento,
+sessao_virtual, dje) are URL-only pointers on disk; canonical text
+lives in ``data/derived/pecas-texto/<sha1(url)>.txt.gz`` and is
+materialised by the bytes-first ``baixar-pecas`` + ``extrair-pecas``
+pipeline, never by this renormalizer.
 
 Usage
 -----
@@ -88,7 +82,7 @@ from judex.scraping.scraper_dje import (
     _dje_detail_cache_key,
 )
 from judex.data.reshape import reshape_to_v8
-from judex.utils import html_cache, peca_cache
+from judex.utils import html_cache
 
 CASES_ROOT = Path("data/source/processos")
 
@@ -116,7 +110,7 @@ def _cache_only_sessao_fetcher(classe: str, processo: int):
 
 
 def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
-    """Reconstruct `publicacoes_dje` from html_cache + peca_cache.
+    """Reconstruct `publicacoes_dje` from html_cache.
 
     Tolerant of missing cache because DJe is v7-new — pre-v7 archives
     have no `dje_listing` member. In that case we emit an empty list,
@@ -124,6 +118,9 @@ def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
     DJe data should run a fresh scrape (`use_cache=False`). If the
     listing is cached but some detail pages aren't, those entries are
     skipped with a warning rather than emitted at half-populated shape.
+    Per ADR-0001 step 2 the rtf.url stays a pointer; canonical text
+    lives in ``peca_cache`` and is materialised by ``baixar-pecas``
+    + ``extrair-pecas``, never by this renormalizer.
     """
     listing_html = html_cache.read(classe, processo, TAB_DJE_LISTING)
     if listing_html is None:
@@ -144,20 +141,6 @@ def _rebuild_publicacoes_dje(classe: str, processo: int) -> list[dict]:
         # already holds the canonical payload under sha1(rtf.url).
         out.append(entry)
     return out
-
-
-def _cache_only_pdf_fetcher():
-    """PDF fetcher that returns `(text, extractor)` from the cache.
-
-    Both slots are None on a full miss. When text is cached but the
-    `<sha1>.extractor` sidecar is absent (pre-v4 cache entries), we
-    return `(text, None)` — the v4 renormalizer writes the documento
-    with `extractor: null`, which is the agreed "we don't know which
-    extractor produced this" signal.
-    """
-    def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
-        return peca_cache.read(url), peca_cache.read_extractor(url)
-    return fetcher
 
 
 # Tabs the current extractors read to rebuild an StfItem. Missing →
@@ -231,7 +214,6 @@ def _rebuild_item(classe: str, processo: int) -> Optional[StfItem]:
             incidente=incidente,
             tema=tema,
             fetcher=_cache_only_sessao_fetcher(classe, processo),
-            pdf_fetcher=_cache_only_pdf_fetcher(),
         )
     except CacheMiss:
         return None

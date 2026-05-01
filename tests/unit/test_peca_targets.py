@@ -315,6 +315,58 @@ def test_skips_dje_decisoes_with_url_none(tmp_path: Path) -> None:
     assert not any(t.surface == "dje" for t in targets)
 
 
+def test_collects_real_sessao_virtual_redirect_url(tmp_path: Path) -> None:
+    """Real-world surface 2 URL shape: `sistemas.stf.jus.br/repgeral/votacao?texto=N`
+    is a redirect endpoint that resolves to a PDF. It has no `.pdf`/`.rtf`
+    suffix and no `ext=RTF` query param, so a naive `_is_supported_doc_url`
+    rejects it. The 2026-05-01 live test on HC 128377 caught the gap:
+    429 of 433 surface-2 URLs in a 2k-case sample use this shape (the
+    other 4 are `digital.stf.jus.br/decisoes-monocraticas/.../conteudo.pdf`).
+    Without explicit endpoint recognition `collect_peca_targets` silently
+    drops 99% of surface-2 targets."""
+    real_url = "https://sistemas.stf.jus.br/repgeral/votacao?texto=4248647"
+    rec = _make_rec(
+        processo_id=128377,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["sessao_virtual"] = [{
+        "documentos": [{"tipo": "Voto", "url": real_url}],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_128377.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    sessao = [t for t in targets if t.surface == "sessao_virtual"]
+    assert [t.url for t in sessao] == [real_url]
+
+
+def test_collects_real_dje_verdecisao_redirect_url(tmp_path: Path) -> None:
+    """Real-world surface 3 URL shape: `portal.stf.jus.br/servicos/dje/verDecisao.asp?numDj=...&incidente=...`
+    is a redirect endpoint that resolves to RTF. No `.rtf` suffix, no
+    `ext=RTF` query param. 100% of 279 surface-3 URLs in a 2k-case
+    sample use this shape — without endpoint recognition the surface
+    enumerates zero."""
+    real_url = (
+        "https://portal.stf.jus.br/servicos/dje/verDecisao.asp"
+        "?numDj=10&dataPublicacao=21/01/2022&incidente=6"
+    )
+    rec = _make_rec(
+        processo_id=128377,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["publicacoes_dje"] = [{
+        "decisoes": [{
+            "kind": "decisao",
+            "texto": "…",
+            "rtf": {"tipo": None, "url": real_url},
+        }],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_128377.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    dje = [t for t in targets if t.surface == "dje"]
+    assert [t.url for t in dje] == [real_url]
+
+
 def test_dedupes_url_across_surfaces(tmp_path: Path) -> None:
     """Apenso/conexão pattern: the same PARECER URL can appear under both
     an andamento and a sessao_virtual documento on the same case (or

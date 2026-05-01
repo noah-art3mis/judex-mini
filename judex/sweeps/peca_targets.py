@@ -50,23 +50,37 @@ class PecaTarget:
 def _is_supported_doc_url(url: Optional[str]) -> bool:
     """True if `url` looks like a downloadable case document (PDF or RTF).
 
-    Three STF URL shapes land as targets:
+    Five STF URL shapes land as targets:
       - `.pdf` suffix — andamento `downloadPeca.asp?…&ext=.pdf` (note the
         leading dot is part of the suffix) and sessão-virtual voto PDFs
-        on `sistemas.stf.jus.br/repgeral/` + `digital.stf.jus.br/…`.
+        on `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/N/conteudo.pdf`.
       - `.rtf` suffix — future-proofing; not currently emitted by STF.
       - `ext=RTF` query suffix — andamento `downloadTexto.asp?…&ext=RTF`
         (STF's actual RTF form; the ext is a query param, not a file
         extension). The extraction layer auto-detects RTF by magic
         bytes, so the URL-side check only needs to recognise it as a
         valid document.
+      - `sistemas.stf.jus.br/repgeral/votacao?texto=N` — surface-2
+        redirect endpoint. The query param carries the documento id;
+        fetching the URL returns a PDF. 99% of surface-2 URLs in the
+        HC corpus use this shape (the rest are explicit `.pdf` URLs
+        on `digital.stf.jus.br`, already covered above).
+      - `portal.stf.jus.br/servicos/dje/verDecisao.asp?…` — surface-3
+        redirect endpoint. Fetching the URL returns RTF. 100% of
+        surface-3 URLs in the HC corpus use this shape.
     """
     if not url:
         return False
     u = url.lower()
     if u.endswith((".pdf", ".rtf")):
         return True
-    return u.endswith("ext=rtf")
+    if u.endswith("ext=rtf"):
+        return True
+    if "/repgeral/votacao?" in u:
+        return True
+    if "/servicos/dje/verdecisao.asp?" in u:
+        return True
+    return False
 
 
 def collect_peca_targets(

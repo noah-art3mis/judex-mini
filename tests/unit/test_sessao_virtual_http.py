@@ -17,7 +17,6 @@ from judex.scraping.extraction.sessao import (
     parse_oi_listing,
     parse_sessao_virtual,
     parse_tema,
-    resolve_documentos,
 )
 from judex.scraping.scraper import _extract_tema_from_abasessao
 
@@ -171,119 +170,10 @@ def test_tema_number_extracted_from_abasessao_fragment() -> None:
     assert _extract_tema_from_abasessao(html_without_tema) is None
 
 
-def test_resolve_documentos_v8_warms_cache_but_emits_pointer_only_entries() -> None:
-    """v8 contract: `resolve_documentos` calls the fetcher for its
-    cache-warming side effect, but the returned entries have
-    text=None and extractor=None. Canonical text lives in peca_cache."""
-    docs = [
-        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None, "extractor": None},
-        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None, "extractor": None},
-    ]
-    called: list[str] = []
-
-    def fetcher(url: str) -> tuple:
-        called.append(url)
-        return ("body-from-cache", "pypdf_plain")
-
-    result = resolve_documentos(docs, fetcher=fetcher)
-
-    # Fetcher invoked once per URL — peca_cache gets warmed.
-    assert called == [
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=1",
-        "https://sistemas.stf.jus.br/repgeral/votacao?texto=2",
-    ]
-    # On-disk shape: pointer-only.
-    assert result == [
-        {"tipo": "Relatório", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=1", "text": None, "extractor": None},
-        {"tipo": "Voto",      "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=2", "text": None, "extractor": None},
-    ]
-
-
-def test_resolve_documentos_preserves_duplicate_tipo_entries() -> None:
-    """v4 list shape keeps every entry — the v3 dict silently dropped the
-    second "Voto" from the same session; the list has to preserve both."""
-    docs = [
-        {"tipo": "Voto", "url": "https://x/?texto=1", "text": None, "extractor": None},
-        {"tipo": "Voto", "url": "https://x/?texto=2", "text": None, "extractor": None},
-    ]
-    result = resolve_documentos(
-        docs,
-        fetcher=lambda url: (url.rsplit("=", 1)[-1], "pypdf_plain"),
-    )
-    assert [d["url"] for d in result] == ["https://x/?texto=1", "https://x/?texto=2"]
-    # v8: text/extractor are always None on disk.
-    assert all(d["text"] is None and d["extractor"] is None for d in result)
-
-
-def test_resolve_documentos_keeps_text_none_when_fetcher_returns_none() -> None:
-    """On fetch failure the entry still round-trips pointer-only — the
-    fetcher is allowed to return (None, _); we don't propagate it."""
-    docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=42",
-             "text": None, "extractor": None}]
-
-    result = resolve_documentos(docs, fetcher=lambda url: (None, None))
-
-    assert result == docs
-
-
-def test_resolve_documentos_still_warms_cache_even_if_entry_was_preenriched() -> None:
-    """v8: the fetcher is always called when a URL is present — it's a
-    side-effect call for cache warming, not a conditional enrichment."""
-    docs = [{"tipo": "Voto", "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9",
-             "text": "already extracted", "extractor": "pypdf_plain"}]
-    called: list[str] = []
-
-    def fetcher(url: str) -> tuple:
-        called.append(url)
-        return ("fresh body", "pypdf_plain")
-
-    result = resolve_documentos(docs, fetcher=fetcher)
-
-    # Fetcher IS called (cache warming), and the v8 output strips the
-    # stale inline text regardless of what the entry had previously.
-    assert called == ["https://sistemas.stf.jus.br/repgeral/votacao?texto=9"]
-    assert result == [{
-        "tipo": "Voto",
-        "url": "https://sistemas.stf.jus.br/repgeral/votacao?texto=9",
-        "text": None,
-        "extractor": None,
-    }]
-
-
-def test_extract_sessao_virtual_with_pdf_fetcher_warms_cache_but_leaves_docs_pointer_only() -> None:
-    fake_responses = {
-        ("oi", 2083816): _load("oi_2083816.json"),
-        ("sessaoVirtual", 2083816): _load("sv_2083816.json"),
-        ("sessaoVirtual", 6702594): _load("sv_6702594.json"),
-    }
-    pdf_calls: list[str] = []
-
-    def json_fetcher(param: str, value: int) -> str:
-        return fake_responses[(param, value)]
-
-    def pdf_fetcher(url: str) -> tuple:
-        pdf_calls.append(url)
-        return (f"TEXT({url.rsplit('=', 1)[-1]})", "pypdf_plain")
-
-    result = extract_sessao_virtual_from_json(
-        incidente=2083816, tema=None, fetcher=json_fetcher, pdf_fetcher=pdf_fetcher
-    )
-
-    assert len(result) == 3
-    # v8: pdf_fetcher is still called (for peca_cache warming), but the
-    # on-disk documento slots are pointer-only. Canonical text resolves
-    # through peca_cache at read time.
-    for entry in result:
-        assert isinstance(entry["documentos"], list)
-        for d in entry["documentos"]:
-            assert d["url"].startswith("https://")
-            assert d["text"] is None
-            assert d["extractor"] is None
-    assert len(pdf_calls) >= 3
-
-
-def test_extract_sessao_virtual_without_pdf_fetcher_leaves_text_none() -> None:
-    """Baseline: pdf_fetcher=None means urls are captured; text + extractor stay None."""
+def test_extract_sessao_virtual_emits_pointer_only_documentos() -> None:
+    """ADR-0001: case-scrape emits URL-only documentos. text and
+    extractor are always None on disk; canonical text materialises via
+    the bytes-first ``baixar-pecas`` + ``extrair-pecas`` pipeline."""
     fake_responses = {
         ("oi", 2083816): _load("oi_2083816.json"),
         ("sessaoVirtual", 2083816): _load("sv_2083816.json"),
@@ -294,15 +184,14 @@ def test_extract_sessao_virtual_without_pdf_fetcher_leaves_text_none() -> None:
         incidente=2083816,
         tema=None,
         fetcher=lambda p, v: fake_responses[(p, v)],
-        pdf_fetcher=None,
     )
 
-    # At least one document per session has a real URL with text=None and extractor=None.
-    assert any(
-        d["url"].startswith("https://") and d["text"] is None and d["extractor"] is None
-        for entry in result
-        for d in entry["documentos"]
-    )
+    # Every documento with a URL is pointer-only; no entry carries
+    # inline text or an extractor label.
+    documentos = [d for entry in result for d in entry["documentos"]]
+    assert documentos, "fixture should yield at least one documento"
+    assert any(d["url"] and d["url"].startswith("https://") for d in documentos)
+    assert all(d["text"] is None and d["extractor"] is None for d in documentos)
 
 
 def test_parse_tema_against_live_tema_1020_fixture() -> None:

@@ -1,6 +1,12 @@
 # ADR-0001: Unify peça fetch under the bytes-first / extract-later model
 
-**Status**: Proposed (2026-04-30). Implementation pending.
+**Status**: Accepted (2026-05-01). Both implementation steps landed; backfill pending operator action.
+
+| Step | What | Landed in | Notes |
+|---|---|---|---|
+| 1 | `collect_peca_targets` enumerates all three surfaces with a `surface ∈ {"andamento", "sessao_virtual", "dje"}` tag | commit `bc04799` | Read-side; tested in `tests/unit/test_peca_targets.py`. |
+| 2 | Synchronous PDF/RTF fetch removed from `varrer-processos` (deletes `_make_pdf_fetcher`, `resolve_documentos`, `pdf_fetcher` plumbing); `documentos[]` and `decisoes[].rtf` become URL-only pointers on disk | this commit | Write-side; `peca_cache` is no longer warmed at scrape time. |
+| 3 (operator) | One-shot `baixar-pecas` pass scoped to surfaces 2 + 3 to warm the bytes side | not yet run | Existing `<sha1>.txt.gz` stays valid until re-extraction is requested; no urgency unless a provider switch is planned. |
 
 ## Context
 
@@ -19,15 +25,15 @@ All three surfaces will use surface 1's model: **`varrer-processos` records the 
 
 1. **Re-extraction parity across the corpus.** The `extrair-pecas --provedor` knob exists so the project can adopt better OCR/extraction tools without re-scraping. Today that knob is a no-op for sessão-virtual + DJe peças. After this change, every peça is re-extractable.
 2. **Single-purpose passes.** `varrer-processos` becomes a pure case-JSON scraper. `baixar-pecas` becomes the only path that fetches PDF/RTF bytes from STF. The rate-limit / WAF / circuit-breaker logic applies uniformly to all peça fetches.
-3. **Cleaner forecasts.** `judex/utils/forecasts.py` constants are anchored on andamento-only sweeps and do not model the in-line PDF cost `varrer-processos` currently incurs. Once both passes are pure, forecasts apply uniformly.
+3. **Cleaner forecasts.** `judex/utils/cost.py` constants are anchored on andamento-only sweeps and do not model the in-line PDF cost `varrer-processos` currently incurs. Once both passes are pure, forecasts apply uniformly.
 
 ## Consequences
 
 - **Backfill is required.** Existing cache has `<sha1>.txt.gz` but no `<sha1>.pdf.gz` for surfaces 2 + 3. After implementation, a one-shot `baixar-pecas` pass scoped to those URLs warms the bytes side. Existing text stays valid until re-extraction is requested.
-- **Forecasts re-anchor.** First mixed-surface sweep should be treated as a re-anchoring run (per the rule in `forecasts.py`'s module docstring).
-- **Substantive filter scope is open.** Surface 1 uses `andamento.link.tipo` for tier-A/B/C filtering; surface 2 has `documentos[].tipo` (Relatório / Voto / etc.); surface 3 uses `decisoes[].kind` (`decisao` / `ementa`). The filter logic in `peca_classification` must be extended to cover all three discriminators. **If the mapping is non-trivial, defer to a follow-up ADR.**
-- **`varrer-processos` runtime drops.** Today's case-scrape includes synchronous PDF fetches; removing those should make case-scrape faster and reduce WAF pressure on `portal.stf.jus.br`, at the cost of a follow-up `baixar-pecas` pass against `sistemas.stf.jus.br`.
-- **`CLAUDE.md` gotcha update needed.** The current "URLs ... populated at scrape time and never re-fetched" phrasing becomes false (URLs only); the gotcha should be rewritten in the same PR that lands the implementation.
+- **Forecasts re-anchor.** First mixed-surface sweep should be treated as a re-anchoring run (per the rule in `judex/utils/cost.py`'s module docstring).
+- **Substantive filter scope — resolved (no follow-up ADR needed).** Surface 1 uses `andamento.link.tipo` for tier-A/B/C filtering; surface 2 has `documentos[].tipo` (`Relatório` / `Voto` / `Voto Vista`); surface 3 has `decisoes[].kind` (`decisao` / `ementa`). All surface-2 and surface-3 values are intrinsically substantive — there is no procedural noise on those surfaces equivalent to surface 1's `CERTIDÃO` / `INTIMAÇÃO`. The existing `filter_substantive` fail-open behaviour on tipos outside `TIER_C_DOC_TYPES` is therefore the *correct* semantics for surfaces 2 + 3, not a placeholder. Pinned by `tests/unit/test_peca_classification.py::test_filter_keeps_all_sessao_virtual_documentos` and `::test_filter_keeps_all_dje_decisoes`.
+- **`varrer-processos` runtime drops.** Pre-step-2 the case-scrape included synchronous PDF/RTF fetches; removing them shifts the bytes cost to a separate `baixar-pecas` pass against `sistemas.stf.jus.br`. The next overnight HC run after step 2 lands is the natural re-anchoring point for `_AVG_REQ_WALL_S_DIRECT` in `judex/utils/cost.py`.
+- **`CLAUDE.md` gotcha rewrite.** Pre-step-2 the gotcha said "URLs ... populated at scrape time and never re-fetched"; post-step-2 it must read "URL-only pointers on every surface; bytes-first via `baixar-pecas` on demand." Rewrite is part of this commit.
 
 ## Considered alternatives
 

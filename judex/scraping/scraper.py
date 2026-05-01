@@ -42,8 +42,7 @@ from judex.scraping.scraper_dje import (
     _make_dje_listing_fetcher,
     _resolve_publicacoes_dje,
 )
-from judex.utils import html_cache, peca_cache
-from judex.utils.peca_utils import extract_document_text
+from judex.utils import html_cache
 
 SESSAO_JSON_BASE = "https://sistemas.stf.jus.br/repgeral/votacao"
 
@@ -255,7 +254,6 @@ def run_scraper_http(
     output_dir: str,
     overwrite: bool,
     config: ScraperConfig,
-    fetch_pdfs: bool = True,
     fetch_dje: bool = True,
 ) -> None:
     """HTTP-backed equivalent of src.scraping.scraper.run_scraper.
@@ -288,7 +286,6 @@ def run_scraper_http(
                     overwrite,
                     timer,
                     export_item,
-                    fetch_pdfs=fetch_pdfs,
                     fetch_dje=fetch_dje,
                 )
             )
@@ -319,7 +316,6 @@ def run_scraper_http(
                         overwrite,
                         timer,
                         export_item,
-                        fetch_pdfs=fetch_pdfs,
                     )
                 )
 
@@ -348,7 +344,6 @@ def _scrape_http_batch(
     timer: Any,
     export_item: Any,
     *,
-    fetch_pdfs: bool = True,
     fetch_dje: bool = True,
 ) -> list[str]:
     exported: list[str] = []
@@ -363,7 +358,6 @@ def _scrape_http_batch(
                 processo,
                 session=session,
                 config=config,
-                fetch_pdfs=fetch_pdfs,
                 fetch_dje=fetch_dje,
             )
         except Exception as e:
@@ -389,31 +383,6 @@ def _extract_tema_from_abasessao(sessao_html: str) -> Optional[int]:
     if not m:
         return None
     return int(m.group(1))
-
-
-def _make_pdf_fetcher(*, use_cache: bool = True) -> Any:
-    """Return a `fetcher(url) -> (text, extractor)` that caches extracts.
-
-    Cache is URL-keyed (sha1); misses hit sistemas.stf.jus.br via
-    `src.utils.peca_utils.extract_document_text` (which handles both PDF
-    and RTF) and persist the label to `<sha1>.extractor`. Fetch failures
-    propagate as `(None, _)` so `resolve_documentos` keeps the URL for a
-    later retry. Cache hits return the sidecar label when present; None
-    on pre-v4 entries with no sidecar (the signal for "we have text but
-    don't know which extractor produced it").
-    """
-
-    def fetcher(url: str) -> tuple[Optional[str], Optional[str]]:
-        if use_cache:
-            hit = peca_cache.read(url)
-            if hit is not None:
-                return (hit, peca_cache.read_extractor(url))
-        text, extractor = extract_document_text(url)
-        if text is not None:
-            peca_cache.write(url, text, extractor=extractor)
-        return (text, extractor)
-
-    return fetcher
 
 
 def _make_sessao_fetcher(
@@ -466,14 +435,15 @@ def scrape_processo_http(
     use_cache: bool = True,
     session: Optional[requests.Session] = None,
     config: Optional[ScraperConfig] = None,
-    fetch_pdfs: bool = True,
     fetch_dje: bool = True,
 ) -> StfItem:
     """Full-process scrape via HTTP. Returns the same StfItem shape as the Selenium path.
 
-    When fetch_pdfs is True (default), sessao_virtual documentos URLs
-    are replaced with extracted text; the URL-keyed pdf cache makes
-    repeated runs cheap.
+    Per ADR-0001, this function never fetches PDF/RTF bytes — every
+    peça reference (andamento, sessão-virtual documento, DJe RTF) is
+    captured as a URL-only pointer. The bytes-first ``baixar-pecas``
+    + ``extrair-pecas`` pipeline materialises text into ``peca_cache``
+    on demand.
 
     Raises :class:`NoIncidenteError` when STF signals the process is
     unallocated (redirect without ``incidente=<n>``).
@@ -505,12 +475,10 @@ def scrape_processo_http(
             use_cache=use_cache,
             config=config,
         )
-        pdf_fetcher = _make_pdf_fetcher(use_cache=use_cache) if fetch_pdfs else None
         sessao_virtual = sessao_ex.extract_sessao_virtual_from_json(
             incidente=fetched.incidente,
             tema=tema,
             fetcher=sessao_fetcher,
-            pdf_fetcher=pdf_fetcher,
         )
 
         publicacoes_dje: list[dict] = []
@@ -528,7 +496,6 @@ def scrape_processo_http(
             _resolve_publicacoes_dje(
                 publicacoes_dje,
                 detail_fetcher=detail_fetcher,
-                pdf_fetcher=pdf_fetcher,
             )
     finally:
         if owns_session:

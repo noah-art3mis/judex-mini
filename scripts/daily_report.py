@@ -125,7 +125,7 @@ def run_daily_report(
             item = scrape_processo_http(
                 d.classe, d.numero,
                 session=session, config=config,
-                fetch_pdfs=True, fetch_dje=True,
+                fetch_dje=True,
             )
             cases.append(item)
         except NoIncidenteError:
@@ -147,7 +147,7 @@ def run_daily_report(
                 item = scrape_processo_http(
                     w_classe, w_numero,
                     session=session, config=config,
-                    fetch_pdfs=True, fetch_dje=True,
+                    fetch_dje=True,
                 )
             except Exception as e:
                 logging.exception("watched %s %d: scrape failed: %s", w_classe, w_numero, e)
