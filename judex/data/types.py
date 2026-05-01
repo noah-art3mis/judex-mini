@@ -75,23 +75,27 @@ SCHEMA_VERSION = 8
 class Documento(TypedDict):
     """Unified document reference — an `Andamento.link` or a session document.
 
-    As of v8, `text` and `extractor` are **always None on disk**. This
-    struct is a pure pointer; the canonical extracted text + provider
-    label live in `data/derived/pecas-texto/<sha1(url)>.txt.gz` and
-    `data/derived/pecas-texto/<sha1(url)>.extractor`. Resolve via
-    `peca_cache.read(url)` + `peca_cache.read_extractor(url)` at read
-    time. The keys stay for backwards compatibility with v4–v7 files
-    that still have them populated; the renormalizer strips them on
-    v7→v8.
+    A pure pointer: ``tipo`` (anchor label) + ``url`` (peça URL). The
+    canonical extracted text + provider label live in
+    ``data/derived/pecas-texto/<sha1(url)>.txt.gz`` and
+    ``data/derived/pecas-texto/<sha1(url)>.extractor``. Resolve at read
+    time via ``peca_cache.read(url)`` + ``peca_cache.read_extractor(url)``;
+    never carry text on the dict itself.
 
-    `url` may be None when the source anchor had visible text but no
+    Pre-v8 files (v4–v7) carry ``text`` and ``extractor`` keys populated
+    inline on each Documento; the warehouse builder reads them via
+    ``dict.get("text")`` / ``dict.get("extractor")`` as legacy-tolerant
+    fallbacks for cold checkouts of old backups (this works because
+    Python TypedDicts don't reject extra keys at runtime). The
+    renormalizer (``scripts/renormalize_cases.py``) strips those keys
+    on v7→v8, and v8+ scrapes never re-emit them.
+
+    ``url`` may be None when the source anchor had visible text but no
     href (STF occasionally renders broken anchors). In that case
-    `tipo` still carries the anchor label, so the signal is preserved.
+    ``tipo`` still carries the anchor label, so the signal is preserved.
     """
     tipo: Optional[str]
     url: Optional[str]
-    text: Optional[str]
-    extractor: Optional[str]
 
 
 class Parte(TypedDict):
