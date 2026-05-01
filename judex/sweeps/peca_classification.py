@@ -49,13 +49,13 @@ TIER_A_DOC_TYPES: frozenset[str] = frozenset({
 # the warehouse view).
 TIER_B_DOC_TYPES: frozenset[str] = frozenset({
     "DESPACHO",
+    "DECISÃO DE JULGAMENTO",
 })
 
 # Tier C — procedural boilerplate. Skip by default on `baixar-pecas`.
 TIER_C_DOC_TYPES: frozenset[str] = frozenset({
     "CERTIDÃO DE TRÂNSITO EM JULGADO",
     "CERTIDÃO",
-    "DECISÃO DE JULGAMENTO",
     "COMUNICAÇÃO ASSINADA",
     "CERTIDÃO DE JULGAMENTO",
     "TERMO DE REMESSA",

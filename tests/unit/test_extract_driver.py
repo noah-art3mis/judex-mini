@@ -205,8 +205,18 @@ def test_rtf_bytes_bypass_ocr_provider(tmp_path: Path) -> None:
 
 
 def test_unknown_bytes_type_records_unknown_type(tmp_path: Path) -> None:
-    """Bytes that are neither PDF nor RTF → status=unknown_type, no dispatch."""
-    peca_cache.write_bytes("https://x.test/a.pdf", b"<html>not a pdf</html>")
+    """Bytes that are neither PDF nor RTF → status=unknown_type, no dispatch.
+
+    Post-2026-05 the bytes cache rejects unknown payloads at write time,
+    so this branch only fires for legacy cache entries written before the
+    guard landed. Simulate that by writing the gzip directly, bypassing
+    `peca_cache.write_bytes`.
+    """
+    import gzip
+    peca_cache._bytes_path("https://x.test/a.pdf").parent.mkdir(parents=True, exist_ok=True)
+    peca_cache._bytes_path("https://x.test/a.pdf").write_bytes(
+        gzip.compress(b"<html>not a pdf</html>")
+    )
 
     def dispatcher(body, cfg):
         return ExtractResult(text="unreachable", provider="mistral")
@@ -264,3 +274,81 @@ def test_provider_error_recorded_as_provider_error(tmp_path: Path) -> None:
     assert snap["status"] == "provider_error"
     assert snap["error_type"] == "RuntimeError"
     assert "mistral 503" in snap["error"]
+
+
+def test_provider_router_picks_per_target(tmp_path: Path) -> None:
+    """`--provedor auto` routes ACÓRDÃO targets to tesseract while
+    leaving everything else on pypdf. Locks in the doc_type → provider
+    fork that the extrair_pecas auto-router exposes."""
+    from judex.sweeps.extrair_pecas import pick_provider
+
+    peca_cache.write_bytes("https://x.test/decision.pdf", b"%PDF-1.4 fake")
+    peca_cache.write_bytes("https://x.test/acordao.pdf",  b"%PDF-1.4 fake")
+
+    seen: list[tuple[str, str]] = []
+    def dispatcher(body, cfg):
+        seen.append((cfg.provider, "called"))
+        return ExtractResult(text="t", provider=cfg.provider)
+
+    targets = [
+        _target("https://x.test/decision.pdf", classe="HC", processo_id=1, doc_type="DECISÃO MONOCRÁTICA"),
+        _target("https://x.test/acordao.pdf",  classe="HC", processo_id=2, doc_type="INTEIRO TEOR DO ACÓRDÃO"),
+    ]
+    run_extract_sweep(
+        targets,
+        out_dir=tmp_path / "sweep",
+        provedor="auto",
+        ocr_config=None,
+        dispatcher=dispatcher,
+        provider_router=pick_provider,
+        install_signal_handlers=False,
+    )
+
+    providers = {p for p, _ in seen}
+    assert providers == {"pypdf", "tesseract"}
+    assert peca_cache.read_extractor("https://x.test/decision.pdf") == "pypdf"
+    assert peca_cache.read_extractor("https://x.test/acordao.pdf")  == "tesseract"
+
+
+def test_provider_router_uses_per_target_sidecar_match(tmp_path: Path) -> None:
+    """Sidecar-match check honours the per-target provider, not the
+    run-level label. A previously-cached tesseract extract on an
+    ACÓRDÃO is a hit under `--provedor auto` even though the run label
+    is "auto" (which never appears as a sidecar value)."""
+    from judex.sweeps.extrair_pecas import pick_provider
+
+    peca_cache.write_bytes("https://x.test/acordao.pdf", b"%PDF-1.4 fake")
+    peca_cache.write("https://x.test/acordao.pdf", "prior", extractor="tesseract")
+
+    calls: list[str] = []
+    def dispatcher(body, cfg):
+        calls.append("hit")
+        return ExtractResult(text="new", provider=cfg.provider)
+
+    extracted, cached, _, _ = run_extract_sweep(
+        [_target("https://x.test/acordao.pdf", classe="HC", processo_id=1, doc_type="INTEIRO TEOR DO ACÓRDÃO")],
+        out_dir=tmp_path / "sweep",
+        provedor="auto",
+        ocr_config=None,
+        dispatcher=dispatcher,
+        provider_router=pick_provider,
+        install_signal_handlers=False,
+    )
+
+    assert calls == []
+    assert (extracted, cached) == (0, 1)
+
+
+def test_pick_provider_routes_acordao_to_tesseract_else_pypdf() -> None:
+    """Direct unit test of the auto-router decision function."""
+    from judex.sweeps.extrair_pecas import pick_provider
+
+    assert pick_provider("INTEIRO TEOR DO ACÓRDÃO") == "tesseract"
+    # Case + accent variants must still route the same way.
+    assert pick_provider("inteiro teor do acordao") == "tesseract"
+    # Everything else → pypdf.
+    assert pick_provider("DECISÃO MONOCRÁTICA")     == "pypdf"
+    assert pick_provider("DESPACHO")                 == "pypdf"
+    assert pick_provider("MANIFESTAÇÃO DA PGR")      == "pypdf"
+    assert pick_provider("Voto")                     == "pypdf"
+    assert pick_provider(None)                       == "pypdf"

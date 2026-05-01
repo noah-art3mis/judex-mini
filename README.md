@@ -24,11 +24,11 @@ Subcomandos principais disponíveis via `uv run judex <comando>` (ajuda detalhad
 Do zero a um warehouse consultável em SQL, cinco passos em ordem. Os dois primeiros falam com o STF; os três seguintes são locais (zero HTTP).
 
 ```text
-  1. varrer-processos     ← HTTP (portal.stf.jus.br)
-  2. baixar-pecas         ← HTTP (sistemas.stf.jus.br)
-  3. extrair-pecas        ← local (lê bytes do cache, escreve texto)
-  4. aggregate_dead_ids   ← local (compila sweep.state.json → cemitério)
-  5. atualizar-warehouse  ← local (JSONs + cache → DuckDB)
+  1. varrer-processos          ← HTTP (portal.stf.jus.br)
+  2. baixar-pecas              ← HTTP (sistemas.stf.jus.br)
+  3. extrair-pecas             ← local (lê bytes do cache, escreve texto)
+  4. aggregate_unallocated_pids ← local (compila sweep.state.json → registro)
+  5. atualizar-warehouse       ← local (JSONs + cache → DuckDB)
 ```
 
 | # | Comando                                                     | Pule se…                                                                    |
@@ -36,10 +36,10 @@ Do zero a um warehouse consultável em SQL, cinco passos em ordem. Os dois prime
 | 1 | `judex varrer-processos`                                    | nunca — é a base de tudo                                                    |
 | 2 | `judex baixar-pecas`                                        | só quer metadados                                                           |
 | 3 | `judex extrair-pecas`                                       | baixou bytes mas o texto não importa                                        |
-| 4 | `uv run python scripts/aggregate_dead_ids.py --classe HC`   | sweep pequeno; em sweeps de milhares, rode entre 1 e 5 — no próximo sweep passe `--excluir-mortos data/derived/dead-ids/HC.txt` para pular IDs já confirmados como "não existem" no STF |
+| 4 | `uv run python scripts/aggregate_unallocated_pids.py --classe HC` | sweep pequeno; em sweeps de milhares, rode entre 1 e 5 — no próximo sweep passe `--excluir-nao-alocados data/derived/nao-alocados/HC.txt` para pular IDs que o portal nunca atribuiu a um processo |
 | 5 | `judex atualizar-warehouse`                                 | consulta os JSONs direto (raro)                                             |
 
-O passo 4 agrega observações `NoIncidente` (o sinal canônico do STF de "este `processo_id` nunca foi alocado") de todos os sweeps já feitos e grava em `data/derived/dead-ids/<classe>.txt` os IDs confirmados (≥ 2 observações com `body_head=""`). A tabela `<classe>.candidates.tsv` ao lado guarda a auditoria completa.
+O passo 4 agrega observações `status="unallocated"` (o sinal canônico do STF de "este `processo_id` nunca foi alocado a um incidente") de todos os sweeps já feitos e grava em `data/derived/nao-alocados/<classe>.txt` os IDs confirmados (≥ 2 observações independentes). A tabela `<classe>.candidates.tsv` ao lado guarda a auditoria completa. Veja [ADR-0002](docs/adr/0002-distinguish-unallocated-processo-id-from-scrape-failure.md).
 
 **Exemplo concreto para 2026** (HC, ids 267138..271138):
 
@@ -59,9 +59,9 @@ uv run judex baixar-pecas -c HC -i 267138 -f 271138 \
 uv run judex extrair-pecas -c HC -i 267138 -f 271138 \
   --saida runs/active/hc-2026-text --nao-perguntar
 
-# 4. Agrega IDs mortos de todos os sweeps já feitos (~5 s, local)
-uv run python scripts/aggregate_dead_ids.py --classe HC
-# → data/derived/dead-ids/HC.txt + HC.candidates.tsv
+# 4. Agrega IDs não-alocados de todos os sweeps já feitos (~5 s, local)
+uv run python scripts/aggregate_unallocated_pids.py --classe HC
+# → data/derived/nao-alocados/HC.txt + HC.candidates.tsv
 
 # 5. Rebuild do warehouse (só 2026, swap atômico, ~5 s)
 uv run judex atualizar-warehouse --ano 2026 --classe HC \
@@ -256,7 +256,7 @@ data/
     ├── warehouse/judex.duckdb               warehouse DuckDB (rebuild ~3.7 min)
     ├── exports/                             tabelas feather/parquet por estudo
     ├── reports/<slug>/                      saídas dos notebooks de relatório
-    ├── dead-ids/<CLASSE>.txt                IDs confirmados inexistentes no STF
+    ├── nao-alocados/<CLASSE>.txt            processo_ids confirmados não-alocados no STF
     └── pecas-texto/                         texto extraído + sidecar + elementos OCR
         ├── <sha1>.txt.gz                    extraído por extrair-pecas
         ├── <sha1>.extractor                 qual provedor produziu (pypdf/mistral/…)
@@ -466,7 +466,7 @@ O que fazer, em ordem de invasividade:
 3. **Desligar o detector:** `--ignorar-collapse` mantém o sweep rodando apesar dos picos. Só vale em IP direto — em pool de proxy, o detector existe para proteger a reputação do pool.
 4. **Trocar de provedor de proxy.** Se o provedor atual já queimou a reputação no STF, nenhum cooldown razoável recupera — precisa de outra ASN.
 
-Depois de qualquer relançamento, rode `uv run python scripts/aggregate_dead_ids.py --classe HC` para o cemitério absorver as observações `NoIncidente` capturadas antes do colapso — isso acelera a próxima tentativa via `--excluir-mortos`.
+Depois de qualquer relançamento, rode `uv run python scripts/aggregate_unallocated_pids.py --classe HC` para o registro absorver as observações `status="unallocated"` capturadas antes do colapso — isso acelera a próxima tentativa via `--excluir-nao-alocados`.
 
 ---
 

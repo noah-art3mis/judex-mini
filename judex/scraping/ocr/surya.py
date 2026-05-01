@@ -1,4 +1,20 @@
-"""Surya OCR client — calls the Modal-hosted endpoint."""
+"""Surya OCR client — calls the Modal-hosted endpoint.
+
+Bakeoff result (2026-04-30, see docs/reports/2026-04-30-ocr-bakeoff.md):
+3.62% median CER, $0.18/1k pages. Correct reading order between phrases
+but several distinct downstream burdens. Pinned to ``surya-ocr==0.16.7
++ transformers==4.56.1`` — 0.17 has a self-inconsistency bug in
+``SuryaDecoderModel`` ↔ ``SuryaDecoderConfig.pad_token_id``.
+
+Known issues (downstream parsing burden):
+- Persistent rich-text injection: ``<b>...</b>``, ``<math>N^{\\circ}</math>``.
+- Word-shuffle within multi-line phrases (e.g. ``REMESSA DOS AUTOS AO
+  TRIBUNAL COMPETENTE`` → ``Remessa / TRIBUNAL / DOS / AUTOS / AO /
+  COMPETENTE``).
+- Glyph homoglyphs: Greek ``Ε`` (U+0395) for Latin ``E``, U+2116 ``№``
+  for ``Nº`` — visually identical, breaks UTF-8 equality and search.
+- Investigate ``output_format="text"`` flag before keeping in production.
+"""
 
 from __future__ import annotations
 

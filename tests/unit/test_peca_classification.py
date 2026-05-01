@@ -10,8 +10,15 @@ from judex.sweeps.peca_classification import (
 from judex.sweeps.peca_targets import PecaTarget
 
 
-def _target(doc_type: str | None, url: str = "https://example/x") -> PecaTarget:
-    return PecaTarget(url=url, classe="HC", processo_id=1, doc_type=doc_type)
+def _target(
+    doc_type: str | None,
+    url: str = "https://example/x",
+    *,
+    surface: str | None = None,
+) -> PecaTarget:
+    return PecaTarget(
+        url=url, classe="HC", processo_id=1, doc_type=doc_type, surface=surface,
+    )
 
 
 def test_filter_drops_tier_c_tipos():
@@ -20,16 +27,16 @@ def test_filter_drops_tier_c_tipos():
         _target("INTEIRO TEOR DO ACÓRDÃO",        "u2"),   # tier A → keep
         _target("MANIFESTAÇÃO DA PGR",            "u3"),   # tier A → keep
         _target("DESPACHO",                        "u4"),  # tier B → keep (no length pre-download)
-        _target("CERTIDÃO DE TRÂNSITO EM JULGADO", "u5"),  # tier C → drop
-        _target("CERTIDÃO",                        "u6"),  # tier C → drop
-        _target("DECISÃO DE JULGAMENTO",           "u7"),  # tier C → drop
+        _target("DECISÃO DE JULGAMENTO",           "u5"),  # tier B → keep (panel-result stub)
+        _target("CERTIDÃO DE TRÂNSITO EM JULGADO", "u6"),  # tier C → drop
+        _target("CERTIDÃO",                        "u7"),  # tier C → drop
         _target("VISTA À PGR",                     "u8"),  # tier C → drop
     ]
 
     kept = filter_substantive(targets)
     kept_urls = {t.url for t in kept}
 
-    assert kept_urls == {"u1", "u2", "u3", "u4"}
+    assert kept_urls == {"u1", "u2", "u3", "u4", "u5"}
 
 
 def test_filter_keeps_unknown_doc_type():
@@ -67,6 +74,36 @@ def test_filter_is_fail_open_on_genuinely_new_tipos():
     assert {t.url for t in kept} == {"u_new", "u_brand_new"}
 
 
+def test_filter_keeps_all_sessao_virtual_documentos():
+    # ADR-0001 step 2 resolves the "open question" on surface-aware
+    # filtering: sessao_virtual[].documentos[] only ever carries
+    # substantive content (Relatório, Voto, Voto Vista) — there is
+    # no procedural noise on this surface to strip. The TIER_C
+    # filter's existing fail-open behaviour is therefore the correct
+    # behaviour for surface=sessao_virtual targets, not a placeholder.
+    targets = [
+        _target("Relatório",   "u_relatorio",   surface="sessao_virtual"),
+        _target("Voto",        "u_voto",        surface="sessao_virtual"),
+        _target("Voto Vista",  "u_voto_vista",  surface="sessao_virtual"),
+    ]
+    kept = filter_substantive(targets)
+    assert {t.url for t in kept} == {"u_relatorio", "u_voto", "u_voto_vista"}
+
+
+def test_filter_keeps_all_dje_decisoes():
+    # Surface 3 (publicacoes_dje[].decisoes[].rtf) only emits
+    # `kind ∈ {"decisao", "ementa"}` — both substantive. Same
+    # rationale as sessao_virtual: fail-open is the right semantics,
+    # not a deferred decision (resolves ADR-0001 § Consequences
+    # bullet 3).
+    targets = [
+        _target("decisao",  "u_dec",  surface="dje"),
+        _target("ementa",   "u_em",   surface="dje"),
+    ]
+    kept = filter_substantive(targets)
+    assert {t.url for t in kept} == {"u_dec", "u_em"}
+
+
 def test_summarize_tipos_returns_top_and_unseen():
     # Mix of classified + unclassified; top-N reporting + unseen-detection.
     targets = (
@@ -98,7 +135,6 @@ def test_tier_c_includes_the_high_volume_stubs():
     must_contain = {
         "CERTIDÃO DE TRÂNSITO EM JULGADO",
         "CERTIDÃO",
-        "DECISÃO DE JULGAMENTO",
         "COMUNICAÇÃO ASSINADA",
         "CERTIDÃO DE JULGAMENTO",
         "TERMO DE REMESSA",

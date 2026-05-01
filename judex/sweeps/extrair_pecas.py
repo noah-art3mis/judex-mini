@@ -16,7 +16,6 @@ Input-mode priority matches ``baixar-pecas``: retry > csv > range > filter.
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 import sys
@@ -28,18 +27,55 @@ from judex.sweeps.extract_driver import run_extract_sweep
 from judex.sweeps.peca_classification import filter_substantive, summarize_tipos
 
 
-_PROVIDERS = ("pypdf", "mistral", "chandra", "unstructured")
+_PROVIDERS = (
+    "pypdf", "mistral", "chandra", "unstructured",
+    "tesseract", "tesseract_modal", "tesseract_fly", "auto",
+)
+
+# `auto` routes per-target. ACÓRDÃO PDFs (vector-rendered through iText)
+# pypdf-duplicate their content ~1.86× by reading both the visible text
+# stream and a hidden Ementa-cover stream — gold-CER ≈ 90%, characterised
+# 2026-05-01. tesseract on the same PDFs lands at <1% CER. Other
+# doc classes show no comparable bug; pypdf is faster and equally clean
+# there. So the router fork is doc_type-driven.
+_AUTO_TESSERACT_DOC_TYPES = frozenset({"INTEIRO TEOR DO ACÓRDÃO"})
+
+
+def pick_provider(target) -> str:
+    """Return the provider that should extract this target under `--provedor auto`.
+
+    `tesseract` for ACÓRDÃO-class doc_types (where pypdf has the
+    iText-cover duplication bug); `pypdf` for everything else.
+    Accepts a :class:`PecaTarget` or a bare ``doc_type`` string (the
+    str path is a test convenience). Case- and accent-insensitive on
+    the doc_type via the same fold the tier classifier uses.
+
+    Override the OCR venue for the ACÓRDÃO branch via env var
+    ``JUDEX_AUTO_TESSERACT_PROVIDER`` (default ``"tesseract"`` for
+    backward compatibility / unit tests; set to ``"tesseract_fly"``
+    or ``"tesseract_modal"`` to route the OCR work off-host).
+    """
+    from judex.sweeps.peca_classification import _fold
+
+    doc_type = getattr(target, "doc_type", target) if target is not None else None
+    if doc_type and _fold(doc_type) in {_fold(d) for d in _AUTO_TESSERACT_DOC_TYPES}:
+        return os.environ.get("JUDEX_AUTO_TESSERACT_PROVIDER", "tesseract")
+    return "pypdf"
 
 
 def _build_ocr_config(provedor: str) -> OCRConfig:
     """Assemble an OCRConfig from env vars appropriate to the provider.
 
-    pypdf runs locally and needs no API key; OCR providers read their
-    keys from env (MISTRAL_API_KEY, UNSTRUCTURED_API_KEY,
-    CHANDRA_API_KEY). Missing keys raise early with a clear message.
+    Local providers (pypdf, tesseract) need no API key; tesseract_modal
+    is the Modal-hosted variant and uses the deployed app's auth, no
+    env var here. tesseract_fly's address is read from FLY_TESSERACT_URL
+    by the provider itself (no API key required for the public deploy).
+    Cloud providers read their keys from env (MISTRAL_API_KEY,
+    UNSTRUCTURED_API_KEY, CHANDRA_API_KEY); missing keys raise early
+    with a clear message.
     """
-    if provedor == "pypdf":
-        return OCRConfig(provider="pypdf", api_key="")
+    if provedor in ("pypdf", "tesseract", "tesseract_modal", "tesseract_fly"):
+        return OCRConfig(provider=provedor, api_key="")
 
     env_key = {
         "mistral": "MISTRAL_API_KEY",
@@ -74,29 +110,30 @@ def run_extract_pecas(
     dry_run: bool = False,
     nao_perguntar: bool = False,
     retomar: bool = False,
+    paralelo: int = 1,
 ) -> int:
     if provedor not in _PROVIDERS:
         print(f"error: invalid --provedor {provedor!r}; choose from {_PROVIDERS}", file=sys.stderr)
         return 2
 
-    args = argparse.Namespace(
-        classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de,
-        impte_contem=impte_contem, tipos_doc=tipos_doc,
-        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, apenas_substantivas=apenas_substantivas,
-        provedor=provedor, forcar=forcar, saida=saida,
-        dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
-    )
-
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     try:
-        targets, mode_label = _pdf_cli.resolve_targets(args)
+        targets, mode_label = _pdf_cli.resolve_targets(
+            retentar_de=retentar_de,
+            csv=csv,
+            classe=classe,
+            inicio=inicio,
+            fim=fim,
+            impte_contem=impte_contem,
+            tipos_doc=tipos_doc,
+            relator_contem=relator_contem,
+            excluir_tipos_doc=excluir_tipos_doc,
+        )
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
-    if args.apenas_substantivas:
+    if apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
         dropped = before - len(targets)
@@ -121,8 +158,8 @@ def run_extract_pecas(
             flush=True,
         )
 
-    if args.limite and len(targets) > args.limite:
-        targets = targets[: args.limite]
+    if limite and len(targets) > limite:
+        targets = targets[:limite]
 
     if not targets:
         print("error: no targets resolved. Check --classe/-i/-f, --csv, "
@@ -130,26 +167,38 @@ def run_extract_pecas(
         return 2
 
     _pdf_cli.print_extract_preview(
-        targets, mode_label=mode_label, provedor=args.provedor,
+        targets, mode_label=mode_label, provedor=provedor,
     )
 
-    if args.dry_run:
+    if dry_run:
         return 0
 
-    _pdf_cli.confirm_or_exit(nao_perguntar=args.nao_perguntar)
+    _pdf_cli.confirm_or_exit(nao_perguntar=nao_perguntar)
 
-    ocr_config = _build_ocr_config(args.provedor)
-    saida = args.saida or Path(f"runs/active/extrair-{args.provedor}")
+    saida = saida or Path(f"runs/active/extrair-{provedor}")
     saida.mkdir(parents=True, exist_ok=True)
+
+    if provedor == "auto":
+        # Validate keys for any cloud providers the router could pick.
+        # Today the only provider auto picks is tesseract (no key
+        # needed) plus pypdf, so this is a no-op; future fan-out (e.g.
+        # routing to chandra) would surface its env_key check here.
+        provider_router = pick_provider
+        ocr_config = None  # built per-target inside the driver
+    else:
+        provider_router = None
+        ocr_config = _build_ocr_config(provedor)
 
     _, _, _, failed = run_extract_sweep(
         targets,
         out_dir=saida,
-        provedor=args.provedor,
+        provedor=provedor,
         ocr_config=ocr_config,
-        forcar=args.forcar,
-        resume=args.retomar,
-        retry_from=args.retentar_de,
+        forcar=forcar,
+        resume=retomar,
+        retry_from=retentar_de,
+        provider_router=provider_router,
+        paralelo=paralelo,
     )
     return 0 if failed == 0 else 1
 

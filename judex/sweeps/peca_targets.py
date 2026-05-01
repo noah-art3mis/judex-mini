@@ -35,29 +35,52 @@ class PecaTarget:
     processo_id: Optional[int] = None
     classe: Optional[str] = None
     doc_type: Optional[str] = None
+    # Which StfItem surface emitted this URL. Discriminator for the
+    # surface-aware filter work flagged as open in ADR-0001:
+    #   "andamento"      — andamentos[].link
+    #   "sessao_virtual" — sessao_virtual[].documentos[]
+    #   "dje"            — publicacoes_dje[].decisoes[].rtf
+    # Optional / default None for backwards compatibility with
+    # `--retentar-de pdfs.errors.jsonl` rehydration where prior runs
+    # didn't record the surface.
+    surface: Optional[str] = None
     context: dict[str, Any] = field(default_factory=dict)
 
 
 def _is_supported_doc_url(url: Optional[str]) -> bool:
     """True if `url` looks like a downloadable case document (PDF or RTF).
 
-    Three STF URL shapes land as targets:
+    Five STF URL shapes land as targets:
       - `.pdf` suffix — andamento `downloadPeca.asp?…&ext=.pdf` (note the
         leading dot is part of the suffix) and sessão-virtual voto PDFs
-        on `sistemas.stf.jus.br/repgeral/` + `digital.stf.jus.br/…`.
+        on `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/N/conteudo.pdf`.
       - `.rtf` suffix — future-proofing; not currently emitted by STF.
       - `ext=RTF` query suffix — andamento `downloadTexto.asp?…&ext=RTF`
         (STF's actual RTF form; the ext is a query param, not a file
         extension). The extraction layer auto-detects RTF by magic
         bytes, so the URL-side check only needs to recognise it as a
         valid document.
+      - `sistemas.stf.jus.br/repgeral/votacao?texto=N` — surface-2
+        redirect endpoint. The query param carries the documento id;
+        fetching the URL returns a PDF. 99% of surface-2 URLs in the
+        HC corpus use this shape (the rest are explicit `.pdf` URLs
+        on `digital.stf.jus.br`, already covered above).
+      - `portal.stf.jus.br/servicos/dje/verDecisao.asp?…` — surface-3
+        redirect endpoint. Fetching the URL returns RTF. 100% of
+        surface-3 URLs in the HC corpus use this shape.
     """
     if not url:
         return False
     u = url.lower()
     if u.endswith((".pdf", ".rtf")):
         return True
-    return u.endswith("ext=rtf")
+    if u.endswith("ext=rtf"):
+        return True
+    if "/repgeral/votacao?" in u:
+        return True
+    if "/servicos/dje/verdecisao.asp?" in u:
+        return True
+    return False
 
 
 def collect_peca_targets(
@@ -125,6 +148,11 @@ def collect_peca_targets(
         pid = rec.get("processo_id")
         rec_classe = rec.get("classe")
 
+        ctx: dict[str, Any] = {}
+        if impte_hits:
+            ctx["impte_hits"] = list(impte_hits)
+
+        # Surface 1 (andamentos) — andamento-tipo filters apply here only.
         for a in rec.get("andamentos") or []:
             url, desc = _andamento_link(a)
             if not _is_supported_doc_url(url):
@@ -136,18 +164,57 @@ def collect_peca_targets(
             if url in seen_urls:
                 continue
             seen_urls.add(url)
-
-            ctx: dict[str, Any] = {}
-            if impte_hits:
-                ctx["impte_hits"] = list(impte_hits)
             out.append(PecaTarget(
-                url=url,
-                processo_id=pid,
-                classe=rec_classe,
-                doc_type=desc,
-                context=ctx,
+                url=url, processo_id=pid, classe=rec_classe,
+                doc_type=desc, surface="andamento",
+                context=dict(ctx),
+            ))
+
+        # Surfaces 2 + 3 — andamento-tipo filters do not apply (different
+        # discriminators per ADR-0001). Always emitted; dedupe via the
+        # same seen_urls set so apenso / conexão URL collisions stay
+        # one-target.
+        for url, doc_type, surface in _iter_extra_surface_urls(rec):
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            out.append(PecaTarget(
+                url=url, processo_id=pid, classe=rec_classe,
+                doc_type=doc_type, surface=surface,
+                context=dict(ctx),
             ))
     return out
+
+
+def _iter_extra_surface_urls(
+    rec: dict[str, Any],
+) -> Iterator[tuple[str, Optional[str], str]]:
+    """Yield ``(url, doc_type, surface)`` for surfaces 2 and 3.
+
+    Surface 2 (``sessao_virtual[].documentos[]``): doc_type comes from
+    ``Documento.tipo`` (e.g. "Voto", "Relatório").
+    Surface 3 (``publicacoes_dje[].decisoes[].rtf``): doc_type comes from
+    ``decisoes[].kind`` ("decisao" | "ementa") — the controlled label —
+    not from the rtf Documento's own ``tipo`` field, which the scraper
+    typically leaves None on this surface.
+
+    Entries with ``url=None`` are capture gaps (CLAUDE.md gotcha) and
+    skipped; ``_is_supported_doc_url`` filters non-document URLs.
+    """
+    for sv in rec.get("sessao_virtual") or []:
+        for doc in sv.get("documentos") or []:
+            url = doc.get("url")
+            if not _is_supported_doc_url(url):
+                continue
+            yield url, doc.get("tipo"), "sessao_virtual"
+
+    for pub in rec.get("publicacoes_dje") or []:
+        for dec in pub.get("decisoes") or []:
+            rtf = dec.get("rtf") or {}
+            url = rtf.get("url") if isinstance(rtf, dict) else None
+            if not _is_supported_doc_url(url):
+                continue
+            yield url, dec.get("kind"), "dje"
 
 
 def _andamento_link(a: dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
@@ -168,12 +235,16 @@ def _andamento_link(a: dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
 
 
 def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PecaTarget]:
-    """Yield one PecaTarget per .pdf URL in `rec.andamentos`.
+    """Yield one PecaTarget per peça URL across all three StfItem surfaces.
 
-    No filters. Parallel to the inner loop of `collect_peca_targets`
-    but without the per-rec/impte/relator/doc-type filters — the
-    direct-selector resolvers (range / CSV) scope by picking which
-    files to feed in, not by filtering inside them.
+    Walks ``andamentos[].link`` (surface 1), ``sessao_virtual[].documentos[]``
+    (surface 2), and ``publicacoes_dje[].decisoes[].rtf`` (surface 3) in
+    that order — the direct-selector resolvers (range / CSV) scope by
+    picking which files to feed in, not by filtering inside them, so
+    no doc-type filters apply here.
+
+    Caller-side dedup (``_targets_from_files``) takes care of cross-file
+    collisions; this generator does not dedupe within a single rec.
     """
     pid = rec.get("processo_id")
     rec_classe = rec.get("classe")
@@ -182,10 +253,13 @@ def _iter_case_pdf_targets(rec: dict[str, Any]) -> Iterator[PecaTarget]:
         if not _is_supported_doc_url(url):
             continue
         yield PecaTarget(
-            url=url,
-            processo_id=pid,
-            classe=rec_classe,
-            doc_type=doc_type,
+            url=url, processo_id=pid, classe=rec_classe,
+            doc_type=doc_type, surface="andamento",
+        )
+    for url, doc_type, surface in _iter_extra_surface_urls(rec):
+        yield PecaTarget(
+            url=url, processo_id=pid, classe=rec_classe,
+            doc_type=doc_type, surface=surface,
         )
 
 

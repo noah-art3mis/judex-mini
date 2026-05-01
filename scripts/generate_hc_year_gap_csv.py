@@ -3,12 +3,13 @@
 Two modes:
 
 - **Gap mode** (default): exclude pids already on disk under
-  `data/source/processos/HC/` and (optionally) pids confirmed dead in
-  `data/derived/dead-ids/HC.txt`. Output covers only uncaptured pids.
+  `data/source/processos/HC/` and (optionally) pids confirmed
+  unallocated in `data/derived/nao-alocados/HC.txt`. Output covers
+  only uncaptured pids.
 - **Full-range mode** (`--full-range` / `include_captured=True`):
-  exclude only confirmed deads. Output covers every pid in the
-  year's range — used when re-scraping on-disk cases to pick up
-  a wider HTML surface (e.g. v8+DJe content path on top of
+  exclude only confirmed unallocated pids. Output covers every pid
+  in the year's range — used when re-scraping on-disk cases to
+  pick up a wider HTML surface (e.g. v8+DJe content path on top of
   cases that are already structurally v8).
 
 Output is descending order — ready to feed directly to
@@ -19,15 +20,15 @@ Usage:
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2026 --out tests/sweep/hc_2026_gap.csv
 
-    # Exclude dead IDs aggregated from past sweeps
+    # Exclude unallocated pids aggregated from past sweeps
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2026 --out /tmp/hc_2026_gap.csv \\
-        --dead-ids data/derived/dead-ids/HC.txt
+        --unallocated-pids data/derived/nao-alocados/HC.txt
 
-    # Full-range re-scrape (keep on-disk pids; still drop deads)
+    # Full-range re-scrape (keep on-disk pids; still drop unallocated)
     uv run python scripts/generate_hc_year_gap_csv.py \\
         --year 2025 --out /tmp/hc_2025_full.csv \\
-        --dead-ids data/derived/dead-ids/HC.txt --full-range
+        --unallocated-pids data/derived/nao-alocados/HC.txt --full-range
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ import csv
 from pathlib import Path
 from typing import Optional
 
-from judex.utils.dead_ids import load_dead_ids
+from judex.utils.unallocated_pids import load_unallocated_pids
 from judex.utils.hc_calendar import year_to_id_range
 
 
@@ -68,15 +69,17 @@ def write_gap_csv(
     year: int,
     out_path: Path,
     cases_dir: Path,
-    dead_ids_path: Optional[Path] = None,
+    unallocated_pids_path: Optional[Path] = None,
     include_captured: bool = False,
 ) -> int:
     lo, hi = year_to_id_range(year)
     have = captured_ids(cases_dir)
-    dead = load_dead_ids(dead_ids_path) if dead_ids_path else set()
+    unallocated = (
+        load_unallocated_pids(unallocated_pids_path) if unallocated_pids_path else set()
+    )
     rows = [
         n for n in range(hi, lo - 1, -1)
-        if (include_captured or n not in have) and n not in dead
+        if (include_captured or n not in have) and n not in unallocated
     ]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -86,12 +89,12 @@ def write_gap_csv(
         for n in rows:
             w.writerow(["HC", n])
 
-    dead_in_range = sum(1 for n in range(lo, hi + 1) if n in dead)
+    unallocated_in_range = sum(1 for n in range(lo, hi + 1) if n in unallocated)
     have_in_range = sum(1 for n in range(lo, hi + 1) if n in have)
     mode = "full" if include_captured else "gap"
     print(
         f"year={year} range={lo}..{hi} width={hi - lo + 1} "
-        f"have={have_in_range} dead={dead_in_range} "
+        f"have={have_in_range} unallocated={unallocated_in_range} "
         f"{mode}={len(rows)} → {out_path}"
     )
     return len(rows)
@@ -103,17 +106,17 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--cases-dir", type=Path, default=Path("data/source/processos/HC"))
     ap.add_argument(
-        "--dead-ids", type=Path, default=None,
-        help="Optional path to a dead-ID file (one pid per line) — IDs "
-             "listed there are excluded from the output. Typical: "
-             "data/derived/dead-ids/HC.txt, produced by "
-             "scripts/aggregate_dead_ids.py.",
+        "--unallocated-pids", type=Path, default=None,
+        help="Optional path to an unallocated-pid file (one pid per line) — "
+             "IDs listed there are excluded from the output. Typical: "
+             "data/derived/nao-alocados/HC.txt, produced by "
+             "scripts/aggregate_unallocated_pids.py.",
     )
     ap.add_argument(
         "--full-range", action="store_true",
         help="Keep pids that are already on disk (only exclude confirmed "
-             "deads). Used for full-year re-scrape sweeps where existing "
-             "cases need to be refreshed against a wider extractor "
+             "unallocated). Used for full-year re-scrape sweeps where "
+             "existing cases need to be refreshed against a wider extractor "
              "surface (e.g. v8+DJe on top of structurally-v8-but-content-"
              "stale files).",
     )
@@ -122,7 +125,7 @@ def main() -> None:
         args.year,
         args.out,
         args.cases_dir,
-        dead_ids_path=args.dead_ids,
+        unallocated_pids_path=args.unallocated_pids,
         include_captured=args.full_range,
     )
 

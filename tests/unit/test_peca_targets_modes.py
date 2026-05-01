@@ -210,6 +210,7 @@ def test_range_populates_target_fields(tmp_path: Path) -> None:
         processo_id=42,
         classe="HC",
         doc_type="INTEIRO TEOR DO ACÓRDÃO",
+        surface="andamento",
     )
 
 

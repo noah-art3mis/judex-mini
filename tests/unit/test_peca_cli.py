@@ -5,8 +5,9 @@ Exercises the pieces that are easy to get wrong:
 - Non-TTY fail-closed on the confirmation prompt.
 - Preview content (target count, cached-by-provider count, cost/wall).
 
-The CLI scripts themselves just wire these into argparse + a driver
-call, so their integration is covered by the driver tests.
+The CLI wrappers (`baixar_pecas.py` / `extrair_pecas.py`) just call
+``resolve_targets`` with typed kwargs and hand off to a driver, so
+their integration is covered by the driver tests.
 """
 
 from __future__ import annotations
@@ -15,7 +16,6 @@ import io
 import json
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -45,17 +45,6 @@ def _write_case(
 # ----- resolve_targets input-mode priority ---------------------------------
 
 
-def _args(**kw) -> SimpleNamespace:
-    """Build an argparse-Namespace-like object with sensible defaults."""
-    base = dict(
-        retentar_de=None, csv=None, classe=None, inicio=None, fim=None,
-        impte_contem="", tipos_doc="", relator_contem="", excluir_tipos_doc="",
-        limite=0, roots=[],
-    )
-    base.update(kw)
-    return SimpleNamespace(**base)
-
-
 def test_resolve_picks_retentar_de_first(tmp_path: Path) -> None:
     """Even if range/csv/filter args are set, --retentar-de wins."""
     errors = tmp_path / "pdfs.errors.jsonl"
@@ -66,10 +55,10 @@ def test_resolve_picks_retentar_de_first(tmp_path: Path) -> None:
         urls=[("https://x.test/range.pdf", "DECISÃO")],
     )
 
-    targets, mode = _pdf_cli.resolve_targets(_args(
+    targets, mode = _pdf_cli.resolve_targets(
         retentar_de=errors, csv=tmp_path / "ignored.csv",
         classe="HC", inicio=100, fim=100, roots=[tmp_path],
-    ))
+    )
     assert [t.url for t in targets] == ["https://x.test/retry.pdf"]
     assert "retry" in mode.lower() or "retentar" in mode.lower()
 
@@ -89,9 +78,9 @@ def test_resolve_picks_csv_before_range(tmp_path: Path) -> None:
     csv_path = tmp_path / "alvos.csv"
     csv_path.write_text("classe,processo\nHC,200\n")
 
-    targets, mode = _pdf_cli.resolve_targets(_args(
+    targets, mode = _pdf_cli.resolve_targets(
         csv=csv_path, classe="HC", inicio=100, fim=100, roots=[tmp_path],
-    ))
+    )
     assert [t.url for t in targets] == ["https://x.test/200.pdf"]
     assert "csv" in mode.lower()
 
@@ -103,9 +92,9 @@ def test_resolve_promotes_range_when_inicio_fim_set(tmp_path: Path) -> None:
         urls=[("https://x.test/100.pdf", "DECISÃO")],
     )
 
-    targets, mode = _pdf_cli.resolve_targets(_args(
+    targets, mode = _pdf_cli.resolve_targets(
         classe="HC", inicio=100, fim=100, roots=[tmp_path],
-    ))
+    )
     assert [t.url for t in targets] == ["https://x.test/100.pdf"]
     assert "range" in mode.lower() or "intervalo" in mode.lower()
 
@@ -118,9 +107,9 @@ def test_resolve_falls_back_to_filter_when_no_direct_selector(tmp_path: Path) ->
         urls=[("https://x.test/a.pdf", "DECISÃO")],
     )
 
-    targets, mode = _pdf_cli.resolve_targets(_args(
+    targets, mode = _pdf_cli.resolve_targets(
         classe="HC", roots=[tmp_path],
-    ))
+    )
     assert [t.url for t in targets] == ["https://x.test/a.pdf"]
     assert "filtr" in mode.lower()
 
@@ -137,7 +126,7 @@ def test_resolve_raises_when_no_scope_specified(tmp_path: Path) -> None:
     moved that footgun to a refused error.
     """
     with pytest.raises(ValueError) as excinfo:
-        _pdf_cli.resolve_targets(_args(roots=[tmp_path]))
+        _pdf_cli.resolve_targets(roots=[tmp_path])
     msg = str(excinfo.value).lower()
     assert "scope" in msg or "filtro" in msg or "csv" in msg or "--" in msg
 
@@ -150,9 +139,9 @@ def test_resolve_filter_with_only_impte_contem_is_allowed(tmp_path: Path) -> Non
         classe="HC", processo_id=100,
         urls=[("https://x.test/a.pdf", "DECISÃO")],
     )
-    _, mode = _pdf_cli.resolve_targets(_args(
+    _, mode = _pdf_cli.resolve_targets(
         impte_contem="DEFENSORIA", roots=[tmp_path],
-    ))
+    )
     assert "filtr" in mode.lower()
 
 

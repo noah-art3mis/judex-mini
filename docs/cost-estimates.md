@@ -6,20 +6,28 @@ passes (`varrer-processos`, `baixar-pecas`, `extrair-pecas`).
 
 All numbers below are **data-anchored** (sweep measurements + the
 codebase's canonical walkers, not handrolled scans). The modelled
-estimate path lives in `judex/utils/pricing.py` and prints a
+estimate path lives in `judex/utils/cost.py` and prints a
 `cost: ~$X` line at the end of every sweep — see § Live cost reporting.
+(`forecasts.py` + `pricing.py` were unified into `cost.py` in commit
+`9b7e56e`; pre-launch `--prever` and post-hoc `report.md` cost line
+share the same anchored constants.)
 
 ## TL;DR
 
 A year of HC (~12k cases + **~15.7k substantive peças** + **~74k OCR
 pages**) costs:
 
-| Recipe | Wall | Money @ R$ 20/GB + Mistral batch |
+| Recipe | Wall | Money @ R$ 20/GB + Tesseract on Modal CPU |
 |---|---:|---:|
-| Direct IP everywhere + Mistral batch | ~1.8 days | **R$ 371** (only OCR is billed) |
-| 16-shard proxy + Mistral batch | ~3.4 hours | **R$ 427** |
+| Direct IP everywhere + Tesseract | ~1.8 days | **R$ 52** (only OCR is billed) |
+| 16-shard proxy + Tesseract | ~3.4 hours | **R$ 108** |
 
-Cases R$ 11 · peças R$ 45 · **OCR R$ 371**. OCR is ~87% of the bill.
+Cases R$ 11 · peças R$ 45 · **OCR R$ 52** when run with the 2026-04-30
+bakeoff winner (Tesseract on Modal CPU at $0.14/1k pages, opt-in via
+`--provedor tesseract_modal`). At Mistral's $1.00/1k pages — the prior
+recommended-but-not-default provider — OCR was R$ 371 (~87% of the
+bill). At pypdf — the current CLI default — OCR is R$ 0 but text
+quality on scanned PDFs is unusable (see § OCR provider tradeoffs).
 
 ## Per-unit anchors
 
@@ -84,8 +92,9 @@ For a year of HC at the means above:
 
 ## Cost & time per pass
 
-Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
-**R$ 5/1k pages** (Mistral batch $1/1k @ 5 BRL/USD).
+Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate at the
+recommended bakeoff-winner provider: **R$ 0.70/1k pages** (Tesseract on
+Modal CPU $0.14/1k @ 5 BRL/USD; opt in with `--provedor tesseract_modal`).
 
 | Pass | Mode | Wall | GB | R$ |
 |---|---|---:|---:|---:|
@@ -95,8 +104,7 @@ Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
 | **`baixar-pecas` (substantive)** | direct IP, 1 worker | ~23.5 h | 2.25 | 0.00 |
 | | proxy, 4 shards | ~3.9 h | 2.25 | 45.01 |
 | | proxy, 16 shards | ~1.0 h | 2.25 | 45.01 |
-| **`extrair-pecas`** (Mistral) | sync, 1 in flight | 13.1 h | 0.00 | 370.61 |
-| | batch, ~10 parallel | ~1.3 h | 0.00 | 370.61 |
+| **`extrair-pecas`** (Tesseract on Modal CPU) | Modal, ~16 parallel | ~1 h | 0.00 | 51.88 |
 
 ### Throughput sources
 
@@ -107,7 +115,7 @@ Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
 | 16-shard proxy: 10,625 cases/h | `docs/rate-limits.md:213` (extrapolated, **untested above 4×**) |
 | Peça throughput | **Estimated** as 1.5× cases/shard (1 GET/peça vs 4 GETs/case). Not separately measured. |
 | Mistral OCR: ~3 s/PDF sync | `docs/performance.md:75` |
-| Mistral pricing: $1/1k pages batch | `judex/utils/pricing.py:29` (`_DEFAULT_MISTRAL_USD_PER_1K_PAGES`) |
+| Per-provider OCR pricing | Each provider's `SPEC.cost(...)` in `judex/scraping/ocr/<provider>.py`; resolved through `ocr_usd_per_1k_pages(provider)` in `judex/utils/cost.py:96`. Tesseract on Modal CPU: `tesseract.py:25` returns `n_pages * 0.140 / 1000`. |
 
 ## Per-1k reference
 
@@ -115,7 +123,7 @@ Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
 |---|---:|---:|
 | 1k cases | 0.047 | **R$ 0.94** |
 | 1k peças (substantive) | 0.143 | **R$ 2.86** |
-| 1k OCR pages (Mistral batch) | — | **R$ 5.00** |
+| 1k OCR pages (Tesseract on Modal CPU) | — | **R$ 0.70** |
 
 ## Bigger projections
 
@@ -125,8 +133,8 @@ Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
 |---|---|---:|---:|
 | Cases | 59,165 | 2.78 | R$ 55.62 |
 | Substantive peças | 78,683 | 11.25 | R$ 225.06 |
-| OCR (Mistral batch) | 370,599 pages | — | R$ 1,853.00 |
-| **Total** | | **14.04** | **R$ 2,133.68** |
+| OCR (Tesseract on Modal CPU) | 370,599 pages | — | R$ 259.42 |
+| **Total** | | **14.04** | **R$ 540.10** |
 
 5× factor is a process-space rule of thumb — see `docs/process-space.md`.
 
@@ -136,8 +144,8 @@ Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate:
 |---|---|---:|---:|
 | All cases | 90,763 | 4.27 | R$ 85.32 |
 | All substantive peças | 120,587 | 17.24 | R$ 344.88 |
-| OCR all substantive (Mistral batch) | 567,965 pages | — | R$ 2,839.83 |
-| **Total** | | **21.51** | **R$ 3,270.03** |
+| OCR all substantive (Tesseract on Modal CPU) | 567,965 pages | — | R$ 397.58 |
+| **Total** | | **21.51** | **R$ 827.78** |
 
 Disaster-recovery sizing — corpus is mostly cached already.
 
@@ -152,17 +160,17 @@ Disaster-recovery sizing — corpus is mostly cached already.
 | R$ 30/GB | R$ 84.20 |
 | R$ 40/GB | R$ 112.27 |
 
-OCR cost (R$ 371) is unaffected by the proxy rate. The $3.65/GB
-default in `judex/utils/pricing.py:_DEFAULT_PROXY_USD_PER_GB` reflects
-the actual scrapegw bill (re-anchored 2026-04-30); previously the
-default was $8/GB, an unverified ballpark that doubled all historical
-forecasts.
+OCR cost (R$ 52 at the Tesseract default) is unaffected by the proxy
+rate. The $3.65/GB default in `judex/utils/cost.py:75`
+(`_DEFAULT_PROXY_USD_PER_GB`) reflects the actual scrapegw bill
+(re-anchored 2026-04-30); previously the default was $8/GB, an
+unverified ballpark that doubled all historical forecasts.
 
 ## Live cost reporting
 
 Both download passes print a one-line cost summary at the end (source:
-`judex/utils/pricing.py`, `ProxyCost.summary_line` at line 46,
-`OcrCost.summary_line` at line 68). Numbers are USD because the env-var
+`judex/utils/cost.py`, `ProxyCost.summary_line` at line 276,
+`OcrCost.summary_line` at line 298). Numbers are USD because the env-var
 contract is USD.
 
 To make the live numbers match your bill:
@@ -170,6 +178,8 @@ To make the live numbers match your bill:
 ```bash
 PROXY_PRICE_USD_PER_GB=4.00                  uv run judex varrer-processos ...
 PROXY_PRICE_USD_PER_GB=4.00                  uv run judex baixar-pecas ...
+OCR_PRICE_TESSERACT_USD_PER_1K_PAGES=0.00      uv run judex extrair-pecas --provedor tesseract ...
+OCR_PRICE_TESSERACT_MODAL_USD_PER_1K_PAGES=0.14  uv run judex extrair-pecas --provedor tesseract_modal ...
 OCR_PRICE_MISTRAL_USD_PER_1K_PAGES=1.00      uv run judex extrair-pecas --provedor mistral ...
 OCR_PRICE_CHANDRA_USD_PER_1K_PAGES=2.00      uv run judex extrair-pecas --provedor chandra ...
 OCR_PRICE_UNSTRUCTURED_USD_PER_1K_PAGES=10.0 uv run judex extrair-pecas --provedor unstructured ...
@@ -185,8 +195,10 @@ All env vars read at sweep start; mid-run changes don't take effect.
 | Provider | $/1k pages | Year cost | Notes |
 |---|---:|---:|---|
 | `pypdf` | $0.00 | **R$ 0** | Free, local. Returns ~3k chars of header garbage on scanned PDFs (`docs/performance.md:89-94`). |
-| `mistral` | $1.00 | **R$ 370.61** | **Default.** 12× faster, 10× cheaper than Unstructured per 2026-04-19 bakeoff. |
-| `chandra` | $2.00 | R$ 741.21 | 2× Mistral. |
+| `tesseract` (local) | $0.00 | **R$ 0** | Default tesseract path: pytesseract + pdf2image, no network. Same engine + Portuguese language pack as the Modal-hosted variant; same quality. Tesseract + Poppler system deps required (see `CLAUDE.md`). Wall scales with your local cores. |
+| `tesseract_modal` | $0.14 | **R$ 51.88** | **Bakeoff winner (2026-04-30); recommended for production-scale sweeps.** 1.04% median CER overall, 0.82% scanned (Mistral collapses to 32.71% on scanned post gold-correction). 14× cheaper than Mistral. Modal containers + ~10-shard concurrency cap — pick this when local fanout isn't enough. CLI default still `pypdf` — opt in via `--provedor tesseract_modal` until the cutover lands. See `docs/reports/2026-04-30-ocr-bakeoff.md`. |
+| `mistral` | $1.00 | R$ 370.61 | Was default until 2026-04-30 bakeoff. Reading-order penalty hidden by pre-correction gold; collapses to 32.71% scanned median once exposed. |
+| `chandra` | $2.00 | R$ 741.21 | 2× Mistral; not run in 2026-04-30 bakeoff. |
 | `unstructured` | $10.00 | R$ 3,706.05 | 10× Mistral. Superseded. |
 
 `extrair-pecas` is HTTP-free — reads cached bytes from
@@ -220,6 +232,8 @@ sidecar. Switching providers does **not** require re-downloading.
   Override with the env var if your real rate drifts: at R$ 20 actual
   set `PROXY_PRICE_USD_PER_GB=4.00`; at R$ 15, `=3.00`. Refresh at sweep
   time.
-- **Direct IP isn't free, it's slow.** R$ 371 at 1.8 days vs R$ 427 at
+- **Direct IP isn't free, it's slow.** R$ 52 at 1.8 days vs R$ 108 at
   3.4 h: paying R$ 56 buys back ~40 hours of wall. Direct IP only
-  makes sense for one-off cases (HC 189844: $0 in 1.56s).
+  makes sense for one-off cases (HC 189844: $0 in 1.56s). (At the old
+  Mistral default the deltas were R$ 371 → R$ 427; bandwidth math is
+  unchanged, only the OCR add-on shrank.)

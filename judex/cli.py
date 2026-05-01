@@ -64,9 +64,9 @@ def _push(argv: list[str], flag: str, value: Any) -> None:
     """Empilha ``[flag, str(value)]`` em argv quando o valor é significativo.
 
     Ignora ``None`` e string vazia — para defaults do Typer não vazarem
-    no argparse do script. Para ``bool``: anexa só o flag quando True,
-    nada quando False (flags de negação têm tratamento manual no
-    chamador).
+    para o subprocesso filho (que também é Typer). Para ``bool``: anexa
+    só o flag quando True, nada quando False (flags de negação têm
+    tratamento manual no chamador).
     """
     if value is None or value == "":
         return
@@ -344,11 +344,11 @@ def varrer_processos(
              "do --proxy-pool. Exige --csv, --saida, --rotulo e "
              "--proxy-pool.",
     ),
-    excluir_mortos: Optional[Path] = typer.Option(
-        None, "--excluir-mortos",
+    excluir_nao_alocados: Optional[Path] = typer.Option(
+        None, "--excluir-nao-alocados",
         help="Caminho para um arquivo <classe>.txt (um processo_id por "
-             "linha) gerado por scripts/aggregate_dead_ids.py; IDs "
-             "listados são omitidos da varredura. Aplicável em modo "
+             "linha) gerado por scripts/aggregate_unallocated_pids.py; "
+             "IDs listados são omitidos da varredura. Aplicável em modo "
              "range — filtra o CSV sintetizado.",
     ),
     estrategia_shard: str = typer.Option(
@@ -430,12 +430,12 @@ def varrer_processos(
                 and processo_final is not None
             )
             n_cases = processo_final - processo_inicial + 1
-            if excluir_mortos is not None:
-                from judex.utils.dead_ids import load_dead_ids
-                dead = load_dead_ids(excluir_mortos)
+            if excluir_nao_alocados is not None:
+                from judex.utils.unallocated_pids import load_unallocated_pids
+                unallocated = load_unallocated_pids(excluir_nao_alocados)
                 n_cases -= sum(
                     1 for p in range(processo_inicial, processo_final + 1)
-                    if p in dead
+                    if p in unallocated
                 )
         elif csv is not None:
             with csv.open(encoding="utf-8") as fp:
@@ -472,12 +472,12 @@ def varrer_processos(
 
         saida.mkdir(parents=True, exist_ok=True)
 
-        # Carrega dead-IDs se o usuário passou --excluir-mortos.
-        if excluir_mortos is not None:
-            from judex.utils.dead_ids import load_dead_ids
-            dead = load_dead_ids(excluir_mortos)
+        # Carrega o registro de não-alocados se o usuário passou --excluir-nao-alocados.
+        if excluir_nao_alocados is not None:
+            from judex.utils.unallocated_pids import load_unallocated_pids
+            unallocated = load_unallocated_pids(excluir_nao_alocados)
         else:
-            dead = set()
+            unallocated = set()
 
         # Grava o CSV persistente dentro de --saida (não em /tmp): fica
         # auditável ao lado dos demais artefatos da varredura.
@@ -487,14 +487,17 @@ def varrer_processos(
             writer = _csv.writer(fp)
             writer.writerow(["classe", "processo"])
             for p in range(processo_inicial, processo_final + 1):
-                if p in dead:
+                if p in unallocated:
                     continue
                 writer.writerow([classe.upper(), p])
                 n_written += 1
         csv = tmp_csv
 
         total = processo_final - processo_inicial + 1
-        dead_msg = f", {total - n_written} morto(s) excluído(s)" if dead else ""
+        dead_msg = (
+            f", {total - n_written} não-alocado(s) excluído(s)"
+            if unallocated else ""
+        )
         typer.echo(
             f"Modo range: {classe} {processo_inicial}..{processo_final} "
             f"({n_written} processo(s){dead_msg}). "
@@ -809,10 +812,19 @@ def extrair_pecas(
     # Extrator.
     provedor: str = typer.Option(
         "pypdf", "--provedor",
-        help="Extrator: pypdf | mistral | chandra | unstructured. "
-             "Padrão: pypdf (local, grátis, camada de texto). OCR requer "
-             "a chave de API correspondente no ambiente "
-             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
+        help="Extrator: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured | auto. "
+             "Padrão: pypdf (local, grátis, camada de texto). "
+             "'tesseract' roda local (in-process); 'tesseract_modal' é "
+             "a variante hospedada no Modal; 'tesseract_fly' é o "
+             "endpoint HTTP hospedado em Fly.io (ver fly/README.md), "
+             "~10× mais barato que Modal e desenhado para fanout via "
+             "--paralelo. 'auto' roteia por doc_type — usa tesseract "
+             "para INTEIRO TEOR DO ACÓRDÃO (onde pypdf duplica conteúdo "
+             "via cover-stream do iText, ~90% CER) e pypdf para o resto. "
+             "OCR em nuvem requer a chave de API correspondente "
+             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY); "
+             "tesseract_fly lê o endpoint de FLY_TESSERACT_URL.",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
@@ -823,6 +835,14 @@ def extrair_pecas(
     dry_run: bool = typer.Option(False, "--dry-run"),
     nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
     retomar: bool = typer.Option(False, "--retomar"),
+    paralelo: int = typer.Option(
+        1, "--paralelo",
+        help="Despachos OCR em paralelo via ThreadPoolExecutor "
+             "(default 1 = sequencial). Útil só para provedores HTTP "
+             "(tesseract_fly, tesseract_modal, mistral) onde a wall é "
+             "dominada pela rede; provedores locais (pypdf, tesseract) "
+             "ignoram essa flag em essência (CPU-bound, GIL).",
+    ),
     prever: bool = typer.Option(
         False, "--prever",
         help="Mostra previsão de custo + tempo do OCR e sai sem "
@@ -852,6 +872,7 @@ def extrair_pecas(
         limite=limite, apenas_substantivas=apenas_substantivas,
         provedor=provedor, forcar=forcar, saida=saida,
         dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
+        paralelo=paralelo,
     ))
 
 

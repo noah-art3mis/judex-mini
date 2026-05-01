@@ -11,7 +11,7 @@ top-level dirs, three answers.
 |-------------------|-----------------------------------------------------|--------------------------------------------------------|--------------|
 | `data/source/`    | Catastrophic — irreplaceable scientific output      | `processos/<CLASSE>/judex-mini_<CLASSE>_<N>.json`     | no           |
 | `data/raw/`       | Expensive — re-fetch is hours + proxy budget        | `html/`, `pecas/<sha1>.<ext>.gz`                       | no           |
-| `data/derived/`   | Cheap — local rebuild in minutes                    | `warehouse/`, `exports/`, `reports/`, `dead-ids/`, `pecas-texto/` | no    |
+| `data/derived/`   | Cheap — local rebuild in minutes                    | `warehouse/`, `exports/`, `reports/`, `nao-alocados/`, `pecas-texto/` | no    |
 
 Operational artifacts (logs, request audit DB, canary outputs, sweep
 state, daily report watermarks) live **outside** `data/` — under
@@ -83,8 +83,8 @@ data/derived/
 ├── reports/
 │   └── <slug>/{stats.json,summaries.jsonl,narrative.md}
 │                                            outputs of analysis/reports/*.py
-├── dead-ids/
-│   ├── <CLASSE>.txt                      ← confirmed-nonexistent process IDs
+├── nao-alocados/
+│   ├── <CLASSE>.txt                      ← confirmed-unallocated processo_ids
 │   └── <CLASSE>.candidates.tsv           ← audit table behind .txt
 └── pecas-texto/                          ← extracted-text + sidecars (peça quartet)
     ├── <sha1>.txt.gz                     ← from extrair-pecas

@@ -2,12 +2,15 @@
 
 Four parallel caches, all sha1(url)-keyed, split across two roots:
 
-- **Bytes** under `data/raw/pecas/` (`<sha1>.<ext>.gz`, e.g. `.pdf.gz`,
-  `.rtf.gz`): raw bytes from STF, gzip-wrapped. Written by
-  `baixar-pecas`; read by `extrair-pecas`. The directory is format-
-  agnostic — the cache key is `sha1(url)` and the on-disk extension
-  reflects whatever STF served. Splitting download from extraction
-  lets us switch OCR providers without re-hitting STF's WAF.
+- **Bytes** under `data/raw/pecas/` (`<sha1>.<ext>.gz`, with `<ext>` ∈
+  {`pdf`, `rtf`}): raw bytes from STF, gzip-wrapped. Written by
+  `baixar-pecas`; read by `extrair-pecas`. The on-disk extension is
+  picked from the payload's magic bytes (`%PDF` → `.pdf.gz`, `{\\rtf` →
+  `.rtf.gz`); unknown payloads raise rather than landing in a lying
+  suffix. Readers (`has_bytes` / `read_bytes`) probe both extensions
+  since callers only know the URL, not what STF served. Splitting
+  download from extraction lets us switch OCR providers without
+  re-hitting STF's WAF.
 - **Text** under `data/derived/pecas-texto/<sha1>.txt.gz`: flat
   extracted text. Written by every extractor path (pypdf, Unstructured
   OCR, RTF fallback). This is what downstream notebooks read via
@@ -75,8 +78,35 @@ def _extractor_path(url: str) -> Path:
     return TEXTO_ROOT / f"{_hash(url)}.extractor"
 
 
-def _bytes_path(url: str) -> Path:
-    return PECAS_ROOT / f"{_hash(url)}.pdf.gz"
+_BYTES_EXTS: tuple[str, ...] = ("pdf", "rtf")
+_MAGIC_TO_EXT: tuple[tuple[bytes, str], ...] = (
+    (b"%PDF", "pdf"),
+    (b"{\\rtf", "rtf"),
+)
+
+
+def _ext_for_payload(body: bytes) -> str:
+    prefix = body[:8]
+    for magic, ext in _MAGIC_TO_EXT:
+        if prefix.startswith(magic):
+            return ext
+    raise ValueError(
+        f"unrecognised peça magic bytes: {prefix!r}; "
+        f"expected one of {[m for m, _ in _MAGIC_TO_EXT]}"
+    )
+
+
+def _bytes_path(url: str, ext: str = "pdf") -> Path:
+    return PECAS_ROOT / f"{_hash(url)}.{ext}.gz"
+
+
+def _find_bytes_path(url: str) -> Optional[Path]:
+    h = _hash(url)
+    for ext in _BYTES_EXTS:
+        p = PECAS_ROOT / f"{h}.{ext}.gz"
+        if p.exists():
+            return p
+    return None
 
 
 def has_text(url: str) -> bool:
@@ -152,22 +182,27 @@ def write_elements(url: str, elements: list[dict[str, Any]]) -> None:
 
 
 def has_bytes(url: str) -> bool:
-    return _bytes_path(url).exists()
+    return _find_bytes_path(url) is not None
 
 
 def read_bytes(url: str) -> Optional[bytes]:
-    p = _bytes_path(url)
-    if not p.exists():
+    p = _find_bytes_path(url)
+    if p is None:
         return None
     return gzip.decompress(p.read_bytes())
 
 
 def write_bytes(url: str, body: bytes) -> None:
-    """Store raw PDF bytes for `url`, gzip-wrapped and atomically written.
+    """Store raw peça bytes for `url`, gzip-wrapped and atomically written.
 
+    The on-disk extension is picked from the payload's magic bytes
+    (`%PDF` → `.pdf.gz`, `{\\rtf` → `.rtf.gz`); anything else raises
+    `ValueError` rather than landing in a misleading `.pdf.gz` (the
+    pre-2026-05 bug that left ~4% of cache entries lying about format).
     Paired with `baixar-pecas` → `extrair-pecas`: the download command
     writes bytes once, then every extractor run reads them locally via
     `read_bytes`. No quality guard on overwrite — `--forcar` is the
     only knob that re-downloads.
     """
-    _atomic_write(_bytes_path(url), gzip.compress(body))
+    ext = _ext_for_payload(body)
+    _atomic_write(_bytes_path(url, ext), gzip.compress(body))

@@ -58,6 +58,14 @@ class OCRConfig:
     poll_interval: float = 2.0
     poll_max_wait: float = 600.0
 
+    # tesseract / tesseract_modal
+    # `workers=None` → auto-detect via os.sched_getaffinity (portable across
+    # 4-core laptops and 14-core workstations; cgroup-aware on Linux).
+    tesseract_dpi: int = 200
+    tesseract_psm: int = 3
+    tesseract_oem: int = 3
+    tesseract_workers: Optional[int] = None
+
 
 class OCRProvider(Protocol):
     def extract(self, pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult: ...

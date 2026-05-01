@@ -22,6 +22,22 @@ Pricing (2026-04 paid tier):
 Per-page accounting (Google's published constants):
   - PDF page = 258 input tokens
   - Born-digital extracted native text = $0 input
+
+Bakeoff result (2026-04-30, see docs/reports/2026-04-30-ocr-bakeoff.md):
+2.00% median CER on born-digital, no scanned data (quota ran out at
+14/50 PDFs). High inter-document variance — sometimes Mistral-equivalent
+on long docs, badly fragmented on short ones. **Sync-mode quota is
+per-day**; batch mode (50% cheaper, ~24h SLA) is the only viable
+production path for >14-document runs. Batch helpers
+(``build_batch_jsonl``/``submit_batch``/``wait_for_batch``) are wired
+but the runner needs a submit-then-poll change to use them.
+
+Known failure modes:
+- Drops `(...)` ellipsis markers in indented quoted blocks.
+- Scrambles section heading + numbered item ordering (e.g.
+  ``IV. / 4. / DISPOSITIVO`` instead of ``IV. DISPOSITIVO / 4. ...``).
+- Orphan page-number stragglers (``2``, ``3`` as standalone lines).
+- Curly quotes (``"``) flattened to straight (``"``).
 """
 
 from __future__ import annotations

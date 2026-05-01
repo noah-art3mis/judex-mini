@@ -218,10 +218,90 @@ def test_write_bytes_overwrites(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
     monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
 
-    peca_cache.write_bytes("https://example.test/a.pdf", b"v1")
-    peca_cache.write_bytes("https://example.test/a.pdf", b"v2")
+    peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\nv1")
+    peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\nv2")
 
-    assert peca_cache.read_bytes("https://example.test/a.pdf") == b"v2"
+    assert peca_cache.read_bytes("https://example.test/a.pdf") == b"%PDF-1.4\nv2"
+
+
+# ----- Format-aware bytes cache (PDF vs RTF) -------------------------------
+
+
+def test_write_bytes_picks_pdf_extension_for_pdf_magic(tmp_path, monkeypatch) -> None:
+    """PDF magic bytes (`%PDF`) → on-disk file is `<sha1>.pdf.gz`."""
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\n...")
+
+    assert len(list(tmp_path.glob("*.pdf.gz"))) == 1
+    assert len(list(tmp_path.glob("*.rtf.gz"))) == 0
+
+
+def test_write_bytes_picks_rtf_extension_for_rtf_magic(tmp_path, monkeypatch) -> None:
+    """RTF magic bytes (`{\\rtf`) → on-disk file is `<sha1>.rtf.gz`.
+
+    Pins the fix for the 4.2% RTF-as-pdf.gz miscategorisation: surface-3
+    DJe URLs serve RTF, the cache used to hard-code `.pdf.gz` for every
+    payload, leaving gzip files whose suffix lied about their content.
+    """
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    peca_cache.write_bytes(
+        "https://example.test/decisao?ext=RTF",
+        b"{\\rtf1\\ansi\\deff0 hello}",
+    )
+
+    assert len(list(tmp_path.glob("*.rtf.gz"))) == 1
+    assert len(list(tmp_path.glob("*.pdf.gz"))) == 0
+
+
+def test_write_bytes_raises_on_unknown_magic(tmp_path, monkeypatch) -> None:
+    """Unknown-format payloads must raise rather than rot in the cache.
+
+    Without this guard, an HTML error page or a future format would
+    silently land in `<sha1>.pdf.gz` (the original 2026-04 bug), making
+    downstream filename-based assumptions wrong.
+    """
+    import pytest
+
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    with pytest.raises(ValueError, match="magic"):
+        peca_cache.write_bytes("https://example.test/a.pdf", b"<html><body>403</body></html>")
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_read_bytes_round_trips_rtf_payloads(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    body = b"{\\rtf1\\ansi\\deff0 hello world}"
+    peca_cache.write_bytes("https://example.test/x?ext=RTF", body)
+
+    assert peca_cache.has_bytes("https://example.test/x?ext=RTF") is True
+    assert peca_cache.read_bytes("https://example.test/x?ext=RTF") == body
+
+
+def test_has_bytes_probes_both_extensions(tmp_path, monkeypatch) -> None:
+    """`has_bytes` must hit on either `.pdf.gz` or `.rtf.gz`.
+
+    Callers (download_driver, extract_driver, peca_cli) only pass URLs;
+    they don't know which format STF served. A reader that probed only
+    `.pdf.gz` would miss every legit `.rtf.gz` entry post-migration.
+    """
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    peca_cache.write_bytes("https://example.test/a.pdf", b"%PDF-1.4\n...")
+    peca_cache.write_bytes("https://example.test/b?ext=RTF", b"{\\rtf1 ...}")
+
+    assert peca_cache.has_bytes("https://example.test/a.pdf") is True
+    assert peca_cache.has_bytes("https://example.test/b?ext=RTF") is True
+    assert peca_cache.has_bytes("https://example.test/never-written") is False
 
 
 def test_bytes_file_is_gzipped_on_disk(tmp_path, monkeypatch) -> None:

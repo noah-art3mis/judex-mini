@@ -191,6 +191,17 @@ CREATE TABLE pdfs (
     cache_path    VARCHAR NOT NULL
 );
 
+-- processo_ids that STF's portal never bound to an incidente.
+-- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`.
+-- See ADR-0002.
+CREATE TABLE unallocated_pids (
+    classe          VARCHAR NOT NULL,
+    processo_id     INTEGER NOT NULL,
+    n_observations  INTEGER NOT NULL,
+    confirmed       BOOLEAN NOT NULL,
+    PRIMARY KEY (classe, processo_id)
+);
+
 CREATE TABLE manifest (
     built_at      TIMESTAMP NOT NULL,
     classes       VARCHAR[],
@@ -202,6 +213,7 @@ CREATE TABLE manifest (
     n_publicacoes_dje INTEGER,
     n_decisoes_dje    INTEGER,
     n_pdfs            INTEGER,
+    n_unallocated     INTEGER,
     build_wall_s      DOUBLE,
     judex_commit      VARCHAR
 );
@@ -284,6 +296,7 @@ class BuildSummary:
     n_publicacoes_dje: int
     n_decisoes_dje: int
     n_pdfs: int
+    n_unallocated: int
     wall_s: float
     output_path: Path
     population_rates: dict[str, float]
@@ -868,6 +881,45 @@ def _bulk_insert(con: duckdb.DuckDBPyConnection, table: str, rows: list[dict]) -
         con.unregister(view)
 
 
+def _load_unallocated_pids(
+    root: Path, classe: str, *, min_observations: int = 2,
+) -> list[dict]:
+    """Read `<classe>.candidates.tsv` into rows for the unallocated_pids table.
+
+    Tolerant of both the legacy 3-column header (`processo_id, n_observations,
+    n_empty_body`) and the new 2-column header (`processo_id, n_observations`):
+    the loader keys off column names, not positions. `confirmed` is derived
+    here so SQL queries don't have to know the threshold.
+    """
+    tsv = root / f"{classe}.candidates.tsv"
+    if not tsv.exists():
+        return []
+    rows: list[dict] = []
+    with tsv.open() as f:
+        header = f.readline().rstrip("\n").split("\t")
+        try:
+            pid_col = header.index("processo_id")
+            obs_col = header.index("n_observations")
+        except ValueError:
+            return []
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) <= max(pid_col, obs_col):
+                continue
+            try:
+                pid = int(parts[pid_col])
+                n_obs = int(parts[obs_col])
+            except ValueError:
+                continue
+            rows.append({
+                "classe": classe,
+                "processo_id": pid,
+                "n_observations": n_obs,
+                "confirmed": n_obs >= min_observations,
+            })
+    return rows
+
+
 def build(
     *,
     cases_root: Path,
@@ -877,6 +929,7 @@ def build(
     id_range: Optional[tuple[int, int]] = None,
     progress_every: int = 10_000,
     strict: bool = False,
+    unallocated_pids_root: Optional[Path] = None,
 ) -> BuildSummary:
     """Build the warehouse. When ``strict=True``, a population-rate
     threshold miss (see ``MIN_POPULATION_RATES``) raises
@@ -1018,9 +1071,20 @@ def build(
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter)
         )
+
+        # Unallocated processo_ids — sourced from the cross-sweep registry.
+        # See ADR-0002. Tests omit the root and get an empty table.
+        unallocated_rows: list[dict] = []
+        if unallocated_pids_root is not None:
+            for classe in sorted(classes_seen):
+                unallocated_rows.extend(
+                    _load_unallocated_pids(unallocated_pids_root, classe)
+                )
+        n_unallocated = _bulk_insert_iter(con, "unallocated_pids", iter(unallocated_rows))
+
         wall = time.monotonic() - t0
         con.execute(
-            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO manifest VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 datetime.now(),
                 sorted(classes_seen),
@@ -1032,6 +1096,7 @@ def build(
                 counts["publicacoes_dje"],
                 counts["decisoes_dje"],
                 n_pdfs,
+                n_unallocated,
                 wall,
                 _git_commit(),
             ],
@@ -1058,6 +1123,7 @@ def build(
         n_publicacoes_dje=counts["publicacoes_dje"],
         n_decisoes_dje=counts["decisoes_dje"],
         n_pdfs=n_pdfs,
+        n_unallocated=n_unallocated,
         wall_s=time.monotonic() - t0,
         output_path=output_path,
         population_rates=population_rates,

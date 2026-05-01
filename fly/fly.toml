@@ -1,0 +1,47 @@
+# Fly.io Machine config for the Tesseract OCR HTTP service.
+#
+# Pricing math (2026 rates; verify before bulk runs):
+#   shared-cpu-2x with 4 GB RAM = ~$0.0118/hr
+#   For 12,930 ACÓRDÃOs at ~5 sec OCR each, ~30 Machines in parallel:
+#     compute = 64,650 cpu-sec ≈ 18 cpu-hr × $0.0118 = $0.21
+#     wall    = ~36 min start-to-finish
+#
+# Region: gru (São Paulo) — closest to STF traffic origin and to
+# minimize bytes-shipping latency from a São Paulo-hosted client.
+# Override per-deploy via `flyctl deploy --regions <code>`.
+
+app = "judex-ocr-tesseract-arcos"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # auto_start: idle Machines wake on incoming HTTPS request (~5 s cold).
+  # auto_stop:  Machines power down after `min_machines_running` is met.
+  # Together: pay only for active OCR seconds; idle = $0.
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/healthz"
+
+# Per-Machine resource shape. Tesseract LSTM (~150 MB) + 200 dpi PNG
+# rasterization buffers (~200 MB peak for a 200-page ACÓRDÃO) fit
+# in 4 GB with comfortable headroom. The 2 vCPUs let pages parallel-OCR
+# 2 at a time inside one PDF — the in-container ThreadPoolExecutor
+# in server.py picks this up via os.cpu_count().
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "4gb"

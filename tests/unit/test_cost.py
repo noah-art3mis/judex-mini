@@ -50,13 +50,15 @@ def test_baixar_shard_finishes_faster_than_single_ip() -> None:
 
 
 def test_baixar_bandwidth_matches_anchor() -> None:
-    """Bandwidth = n × 0.139 MB. Anchor is the corpus mean of 79,084
-    cached `.pdf.gz` (re-measured 2026-04-29). Bounds are generous so
-    re-anchoring within ±10% does not require updating the test."""
+    """Bandwidth = n × _AVG_PDF_MB. Anchor is the corpus mean of 90,168
+    cached `.pdf.gz` (re-measured 2026-05-01 after the .pdf.gz/.rtf.gz
+    split — the prior 0.139 was biased low by RTFs + empty downloads
+    contaminating the .pdf.gz set). Bounds are generous so re-anchoring
+    within ±10% does not require updating the test."""
     fcs = cost.forecast_baixar_pecas(10_000)
     assert fcs[0].bandwidth_gb == fcs[1].bandwidth_gb
-    # 10k PDFs × 0.139 MB / 1024 ≈ 1.36 GB
-    assert 1.2 < fcs[0].bandwidth_gb < 1.5
+    # 10k PDFs × 0.1685 MB / 1024 ≈ 1.65 GB
+    assert 1.5 < fcs[0].bandwidth_gb < 1.8
 
 
 def test_baixar_shard_mode_uses_a_proxy_rate_env_override() -> None:
@@ -191,11 +193,13 @@ def test_ocr_cost_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_ocr_rate_reads_from_provider_spec_for_new_providers() -> None:
     """Post-deepening, the OCR rate getter reads from each provider's
-    SPEC. This means Gemini / paddle / surya / tesseract — providers
-    added in the OCR-bakeoff work that the prior pricing.py did not
-    know about — now report a default rate without explicit additions
-    to this module."""
-    for name in ("gemini", "paddle", "surya", "tesseract"):
+    SPEC. This means Gemini / paddle / surya / tesseract_modal —
+    billed providers added in the OCR-bakeoff work that the prior
+    pricing.py did not know about — now report a default rate without
+    explicit additions to this module. (The plain `tesseract` provider
+    is local-CPU after the 2026-05-01 rename and lives in the free-list
+    alongside pypdf.)"""
+    for name in ("gemini", "paddle", "surya", "tesseract_modal"):
         rate = cost.ocr_usd_per_1k_pages(name)
         assert rate > 0.0, f"{name} should have a non-zero default rate"
 

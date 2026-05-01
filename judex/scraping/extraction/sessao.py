@@ -16,16 +16,13 @@ Two endpoints are relevant:
                                   (only for processes carrying a tema)
 
 The `documentos` field holds a list of
-`{"tipo": str, "url": str, "text": None, "extractor": None}` entries.
-Order follows STF's JSON order and duplicate `tipo` values are
-preserved verbatim — the v3 dict shape silently deduplicated them,
-which dropped second votes from the same session. Consumers that want
-unique-by-tipo should group after the fact.
-
-Pass a `pdf_fetcher` callable to `extract_sessao_virtual_from_json`
-to fill in `text` + `extractor` from OCR/pypdf; without it, both
-stay None and the entry can be enriched later by running
-`resolve_documentos` separately.
+`{"tipo": str, "url": str, "text": None, "extractor": None}` entries —
+URL-only pointers per ADR-0001. Order follows STF's JSON order and
+duplicate `tipo` values are preserved verbatim (the v3 dict shape
+silently dropped second votes from the same session). Canonical
+extracted text lives in ``data/derived/pecas-texto/<sha1(url)>.txt.gz``,
+populated by the bytes-first ``baixar-pecas`` → ``extrair-pecas``
+pipeline. The case-scrape never fetches PDF bytes itself.
 """
 
 from __future__ import annotations
@@ -33,7 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup
 
@@ -138,10 +135,9 @@ def _build_documentos(lista: dict) -> list[dict[str, Optional[str]]]:
     """Collect PDF links from relator, vista, and each voto with textos.
 
     Each entry is `{"tipo": <label>, "url": <pdf url>, "text": None,
-    "extractor": None}`. `text` and `extractor` are populated later by
-    `resolve_documentos(fetcher)` once the PDF is extracted; leaving them
-    None here means the scraper output is structurally complete without
-    blocking on PDF downloads.
+    "extractor": None}` — pointer-only. The bytes-first ``baixar-pecas``
+    + ``extrair-pecas`` pipeline writes canonical text to
+    ``peca_cache``; consumers resolve at read time.
 
     Returns a list (schema v4): duplicate `tipo` values are preserved in
     STF order. The v3 dict shape silently dedup'd on `tipo`, which ate
@@ -247,39 +243,6 @@ def parse_tema(response: str) -> list[dict]:
 
 
 Fetcher = Callable[[str, int], str]
-PdfFetcher = Callable[[str], tuple[Optional[str], Optional[str]]]
-"""Given a PDF URL, return `(text, extractor_label)`.
-
-`extractor_label` is a member of the open set documented on
-`StfItem` / `Documento.extractor` ("rtf", "pypdf_plain",
-"pypdf_layout", "unstructured", "mistral", "chandra") or None when
-extraction failed.
-"""
-
-
-def resolve_documentos(
-    docs: list[dict[str, Optional[str]]], *, fetcher: PdfFetcher
-) -> list[dict[str, Optional[str]]]:
-    """Warm the PDF cache for every documento URL; emit pointer-only entries.
-
-    v8 contract: `text` and `extractor` are always None on disk — the
-    canonical extracted text lives in `peca_cache` keyed on sha1(url).
-    The fetcher is still called for its cache-warming side effect
-    (download + extract + persist), but its return value is discarded.
-    Consumers resolve text at read time via `peca_cache.read(url)`.
-    """
-    out: list[dict[str, Optional[str]]] = []
-    for entry in docs:
-        url = entry.get("url")
-        if url:
-            fetcher(url)  # warms peca_cache; return value discarded
-        out.append({
-            "tipo": entry.get("tipo"),
-            "url": url,
-            "text": None,
-            "extractor": None,
-        })
-    return out
 
 
 def extract_sessao_virtual_from_json(
@@ -287,7 +250,6 @@ def extract_sessao_virtual_from_json(
     incidente: int,
     tema: Optional[int],
     fetcher: Fetcher,
-    pdf_fetcher: Optional[PdfFetcher] = None,
 ) -> list[dict]:
     """Assemble sessao_virtual from the two/three JSON endpoints.
 
@@ -296,9 +258,10 @@ def extract_sessao_virtual_from_json(
     Exists as an injection seam so the orchestrator can layer caching
     and retries without this function caring how the bytes arrive.
 
-    When `pdf_fetcher` is provided, each entry's `documentos` list is
-    enriched with extracted text + extractor label (see
-    `resolve_documentos`).
+    Per ADR-0001 the case-scrape never fetches PDF bytes; ``documentos``
+    entries are URL-only pointers and the bytes-first pipeline
+    (``baixar-pecas`` + ``extrair-pecas``) materialises text into
+    ``peca_cache`` later, on demand.
     """
     entries: list[dict] = []
 
@@ -321,11 +284,5 @@ def extract_sessao_virtual_from_json(
             logging.warning(
                 f"sessaoVirtual {oi['id']}: parse failed ({type(e).__name__}: {e})"
             )
-
-    if pdf_fetcher is not None:
-        for entry in entries:
-            docs = entry.get("documentos")
-            if isinstance(docs, list):
-                entry["documentos"] = resolve_documentos(docs, fetcher=pdf_fetcher)
 
     return entries

@@ -209,9 +209,26 @@ def run_download_sweep(
         wall = time.perf_counter() - t0
 
         if status == "ok" and body is not None:
-            peca_cache.write_bytes(tgt.url, body)
+            if not body:
+                # 200 OK with empty body — STF edge fronting glitch. Don't
+                # cache the empty bytes; route to errors.jsonl for replay.
+                status = "empty_response"
+                error_type = "EmptyResponse"
+                error = "200 OK with empty body"
+            else:
+                try:
+                    peca_cache.write_bytes(tgt.url, body)
+                except ValueError as ve:
+                    # Body has neither %PDF nor {\rtf magic — a soft-error
+                    # HTML page or an unexpected format. Don't cache; record
+                    # so we can triage and (optionally) replay.
+                    status = "non_document_response"
+                    error_type = "NonDocumentResponse"
+                    error = str(ve)
+
+        if status == "ok":
             counters.downloaded += 1
-            logging.info(f"[{i}/{n}] {tgt.url}: ok ({len(body)} bytes)")
+            logging.info(f"[{i}/{n}] {tgt.url}: ok ({len(body or b'')} bytes)")
         else:
             counters.failed += 1
             if error is None:
@@ -280,7 +297,7 @@ def run_download_sweep(
             should_resume_skip=is_already_done,
             on_skip=on_resume_skip,
             breaker=breaker,
-            error_statuses=("http_error",),
+            error_statuses=("http_error", "empty_response", "non_document_response"),
             trip_noun="downloads",
             progress_every=progress_every,
             on_progress=on_progress,
@@ -314,6 +331,7 @@ def run_download_sweep(
         started=started, finished=finished, cost=cost,
     )
 
+    status_counts = Counter(r.get("status", "unknown") for r in snap.values())
     print(
         f"\nsummary: downloaded={counters.downloaded} cached={counters.cached_hits} "
         f"failed={counters.failed}"
@@ -321,6 +339,25 @@ def run_download_sweep(
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
+    fail_breakdown = " ".join(
+        f"{s}={n}"
+        for s, n in sorted(status_counts.items(), key=lambda kv: -kv[1])
+        if s not in ("ok", "cached") and n > 0
+    )
+    if fail_breakdown:
+        print(f"  by status: {fail_breakdown}")
+    anomaly_counts = {
+        s: status_counts.get(s, 0)
+        for s in ("empty_response", "non_document_response")
+        if status_counts.get(s, 0) > 0
+    }
+    if anomaly_counts:
+        print(
+            "  ATTENTION — anomalies (NOT transient, investigate before replaying):"
+            f" {' '.join(f'{s}={n}' for s, n in anomaly_counts.items())}"
+        )
+        print(f"     grep -E 'empty_response|non_document_response' {store.log_path}")
+        print(f"     replay all errors (anomalies + transient): --retentar-de {errors_path}")
     print(f"  {cost.summary_line()}")
     print(f"  state:  {store.state_path}")
     print(f"  log:    {store.log_path}")

@@ -29,11 +29,16 @@ Both surfaces share two rate sources:
   otherwise). The SPEC is the single source of truth for OCR rates;
   this rate getter is a thin facade with env override.
 
-Real-run anchors (re-measured 2026-04-29):
+Real-run anchors (re-measured 2026-05-01 for ``_AVG_PDF_MB``,
+2026-04-29 for the rest):
 
-| anchor                     | value | source                                                  |
-|----------------------------|-------|---------------------------------------------------------|
-| ``_AVG_PDF_MB``            | 0.139 | mean of 79,084 cached `.pdf.gz` (median 0.117)          |
+| anchor                     | value  | source                                                 |
+|----------------------------|--------|--------------------------------------------------------|
+| ``_AVG_PDF_MB``            | 0.1685 | mean of 90,168 cached `.pdf.gz` (median 0.146); RTFs   |
+|                            |        | now live in `.rtf.gz` (separate ext); empty-body       |
+|                            |        | gzip entries excluded. Pre-rename the same population  |
+|                            |        | mean was 0.139 — biased low by 2,417 RTFs and 1,506    |
+|                            |        | empty 0-byte downloads contaminating the .pdf.gz set.  |
 | ``_AVG_CASE_KB``           | 47    | docs/rate-limits.md sweep V (170k HC blended)           |
 | ``_AVG_REQ_WALL_S_DIRECT`` | 3.0   | HC 2024 + HC 2023 overnight runs (~32k requests)        |
 | ``_AVG_CASE_WALL_S_DIRECT``| 2.0   | "12k HC cases @ 16 shards in ~25 min" anchor            |
@@ -60,7 +65,7 @@ from typing import Optional
 
 # ----- Anchored constants ----------------------------------------------------
 
-_AVG_PDF_MB: float = 0.139
+_AVG_PDF_MB: float = 0.1685
 _AVG_CASE_KB: float = 47.0
 _AVG_REQ_WALL_S_DIRECT: float = 3.0
 _AVG_CASE_WALL_S_DIRECT: float = 2.0
@@ -105,7 +110,13 @@ def ocr_usd_per_1k_pages(provider: str) -> float:
             return float(raw)
         except ValueError:
             pass  # fall through to SPEC lookup
-    if p == "pypdf":
+    if p in ("pypdf", "tesseract", "auto"):
+        # All free / local-CPU: pypdf has no API bill; `tesseract` runs
+        # on the operator's host (the Modal-hosted billed sibling lives
+        # at `tesseract_modal`); `auto` routes only between those two.
+        # If `auto` ever fans out to a billed provider, this special
+        # case has to become a per-target cost computation in
+        # extract_driver.
         return 0.0
     # SPEC is the source of truth for OCR rates post the OCR-deepening.
     from judex.scraping.ocr.base import OCRConfig

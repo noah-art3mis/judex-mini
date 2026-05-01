@@ -12,6 +12,22 @@ own Datalab dashboard before bulk runs.
 Output formats: markdown | html | json | chunks. We default to
 markdown to match Mistral's primary output for cross-provider
 comparability.
+
+Bakeoff result (2026-04-30, see docs/reports/2026-04-30-ocr-bakeoff.md):
+**best body-text quality of any provider** (no character errors, accents
+intact, paragraph reflow excellent), but most expensive at $3/1k pages
+and median CER 23.57% looks bad because of aggressive boilerplate
+stripping. Renders structure as Markdown (`#`, `**bold**`, `*italic*`).
+
+Behaviour to know:
+- Drops the auth-code footer + per-page running headers
+  (e.g. ``Inteiro Teor do Acórdão - Página N de M``). 17% shorter on
+  a 12-page born-digital — but no body content is lost. Useful as
+  pre-stripped boilerplate for analytics; bad for verbatim archival.
+- Rare structural hallucination on short docs: short inline phrases
+  rendered as Markdown headings (``Vistos etc.`` → ``## **Vistos etc.**``
+  on `4752742c`).
+- Recommend keeping behind an opt-in flag for analytics pipelines.
 """
 
 from __future__ import annotations

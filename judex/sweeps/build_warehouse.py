@@ -29,6 +29,7 @@ def run_build_warehouse(
     year: int | None = None,
     progress_every: int = 10_000,
     strict: bool = False,
+    unallocated_pids_root: Path = Path("data/derived/nao-alocados"),
 ) -> int:
     id_range = None
     if year is not None:
@@ -54,6 +55,7 @@ def run_build_warehouse(
             id_range=id_range,
             progress_every=progress_every,
             strict=strict,
+            unallocated_pids_root=unallocated_pids_root,
         )
     except builder.BuildValidationError as e:
         # `strict=True` raises *after* writing the warehouse file + printing
@@ -73,6 +75,7 @@ def run_build_warehouse(
     print(f"  publicacoes_dje   {summary.n_publicacoes_dje:>10,}")
     print(f"  decisoes_dje      {summary.n_decisoes_dje:>10,}")
     print(f"  pdfs              {summary.n_pdfs:>10,}")
+    print(f"  unallocated_pids  {summary.n_unallocated:>10,}")
     return 0
 
 
