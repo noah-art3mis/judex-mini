@@ -34,7 +34,7 @@ from judex.scraping.ocr import ExtractResult, OCRConfig
 from judex.scraping.ocr.dispatch import extract_pdf as _dispatch_extract
 from judex.sweeps import shared as _shared
 from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
-from judex.utils.pricing import estimate_ocr_cost
+from judex.utils.cost import estimate_ocr_cost
 from judex.sweeps.peca_targets import PecaTarget
 from judex.utils import peca_cache
 from judex.utils.peca_utils import extract_rtf_text

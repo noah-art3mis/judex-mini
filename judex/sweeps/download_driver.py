@@ -36,7 +36,7 @@ from judex.config import ScraperConfig
 from judex.scraping.http_session import _http_get_with_retry, new_session
 from judex.scraping.proxy_pool import ProxyPool
 from judex.sweeps import shared as _shared
-from judex.utils.pricing import estimate_proxy_cost
+from judex.utils.cost import estimate_proxy_cost
 from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
 from judex.sweeps.peca_targets import PecaTarget
 from judex.utils import peca_cache

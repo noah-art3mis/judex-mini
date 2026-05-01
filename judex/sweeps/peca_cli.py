@@ -26,7 +26,7 @@ from judex.utils.filters import split_csv
 
 # Pages-per-PDF anchor for the extract preview. Re-measured 2026-04-29
 # from a pypdf sample of 1,904 cached PDFs: mean 4.90, median 3, p90 12,
-# p99 22. The download anchors live in `judex/utils/forecasts.py` (the
+# p99 22. The download anchors live in `judex/utils/cost.py` (the
 # download preview defers to that module's forecast table).
 _AVG_PAGES_PER_PDF = 4.9
 
@@ -147,10 +147,10 @@ def print_download_preview(
     """Baixar-pdfs preview: bytes-cache split + side-by-side cost/wall
     forecast for single direct-IP and 16-shard + proxy modes.
 
-    Math + anchors live in `judex.utils.forecasts`; this function is
-    the renderer.
+    Math + anchors live in `judex.utils.cost`; this function is the
+    renderer.
     """
-    from judex.utils.forecasts import (
+    from judex.utils.cost import (
         forecast_baixar_pecas,
         render_forecast_table,
     )

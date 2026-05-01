@@ -362,7 +362,7 @@ def varrer_processos(
         False, "--prever",
         help="Mostra previsão de custo + tempo (single direct-IP vs "
              "16 shards) e sai sem rodar a varredura. Anchors em "
-             "judex/utils/forecasts.py.",
+             "judex/utils/cost.py.",
     ),
 ) -> None:
     """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
@@ -418,7 +418,7 @@ def varrer_processos(
     # Runs before any side-effecting setup (temp-CSV write, dead-id load,
     # saída/ mkdir) so users can plan recipes without leaving artifacts.
     if prever:
-        from judex.utils.forecasts import (
+        from judex.utils.cost import (
             forecast_varrer_processos,
             render_forecast_table,
         )

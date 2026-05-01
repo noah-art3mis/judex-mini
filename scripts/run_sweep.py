@@ -1058,7 +1058,7 @@ def run_process_sweep(
         avg_bytes = int(os.environ.get("PROCESS_AVG_BYTES", AVG_BYTES_PER_PROCESS))
     except ValueError:
         avg_bytes = AVG_BYTES_PER_PROCESS
-    from judex.utils.pricing import estimate_proxy_cost
+    from judex.utils.cost import estimate_proxy_cost
     pool_was_active = pool is not None and pool.size() > 0
     cost = estimate_proxy_cost(
         bytes_downloaded=totals["ok"] * avg_bytes,
