@@ -48,6 +48,22 @@ uv run python scripts/validate_ground_truth.py
 uv run judex varrer-processos ...
 ```
 
+**Local-OCR system deps (only if using `--provedor tesseract_local`):**
+the `ocr-local` extra pulls `pytesseract`/`pdf2image`/`pillow` into the
+venv but those are thin wrappers — they need the system binaries
+**Tesseract + the Portuguese language pack + Poppler**. On WSL/Linux:
+
+```bash
+sudo apt-get install -y tesseract-ocr tesseract-ocr-por poppler-utils
+uv sync --extra ocr-local
+```
+
+On macOS: `brew install tesseract tesseract-lang poppler`. The Modal-hosted
+`tesseract` provider is the production default; `tesseract_local` is for
+ad-hoc one-offs where you want zero network/auth. See
+[`docs/reports/2026-04-30-ocr-bakeoff.md`](docs/reports/2026-04-30-ocr-bakeoff.md)
+for cost/quality tradeoffs.
+
 ## CLI (`judex`)
 
 User-facing surface lives in `judex/cli.py` (Typer app, registered via

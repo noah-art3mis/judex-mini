@@ -1,4 +1,15 @@
-"""Tesseract client — calls the Modal-hosted endpoint."""
+"""Tesseract client — calls the Modal-hosted endpoint.
+
+Bakeoff winner (2026-04-30, see docs/reports/2026-04-30-ocr-bakeoff.md):
+1.04% median CER, $0.14/1k pages — 14× cheaper than Mistral sync, beats
+Mistral on every quality axis. Body text faithful; reading order correct.
+
+Known character-level errors (programmatically post-processable):
+- ``§`` → digit ``8``, Roman ``I`` → digit ``1`` in some contexts.
+- Ellipsis period drops: ``(...)`` → ``(..)``.
+- Auth-code digit↔letter swaps: ``BFD0`` → ``BFDO``, ``21A1`` → ``2141``.
+- Small-caps font confusion: ``LUÍS ROBERTO`` → ``Luís ROBERTO``.
+"""
 
 from __future__ import annotations
 

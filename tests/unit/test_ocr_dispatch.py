@@ -71,26 +71,26 @@ def test_estimate_cost_unknown_provider_raises():
 
 def test_cheapest_provider_picks_lowest_listed_rate():
     """`cheapest_provider` scans every registered provider's `cost(1, ...)`
-    and returns the lowest. As of 2026-04 the lowest *listed* rate is
-    paddle ($0.080/1k, Modal-hosted) — note this is a placeholder until
-    the first Modal-billing-anchored bakeoff lands. Among the API-priced
-    set, mistral batch ($1/1k) wins.
+    and returns the lowest. As of 2026-05 the cheapest is `tesseract_local`
+    at $0 (local CPU, no API cost). Among API-priced/Modal-hosted providers
+    the next-cheapest is paddle ($0.08/1k), then tesseract Modal-hosted
+    ($0.14/1k post-bakeoff anchor).
 
     If a registered provider's listed rate changes, this assertion needs
-    an explicit update — not silent drift. Quality / latency / placeholder
+    an explicit update — not silent drift. Quality / latency / local-vs-cloud
     status are NOT considered here; that's documented in the cheapest_provider
     docstring."""
-    assert cheapest_provider(batch_ok=True) == "paddle"
+    assert cheapest_provider(batch_ok=True) == "tesseract_local"
 
 
 def test_cheapest_provider_responds_to_batch_flag():
     """When batch is disallowed, providers that only have batch pricing
     (mistral, gemini) fall back to their sync rate. The cheapest still
-    needs to be a registered provider name."""
+    needs to be a registered provider name. `tesseract_local` at $0 wins
+    regardless of batch flag, since it never charges per page."""
     out = cheapest_provider(batch_ok=False)
     assert out in d.REGISTRY  # any registered name is structurally valid
-    # Paddle is the cheapest at the listed Modal placeholder rate either way.
-    assert out == "paddle"
+    assert out == "tesseract_local"
 
 
 # ----- estimate_wall — sync provider picker for the preview block ----------

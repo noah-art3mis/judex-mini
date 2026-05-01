@@ -13,6 +13,26 @@ Batch flow (50 % cost reduction, ~24 h turnaround):
   5. GET   /v1/files/{out}/content → JSONL of OCR results
 
 Pricing: $2 / 1k pages sync, $1 / 1k batch.
+
+Bakeoff result (2026-04-30, see docs/reports/2026-04-30-ocr-bakeoff.md):
+**Replaced as production OCR by Tesseract** (1.04% median CER at
+$0.14/1k pages — 14× cheaper, strictly better quality). Mistral's
+scanned median CER is 32.71% because of one structural defect:
+
+- **Reading-order bug on 1-page scanned DESPACHOs**: Mistral places
+  the digital-signature footer (``Documento assinado digitalmente
+  conforme MP n° 2.200-2/2001 ... e senha XXXX-XXXX-XXXX-XXXX``) on
+  line 1, before the heading. Reproduced on every 1-pg DESPACHO tested
+  (e0f74de6, 4752742c, 8e11f096, 16f4709e, 288744ef) and on the
+  page-1-of-multi-page docs 04dff48e, c9233de1. Born-digital pages
+  are fine.
+- Body text is otherwise faithful — paragraph reflow excellent, no
+  character drops or scrambling observed.
+
+If keeping Mistral as a fallback: post-process to detect a leading
+``Documento assinado digitalmente conforme MP`` line and move it to
+the natural position (end of file for 1-pg, before the next
+``HC <num> / <UF>`` page-marker for multi-pg).
 """
 
 from __future__ import annotations

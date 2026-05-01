@@ -1650,6 +1650,11 @@ analysis = [
     { name = "seaborn" },
     { name = "umap-learn" },
 ]
+ocr-local = [
+    { name = "pdf2image" },
+    { name = "pillow" },
+    { name = "pytesseract" },
+]
 selenium-legacy = [
     { name = "selenium" },
 ]
@@ -1680,10 +1685,13 @@ requires-dist = [
     { name = "modal", specifier = ">=1.4.2" },
     { name = "openai", specifier = ">=2.6.1" },
     { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pdf2image", marker = "extra == 'ocr-local'", specifier = ">=1.17.0" },
+    { name = "pillow", marker = "extra == 'ocr-local'", specifier = ">=11.0.0" },
     { name = "plotly", marker = "extra == 'analysis'", specifier = ">=6.7.0" },
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "pypdf", specifier = ">=6.1.2" },
+    { name = "pytesseract", marker = "extra == 'ocr-local'", specifier = ">=0.3.13" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "pyvis", marker = "extra == 'analysis'", specifier = ">=0.3.2" },
     { name = "requests", specifier = ">=2.32.5" },
@@ -1694,7 +1702,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.19.2" },
     { name = "umap-learn", marker = "extra == 'analysis'", specifier = ">=0.5.9.post2" },
 ]
-provides-extras = ["analysis", "selenium-legacy"]
+provides-extras = ["analysis", "ocr-local", "selenium-legacy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3103,6 +3111,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pdf2image"
+version = "1.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/00/d8/b280f01045555dc257b8153c00dee3bc75830f91a744cd5f84ef3a0a64b1/pdf2image-1.17.0.tar.gz", hash = "sha256:eaa959bc116b420dd7ec415fcae49b98100dda3dd18cd2fdfa86d09f112f6d57", size = 12811, upload-time = "2024-01-07T20:33:01.965Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/33/61766ae033518957f877ab246f87ca30a85b778ebaad65b7f74fa7e52988/pdf2image-1.17.0-py3-none-any.whl", hash = "sha256:ecdd58d7afb810dffe21ef2b1bbc057ef434dabbac6c33778a38a3f7744a27e2", size = 11618, upload-time = "2024-01-07T20:32:59.957Z" },
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3712,6 +3732,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429, upload-time = "2019-09-20T02:07:35.714Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725, upload-time = "2019-09-20T02:06:22.938Z" },
+]
+
+[[package]]
+name = "pytesseract"
+version = "0.3.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9f/a6/7d679b83c285974a7cb94d739b461fa7e7a9b17a3abfd7bf6cbc5c2394b0/pytesseract-0.3.13.tar.gz", hash = "sha256:4bf5f880c99406f52a3cfc2633e42d9dc67615e69d8a509d74867d3baddb5db9", size = 17689, upload-time = "2024-08-16T02:33:56.762Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/33/8312d7ce74670c9d39a532b2c246a853861120486be9443eebf048043637/pytesseract-0.3.13-py3-none-any.whl", hash = "sha256:7a99c6c2ac598360693d83a416e36e0b33a67638bb9d77fdcac094a3589d4b34", size = 14705, upload-time = "2024-08-16T02:36:10.09Z" },
 ]
 
 [[package]]

@@ -56,6 +56,11 @@ analysis = [
     "umap-learn>=0.5.9.post2",
 ]
 selenium-legacy = ["selenium>=4.37.0"]
+ocr-local = [
+    "pytesseract>=0.3.13",
+    "pdf2image>=1.17.0",
+    "pillow>=11.0.0",
+]
 
 [project.scripts]
 judex = "judex.cli:app"
