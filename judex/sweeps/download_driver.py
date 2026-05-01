@@ -294,6 +294,7 @@ def run_download_sweep(
                 pass
 
     finished = datetime.now(timezone.utc)
+    store.compact()
     errors_path = store.write_errors_file()
 
     # Total bytes downloaded this sweep (status=ok only; cache hits don't

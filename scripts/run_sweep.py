@@ -1032,6 +1032,7 @@ def run_process_sweep(
     )
 
     finished = datetime.now(timezone.utc)
+    store.compact()
     errors_path = store.write_errors_file()
     report_path = args.out / "report.md"
     render_report(

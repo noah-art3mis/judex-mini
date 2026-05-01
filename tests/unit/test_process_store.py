@@ -51,7 +51,7 @@ def test_record_appends_to_log_and_updates_state(tmp_path: Path):
     first = json.loads(log_lines[0])
     assert first["classe"] == "ADI" and first["processo"] == 1 and first["status"] == "ok"
 
-    state = json.loads((tmp_path / "sweep.state.json").read_text())
+    state = store.snapshot()
     assert set(state.keys()) == {"ADI_1", "ADI_2"}
     assert state["ADI_1"]["status"] == "ok"
     assert state["ADI_2"]["status"] == "fail"
@@ -76,7 +76,7 @@ def test_latest_attempt_wins_on_retry(tmp_path: Path):
     log_lines = (tmp_path / "sweep.log.jsonl").read_text().splitlines()
     assert len(log_lines) == 2
 
-    state = json.loads((tmp_path / "sweep.state.json").read_text())
+    state = store.snapshot()
     assert state["ADI_1"]["status"] == "ok"
     assert state["ADI_1"]["attempt"] == 2
 
@@ -215,3 +215,88 @@ def test_filter_skip_and_body_head_default_to_none(tmp_path: Path):
     rec = json.loads((tmp_path / "sweep.log.jsonl").read_text().splitlines()[0])
     assert rec["filter_skip"] is None
     assert rec["body_head"] is None
+
+
+# ----- Threshold-based state.json compaction -----------------------------
+# Motivation: state.json is a periodic snapshot for external readers
+# (judex probe --watch), not rewritten per record. The log is the durable
+# canonical record; state.json is updated when either threshold fires
+# (default 10s OR 500 records) or when compact() is called explicitly.
+
+
+def test_record_does_not_rewrite_state_json_per_record(tmp_path: Path):
+    # Both thresholds set very high — no auto-compaction in this test.
+    store = SweepStore(
+        tmp_path,
+        compact_interval_seconds=10**6,
+        compact_interval_records=10**6,
+    )
+    # __init__ wrote a fresh empty snapshot.
+    assert json.loads((tmp_path / "sweep.state.json").read_text()) == {}
+
+    store.record(_rec("ADI", 1, "ok"))
+    store.record(_rec("ADI", 2, "fail"))
+
+    # Log + in-memory state both reflect the records.
+    assert len((tmp_path / "sweep.log.jsonl").read_text().splitlines()) == 2
+    assert set(store.snapshot().keys()) == {"ADI_1", "ADI_2"}
+
+    # state.json is still the init-time snapshot.
+    on_disk = json.loads((tmp_path / "sweep.state.json").read_text())
+    assert on_disk == {}
+
+
+def test_compact_refreshes_state_json(tmp_path: Path):
+    store = SweepStore(
+        tmp_path,
+        compact_interval_seconds=10**6,
+        compact_interval_records=10**6,
+    )
+    store.record(_rec("ADI", 1, "ok"))
+    store.record(_rec("ADI", 2, "fail"))
+
+    store.compact()
+
+    on_disk = json.loads((tmp_path / "sweep.state.json").read_text())
+    assert set(on_disk.keys()) == {"ADI_1", "ADI_2"}
+    assert on_disk["ADI_1"]["status"] == "ok"
+    assert on_disk["ADI_2"]["status"] == "fail"
+
+
+def test_record_threshold_triggers_compact(tmp_path: Path):
+    store = SweepStore(
+        tmp_path,
+        compact_interval_seconds=10**6,  # never on time
+        compact_interval_records=3,      # fire at the third record
+    )
+    store.record(_rec("ADI", 1, "ok"))
+    store.record(_rec("ADI", 2, "ok"))
+
+    # Two records — below the threshold; state.json still empty.
+    assert json.loads((tmp_path / "sweep.state.json").read_text()) == {}
+
+    store.record(_rec("ADI", 3, "ok"))  # hits threshold
+    on_disk = json.loads((tmp_path / "sweep.state.json").read_text())
+    assert set(on_disk.keys()) == {"ADI_1", "ADI_2", "ADI_3"}
+
+
+def test_recovery_replays_log_when_state_is_stale(tmp_path: Path):
+    # Simulate: a record was appended to the log but state.json was never
+    # refreshed (kill before compaction threshold). Reopening must replay
+    # the log rather than trust the stale snapshot.
+    store = SweepStore(
+        tmp_path,
+        compact_interval_seconds=10**6,
+        compact_interval_records=10**6,
+    )
+    store.record(_rec("ADI", 1, "ok"))
+    # No compact(); state.json on disk is the init-time empty snapshot.
+    assert json.loads((tmp_path / "sweep.state.json").read_text()) == {}
+    del store
+
+    # Reopen: log replay must pick up ADI_1.
+    store2 = SweepStore(tmp_path)
+    assert store2.already_ok("ADI", 1) is True
+    # __init__ also wrote a fresh state.json reflecting the replayed state.
+    on_disk = json.loads((tmp_path / "sweep.state.json").read_text())
+    assert "ADI_1" in on_disk

@@ -222,6 +222,7 @@ def run_extract_sweep(
     )
 
     finished = datetime.now(timezone.utc)
+    store.compact()
     errors_path = store.write_errors_file()
 
     # Estimate pages from total chars extracted this sweep. The 2 000-char/page
