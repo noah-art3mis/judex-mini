@@ -24,7 +24,7 @@ from typing import Any, Iterable, Iterator
 
 import requests
 
-from judex.scraping.ocr.base import ExtractResult, OCRConfig
+from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 DEFAULT_API_BASE = "https://api.mistral.ai"
 
@@ -211,3 +211,35 @@ def wait_for_batch(
         if time.monotonic() > deadline:
             raise TimeoutError(f"Mistral batch {job_id} did not finish in {max_wait}s")
         time.sleep(poll_interval)
+
+
+# ----- ProviderSpec ---------------------------------------------------------
+
+# Mistral batch is submit-and-exit: the call blocks on the upload + job
+# creation but then returns immediately. Actual fulfilment is Mistral's
+# SLA (~24 h ceiling, usually much faster). The wall estimate for batch
+# does NOT scale with n_pdfs.
+_BATCH_SUBMIT_WALL_S = 30.0
+_SYNC_WALL_PER_PDF_S = 3.5  # 2026-04-19 bakeoff anchor
+
+
+def cost(n_pages: int, config: OCRConfig) -> float:
+    if config.batch:
+        return n_pages * 1.0 / 1000
+    return n_pages * 2.0 / 1000
+
+
+def wall(n_pdfs: int, config: OCRConfig) -> float:
+    if config.batch:
+        return _BATCH_SUBMIT_WALL_S
+    return n_pdfs * _SYNC_WALL_PER_PDF_S
+
+
+SPEC = ProviderSpec(
+    name="mistral",
+    extract=extract,
+    cost=cost,
+    wall=wall,
+    env_var="MISTRAL_API_KEY",
+    supports_batch=True,
+)

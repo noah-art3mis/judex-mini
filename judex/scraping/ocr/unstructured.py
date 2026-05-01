@@ -14,7 +14,7 @@ from typing import Any
 
 import requests
 
-from judex.scraping.ocr.base import ExtractResult, OCRConfig
+from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 DEFAULT_API_URL = "https://api.unstructuredapp.io/general/v0/general"
 
@@ -55,3 +55,40 @@ def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
         pages_processed=None,
         provider="unstructured",
     )
+
+
+# ----- ProviderSpec ---------------------------------------------------------
+
+# Per-page rate by strategy (Unstructured public pricing as of 2026-04).
+# `auto` is conservatively priced as `hi_res` since it can route either way.
+_PRICE_BY_STRATEGY: dict[str, float] = {
+    "hi_res": 10.0 / 1000,
+    "ocr_only": 10.0 / 1000,
+    "fast": 1.0 / 1000,
+    "auto": 10.0 / 1000,
+}
+
+
+def cost(n_pages: int, config: OCRConfig) -> float:
+    rate = _PRICE_BY_STRATEGY.get(config.strategy)
+    if rate is None:
+        raise ValueError(
+            f"unstructured: no price for strategy {config.strategy!r}; "
+            f"known: {sorted(_PRICE_BY_STRATEGY)}"
+        )
+    return n_pages * rate
+
+
+def wall(n_pdfs: int, config: OCRConfig) -> float:
+    # ~25 s / pdf (2026-04-19 bakeoff anchor; hi_res strategy).
+    return n_pdfs * 25.0
+
+
+SPEC = ProviderSpec(
+    name="unstructured",
+    extract=extract,
+    cost=cost,
+    wall=wall,
+    env_var="UNSTRUCTURED_API_KEY",
+    supports_batch=False,
+)

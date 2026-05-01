@@ -64,7 +64,7 @@ def test_dispatcher_routes_pypdf_provider(monkeypatch) -> None:
     """
     from judex.scraping.ocr import dispatch, extract_pdf
 
-    assert "pypdf" in dispatch._REGISTRY  # positive assertion, not just routing
+    assert "pypdf" in dispatch.REGISTRY  # positive assertion, not just routing
 
     monkeypatch.setattr(p, "PdfReader", lambda _buf: _FakeReader(["routed"]))
     out = extract_pdf(b"%PDF-1.4", config=OCRConfig(provider="pypdf", api_key=""))
