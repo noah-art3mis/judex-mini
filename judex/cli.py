@@ -812,16 +812,19 @@ def extrair_pecas(
     # Extrator.
     provedor: str = typer.Option(
         "pypdf", "--provedor",
-        help="Extrator: pypdf | tesseract | tesseract_modal | mistral | "
-             "chandra | unstructured | auto. Padrão: pypdf (local, "
-             "grátis, camada de texto). 'tesseract' roda local "
-             "(in-process); 'tesseract_modal' é a variante hospedada no "
-             "Modal para sweeps de produção que precisam fanout além do "
-             "host local. 'auto' roteia por doc_type — usa tesseract "
+        help="Extrator: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured | auto. "
+             "Padrão: pypdf (local, grátis, camada de texto). "
+             "'tesseract' roda local (in-process); 'tesseract_modal' é "
+             "a variante hospedada no Modal; 'tesseract_fly' é o "
+             "endpoint HTTP hospedado em Fly.io (ver fly/README.md), "
+             "~10× mais barato que Modal e desenhado para fanout via "
+             "--paralelo. 'auto' roteia por doc_type — usa tesseract "
              "para INTEIRO TEOR DO ACÓRDÃO (onde pypdf duplica conteúdo "
              "via cover-stream do iText, ~90% CER) e pypdf para o resto. "
              "OCR em nuvem requer a chave de API correspondente "
-             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
+             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY); "
+             "tesseract_fly lê o endpoint de FLY_TESSERACT_URL.",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
@@ -832,6 +835,14 @@ def extrair_pecas(
     dry_run: bool = typer.Option(False, "--dry-run"),
     nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
     retomar: bool = typer.Option(False, "--retomar"),
+    paralelo: int = typer.Option(
+        1, "--paralelo",
+        help="Despachos OCR em paralelo via ThreadPoolExecutor "
+             "(default 1 = sequencial). Útil só para provedores HTTP "
+             "(tesseract_fly, tesseract_modal, mistral) onde a wall é "
+             "dominada pela rede; provedores locais (pypdf, tesseract) "
+             "ignoram essa flag em essência (CPU-bound, GIL).",
+    ),
     prever: bool = typer.Option(
         False, "--prever",
         help="Mostra previsão de custo + tempo do OCR e sai sem "
@@ -861,6 +872,7 @@ def extrair_pecas(
         limite=limite, apenas_substantivas=apenas_substantivas,
         provedor=provedor, forcar=forcar, saida=saida,
         dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
+        paralelo=paralelo,
     ))
 
 

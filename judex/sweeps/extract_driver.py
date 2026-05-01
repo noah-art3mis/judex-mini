@@ -23,8 +23,10 @@ regardless of `--provedor`. Preserves parity with the prior
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,6 +79,7 @@ def run_extract_sweep(
     install_signal_handlers: bool = True,
     dispatcher: Optional[DispatcherFn] = None,
     provider_router: Optional[Callable[[PecaTarget], str]] = None,
+    paralelo: int = 1,
 ) -> tuple[int, int, int, int]:
     """Run a local-OCR extraction sweep.
 
@@ -87,6 +90,19 @@ def run_extract_sweep(
     router-picked provider; the sidecar match check uses the per-target
     provider too, so a previously cached `tesseract` extract on
     an ACÓRDÃO is treated as a hit.
+
+    `paralelo` (default 1) drives the per-target dispatch fanout. The
+    sequential path (paralelo=1) uses ``iterate_with_guards`` unchanged
+    — same circuit breaker, same shutdown gates, same progress cadence.
+    Values > 1 spawn a ``ThreadPoolExecutor(max_workers=paralelo)`` and
+    submit ``on_item`` calls in parallel; the breaker is disabled in
+    parallel mode (would race across threads) and shutdown checks are
+    coarser (between submission and result-collection cycles). Use
+    paralelo > 1 when ``provedor`` is a thin HTTP client (tesseract_fly,
+    tesseract_modal, mistral) where most wall is network-bound and the
+    GIL releases on the C-extension request call. Local providers
+    (pypdf, tesseract) are CPU-bound and gain no throughput from thread
+    fanout — leave at 1.
 
     Returns `(extracted, cached_hits, no_bytes, failed)`.
     """
@@ -230,18 +246,41 @@ def run_extract_sweep(
     def on_resume_skip(_tgt: PecaTarget) -> None:
         counters.cached_hits += 1
 
-    tripped = _shared.iterate_with_guards(
-        targets,
-        on_item=on_item,
-        should_resume_skip=is_already_done,
-        on_skip=on_resume_skip,
-        breaker=None,  # extract has no WAF; provider errors retry via --retentar-de
-        error_statuses=("provider_error",),
-        trip_noun="extracts",
-        progress_every=progress_every,
-        on_progress=on_progress,
-        throttle_sleep=0.0,
-    )
+    if paralelo > 1:
+        # Parallel HTTP-fanout path. on_item's store/cache writes need
+        # serialization since multiple threads call it; wrap store.record
+        # in a Lock. peca_cache.write is sha1-keyed so per-URL writes
+        # land on disjoint paths — no cross-thread collision there.
+        store_lock = threading.Lock()
+        original_record = store.record
+
+        def _locked_record(rec):
+            with store_lock:
+                return original_record(rec)
+
+        store.record = _locked_record  # type: ignore[method-assign]
+        tripped = _iterate_parallel(
+            targets,
+            on_item=on_item,
+            should_resume_skip=is_already_done,
+            on_skip=on_resume_skip,
+            progress_every=progress_every,
+            on_progress=on_progress,
+            paralelo=paralelo,
+        )
+    else:
+        tripped = _shared.iterate_with_guards(
+            targets,
+            on_item=on_item,
+            should_resume_skip=is_already_done,
+            on_skip=on_resume_skip,
+            breaker=None,  # extract has no WAF; provider errors retry via --retentar-de
+            error_statuses=("provider_error",),
+            trip_noun="extracts",
+            progress_every=progress_every,
+            on_progress=on_progress,
+            throttle_sleep=0.0,
+        )
 
     finished = datetime.now(timezone.utc)
     store.compact()
@@ -306,6 +345,66 @@ def run_extract_sweep(
         counters.no_bytes,
         counters.failed,
     )
+
+
+def _iterate_parallel(
+    items: list[PecaTarget],
+    *,
+    on_item: Callable[[int, int, PecaTarget], Optional[str]],
+    should_resume_skip: Callable[[PecaTarget], bool],
+    on_skip: Callable[[PecaTarget], None],
+    progress_every: int,
+    on_progress: Callable[[int, int], None],
+    paralelo: int,
+) -> bool:
+    """Parallel variant of ``shared.iterate_with_guards`` for HTTP-bound
+    extract sweeps.
+
+    Resume-skip happens sequentially in the submission pass — fast
+    filesystem checks shouldn't compete for thread-pool slots. The
+    actual ``on_item`` calls (which dispatch the HTTP OCR request) run
+    in a ``ThreadPoolExecutor(max_workers=paralelo)``. Results are
+    drained via ``as_completed``; ``shutdown_requested()`` is checked
+    on each completion so a SIGTERM stops new submissions and lets
+    in-flight calls finish.
+
+    Returns False (no breaker integration in parallel mode — provider
+    errors are retried via ``--retentar-de`` instead).
+    """
+    n = len(items)
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=paralelo) as pool:
+        pending: dict = {}
+        # Submission phase: walk targets sequentially, submit work for
+        # those that need it, mark resume-skips inline.
+        for i, item in enumerate(items, 1):
+            if _shared.shutdown_requested():
+                print(f"  stopping submission at {i}/{n}", flush=True)
+                break
+            if should_resume_skip(item):
+                on_skip(item)
+                continue
+            fut = pool.submit(on_item, i, n, item)
+            pending[fut] = i
+
+        # Drain phase: collect results in completion order.
+        for fut in as_completed(list(pending)):
+            try:
+                fut.result()
+            except Exception as e:
+                logging.exception("parallel on_item raised: %s", e)
+            completed += 1
+            if progress_every and completed % progress_every == 0:
+                on_progress(completed, len(pending))
+            if _shared.shutdown_requested():
+                # Cancel anything still queued (in-flight calls finish).
+                for f in pending:
+                    if not f.done():
+                        f.cancel()
+                break
+
+    return False
 
 
 def _make_record(

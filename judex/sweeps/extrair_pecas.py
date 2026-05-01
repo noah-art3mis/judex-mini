@@ -28,7 +28,8 @@ from judex.sweeps.peca_classification import filter_substantive, summarize_tipos
 
 
 _PROVIDERS = (
-    "pypdf", "mistral", "chandra", "unstructured", "tesseract", "tesseract_modal", "auto",
+    "pypdf", "mistral", "chandra", "unstructured",
+    "tesseract", "tesseract_modal", "tesseract_fly", "auto",
 )
 
 # `auto` routes per-target. ACÓRDÃO PDFs (vector-rendered through iText)
@@ -48,12 +49,17 @@ def pick_provider(target) -> str:
     Accepts a :class:`PecaTarget` or a bare ``doc_type`` string (the
     str path is a test convenience). Case- and accent-insensitive on
     the doc_type via the same fold the tier classifier uses.
+
+    Override the OCR venue for the ACÓRDÃO branch via env var
+    ``JUDEX_AUTO_TESSERACT_PROVIDER`` (default ``"tesseract"`` for
+    backward compatibility / unit tests; set to ``"tesseract_fly"``
+    or ``"tesseract_modal"`` to route the OCR work off-host).
     """
     from judex.sweeps.peca_classification import _fold
 
     doc_type = getattr(target, "doc_type", target) if target is not None else None
     if doc_type and _fold(doc_type) in {_fold(d) for d in _AUTO_TESSERACT_DOC_TYPES}:
-        return "tesseract"
+        return os.environ.get("JUDEX_AUTO_TESSERACT_PROVIDER", "tesseract")
     return "pypdf"
 
 
@@ -62,11 +68,13 @@ def _build_ocr_config(provedor: str) -> OCRConfig:
 
     Local providers (pypdf, tesseract) need no API key; tesseract_modal
     is the Modal-hosted variant and uses the deployed app's auth, no
-    env var here. Cloud providers read their keys from env
-    (MISTRAL_API_KEY, UNSTRUCTURED_API_KEY, CHANDRA_API_KEY); missing
-    keys raise early with a clear message.
+    env var here. tesseract_fly's address is read from FLY_TESSERACT_URL
+    by the provider itself (no API key required for the public deploy).
+    Cloud providers read their keys from env (MISTRAL_API_KEY,
+    UNSTRUCTURED_API_KEY, CHANDRA_API_KEY); missing keys raise early
+    with a clear message.
     """
-    if provedor in ("pypdf", "tesseract", "tesseract_modal"):
+    if provedor in ("pypdf", "tesseract", "tesseract_modal", "tesseract_fly"):
         return OCRConfig(provider=provedor, api_key="")
 
     env_key = {
@@ -102,6 +110,7 @@ def run_extract_pecas(
     dry_run: bool = False,
     nao_perguntar: bool = False,
     retomar: bool = False,
+    paralelo: int = 1,
 ) -> int:
     if provedor not in _PROVIDERS:
         print(f"error: invalid --provedor {provedor!r}; choose from {_PROVIDERS}", file=sys.stderr)
@@ -189,6 +198,7 @@ def run_extract_pecas(
         resume=retomar,
         retry_from=retentar_de,
         provider_router=provider_router,
+        paralelo=paralelo,
     )
     return 0 if failed == 0 else 1
 

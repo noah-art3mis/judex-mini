@@ -42,16 +42,20 @@ import os
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 
-_PER_WORKER_RAM_MB = 250  # tesseract LSTM + python child, conservative
+_PER_WORKER_RAM_MB = 500  # tesseract LSTM + python child + rasterization headroom
 
 
 def _ram_cap_workers() -> int:
     """Max workers the box's available RAM can support without swapping.
 
     Each tesseract subprocess loads the LSTM model (~150 MB) plus the
-    Python pool-worker overhead. 250 MB/worker is a deliberately safe
-    bound — going over it on a memory-constrained box (e.g. WSL2 capped
-    at 3 GiB) can drive 9× slowdowns from page-cache thrashing.
+    Python pool-worker overhead. The 500 MB/worker bound also covers
+    the rasterization-side page-cache pressure that a long ACÓRDÃO can
+    generate (200 pages × ~9 MB PNG ≈ 1.8 GB of fresh-write cache,
+    formally reclaimable but in practice pinned during the OCR pass).
+    On a memory-constrained box (e.g. WSL2 capped at 4 GiB) the older
+    250 MB number drove 9× slowdowns from page-cache thrashing on the
+    HC ACÓRDÃO ladder; bumped 2026-05-01.
     """
     try:
         with open("/proc/meminfo") as f:

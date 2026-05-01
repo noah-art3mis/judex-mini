@@ -183,23 +183,48 @@ def print_extract_preview(
 ) -> None:
     """Extrair-pdfs preview: 3-way split (cached-by-provedor, no-bytes,
     to-extract) + cost/wall estimates keyed on `--provedor`.
+
+    For ``--provedor auto``, the cached-match check and the cost/wall
+    estimates are computed per-target via the same router the runtime
+    uses, so the preview reflects the actual heterogeneous workload.
     """
+    if provedor == "auto":
+        from judex.sweeps.extrair_pecas import pick_provider
+        per_target_provider = pick_provider
+    else:
+        per_target_provider = lambda _t, _p=provedor: _p
+
     cached = 0
     no_bytes = 0
+    to_extract_by_provider: dict[str, int] = {}
     for t in targets:
         if not peca_cache.has_bytes(t.url):
             no_bytes += 1
             continue
+        target_provedor = per_target_provider(t)
         if (
-            peca_cache.read_extractor(t.url) == provedor
+            peca_cache.read_extractor(t.url) == target_provedor
             and peca_cache.read(t.url) is not None
         ):
             cached += 1
-    to_extract = len(targets) - cached - no_bytes
+        else:
+            to_extract_by_provider[target_provedor] = (
+                to_extract_by_provider.get(target_provedor, 0) + 1
+            )
+    to_extract = sum(to_extract_by_provider.values())
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
     n_pages = int(to_extract * _AVG_PAGES_PER_PDF)
-    cost = estimate_cost(provedor, n_pages) if provedor else 0.0
-    wall_s = estimate_wall(provedor, to_extract) if provedor else 0.0
+
+    # Per-provider cost/wall, summed across whatever providers the run
+    # actually exercises. `auto` typically picks pypdf+tesseract — both
+    # free / local — so total cost is $0 and total wall is dominated by
+    # the tesseract subset.
+    total_cost = 0.0
+    total_wall_s = 0.0
+    for prov, n in to_extract_by_provider.items():
+        if prov:
+            total_cost += estimate_cost(prov, int(n * _AVG_PAGES_PER_PDF))
+            total_wall_s += estimate_wall(prov, n)
 
     lines = [
         f"targets: {len(targets)} PDFs across {n_procs} processes (modo: {mode_label})",
@@ -209,8 +234,15 @@ def print_extract_preview(
         f"páginas estimadas (~{_AVG_PAGES_PER_PDF} pg/PDF): {n_pages:>6d}",
         "",
         f"provedor: {provedor} (sync)",
-        f"custo estimado:  ${cost:>6.2f}",
-        f"tempo estimado:  ~{wall_s / 60:>6.1f} min",
+    ]
+    if provedor == "auto" and to_extract_by_provider:
+        breakdown = ", ".join(
+            f"{p}={n:,}" for p, n in sorted(to_extract_by_provider.items())
+        )
+        lines.append(f"  rota auto: {breakdown}")
+    lines += [
+        f"custo estimado:  ${total_cost:>6.2f}",
+        f"tempo estimado:  ~{total_wall_s / 60:>6.1f} min",
         "",
     ]
     stream.write("\n".join(lines))

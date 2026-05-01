@@ -26,12 +26,14 @@ the provider that owns it.
 from __future__ import annotations
 
 from judex.scraping.ocr import chandra as _chandra
+from judex.scraping.ocr import chandra_runpod as _chandra_runpod
 from judex.scraping.ocr import gemini as _gemini
 from judex.scraping.ocr import mistral as _mistral
 from judex.scraping.ocr import paddle as _paddle
 from judex.scraping.ocr import pypdf as _pypdf
 from judex.scraping.ocr import surya as _surya
 from judex.scraping.ocr import tesseract as _tesseract
+from judex.scraping.ocr import tesseract_fly as _tesseract_fly
 from judex.scraping.ocr import tesseract_modal as _tesseract_modal
 from judex.scraping.ocr import unstructured as _unstructured
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
@@ -42,11 +44,13 @@ _PROVIDERS: list[ProviderSpec] = [
     _unstructured.SPEC,
     _mistral.SPEC,
     _chandra.SPEC,
+    _chandra_runpod.SPEC,
     _gemini.SPEC,
     _surya.SPEC,
     _paddle.SPEC,
     _tesseract.SPEC,
     _tesseract_modal.SPEC,
+    _tesseract_fly.SPEC,
 ]
 
 
