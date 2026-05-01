@@ -214,3 +214,154 @@ def test_empty_impte_list_skips_filter(tmp_path: Path) -> None:
     ))
     targets = collect_peca_targets([tmp_path], impte_contains=[])
     assert len(targets) == 1
+
+
+# ----- ADR-0001: surface-2 (sessao_virtual) + surface-3 (DJe) collection -----
+
+
+def test_collects_sessao_virtual_documentos(tmp_path: Path) -> None:
+    """Surface 2: sessao_virtual[].documentos[] URLs come through tagged
+    with surface='sessao_virtual' and doc_type from documentos[].tipo
+    (Voto / Relatório). Pre-ADR-0001 these were fetched synchronously
+    inside varrer-processos and never appeared as targets."""
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["sessao_virtual"] = [{
+        "documentos": [
+            {"tipo": "Voto",      "url": "https://digital.stf.jus.br/votos/v.pdf"},
+            {"tipo": "Relatório", "url": "https://digital.stf.jus.br/relatorios/r.pdf"},
+        ],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    by_url = {t.url: t for t in targets}
+    assert "https://digital.stf.jus.br/votos/v.pdf" in by_url
+    assert "https://digital.stf.jus.br/relatorios/r.pdf" in by_url
+    assert by_url["https://digital.stf.jus.br/votos/v.pdf"].surface == "sessao_virtual"
+    assert by_url["https://digital.stf.jus.br/votos/v.pdf"].doc_type == "Voto"
+    assert by_url["https://digital.stf.jus.br/relatorios/r.pdf"].doc_type == "Relatório"
+
+
+def test_skips_sessao_virtual_documentos_with_url_none(tmp_path: Path) -> None:
+    """CLAUDE.md gotcha: sessao_virtual documentos with url=None are
+    capture gaps, not inline-text documents. Must not produce a target."""
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["sessao_virtual"] = [{
+        "documentos": [
+            {"tipo": "Voto", "url": None},
+            {"tipo": "Voto", "url": "https://digital.stf.jus.br/votos/real.pdf"},
+        ],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    sessao_targets = [t for t in targets if t.surface == "sessao_virtual"]
+    assert [t.url for t in sessao_targets] == ["https://digital.stf.jus.br/votos/real.pdf"]
+
+
+def test_collects_publicacoes_dje_decisoes_rtf(tmp_path: Path) -> None:
+    """Surface 3: publicacoes_dje[].decisoes[].rtf URLs come through with
+    surface='dje' and doc_type derived from decisoes[].kind (the controlled
+    'decisao' / 'ementa' label, not the rtf Documento.tipo which the
+    scraper leaves None on this surface)."""
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["publicacoes_dje"] = [{
+        "decisoes": [
+            {
+                "kind": "decisao",
+                "texto": "Decisão monocrática …",
+                "rtf": {"tipo": None, "url": "https://portal.stf.jus.br/processos/verDecisao.asp?id=1&ext=RTF"},
+            },
+            {
+                "kind": "ementa",
+                "texto": "Ementa: …",
+                "rtf": {"tipo": None, "url": "https://portal.stf.jus.br/processos/verDecisao.asp?id=2&ext=RTF"},
+            },
+        ],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    dje_targets = [t for t in targets if t.surface == "dje"]
+    assert len(dje_targets) == 2
+    by_kind = {t.doc_type: t.url for t in dje_targets}
+    assert by_kind["decisao"].endswith("&ext=RTF")
+    assert by_kind["ementa"].endswith("&ext=RTF")
+
+
+def test_skips_dje_decisoes_with_url_none(tmp_path: Path) -> None:
+    """Mirror of the sessao_virtual capture-gap test for surface 3."""
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[_andamento("DECISÃO MONOCRÁTICA", "a.pdf")],
+    )
+    rec["publicacoes_dje"] = [{
+        "decisoes": [
+            {"kind": "decisao", "texto": "…", "rtf": {"tipo": None, "url": None}},
+        ],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    assert not any(t.surface == "dje" for t in targets)
+
+
+def test_dedupes_url_across_surfaces(tmp_path: Path) -> None:
+    """Apenso/conexão pattern: the same PARECER URL can appear under both
+    an andamento and a sessao_virtual documento on the same case (or
+    across cases). The sha1(url)-keyed cache dedupes silently; targets
+    must mirror that — one PecaTarget per URL, keeping whichever surface
+    walked first."""
+    shared = "https://digital.stf.jus.br/shared/parecer.pdf"
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[
+            {"link": {"tipo": "PARECER", "url": shared}},
+        ],
+    )
+    rec["sessao_virtual"] = [{
+        "documentos": [{"tipo": "Voto", "url": shared}],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    targets = collect_peca_targets([tmp_path])
+    same_url = [t for t in targets if t.url == shared]
+    assert len(same_url) == 1
+
+
+def test_filter_args_apply_only_to_andamento_surface(tmp_path: Path) -> None:
+    """Andamento-tipo-specific filters (doc_types / exclude_doc_types)
+    aren't meaningful for surface 2 / surface 3 — those use different
+    discriminators (documentos[].tipo and decisoes[].kind respectively).
+    The filter for now applies to surface-1 targets only; surface 2 and
+    3 always come through. ADR-0001 flags surface-aware filtering as a
+    follow-up question."""
+    rec = _make_rec(
+        processo_id=1,
+        andamentos=[
+            _andamento("DECISÃO MONOCRÁTICA", "a.pdf"),
+            _andamento("DESPACHO",            "b.pdf"),
+        ],
+    )
+    rec["sessao_virtual"] = [{
+        "documentos": [{"tipo": "Voto", "url": "https://digital.stf.jus.br/votos/v.pdf"}],
+    }]
+    _write_item(tmp_path / "judex-mini_HC_1.json", rec)
+
+    # doc_types restricts the andamento side; the sessao_virtual Voto
+    # still comes through.
+    targets = collect_peca_targets([tmp_path], doc_types=["DECISÃO MONOCRÁTICA"])
+    surfaces = {t.surface for t in targets}
+    assert surfaces == {"andamento", "sessao_virtual"}
+    assert any(t.url.endswith("a.pdf") for t in targets)
+    assert any(t.url.endswith("v.pdf") for t in targets)
+    assert not any(t.url.endswith("b.pdf") for t in targets)
