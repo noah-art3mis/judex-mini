@@ -809,9 +809,15 @@ def extrair_pecas(
     # Extrator.
     provedor: str = typer.Option(
         "pypdf", "--provedor",
-        help="Extrator: pypdf | mistral | chandra | unstructured. "
-             "Padrão: pypdf (local, grátis, camada de texto). OCR requer "
-             "a chave de API correspondente no ambiente "
+        help="Extrator: pypdf | tesseract | tesseract_modal | mistral | "
+             "chandra | unstructured | auto. Padrão: pypdf (local, "
+             "grátis, camada de texto). 'tesseract' roda local "
+             "(in-process); 'tesseract_modal' é a variante hospedada no "
+             "Modal para sweeps de produção que precisam fanout além do "
+             "host local. 'auto' roteia por doc_type — usa tesseract "
+             "para INTEIRO TEOR DO ACÓRDÃO (onde pypdf duplica conteúdo "
+             "via cover-stream do iText, ~90% CER) e pypdf para o resto. "
+             "OCR em nuvem requer a chave de API correspondente "
              "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY).",
     ),
     forcar: bool = typer.Option(

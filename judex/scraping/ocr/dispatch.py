@@ -32,7 +32,7 @@ from judex.scraping.ocr import paddle as _paddle
 from judex.scraping.ocr import pypdf as _pypdf
 from judex.scraping.ocr import surya as _surya
 from judex.scraping.ocr import tesseract as _tesseract
-from judex.scraping.ocr import tesseract_local as _tesseract_local
+from judex.scraping.ocr import tesseract_modal as _tesseract_modal
 from judex.scraping.ocr import unstructured as _unstructured
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
@@ -46,7 +46,7 @@ _PROVIDERS: list[ProviderSpec] = [
     _surya.SPEC,
     _paddle.SPEC,
     _tesseract.SPEC,
-    _tesseract_local.SPEC,
+    _tesseract_modal.SPEC,
 ]
 
 

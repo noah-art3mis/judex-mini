@@ -27,18 +27,47 @@ from judex.sweeps.extract_driver import run_extract_sweep
 from judex.sweeps.peca_classification import filter_substantive, summarize_tipos
 
 
-_PROVIDERS = ("pypdf", "mistral", "chandra", "unstructured")
+_PROVIDERS = (
+    "pypdf", "mistral", "chandra", "unstructured", "tesseract", "tesseract_modal", "auto",
+)
+
+# `auto` routes per-target. ACÓRDÃO PDFs (vector-rendered through iText)
+# pypdf-duplicate their content ~1.86× by reading both the visible text
+# stream and a hidden Ementa-cover stream — gold-CER ≈ 90%, characterised
+# 2026-05-01. tesseract on the same PDFs lands at <1% CER. Other
+# doc classes show no comparable bug; pypdf is faster and equally clean
+# there. So the router fork is doc_type-driven.
+_AUTO_TESSERACT_DOC_TYPES = frozenset({"INTEIRO TEOR DO ACÓRDÃO"})
+
+
+def pick_provider(target) -> str:
+    """Return the provider that should extract this target under `--provedor auto`.
+
+    `tesseract` for ACÓRDÃO-class doc_types (where pypdf has the
+    iText-cover duplication bug); `pypdf` for everything else.
+    Accepts a :class:`PecaTarget` or a bare ``doc_type`` string (the
+    str path is a test convenience). Case- and accent-insensitive on
+    the doc_type via the same fold the tier classifier uses.
+    """
+    from judex.sweeps.peca_classification import _fold
+
+    doc_type = getattr(target, "doc_type", target) if target is not None else None
+    if doc_type and _fold(doc_type) in {_fold(d) for d in _AUTO_TESSERACT_DOC_TYPES}:
+        return "tesseract"
+    return "pypdf"
 
 
 def _build_ocr_config(provedor: str) -> OCRConfig:
     """Assemble an OCRConfig from env vars appropriate to the provider.
 
-    pypdf runs locally and needs no API key; OCR providers read their
-    keys from env (MISTRAL_API_KEY, UNSTRUCTURED_API_KEY,
-    CHANDRA_API_KEY). Missing keys raise early with a clear message.
+    Local providers (pypdf, tesseract) need no API key; tesseract_modal
+    is the Modal-hosted variant and uses the deployed app's auth, no
+    env var here. Cloud providers read their keys from env
+    (MISTRAL_API_KEY, UNSTRUCTURED_API_KEY, CHANDRA_API_KEY); missing
+    keys raise early with a clear message.
     """
-    if provedor == "pypdf":
-        return OCRConfig(provider="pypdf", api_key="")
+    if provedor in ("pypdf", "tesseract", "tesseract_modal"):
+        return OCRConfig(provider=provedor, api_key="")
 
     env_key = {
         "mistral": "MISTRAL_API_KEY",
@@ -137,9 +166,19 @@ def run_extract_pecas(
 
     _pdf_cli.confirm_or_exit(nao_perguntar=nao_perguntar)
 
-    ocr_config = _build_ocr_config(provedor)
     saida = saida or Path(f"runs/active/extrair-{provedor}")
     saida.mkdir(parents=True, exist_ok=True)
+
+    if provedor == "auto":
+        # Validate keys for any cloud providers the router could pick.
+        # Today the only provider auto picks is tesseract (no key
+        # needed) plus pypdf, so this is a no-op; future fan-out (e.g.
+        # routing to chandra) would surface its env_key check here.
+        provider_router = pick_provider
+        ocr_config = None  # built per-target inside the driver
+    else:
+        provider_router = None
+        ocr_config = _build_ocr_config(provedor)
 
     _, _, _, failed = run_extract_sweep(
         targets,
@@ -149,6 +188,7 @@ def run_extract_pecas(
         forcar=forcar,
         resume=retomar,
         retry_from=retentar_de,
+        provider_router=provider_router,
     )
     return 0 if failed == 0 else 1
 

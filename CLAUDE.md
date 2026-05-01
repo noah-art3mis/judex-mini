@@ -48,7 +48,7 @@ uv run python scripts/validate_ground_truth.py
 uv run judex varrer-processos ...
 ```
 
-**Local-OCR system deps (only if using `--provedor tesseract_local`):**
+**Local-OCR system deps (only if using `--provedor tesseract`):**
 the `ocr-local` extra pulls `pytesseract`/`pdf2image`/`pillow` into the
 venv but those are thin wrappers — they need the system binaries
 **Tesseract + the Portuguese language pack + Poppler**. On WSL/Linux:
@@ -58,9 +58,12 @@ sudo apt-get install -y tesseract-ocr tesseract-ocr-por poppler-utils
 uv sync --extra ocr-local
 ```
 
-On macOS: `brew install tesseract tesseract-lang poppler`. The Modal-hosted
-`tesseract` provider is the production default; `tesseract_local` is for
-ad-hoc one-offs where you want zero network/auth. See
+On macOS: `brew install tesseract tesseract-lang poppler`. `tesseract`
+runs Tesseract locally (in-process, no network); `tesseract_modal` is
+the Modal-hosted variant for production-scale sweeps that need to fan
+out beyond what the local host can parallelise (Modal's containers +
+its ~10-shard concurrency cap). Same engine + Portuguese language
+pack, same quality. See
 [`docs/reports/2026-04-30-ocr-bakeoff.md`](docs/reports/2026-04-30-ocr-bakeoff.md)
 for cost/quality tradeoffs.
 

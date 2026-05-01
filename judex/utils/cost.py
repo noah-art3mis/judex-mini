@@ -110,7 +110,13 @@ def ocr_usd_per_1k_pages(provider: str) -> float:
             return float(raw)
         except ValueError:
             pass  # fall through to SPEC lookup
-    if p == "pypdf":
+    if p in ("pypdf", "tesseract", "auto"):
+        # All free / local-CPU: pypdf has no API bill; `tesseract` runs
+        # on the operator's host (the Modal-hosted billed sibling lives
+        # at `tesseract_modal`); `auto` routes only between those two.
+        # If `auto` ever fans out to a billed provider, this special
+        # case has to become a per-target cost computation in
+        # extract_driver.
         return 0.0
     # SPEC is the source of truth for OCR rates post the OCR-deepening.
     from judex.scraping.ocr.base import OCRConfig

@@ -24,7 +24,7 @@ pages**) costs:
 
 Cases R$ 11 · peças R$ 45 · **OCR R$ 52** when run with the 2026-04-30
 bakeoff winner (Tesseract on Modal CPU at $0.14/1k pages, opt-in via
-`--provedor tesseract`). At Mistral's $1.00/1k pages — the prior
+`--provedor tesseract_modal`). At Mistral's $1.00/1k pages — the prior
 recommended-but-not-default provider — OCR was R$ 371 (~87% of the
 bill). At pypdf — the current CLI default — OCR is R$ 0 but text
 quality on scanned PDFs is unusable (see § OCR provider tradeoffs).
@@ -94,7 +94,7 @@ For a year of HC at the means above:
 
 Default proxy rate: **R$ 20/GB** (= 100 BRL / 5 GB). OCR rate at the
 recommended bakeoff-winner provider: **R$ 0.70/1k pages** (Tesseract on
-Modal CPU $0.14/1k @ 5 BRL/USD; opt in with `--provedor tesseract`).
+Modal CPU $0.14/1k @ 5 BRL/USD; opt in with `--provedor tesseract_modal`).
 
 | Pass | Mode | Wall | GB | R$ |
 |---|---|---:|---:|---:|
@@ -178,7 +178,8 @@ To make the live numbers match your bill:
 ```bash
 PROXY_PRICE_USD_PER_GB=4.00                  uv run judex varrer-processos ...
 PROXY_PRICE_USD_PER_GB=4.00                  uv run judex baixar-pecas ...
-OCR_PRICE_TESSERACT_USD_PER_1K_PAGES=0.14    uv run judex extrair-pecas --provedor tesseract ...
+OCR_PRICE_TESSERACT_USD_PER_1K_PAGES=0.00      uv run judex extrair-pecas --provedor tesseract ...
+OCR_PRICE_TESSERACT_MODAL_USD_PER_1K_PAGES=0.14  uv run judex extrair-pecas --provedor tesseract_modal ...
 OCR_PRICE_MISTRAL_USD_PER_1K_PAGES=1.00      uv run judex extrair-pecas --provedor mistral ...
 OCR_PRICE_CHANDRA_USD_PER_1K_PAGES=2.00      uv run judex extrair-pecas --provedor chandra ...
 OCR_PRICE_UNSTRUCTURED_USD_PER_1K_PAGES=10.0 uv run judex extrair-pecas --provedor unstructured ...
@@ -194,8 +195,8 @@ All env vars read at sweep start; mid-run changes don't take effect.
 | Provider | $/1k pages | Year cost | Notes |
 |---|---:|---:|---|
 | `pypdf` | $0.00 | **R$ 0** | Free, local. Returns ~3k chars of header garbage on scanned PDFs (`docs/performance.md:89-94`). |
-| `tesseract` (Modal CPU) | $0.14 | **R$ 51.88** | **Bakeoff winner (2026-04-30); recommended production provider.** 1.04% median CER overall, 0.82% scanned (Mistral collapses to 32.71% on scanned post gold-correction). 14× cheaper than Mistral. CLI default still `pypdf` — opt in via `--provedor tesseract` until the cutover lands. See `docs/reports/2026-04-30-ocr-bakeoff.md`. |
-| `tesseract_local` | $0.14 | **R$ 51.88** | Same pricing model as `tesseract` but runs in-process (Tesseract + Poppler system deps required, see `CLAUDE.md`). For ad-hoc one-offs where you want zero network/auth. |
+| `tesseract` (local) | $0.00 | **R$ 0** | Default tesseract path: pytesseract + pdf2image, no network. Same engine + Portuguese language pack as the Modal-hosted variant; same quality. Tesseract + Poppler system deps required (see `CLAUDE.md`). Wall scales with your local cores. |
+| `tesseract_modal` | $0.14 | **R$ 51.88** | **Bakeoff winner (2026-04-30); recommended for production-scale sweeps.** 1.04% median CER overall, 0.82% scanned (Mistral collapses to 32.71% on scanned post gold-correction). 14× cheaper than Mistral. Modal containers + ~10-shard concurrency cap — pick this when local fanout isn't enough. CLI default still `pypdf` — opt in via `--provedor tesseract_modal` until the cutover lands. See `docs/reports/2026-04-30-ocr-bakeoff.md`. |
 | `mistral` | $1.00 | R$ 370.61 | Was default until 2026-04-30 bakeoff. Reading-order penalty hidden by pre-correction gold; collapses to 32.71% scanned median once exposed. |
 | `chandra` | $2.00 | R$ 741.21 | 2× Mistral; not run in 2026-04-30 bakeoff. |
 | `unstructured` | $10.00 | R$ 3,706.05 | 10× Mistral. Superseded. |

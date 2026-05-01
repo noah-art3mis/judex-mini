@@ -76,8 +76,17 @@ def run_extract_sweep(
     progress_every: int = 25,
     install_signal_handlers: bool = True,
     dispatcher: Optional[DispatcherFn] = None,
+    provider_router: Optional[Callable[[PecaTarget], str]] = None,
 ) -> tuple[int, int, int, int]:
     """Run a local-OCR extraction sweep.
+
+    `provider_router`, when given, picks the provider per-target from
+    its `doc_type`. The run-level `provedor` is still recorded as the
+    sweep label (e.g. "auto") so the report shows what mode was used.
+    Each target's ocr_config is built lazily inside `on_item` from the
+    router-picked provider; the sidecar match check uses the per-target
+    provider too, so a previously cached `tesseract` extract on
+    an ACÓRDÃO is treated as a hit.
 
     Returns `(extracted, cached_hits, no_bytes, failed)`.
     """
@@ -92,7 +101,9 @@ def run_extract_sweep(
         _shared._reset_shutdown_for_tests()
         _shared.install_signal_handlers()
 
-    if ocr_config is None:
+    # Single-provider runs reuse one OCRConfig; auto-routed runs build one
+    # per target inside on_item, so a fixed ocr_config wouldn't apply.
+    if provider_router is None and ocr_config is None:
         ocr_config = OCRConfig(provider=provedor, api_key="")
     dispatch_fn: DispatcherFn = dispatcher or _dispatch_extract
 
@@ -117,10 +128,21 @@ def run_extract_sweep(
             logging.warning(f"[{i}/{n}] {tgt.url}: no_bytes")
             return "no_bytes"
 
+        # Resolve the per-target provider — router fork (`auto` mode) or
+        # the run-level provedor for single-provider runs.
+        target_provedor = (
+            provider_router(tgt) if provider_router is not None else provedor
+        )
+        target_ocr_config = (
+            ocr_config
+            if ocr_config is not None
+            else OCRConfig(provider=target_provedor, api_key="")
+        )
+
         # Sidecar-match skip (spec's truth table).
         sidecar = peca_cache.read_extractor(tgt.url)
         text_cached = peca_cache.read(tgt.url) is not None
-        if sidecar == provedor and text_cached and not forcar:
+        if sidecar == target_provedor and text_cached and not forcar:
             counters.cached_hits += 1
             store.record(_make_record(
                 tgt, status="cached", extractor=sidecar,
@@ -147,10 +169,10 @@ def run_extract_sweep(
                 text = extract_rtf_text(body) or ""
                 extractor_label = "rtf"
             elif kind == "pdf":
-                result = dispatch_fn(body, ocr_config)
+                result = dispatch_fn(body, target_ocr_config)
                 text = result.text
                 elements = result.elements
-                extractor_label = result.provider or provedor
+                extractor_label = result.provider or target_provedor
             else:
                 status = "unknown_type"
                 error = "bytes are neither PDF nor RTF"

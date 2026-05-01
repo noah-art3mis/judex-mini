@@ -193,11 +193,13 @@ def test_ocr_cost_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_ocr_rate_reads_from_provider_spec_for_new_providers() -> None:
     """Post-deepening, the OCR rate getter reads from each provider's
-    SPEC. This means Gemini / paddle / surya / tesseract — providers
-    added in the OCR-bakeoff work that the prior pricing.py did not
-    know about — now report a default rate without explicit additions
-    to this module."""
-    for name in ("gemini", "paddle", "surya", "tesseract"):
+    SPEC. This means Gemini / paddle / surya / tesseract_modal —
+    billed providers added in the OCR-bakeoff work that the prior
+    pricing.py did not know about — now report a default rate without
+    explicit additions to this module. (The plain `tesseract` provider
+    is local-CPU after the 2026-05-01 rename and lives in the free-list
+    alongside pypdf.)"""
+    for name in ("gemini", "paddle", "surya", "tesseract_modal"):
         rate = cost.ocr_usd_per_1k_pages(name)
         assert rate > 0.0, f"{name} should have a non-zero default rate"
 
