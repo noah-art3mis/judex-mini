@@ -14,7 +14,6 @@ Input-mode priority: ``--retentar-de`` > ``--csv`` > range > filter.
 
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 from pathlib import Path
@@ -51,27 +50,24 @@ def run_download_pecas(
     proxy_rotate_seconds: float = 270.0,
     proxy_cooldown_minutes: float = 4.0,
 ) -> int:
-    args = argparse.Namespace(
-        classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de,
-        impte_contem=impte_contem, tipos_doc=tipos_doc,
-        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, apenas_substantivas=apenas_substantivas,
-        saida=saida, forcar=forcar, dry_run=dry_run,
-        nao_perguntar=nao_perguntar, retomar=retomar,
-        proxy_pool=proxy_pool,
-        proxy_rotate_seconds=proxy_rotate_seconds,
-        proxy_cooldown_minutes=proxy_cooldown_minutes,
-    )
-
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     try:
-        targets, mode_label = _pdf_cli.resolve_targets(args)
+        targets, mode_label = _pdf_cli.resolve_targets(
+            retentar_de=retentar_de,
+            csv=csv,
+            classe=classe,
+            inicio=inicio,
+            fim=fim,
+            impte_contem=impte_contem,
+            tipos_doc=tipos_doc,
+            relator_contem=relator_contem,
+            excluir_tipos_doc=excluir_tipos_doc,
+        )
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
-    if args.apenas_substantivas:
+    if apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
         dropped = before - len(targets)
@@ -98,8 +94,8 @@ def run_download_pecas(
             flush=True,
         )
 
-    if args.limite and len(targets) > args.limite:
-        targets = targets[: args.limite]
+    if limite and len(targets) > limite:
+        targets = targets[:limite]
 
     if not targets:
         print("error: no targets resolved. Check --classe/-i/-f, --csv, "
@@ -108,30 +104,30 @@ def run_download_pecas(
 
     _pdf_cli.print_download_preview(targets, mode_label=mode_label)
 
-    if args.dry_run:
+    if dry_run:
         return 0
 
-    _pdf_cli.confirm_or_exit(nao_perguntar=args.nao_perguntar)
+    _pdf_cli.confirm_or_exit(nao_perguntar=nao_perguntar)
 
-    saida = args.saida or Path("runs/active/baixar-adhoc")
+    saida = saida or Path("runs/active/baixar-adhoc")
     saida.mkdir(parents=True, exist_ok=True)
 
-    pool = ProxyPool.from_file(args.proxy_pool) if args.proxy_pool else None
+    pool = ProxyPool.from_file(proxy_pool) if proxy_pool else None
     if pool is not None:
         print(f"=== proxy rotation active · pool_size={pool.size()} "
-              f"· rotate_every={args.proxy_rotate_seconds:.0f}s "
-              f"· cooldown={args.proxy_cooldown_minutes:.1f}min ===",
+              f"· rotate_every={proxy_rotate_seconds:.0f}s "
+              f"· cooldown={proxy_cooldown_minutes:.1f}min ===",
               flush=True)
 
     _, _, failed = run_download_sweep(
         targets,
         out_dir=saida,
-        forcar=args.forcar,
-        resume=args.retomar,
-        retry_from=args.retentar_de,
+        forcar=forcar,
+        resume=retomar,
+        retry_from=retentar_de,
         pool=pool,
-        proxy_rotate_seconds=args.proxy_rotate_seconds,
-        proxy_cooldown_minutes=args.proxy_cooldown_minutes,
+        proxy_rotate_seconds=proxy_rotate_seconds,
+        proxy_cooldown_minutes=proxy_cooldown_minutes,
     )
     return 0 if failed == 0 else 1
 

@@ -7,10 +7,9 @@ scripts stay thin; tests hit this module directly.
 
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
-from typing import TextIO
+from typing import Sequence, TextIO
 
 from judex.scraping.ocr.dispatch import estimate_cost, estimate_wall
 from judex.sweeps.peca_targets import (
@@ -34,12 +33,24 @@ _AVG_PAGES_PER_PDF = 4.9
 # ----- Input-mode resolver --------------------------------------------------
 
 
-def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
+def resolve_targets(
+    *,
+    retentar_de: Path | None = None,
+    csv: Path | None = None,
+    classe: str | None = None,
+    inicio: int | None = None,
+    fim: int | None = None,
+    impte_contem: str = "",
+    tipos_doc: str = "",
+    relator_contem: str = "",
+    excluir_tipos_doc: str = "",
+    roots: Sequence[Path] | None = None,
+) -> tuple[list[PecaTarget], str]:
     """Return `(targets, mode_label)` per spec's input-mode priority.
 
-    Priority: `--retentar-de` > `--csv` > range (`-c` + `-i`/`-f`) >
-    filter fallback. The label is human-readable for the preview
-    block ("retry foo", "csv alvos.csv", "range HC 100-200", "filtros").
+    Priority: ``retentar_de`` > ``csv`` > range (``classe`` + ``inicio``/``fim``)
+    > filter fallback. The label is human-readable for the preview block
+    ("retry foo", "csv alvos.csv", "range HC 100-200", "filtros").
 
     Bare invocation (none of the four modes specified) raises
     ``ValueError``. Walking the entire corpus is a perf-cliff
@@ -47,33 +58,26 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
     throughput at ~0.13 rec/s on WSL2, putting a 120k-record extract
     at ~9 days. The caller must always opt into a scope.
     """
-    if getattr(args, "retentar_de", None):
-        path = Path(args.retentar_de)
+    if retentar_de:
+        path = Path(retentar_de)
         return targets_from_errors_jsonl(path), f"retry {path.name}"
 
-    if getattr(args, "csv", None):
-        path = Path(args.csv)
-        roots = _default_roots(args)
-        return targets_from_csv(path, roots=roots), f"csv {path.name}"
+    if csv:
+        path = Path(csv)
+        return targets_from_csv(path, roots=_default_roots(roots)), f"csv {path.name}"
 
-    classe = getattr(args, "classe", None)
-    inicio = getattr(args, "inicio", None)
-    fim = getattr(args, "fim", None)
     if classe and (inicio is not None or fim is not None):
         ini = inicio if inicio is not None else fim
         end = fim if fim is not None else inicio
-        roots = _default_roots(args)
         return (
-            targets_from_range(classe, ini, end, roots=roots),
+            targets_from_range(classe, ini, end, roots=_default_roots(roots)),
             f"range {classe} {ini}-{end}",
         )
 
-    impte_contains = split_csv(getattr(args, "impte_contem", "") or "")
-    doc_types = split_csv(getattr(args, "tipos_doc", "") or "")
-    relator_contains = split_csv(getattr(args, "relator_contem", "") or "")
-    exclude_doc_types = split_csv(
-        getattr(args, "excluir_tipos_doc", "") or ""
-    )
+    impte_contains = split_csv(impte_contem or "")
+    doc_types = split_csv(tipos_doc or "")
+    relator_contains = split_csv(relator_contem or "")
+    exclude_doc_types = split_csv(excluir_tipos_doc or "")
     has_filter = bool(
         classe or impte_contains or doc_types
         or relator_contains or exclude_doc_types
@@ -90,9 +94,8 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
             "gotchas."
         )
 
-    roots = _default_roots(args)
     targets = collect_peca_targets(
-        roots,
+        _default_roots(roots),
         classe=classe,
         impte_contains=impte_contains,
         doc_types=doc_types,
@@ -102,8 +105,7 @@ def resolve_targets(args: argparse.Namespace) -> tuple[list[PecaTarget], str]:
     return targets, "filtros"
 
 
-def _default_roots(args: argparse.Namespace) -> list[Path]:
-    roots = getattr(args, "roots", None) or []
+def _default_roots(roots: Sequence[Path] | None) -> list[Path]:
     if roots:
         return [Path(r) for r in roots]
     return [Path("data/source/processos")]

@@ -26,7 +26,6 @@ See ``docs/superpowers/specs/2026-04-16-validation-sweep-design.md``.
 
 from __future__ import annotations
 
-import argparse
 import os
 import csv
 import json
@@ -607,24 +606,27 @@ def _to_attempt_record(
     )
 
 
-def _load_rows(args: argparse.Namespace) -> tuple[list[tuple[str, int, Optional[str]]], str]:
-    if args.retry_from:
-        retry_rows = load_retry_list(args.retry_from)
+def _load_rows(
+    *, retry_from: Path | None, csv: Path | None,
+) -> tuple[list[tuple[str, int, Optional[str]]], str]:
+    if retry_from:
+        retry_rows = load_retry_list(retry_from)
         rows = [(c, p, "retry") for c, p in retry_rows]
-        return rows, f"retry-from `{args.retry_from}` ({len(rows)} rows)"
-    with args.csv.open(newline="") as f:
+        return rows, f"retry-from `{retry_from}` ({len(rows)} rows)"
+    assert csv is not None  # caller validates one of {csv, retry_from} is set
+    with csv.open(newline="") as f:
         rows = parse_sweep_csv(f)
-    return rows, f"csv `{args.csv}` ({len(rows)} rows)"
+    return rows, f"csv `{csv}` ({len(rows)} rows)"
 
 
 def _resolve_parity(
-    args: argparse.Namespace,
+    *, parity_csv: Path | None, parity_dir: Path | None,
 ) -> tuple[Optional[dict[tuple[str, int], dict[str, Any]]], str]:
-    if args.parity_csv:
-        parity_csv = load_parity_csv(args.parity_csv)
-        return parity_csv, f"selenium-csv `{args.parity_csv}` ({len(parity_csv)} rows)"
-    if args.parity_dir:
-        return None, f"gt-dir `{args.parity_dir}`"
+    if parity_csv:
+        parity = load_parity_csv(parity_csv)
+        return parity, f"selenium-csv `{parity_csv}` ({len(parity)} rows)"
+    if parity_dir:
+        return None, f"gt-dir `{parity_dir}`"
     return None, "none"
 
 
@@ -667,22 +669,33 @@ class SweepOutcome:
 
 
 def _run_passes(
-    args: argparse.Namespace,
     rows: list[tuple[str, int, Optional[str]]],
     parity_csv: Optional[dict[tuple[str, int], dict[str, Any]]],
     store: SweepStore,
     counter: RetryCounter,
     config: ScraperConfig,
     started: datetime,
+    *,
+    parity_dir: Path | None,
+    items_dir: Path | None,
+    resume: bool,
+    warm_pass: bool,
+    progress_every: int,
+    circuit_window: int,
+    circuit_threshold: float,
+    cliff_window: int,
+    no_stop_on_collapse: bool,
+    proxy_rotate_seconds: float,
+    proxy_cooldown_minutes: float,
     pool: Optional[ProxyPool] = None,
 ) -> SweepOutcome:
     cold_results: list[ProcessResult] = []
     totals = {"ok": 0, "fail": 0, "error": 0, "skipped": 0, "429": 0, "5xx": 0}
     breaker: Optional[_shared.CircuitBreaker] = (
-        _shared.CircuitBreaker(args.circuit_window, args.circuit_threshold)
-        if args.circuit_window > 0 else None
+        _shared.CircuitBreaker(circuit_window, circuit_threshold)
+        if circuit_window > 0 else None
     )
-    detector = _shared.CliffDetector(window=args.cliff_window)
+    detector = _shared.CliffDetector(window=cliff_window)
     # Track prior regime so we only print on transitions, not every record.
     last_regime: dict[str, str] = {"value": "warming"}
 
@@ -701,7 +714,7 @@ def _run_passes(
     def rotate_session(reason: str) -> None:
         old = session_holder["proxy"]
         elapsed = time.monotonic() - session_holder["started_at"]
-        pool.mark_hot(old, minutes=args.proxy_cooldown_minutes)
+        pool.mark_hot(old, minutes=proxy_cooldown_minutes)
         session_holder["session"].close()
         new_proxy = pool.pick()
         if new_proxy is None:
@@ -727,8 +740,8 @@ def _run_passes(
         classe, processo, source = row
         res = run_one(
             classe, processo, source, session_holder["session"], counter,
-            args.parity_dir, parity_csv, config=config,
-            items_dir=args.items_dir,
+            parity_dir, parity_csv, config=config,
+            items_dir=items_dir,
         )
         cold_results.append(res)
         is_bad = detector.observe(
@@ -771,13 +784,13 @@ def _run_passes(
         if pool_active:
             elapsed_on_proxy = time.monotonic() - session_holder["started_at"]
             rotate_reason: Optional[str] = None
-            if elapsed_on_proxy > args.proxy_rotate_seconds:
-                rotate_reason = f"time>{args.proxy_rotate_seconds:.0f}s"
+            if elapsed_on_proxy > proxy_rotate_seconds:
+                rotate_reason = f"time>{proxy_rotate_seconds:.0f}s"
             elif reading.label == "approaching_collapse" and elapsed_on_proxy > 30.0:
                 rotate_reason = "approaching_collapse"
             if rotate_reason is not None:
                 rotate_session(reason=rotate_reason)
-        if reading.label == "collapse" and not args.no_stop_on_collapse:
+        if reading.label == "collapse" and not no_stop_on_collapse:
             print(
                 f"\n!! cliff detector: regime=collapse at {i}/{n}. "
                 f"Stopping cleanly — cool down ≥60 min before --resume. "
@@ -791,7 +804,7 @@ def _run_passes(
         totals["skipped"] += 1
 
     def is_done_cold(row: tuple[str, int, Optional[str]]) -> bool:
-        return args.resume and store.already_ok(row[0], row[1])
+        return resume and store.already_ok(row[0], row[1])
 
     def on_progress_cold(i: int, n: int) -> None:
         _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
@@ -807,8 +820,8 @@ def _run_passes(
     if pool_active:
         print(
             f"  proxy pool: {pool.size()} proxies · "
-            f"rotate={args.proxy_rotate_seconds:.0f}s · "
-            f"cooldown={args.proxy_cooldown_minutes:.1f}min · "
+            f"rotate={proxy_rotate_seconds:.0f}s · "
+            f"cooldown={proxy_cooldown_minutes:.1f}min · "
             f"initial={_redact_proxy(initial_proxy)}",
             flush=True,
         )
@@ -821,11 +834,11 @@ def _run_passes(
             breaker=breaker,
             error_statuses=("error",),
             trip_noun="processes",
-            progress_every=args.progress_every,
+            progress_every=progress_every,
             on_progress=on_progress_cold,
         )
 
-        if args.warm_pass and not _shared.shutdown_requested():
+        if warm_pass and not _shared.shutdown_requested():
             print("\n=== warm pass (cache warm) ===", flush=True)
             warm_results = []
 
@@ -833,8 +846,8 @@ def _run_passes(
                 classe, processo, source = row
                 res = run_one(
                     classe, processo, source, session_holder["session"], counter,
-                    args.parity_dir, parity_csv, config=config,
-                    items_dir=args.items_dir,
+                    parity_dir, parity_csv, config=config,
+                    items_dir=items_dir,
                 )
                 warm_results.append(res)
                 store.record(
@@ -892,52 +905,52 @@ def run_process_sweep(
         print("error: either csv or retry_from is required", file=sys.stderr)
         return 2
 
-    args = argparse.Namespace(
-        label=label, out=out, csv=csv,
-        parity_dir=parity_dir, parity_csv=parity_csv,
-        warm_pass=warm_pass, wipe_cache=wipe_cache, resume=resume,
-        retry_from=retry_from, progress_every=progress_every,
-        retry_403=retry_403,
-        circuit_window=circuit_window, circuit_threshold=circuit_threshold,
-        items_dir=items_dir,
-        cliff_window=cliff_window, no_stop_on_collapse=no_stop_on_collapse,
-        proxy_pool=proxy_pool,
-        proxy_rotate_seconds=proxy_rotate_seconds,
-        proxy_cooldown_minutes=proxy_cooldown_minutes,
+    rows, input_source = _load_rows(retry_from=retry_from, csv=csv)
+    if wipe_cache:
+        _wipe_html_caches(rows)
+    parity_csv_data, parity_source = _resolve_parity(
+        parity_csv=parity_csv, parity_dir=parity_dir,
     )
 
-    rows, input_source = _load_rows(args)
-    if args.wipe_cache:
-        _wipe_html_caches(rows)
-    parity_csv_data, parity_source = _resolve_parity(args)
-
-    store = SweepStore(args.out)
+    store = SweepStore(out)
     counter = install_retry_counter()
     _shared.install_signal_handlers()
-    config = ScraperConfig(retry_403=args.retry_403)
+    config = ScraperConfig(retry_403=retry_403)
 
     pool: Optional[ProxyPool] = None
-    if args.proxy_pool is not None:
-        pool = ProxyPool.from_file(args.proxy_pool)
+    if proxy_pool is not None:
+        pool = ProxyPool.from_file(proxy_pool)
 
     started = datetime.now(timezone.utc)
     print(
-        f"=== sweep: {args.label} · {len(rows)} processes · "
+        f"=== sweep: {label} · {len(rows)} processes · "
         f"input: {input_source} · parity: {parity_source} ===",
         flush=True,
     )
 
     outcome = _run_passes(
-        args, rows, parity_csv_data, store, counter, config, started, pool=pool
+        rows, parity_csv_data, store, counter, config, started,
+        parity_dir=parity_dir,
+        items_dir=items_dir,
+        resume=resume,
+        warm_pass=warm_pass,
+        progress_every=progress_every,
+        circuit_window=circuit_window,
+        circuit_threshold=circuit_threshold,
+        cliff_window=cliff_window,
+        no_stop_on_collapse=no_stop_on_collapse,
+        proxy_rotate_seconds=proxy_rotate_seconds,
+        proxy_cooldown_minutes=proxy_cooldown_minutes,
+        pool=pool,
     )
 
     finished = datetime.now(timezone.utc)
     store.compact()
     errors_path = store.write_errors_file()
-    report_path = args.out / "report.md"
+    report_path = out / "report.md"
     render_report(
-        label=args.label,
-        csv_path=args.csv if args.csv else args.retry_from,  # type: ignore[arg-type]
+        label=label,
+        csv_path=csv if csv else retry_from,  # type: ignore[arg-type]
         out_path=report_path,
         started=started,
         finished=finished,

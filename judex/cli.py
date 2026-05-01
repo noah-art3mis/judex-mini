@@ -64,9 +64,9 @@ def _push(argv: list[str], flag: str, value: Any) -> None:
     """Empilha ``[flag, str(value)]`` em argv quando o valor é significativo.
 
     Ignora ``None`` e string vazia — para defaults do Typer não vazarem
-    no argparse do script. Para ``bool``: anexa só o flag quando True,
-    nada quando False (flags de negação têm tratamento manual no
-    chamador).
+    para o subprocesso filho (que também é Typer). Para ``bool``: anexa
+    só o flag quando True, nada quando False (flags de negação têm
+    tratamento manual no chamador).
     """
     if value is None or value == "":
         return

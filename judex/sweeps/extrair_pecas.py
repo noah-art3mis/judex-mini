@@ -16,7 +16,6 @@ Input-mode priority matches ``baixar-pecas``: retry > csv > range > filter.
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 import sys
@@ -79,24 +78,24 @@ def run_extract_pecas(
         print(f"error: invalid --provedor {provedor!r}; choose from {_PROVIDERS}", file=sys.stderr)
         return 2
 
-    args = argparse.Namespace(
-        classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de,
-        impte_contem=impte_contem, tipos_doc=tipos_doc,
-        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, apenas_substantivas=apenas_substantivas,
-        provedor=provedor, forcar=forcar, saida=saida,
-        dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
-    )
-
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     try:
-        targets, mode_label = _pdf_cli.resolve_targets(args)
+        targets, mode_label = _pdf_cli.resolve_targets(
+            retentar_de=retentar_de,
+            csv=csv,
+            classe=classe,
+            inicio=inicio,
+            fim=fim,
+            impte_contem=impte_contem,
+            tipos_doc=tipos_doc,
+            relator_contem=relator_contem,
+            excluir_tipos_doc=excluir_tipos_doc,
+        )
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
-    if args.apenas_substantivas:
+    if apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
         dropped = before - len(targets)
@@ -121,8 +120,8 @@ def run_extract_pecas(
             flush=True,
         )
 
-    if args.limite and len(targets) > args.limite:
-        targets = targets[: args.limite]
+    if limite and len(targets) > limite:
+        targets = targets[:limite]
 
     if not targets:
         print("error: no targets resolved. Check --classe/-i/-f, --csv, "
@@ -130,26 +129,26 @@ def run_extract_pecas(
         return 2
 
     _pdf_cli.print_extract_preview(
-        targets, mode_label=mode_label, provedor=args.provedor,
+        targets, mode_label=mode_label, provedor=provedor,
     )
 
-    if args.dry_run:
+    if dry_run:
         return 0
 
-    _pdf_cli.confirm_or_exit(nao_perguntar=args.nao_perguntar)
+    _pdf_cli.confirm_or_exit(nao_perguntar=nao_perguntar)
 
-    ocr_config = _build_ocr_config(args.provedor)
-    saida = args.saida or Path(f"runs/active/extrair-{args.provedor}")
+    ocr_config = _build_ocr_config(provedor)
+    saida = saida or Path(f"runs/active/extrair-{provedor}")
     saida.mkdir(parents=True, exist_ok=True)
 
     _, _, _, failed = run_extract_sweep(
         targets,
         out_dir=saida,
-        provedor=args.provedor,
+        provedor=provedor,
         ocr_config=ocr_config,
-        forcar=args.forcar,
-        resume=args.retomar,
-        retry_from=args.retentar_de,
+        forcar=forcar,
+        resume=retomar,
+        retry_from=retentar_de,
     )
     return 0 if failed == 0 else 1
 
