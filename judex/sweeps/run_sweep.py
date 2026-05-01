@@ -315,7 +315,7 @@ class ProcessResult:
     processo: int
     source: Optional[str]
     wall_s: float
-    status: str  # ok | fail | error
+    status: str  # ok | fail | error | unallocated
     error: Optional[str]
     retries: dict[str, int]
     diffs: list[str]
@@ -366,6 +366,24 @@ def run_one(
             classe, processo, use_cache=True, session=session, config=config
         )
     except NoIncidenteError as e:
+        body_head = e.location[:200] if e.location else ""
+        # Empty Location header is STF's high-confidence "this processo_id was
+        # never allocated" signal — record as a peer terminal status, not a
+        # failure. Non-empty Location is ambiguous (could be a proxy soft-block
+        # returning a synthetic 200 with a different shape) so it stays in the
+        # fail bucket and `--retentar-de` will retry it on a different IP.
+        # See docs/adr/0002-distinguish-unallocated-processo-id-from-scrape-failure.md.
+        if body_head == "":
+            return ProcessResult(
+                classe, processo, source,
+                wall_s=time.perf_counter() - t0,
+                status="unallocated",
+                error=None,
+                retries=counter.snapshot(),
+                diffs=[], anomalies=[],
+                http_status=e.http_status,
+                body_head="",
+            )
         return ProcessResult(
             classe, processo, source,
             wall_s=time.perf_counter() - t0,
@@ -375,7 +393,7 @@ def run_one(
             diffs=[], anomalies=[],
             error_type="NoIncidente",
             http_status=e.http_status,
-            body_head=e.location[:200] if e.location else "",
+            body_head=body_head,
         )
     except Exception as e:
         etype, http_status, url = _shared.classify_exception(e)
@@ -433,6 +451,22 @@ def _pct_cell(key: str, results: list[ProcessResult]) -> int:
     return sum(r.retries.get(key, 0) for r in results)
 
 
+def write_unallocated_candidates(
+    out_path: Path, results: list["ProcessResult"]
+) -> Path:
+    """Emit one-pid-per-line file of `status="unallocated"` discoveries.
+
+    Per-sweep view; corpus-wide confirmation (`<classe>.txt` registry) is
+    a separate manual aggregation step that requires ≥ 2 independent
+    observations. See ADR-0002.
+    """
+    pids = sorted(r.processo for r in results if r.status == "unallocated")
+    text = "".join(f"{p}\n" for p in pids)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(text)
+    return out_path
+
+
 def render_report(
     *,
     label: str,
@@ -466,12 +500,13 @@ def render_report(
         total_429 = _pct_cell("429", results)
         total_5xx = _pct_cell("5xx", results)
         ok = sum(1 for r in results if r.status == "ok")
-        fail = sum(1 for r in results if r.status != "ok")
+        unallocated = sum(1 for r in results if r.status == "unallocated")
+        fail = sum(1 for r in results if r.status not in ("ok", "unallocated"))
         diff_total = sum(r.diff_count for r in results)
         anomaly_total = sum(len(r.anomalies) for r in results)
         lines += [
             "",
-            f"- completed: **{ok} ok / {fail} fail** of {len(results)}",
+            f"- completed: **{ok} ok / {fail} fail / {unallocated} unallocated** of {len(results)}",
             f"- wall p50 / p90 / max: **{p50:.2f}s / {p90:.2f}s / {pmax:.2f}s**",
             f"- retries: **429×{total_429}**, **5xx×{total_5xx}**",
             f"- parity diffs (total across {len(results)} processes): **{diff_total}**",
@@ -528,7 +563,7 @@ def render_report(
         buckets: Counter = Counter()
         endpoints: Counter = Counter()
         for r in results:
-            if r.status == "ok":
+            if r.status in ("ok", "unallocated"):
                 continue
             etype = r.error_type or "unknown"
             status = r.http_status if r.http_status is not None else "-"
@@ -947,6 +982,7 @@ def run_process_sweep(
     finished = datetime.now(timezone.utc)
     store.compact()
     errors_path = store.write_errors_file()
+    write_unallocated_candidates(out / "unallocated.candidates.txt", outcome.cold_results)
     report_path = out / "report.md"
     render_report(
         label=label,

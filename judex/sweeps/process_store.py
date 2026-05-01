@@ -98,8 +98,11 @@ class SweepStore(BaseStore):
         return _state_key_from_rec(rec)
 
     def already_ok(self, classe: str, processo: int) -> bool:
+        # Resume-skip predicate: ok = scrape succeeded; unallocated = STF told
+        # us this processo_id was never bound to an incidente. Both are
+        # terminal — re-attempting either wastes a request. See ADR-0002.
         rec = self._state.get(_key(classe, processo))
-        return bool(rec and rec.get("status") == "ok")
+        return bool(rec and rec.get("status") in ("ok", "unallocated"))
 
     def attempt_count(self, classe: str, processo: int) -> int:
         rec = self._state.get(_key(classe, processo))

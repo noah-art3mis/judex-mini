@@ -30,6 +30,10 @@ _Avoid_: case number, process number
 **Numero_unico**:
 The CNJ-canonical cross-judiciary ID (format `NNNNNNN-DD.AAAA.J.TR.OOOO`, e.g., `0123456-78.2024.1.00.0000`). Optional on `StfItem`. **Operationally dead in this project** — the DataJud public API does not serve STF data, so the cross-judiciary link this ID would enable does not exist. Do not rely on it.
 
+**Processo_id não alocado** _(English alias on first use: unallocated processo_id)_:
+A **processo_id** for which STF's portal never bound an **incidente** — the `(classe, processo_id)` pair returns from `listarProcessos.asp` with no `incidente=<n>` in the redirect Location, signalling that the number was never used. STF's processo numbering space is sparse: numbers may be reserved-but-unused, withdrawn before distribution, or skipped by allocator gaps. A não-alocado **processo_id** is *not* a **processo** — no underlying case exists, so it has no **partes**, **andamentos**, or any other **processo**-bound concept. Discovered per-attempt during a **sweep** and recorded as a distinct terminal status (peer to `ok` / `fail` / `error`); confirmed across sweeps when ≥ 2 independent observations agree (with empty Location body, ruling out proxy soft-blocks) and persisted as a per-**classe** registry that the next sweep pre-filters against.
+_Avoid_: morto, dead ID (informal — replaced by *não alocado*), processo inexistente, missing process
+
 **Andamento**:
 A row in the **processo**'s primary event timeline (`StfItem.andamentos`) — one step in the case's life, with a date, an event label (`nome`), optional detail (`complemento`) and `julgador`, and an optional `link` to a peça.
 _Avoid_: event, step, movement, movimento, movimentação

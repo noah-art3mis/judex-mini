@@ -78,13 +78,13 @@ def test_write_gap_csv_emits_header_only_when_fully_captured(
     assert rows == [["classe", "processo"]]
 
 
-def test_write_gap_csv_excludes_dead_ids(tmp_path: Path) -> None:
-    """IDs listed in dead_ids_path must be excluded from the gap CSV."""
+def test_write_gap_csv_excludes_unallocated_pids(tmp_path: Path) -> None:
+    """IDs listed in unallocated_pids_path must be excluded from the gap CSV."""
     cases = tmp_path / "cases"
     cases.mkdir()
-    # range 100..104; capture 101; mark 102 and 104 as dead; expect gap = [103, 100]
+    # range 100..104; capture 101; mark 102 and 104 unallocated; expect gap = [103, 100]
     _touch(cases, "judex-mini_HC_101-101.json")
-    dead = tmp_path / "dead.txt"
+    dead = tmp_path / "unallocated.txt"
     dead.write_text("102\n104\n")
 
     out = tmp_path / "gap.csv"
@@ -93,7 +93,7 @@ def test_write_gap_csv_excludes_dead_ids(tmp_path: Path) -> None:
         return_value=(100, 104),
     ):
         count = write_gap_csv(
-            year=2024, out_path=out, cases_dir=cases, dead_ids_path=dead,
+            year=2024, out_path=out, cases_dir=cases, unallocated_pids_path=dead,
         )
 
     assert count == 2
@@ -103,14 +103,14 @@ def test_write_gap_csv_excludes_dead_ids(tmp_path: Path) -> None:
 
 
 def test_write_gap_csv_include_captured_keeps_on_disk_ids(tmp_path: Path) -> None:
-    """`include_captured=True` emits every pid in range except confirmed deads —
-    on-disk pids are NOT filtered. Used for full-year re-scrape sweeps where
-    content-staleness of existing files can't be cheaply detected."""
+    """`include_captured=True` emits every pid in range except confirmed
+    unallocated — on-disk pids are NOT filtered. Used for full-year re-scrape
+    sweeps where content-staleness of existing files can't be cheaply detected."""
     cases = tmp_path / "cases"
     cases.mkdir()
-    # range 100..104; 101 is on disk; 104 is dead; expect full = [103, 102, 101, 100]
+    # range 100..104; 101 on disk; 104 unallocated; expect full = [103, 102, 101, 100]
     _touch(cases, "judex-mini_HC_101-101.json")
-    dead = tmp_path / "dead.txt"
+    dead = tmp_path / "unallocated.txt"
     dead.write_text("104\n")
 
     out = tmp_path / "full.csv"
@@ -122,7 +122,7 @@ def test_write_gap_csv_include_captured_keeps_on_disk_ids(tmp_path: Path) -> Non
             year=2024,
             out_path=out,
             cases_dir=cases,
-            dead_ids_path=dead,
+            unallocated_pids_path=dead,
             include_captured=True,
         )
 
@@ -132,12 +132,14 @@ def test_write_gap_csv_include_captured_keeps_on_disk_ids(tmp_path: Path) -> Non
     assert rows[1:] == [["HC", "103"], ["HC", "102"], ["HC", "101"], ["HC", "100"]]
 
 
-def test_write_gap_csv_include_captured_still_excludes_deads(tmp_path: Path) -> None:
-    """Even with include_captured=True, confirmed-dead pids are filtered —
+def test_write_gap_csv_include_captured_still_excludes_unallocated(
+    tmp_path: Path,
+) -> None:
+    """Even with include_captured=True, confirmed-unallocated pids are filtered —
     they produce empty case JSONs regardless, so scraping them is wasted."""
     cases = tmp_path / "cases"
     cases.mkdir()
-    dead = tmp_path / "dead.txt"
+    dead = tmp_path / "unallocated.txt"
     dead.write_text("101\n103\n")
 
     out = tmp_path / "full.csv"
@@ -149,7 +151,7 @@ def test_write_gap_csv_include_captured_still_excludes_deads(tmp_path: Path) -> 
             year=2024,
             out_path=out,
             cases_dir=cases,
-            dead_ids_path=dead,
+            unallocated_pids_path=dead,
             include_captured=True,
         )
 

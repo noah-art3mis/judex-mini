@@ -138,8 +138,18 @@ class BaseStore:
 
     # ----- Reads shared across subclasses -----
 
+    # `unallocated` is a peer terminal status to ok/fail/error reserved for
+    # processo_id values STF never bound to an incidente — discoveries about
+    # the target, not failures of the attempt. They stay out of errors.jsonl
+    # so `--retentar-de` doesn't waste cycles re-querying known-no-processo
+    # numbers. See ADR-0002.
+    _NON_ERROR_STATUSES = ("ok", "unallocated")
+
     def errors(self) -> list[dict[str, Any]]:
-        return [rec for rec in self._state.values() if rec.get("status") != "ok"]
+        return [
+            rec for rec in self._state.values()
+            if rec.get("status") not in self._NON_ERROR_STATUSES
+        ]
 
     def snapshot(self) -> dict[str, dict[str, Any]]:
         return dict(self._state)
