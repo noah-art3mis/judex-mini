@@ -1,9 +1,11 @@
 # Fly.io Machine config for the Tesseract OCR HTTP service.
 #
-# Pricing math (2026 rates; verify before bulk runs):
-#   shared-cpu-2x with 4 GB RAM = ~$0.0118/hr
+# Pricing math (anchored against 2026-05-02 invoice — fly/README.md
+# has the bill-derivation steps):
+#   shared-cpu-2x + 2 GB RAM ≈ $0.0259/hr per Machine
+#     (CPU $0.00000242/sec + 1.5 GB additional RAM × $0.00000312/sec)
 #   For 12,930 ACÓRDÃOs at ~5 sec OCR each, ~30 Machines in parallel:
-#     compute = 64,650 cpu-sec ≈ 18 cpu-hr × $0.0118 = $0.21
+#     compute = 64,650 Machine-sec ≈ 18 Machine-hr × $0.0259 = $0.47
 #     wall    = ~36 min start-to-finish
 #
 # Region: gru (São Paulo) — closest to STF traffic origin and to
@@ -37,11 +39,21 @@ primary_region = "gru"
     method = "GET"
     path = "/healthz"
 
-# Per-Machine resource shape. Tesseract LSTM (~150 MB) + 200 dpi PNG
-# rasterization buffers (~200 MB peak for a 200-page ACÓRDÃO) fit
-# in 4 GB with comfortable headroom. The 2 vCPUs let pages parallel-OCR
-# 2 at a time inside one PDF — the in-container ThreadPoolExecutor
-# in server.py picks this up via os.cpu_count().
+# Per-Machine resource shape. Tesseract LSTM (~150 MB) + per-chunk
+# rasterization (~50 MB for 4 pages at 200 dpi, see server.py's
+# _RASTER_CHUNK_PAGES) + Python/uvicorn baseline (~250 MB) ≈ 450 MB
+# steady-state, regardless of PDF size. 2 GB gives ~4× headroom for
+# Tesseract working set + Pillow temp buffers + glibc/kernel slack.
+# The 2 vCPUs let pages parallel-OCR 2 at a time inside one PDF — the
+# in-container ThreadPoolExecutor in server.py picks this up via
+# os.cpu_count().
+#
+# Was 4 GB until 2026-05-02; the upfront-rasterize design at the time
+# scaled peak RAM linearly with page count (~11 MB/page × n_pages),
+# so a 200-page ACÓRDÃO needed 2.3 GB just for pixel buffers. After
+# server.py switched to chunked rasterization, that linearity is gone
+# and the 4 GB headroom is wasted spend (~57% of the per-Machine bill
+# is "Additional RAM" billed at $0.00000312/GB-sec).
 [[vm]]
   size = "shared-cpu-2x"
-  memory = "4gb"
+  memory = "2gb"

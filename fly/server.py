@@ -51,6 +51,9 @@ def healthz() -> dict:
     return {"ok": True}
 
 
+_RASTER_CHUNK_PAGES = 4
+
+
 @app.post("/extract")
 async def extract(request: Request) -> JSONResponse:
     pdf_bytes = await request.body()
@@ -62,14 +65,24 @@ async def extract(request: Request) -> JSONResponse:
 
     t0 = time.monotonic()
     n_pages = len(PdfReader(io.BytesIO(pdf_bytes)).pages)
-    images = convert_from_bytes(pdf_bytes, dpi=200)
-
     n_workers = _resolve_page_workers()
-    if n_workers == 1 or len(images) <= 1:
-        page_texts = [_ocr_one_page(img) for img in images]
-    else:
-        with ThreadPoolExecutor(max_workers=n_workers) as pool:
-            page_texts = list(pool.map(_ocr_one_page, images))
+
+    # Chunked rasterization: render at most _RASTER_CHUNK_PAGES PIL Images
+    # at a time, OCR them, drop them. Peak RAM is bounded by chunk size,
+    # not by total page count, so a 200-page ACÓRDÃO uses the same memory
+    # as a 4-page one. This is what allows [[vm]] memory = "2gb".
+    page_texts: list[str] = []
+    for chunk_start in range(1, n_pages + 1, _RASTER_CHUNK_PAGES):
+        chunk_end = min(chunk_start + _RASTER_CHUNK_PAGES - 1, n_pages)
+        chunk_imgs = convert_from_bytes(
+            pdf_bytes, dpi=200,
+            first_page=chunk_start, last_page=chunk_end,
+        )
+        if n_workers == 1 or len(chunk_imgs) <= 1:
+            page_texts.extend(_ocr_one_page(img) for img in chunk_imgs)
+        else:
+            with ThreadPoolExecutor(max_workers=n_workers) as pool:
+                page_texts.extend(pool.map(_ocr_one_page, chunk_imgs))
 
     return JSONResponse({
         "text": "\n\n".join(t.strip() for t in page_texts if t and t.strip()),

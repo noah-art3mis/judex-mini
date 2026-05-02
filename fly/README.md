@@ -28,21 +28,37 @@ extrair-pecas      ──HTTPS POST──▶ Machine 1  ┐
   Fly's registry, container start, uvicorn boot). Successive requests
   hit warm Machines at ~30 ms overhead.
 
-## Cost (2026 rates, verify before bulk runs)
+## Cost (anchored against a real two-day bill, 2026-05-02)
+
+Fly bills the cluster on **two meters**, not one — this is what the
+$0.0118/hr quote used to miss:
 
 ```
-shared-cpu-2x + 4 GB ≈ $0.0118/hr per Machine
+Shared CPU 2x (gru):       $0.00000242 / Machine-second   ($0.0087/hr)
+Additional RAM (gru):      $0.00000312 / GB-second × 3.5 GB additional
+                                                          ($0.0394/hr)
+                                                          ──────────
+combined per Machine-hour:                                $0.0479/hr
 ```
+
+The "additional 3.5 GB" is `[[vm]] memory = "4gb"` minus the ~0.5 GB
+included in shared-cpu-2x. RAM is **82% of the line item** — heavier
+than CPU. If you change Memory in `fly.toml`, this rate moves with
+it (memory at "2gb" → 1.5 GB additional → ~$0.0259/hr per Machine).
+
+Bill-anchored derivation: $8.70 spent over 138,931 + 514,472 =
+653,403 Machine-seconds = 181.5 Machine-hours → $0.0479/hr exactly.
 
 For the 12,930 ACÓRDÃO ladder at ~5 s OCR per PDF:
 
 ```
-total compute    = 12930 × 5 s = 64,650 cpu-sec ≈ 18 cpu-hr
-total bill       = 18 × $0.0118 = $0.21
+total compute    = 12930 × 5 s = 64,650 Machine-sec ≈ 18 Machine-hr
+total bill       = 18 × $0.0479 = $0.86
 wall (30-way)    = 12930 × 5 / 30 ÷ 60 ≈ 36 min
 ```
 
-vs. Modal's $2.27 estimate for the same work — **~10× cheaper**.
+vs. Modal's $2.27 estimate for the same work — **~2.6× cheaper**
+(was claimed as "10× cheaper"; that quote dropped the RAM line).
 
 ## One-time setup
 
