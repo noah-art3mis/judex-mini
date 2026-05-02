@@ -120,6 +120,7 @@ def run_extract_pecas(
 
     try:
         targets, mode_label = _pdf_cli.resolve_targets(
+            stage="extrair",
             retentar_de=retentar_de,
             csv=csv,
             classe=classe,

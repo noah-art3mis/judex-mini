@@ -67,15 +67,27 @@ def recover_state_from_log(log_path: Path) -> dict[str, dict[str, Any]]:
     return replay_log(log_path, _state_key_from_rec)
 
 
-def load_retry_list(errors_path: Path) -> list[str]:
-    """Read `pdfs.errors.jsonl` → list of URLs to retry."""
+def urls_for_replay(errors_path: Path, *, stage: str) -> list[str]:
+    """Read `pdfs.errors.jsonl` → URLs whose row classifies `transient`.
+
+    Status-aware via `judex.sweeps.error_triage.classify_error`. Drops
+    `cached` (state-snapshot artefact, terminal-ok), real `404` and
+    `empty` / `unknown_type` (terminal), `no_bytes` (cross_stage —
+    fix in baixar, not by re-running extrair). `stage` is `"baixar"`
+    or `"extrair"`.
+    """
+    from judex.sweeps.error_triage import classify_error
+
     out: list[str] = []
     with errors_path.open() as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            out.append(json.loads(line)["url"])
+            rec = json.loads(line)
+            if classify_error(stage, rec) != "transient":
+                continue
+            out.append(rec["url"])
     return out
 
 

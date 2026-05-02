@@ -54,6 +54,7 @@ def run_download_pecas(
 
     try:
         targets, mode_label = _pdf_cli.resolve_targets(
+            stage="baixar",
             retentar_de=retentar_de,
             csv=csv,
             classe=classe,

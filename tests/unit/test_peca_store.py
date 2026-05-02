@@ -14,8 +14,8 @@ import pytest
 from judex.sweeps.peca_store import (
     PecaAttemptRecord,
     PecaStore,
-    load_retry_list,
     recover_state_from_log,
+    urls_for_replay,
 )
 
 
@@ -120,12 +120,42 @@ def test_write_errors_file(tmp_path: Path) -> None:
     assert urls == ["https://x.test/b.pdf"]
 
 
-def test_load_retry_list(tmp_path: Path) -> None:
+def test_urls_for_replay_filters_to_transient(tmp_path: Path) -> None:
+    """Status-aware: only URLs whose row classifies `transient` are
+    replayed. `empty` (extrair-terminal) and `http_error: 404`
+    (baixar-terminal) must be dropped — they will fail again
+    deterministically.
+    """
     errs = tmp_path / "pdfs.errors.jsonl"
     errs.write_text(
-        json.dumps({"url": "https://x.test/a.pdf", "status": "empty"}) + "\n"
-        + json.dumps({"url": "https://x.test/b.pdf", "status": "http_error"}) + "\n"
+        json.dumps({
+            "url": "https://x.test/a.pdf",
+            "status": "empty",
+            "error": "pypdf returned 0 chars",
+        }) + "\n"
+        + json.dumps({
+            "url": "https://x.test/b.pdf",
+            "status": "provider_error",
+            "error": "HTTPError: 502 Bad Gateway",
+        }) + "\n"
     )
-    assert load_retry_list(errs) == [
-        "https://x.test/a.pdf", "https://x.test/b.pdf",
-    ]
+    assert urls_for_replay(errs, stage="extrair") == ["https://x.test/b.pdf"]
+
+
+def test_urls_for_replay_baixar_drops_404(tmp_path: Path) -> None:
+    errs = tmp_path / "pdfs.errors.jsonl"
+    errs.write_text(
+        json.dumps({
+            "url": "https://x.test/gone.pdf",
+            "status": "http_error",
+            "error": "HTTPError: 404 Not Found",
+            "http_status": 404,
+        }) + "\n"
+        + json.dumps({
+            "url": "https://x.test/blocked.pdf",
+            "status": "http_error",
+            "error": "HTTPError: 403 Forbidden",
+            "http_status": 403,
+        }) + "\n"
+    )
+    assert urls_for_replay(errs, stage="baixar") == ["https://x.test/blocked.pdf"]

@@ -41,7 +41,7 @@ from typing import Callable, Optional
 from judex.scraping.ocr import ExtractResult, OCRConfig
 from judex.scraping.ocr.dispatch import extract_pdf as _dispatch_extract
 from judex.sweeps import shared as _shared
-from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
+from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, urls_for_replay
 from judex.utils.cost import estimate_ocr_cost
 from judex.sweeps.peca_targets import PecaTarget
 from judex.utils import peca_cache
@@ -116,7 +116,7 @@ def run_extract_sweep(
     store = PecaStore(out_dir)
 
     if retry_from is not None:
-        keep = set(load_retry_list(retry_from))
+        keep = set(urls_for_replay(retry_from, stage="extrair"))
         targets = [t for t in targets if t.url in keep]
 
     if install_signal_handlers:

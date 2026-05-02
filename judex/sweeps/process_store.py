@@ -75,8 +75,18 @@ def recover_state_from_log(log_path: Path) -> dict[str, dict[str, Any]]:
     return replay_log(log_path, _state_key_from_rec)
 
 
-def load_retry_list(errors_path: Path) -> list[tuple[str, int]]:
-    """Read `sweep.errors.jsonl` → list of (classe, processo) to retry."""
+def processos_for_replay(errors_path: Path) -> list[tuple[str, int]]:
+    """Read `sweep.errors.jsonl` → (classe, processo) tuples whose row
+    classifies `transient` for the varrer stage.
+
+    Status-aware via `judex.sweeps.error_triage.classify_error`. Drops
+    `unallocated` (terminal — ADR-0002, no case exists) and the legacy
+    `fail` + "scrape returned None" pattern (also terminal não-alocado
+    on pre-`unallocated`-status corpus). Keeps WAF 403, 5xx, SSL-EOF,
+    cookies / auth refresh failures.
+    """
+    from judex.sweeps.error_triage import classify_error
+
     out: list[tuple[str, int]] = []
     with errors_path.open() as f:
         for line in f:
@@ -84,6 +94,8 @@ def load_retry_list(errors_path: Path) -> list[tuple[str, int]]:
             if not line:
                 continue
             rec = json.loads(line)
+            if classify_error("varrer", rec) != "transient":
+                continue
             out.append((rec["classe"], int(rec["processo"])))
     return out
 

@@ -11,9 +11,12 @@ resolvers share the same output shape:
   each process in the inclusive range.
 - `targets_from_csv` — `--csv alvos.csv`. Rows of `(classe, processo)`.
   All PDFs per matching case.
-- `targets_from_errors_jsonl` — `--retentar-de pdfs.errors.jsonl`.
-  Rehydrates full PdfTargets (url + processo_id + classe + doc_type +
-  context) from a prior run's error log.
+- `targets_for_replay` — `--retentar-de pdfs.errors.jsonl`. Rehydrates
+  full PdfTargets (url + processo_id + classe + doc_type + context)
+  from a prior run's error log, status-aware: only `transient` rows
+  per `judex.sweeps.error_triage.classify_error`. Terminal rows
+  (real 404, unknown_type), cross-stage rows (`no_bytes`), and
+  state-snapshot artefacts (`cached`) are dropped, not replayed.
 
 Direct selectors (range / CSV / retry) ignore the filter parameters
 per `docs/superpowers/specs/2026-04-19-varrer-pdfs-ocr-knob.md §
@@ -368,13 +371,24 @@ def targets_from_csv(csv_path: Path, *, roots: Sequence[Path]) -> list[PecaTarge
     return _targets_from_files(files)
 
 
-def targets_from_errors_jsonl(errors_path: Path) -> list[PecaTarget]:
-    """Rehydrate PdfTargets from a prior run's `pdfs.errors.jsonl`.
+def targets_for_replay(
+    errors_path: Path, *, stage: str,
+) -> list[PecaTarget]:
+    """Rehydrate transient PdfTargets from a prior run's `pdfs.errors.jsonl`.
 
     Each line is a JSON object emitted by `PecaStore.write_errors_file()`.
-    Relies on url / processo_id / classe / doc_type / context being
-    present — other fields (status, error, ts) are ignored.
+    The `(status, error)` is routed through
+    `judex.sweeps.error_triage.classify_error(stage, row)` and only
+    rows classified `transient` are returned — terminal failures
+    (real 404, decode errors), cross-stage failures (`no_bytes`), and
+    state-snapshot artefacts (`cached`) are dropped to avoid burning
+    retry budget on rows that cannot recover.
+
+    `stage` is `"baixar"` or `"extrair"`. Selecting the wrong stage
+    silently mis-classifies — the caller is responsible.
     """
+    from judex.sweeps.error_triage import classify_error
+
     out: list[PecaTarget] = []
     with Path(errors_path).open() as f:
         for line in f:
@@ -382,6 +396,8 @@ def targets_from_errors_jsonl(errors_path: Path) -> list[PecaTarget]:
             if not line:
                 continue
             rec = json.loads(line)
+            if classify_error(stage, rec) != "transient":
+                continue
             out.append(PecaTarget(
                 url=rec["url"],
                 processo_id=rec.get("processo_id"),
