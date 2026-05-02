@@ -178,6 +178,34 @@ A sudden throughput collapse during a **sweep** — typically a transition from 
 **Saturation tail**:
 The slow-rate tail observed in hours 8–13 of long **sweeps** (anchored on the HC 2024 + HC 2023 overnight runs). TLS-handshake degradation produces SSL-EOF errors at increasing frequency; rather than a sharp **cliff**, throughput trickles down. Default action: wait 30 minutes for the controller to demote → cool → re-promote. Killing the sweep throws away TLS-layer reputation that is already cooling.
 
+**Coleta** _(English alias on first use: total run / pipeline run)_:
+The full backfill of a (**classe**, processo_id range) — six **sweeps** in per-stage interleave: forward `varrer-processos` → `varrer-retry` → forward `baixar-pecas` → `baixar-retry` → forward `extrair-pecas` → `extrair-retry`. Each retry stage is scoped to the prior forward stage's **transient residual** (read through the `error_triage` classifier). Cap of 2 retry cycles per stage with early-exit when the residual is empty or stops shrinking. The unit of canonical operator work for backfilling a year-of-HC; orchestrated by `judex coletar`.
+_Avoid_: backfill (overloaded — used both for the run-dir naming convention and for ad-hoc per-stage replays), pipeline (too generic)
+
+**Error triage**:
+The classification of a **sweep**'s non-ok rows into one of `transient` / `terminal` / `cross_stage` / `ok` by `judex.sweeps.error_triage.classify_error(stage, row)`. Driven by `(status, error_substring)` — status alone is too coarse (`varrer-processos`'s `fail` row covers both *processo_id não alocado* and transient WAF blocks). Only `transient` rows are replayed in a **coleta**'s retry stage; `terminal` is dropped permanently, `cross_stage` is reported as out-of-scope for this **coleta**.
+
+**Transient residual**:
+The count of `transient`-classified rows still failing after a stage's retry cap (2 cycles) is exhausted. Reported per stage in the **coleta**'s `REPORT.md`. Not the same as raw error count — terminal rows (e.g., `processo_id não alocado` at varrer, real `404` at baixar) are excluded.
+
+**Cross-stage residual**:
+Rows that are terminal at the current **sweep** stage but whose underlying failure is upstream — concretely, `no_bytes` rows surfaced by `extrair-pecas` that mean `baixar-pecas` did not deliver bytes. Surfaced as a count in the `coletar` `REPORT.md`. Not auto-recovered within a **coleta** (would require a second `baixar-retry` after the cap was already exhausted); the operator drains manually via `baixar-pecas --retentar-de` if motivated.
+
+**Transient gate**:
+A per-stage upper bound on transient rate above which `judex coletar` aborts mid-chain rather than firing retry cycles or advancing to the next stage. Default 2% per stage (anchored on the 0.04–7.3% range of healthy transient rates observed across HC 2025/2026 backfills, with the HC 2026 extrair `provider_error` outlier treated as anomalous). Trip indicates a systemic issue — proxy pool dead, cookies/WAF rolling block, Fly OCR saturated — that retries cannot fix and that produces silently-incomplete downstream artifacts if ignored. Resume via `judex coletar --retomar` after the systemic issue is fixed.
+
+**Run quality** _(of a coleta)_:
+A post-hoc classification of a finished **coleta** by per-stage **transient residual**:
+
+| Quality       | Per-stage transient residual    | Operator action                                       |
+|---------------|----------------------------------|-------------------------------------------------------|
+| `clean`       | all stages = 0                   | none — chain converged                                |
+| `acceptable`  | all stages ≤ 1%                  | none required; manual drain optional                  |
+| `degraded`    | any stage 1–5%                   | consider tail-drain via per-stage `--retentar-de`     |
+| `broken`      | any stage > 5%                   | systemic problem; investigate before re-running       |
+
+Distinct from the pre-flight **transient gate** (which aborts a running chain): **run quality** grades a finished chain. A `broken` outcome on a chain that *did* finish (gate didn't trip mid-flight) means transients accumulated only in the retry tail — a different failure mode than a forward-pass collapse.
+
 ## Bridges
 
 **Peça → text cache.**
