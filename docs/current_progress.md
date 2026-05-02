@@ -11,10 +11,14 @@ unstable on the 4 GB WSL2 box (Pool deadlocks under OOM); landed
 `judex-ocr-tesseract-arcos.fly.dev` (gru, 60 shared-cpu-2x
 Machines, auto-stop-when-idle).
 
-**Status as of 2026-05-01 evening.** Corpus: **90,763** cases.
-PDF cache 99,057 `.pdf.gz` + 3,621 `.rtf.gz`, 105,821 `.txt.gz`.
-Warehouse last rebuilt 2026-04-30 17:45 BRT — needs a refresh
-once the HC 2026 chain closes.
+**Status as of 2026-05-02 14:30 BRT.** Corpus: **90,763** HC
+cases. PDF cache 99,095 `.pdf.gz` (+38 from HC 2026 baixar) +
+3,621 `.rtf.gz`, **109,777** `.txt.gz` (+3,956 from HC 2026
+extract). 93,074 `.extractor` sidecars (gap of ~16k vs
+`.txt.gz` is pre-sidecar-discipline residue, not a regression).
+Warehouse rebuilt 2026-05-02 12:43 BRT (1.85 GB; DJe Phase 1
+populated). Two chains in flight: HC 2025 (Stage A · 17%) and
+HC 2021 (Stage A · 0.2%), sharing `portal.stf.jus.br` WAF.
 
 ## Active task — HC year-ladder backfill via 3-stage chain
 
@@ -180,6 +184,31 @@ uv run judex extrair-pecas \
 
 (Force `tesseract_fly` because `auto` would re-route the same way;
 drop `--paralelo` to match warm capacity.)
+
+**HC 2026 — closed out 2026-05-02 14:30 BRT.** Retry pass v2 (with
+the new tenacity 5×30 retry + pre-warmed cluster + `--paralelo 10`)
+processed 310 previously-failed URLs with **0 failures** (cost
+$0.04, 3,453 pages OCR'd). Combined coverage: **5,179 ok / 10
+legitimately-dead surface-2 voto IDs = 99.8% effective**, well
+past the ≥99% close-out threshold. OCR quality validated by
+8-sample ACÓRDÃO spot-check: EMENTA + ACÓRDÃO markers present in
+100%, body text clean Portuguese, char counts plausible
+(2.4k-23.7k range). Empirical validation that the four-layer
+defense (pre-warm + paralelo 10 + tenacity 5×30 + auto router)
+turns a 7.3% failure rate into 0% on the same workload.
+
+**HC 2025 chain regression caught + fixed (commit `b5cd7d2`).**
+First varrer-processos run since the Phase 1 parser fix
+(`ae19d73`) surfaced an `AttributeError: 'NoneType' object has no
+attribute 'encode'` on every redirect-form DJe entry —
+`_resolve_publicacoes_dje:150` called `detail_fetcher(None)`
+without checking. ~47% case error rate by record 1,300. Killed
+the chain, fixed (skip the detail fetch when `detail_url is
+None`), restarted from the same `--saida` (resume picked up the
+~480 captured cases). Post-restart error rate: 0 in the first
+2,750 records. HC 2026 didn't surface this because Stage A ran
+2026-05-01 *before* the parser fix landed; the bug was latent
+until the next varrer-processos invocation.
 
 **Monitor.** Same pattern across all 3 stages:
 
