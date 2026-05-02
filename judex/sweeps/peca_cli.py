@@ -152,6 +152,7 @@ def print_download_preview(
     Math + anchors live in `judex.utils.cost`; this function is the
     renderer.
     """
+    from judex.utils.cli_render import render_kv_block
     from judex.utils.cost import (
         forecast_baixar_pecas,
         render_forecast_table,
@@ -161,16 +162,18 @@ def print_download_preview(
     to_download = len(targets) - already
     n_procs = len({t.processo_id for t in targets if t.processo_id is not None})
 
-    lines = [
-        f"targets: {len(targets)} PDFs across {n_procs} processes (modo: {mode_label})",
-        f"já em disco (pulados):   {already:>6d}",
-        f"a baixar:               {to_download:>6d}",
-        "",
-    ]
-    stream.write("\n".join(lines))
-    forecasts = forecast_baixar_pecas(to_download)
+    render_kv_block(
+        f"targets · {len(targets):,} PDFs across {n_procs:,} processes",
+        [
+            ("já em disco (pulados)", f"{already:,}"),
+            ("a baixar", f"{to_download:,}"),
+        ],
+        subtitle=f"modo: {mode_label}",
+        stream=stream,
+    )
     stream.write(render_forecast_table(
-        forecasts, n_units=to_download, unit_label="PDFs"
+        forecast_baixar_pecas(to_download),
+        n_units=to_download, unit_label="PDFs",
     ))
     stream.write("\n")
 
@@ -188,6 +191,8 @@ def print_extract_preview(
     estimates are computed per-target via the same router the runtime
     uses, so the preview reflects the actual heterogeneous workload.
     """
+    from judex.utils.cli_render import render_kv_block
+
     if provedor == "auto":
         from judex.sweeps.extrair_pecas import pick_provider
         per_target_provider = pick_provider
@@ -226,23 +231,31 @@ def print_extract_preview(
             total_cost += estimate_cost(prov, int(n * _AVG_PAGES_PER_PDF))
             total_wall_s += estimate_wall(prov, n)
 
-    lines = [
-        f"targets: {len(targets)} PDFs across {n_procs} processes (modo: {mode_label})",
-        f"já extraídos por {provedor} (pulados): {cached:>6d}",
-        f"sem bytes locais (falharão):         {no_bytes:>6d}",
-        f"a extrair:                           {to_extract:>6d}",
-        f"páginas estimadas (~{_AVG_PAGES_PER_PDF} pg/PDF): {n_pages:>6d}",
-        "",
-        f"provedor: {provedor} (sync)",
-    ]
+    render_kv_block(
+        f"targets · {len(targets):,} PDFs across {n_procs:,} processes",
+        [
+            (f"já extraídos por {provedor} (pulados)", f"{cached:,}"),
+            ("sem bytes locais (falharão)", f"{no_bytes:,}"),
+            ("a extrair", f"{to_extract:,}"),
+            (f"páginas estimadas (~{_AVG_PAGES_PER_PDF} pg/PDF)", f"{n_pages:,}"),
+        ],
+        subtitle=f"modo: {mode_label}",
+        stream=stream,
+    )
+
+    forecast_rows: list[tuple[str, str]] = [("provedor", f"{provedor} (sync)")]
     if provedor == "auto" and to_extract_by_provider:
         breakdown = ", ".join(
             f"{p}={n:,}" for p, n in sorted(to_extract_by_provider.items())
         )
-        lines.append(f"  rota auto: {breakdown}")
-    lines += [
-        f"custo estimado:  ${total_cost:>6.2f}",
-        f"tempo estimado:  ~{total_wall_s / 60:>6.1f} min",
-        "",
+        forecast_rows.append(("rota auto", breakdown))
+    forecast_rows += [
+        ("custo estimado", f"${total_cost:,.2f}"),
+        ("tempo estimado", f"~{total_wall_s / 60:,.1f} min"),
     ]
-    stream.write("\n".join(lines))
+    render_kv_block(
+        "forecast",
+        forecast_rows,
+        stream=stream,
+    )
+    stream.write("\n")

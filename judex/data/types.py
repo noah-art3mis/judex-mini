@@ -191,26 +191,37 @@ class DecisaoDJe(TypedDict):
 class PublicacaoDJe(TypedDict):
     """One DJe publication referencing the case.
 
-    Listing fields (`numero`, `data`, `secao`, `subsecao`, `titulo`,
-    `detail_url`, `incidente_linked`) come from the
-    `listarDiarioJustica.asp` grouped HTML. Detail fields come from
-    following `detail_url` (`verDiarioProcesso.asp`); they restate
-    some identity fields (`classe`, `relator`) as they appeared in
-    the DJe at publication time — kept as a temporal snapshot, not
-    deduped against the parent case's fields.
+    Two listing forms exist on `listarDiarioJustica.asp` since STF's
+    2022-12-19 content-URL migration (see ADR-0003):
+
+    - **Pre-migration / Distribuição** entries carry a clickable
+      `abreDetalheDiarioProcesso(...)` JS callback. The parser extracts
+      `numero`, `data`, `incidente_linked`, and `detail_url`
+      (`verDiarioProcesso.asp?...`); detail-page fields are filled in
+      by `parse_dje_detail`. `external_redirect` is None.
+    - **Post-migration** entries carry only metadata (`numero`+`data`,
+      or `data` alone) plus a plain redirect anchor pointing at
+      `digital.stf.jus.br/publico/publicacoes`. `detail_url` and
+      `incidente_linked` are None; `external_redirect` is the
+      redirect URL. Detail-page fields stay at defaults — the content
+      lives on STF's new platform behind AWS WAF (Phase 2 of ADR-0003).
+
+    `numero` may be None: STF emits "DJ do dia DD/MM/YYYY" without a
+    DJ number for some publication types post-migration.
 
     `incidente_linked` is the 3rd `abreDetalheDiarioProcesso` arg and
     may differ from the parent case's incidente — STF often files
     related filings (AG.REG., EMB.DECL.) under their own incidentes.
     """
     # Listing fields.
-    numero: int
+    numero: Optional[int]            # None for "DJ do dia ..." entries (no DJ number).
     data: Optional[str]              # ISO 8601 date.
-    secao: str                       # e.g. "Acórdãos", "Segunda Turma".
-    subsecao: str                    # e.g. "Acórdãos 2ª Turma", "Sessão Virtual".
-    titulo: str                      # anchor text from the listing.
-    detail_url: str                  # verDiarioProcesso.asp?...
-    incidente_linked: int
+    secao: str                       # e.g. "Acórdãos", "Segunda Turma". "" for redirect entries.
+    subsecao: str                    # e.g. "Acórdãos 2ª Turma", "Sessão Virtual". "" for redirect entries.
+    titulo: str                      # anchor text from the listing. "" for redirect entries.
+    detail_url: Optional[str]        # verDiarioProcesso.asp?... ; None for redirect entries.
+    incidente_linked: Optional[int]  # None for redirect entries.
+    external_redirect: Optional[str] # digital.stf.jus.br/... ; None for legacy entries.
     # Detail-page fields.
     classe: Optional[str]
     procedencia: Optional[str]

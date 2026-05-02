@@ -130,6 +130,21 @@ def test_summarize_tipos_accent_variant_not_flagged_as_unseen():
     assert unseen == {}, unseen
 
 
+def test_summarize_tipos_does_not_flag_sessao_virtual_tier_a_tipos():
+    # Surface-2 (sessao_virtual) tipos are first-class Tier A entries
+    # since ADR-0001. They must not surface in the unseen-tipo warning,
+    # otherwise every HC sweep prints noise for tipos we've explicitly
+    # classified as substantive.
+    targets = [
+        _target("Relatório",  "u_relatorio",  surface="sessao_virtual"),
+        _target("Voto",       "u_voto",       surface="sessao_virtual"),
+        _target("Voto Vogal", "u_voto_vogal", surface="sessao_virtual"),
+        _target("Voto Vista", "u_voto_vista", surface="sessao_virtual"),
+    ]
+    _top, unseen = summarize_tipos(targets)
+    assert unseen == {}, unseen
+
+
 def test_tier_c_includes_the_high_volume_stubs():
     # Sanity: the stubs observed as >1k HC rows each are in the set.
     must_contain = {

@@ -28,12 +28,22 @@ from judex.scraping.extraction._shared import to_iso
 
 _DJE_DETAIL_BASE = "https://portal.stf.jus.br/servicos/dje/verDiarioProcesso.asp"
 
-_DJ_HEADER_RE = re.compile(r"^\s*DJ Nr\.\s*(\d+)\s+do dia\s+(\d{2}/\d{2}/\d{4})\s*$")
+_DJ_HEADER_RE = re.compile(
+    # Two STF-emitted shapes since the 2022-12-19 content-URL migration:
+    #   "DJ Nr. 137 do dia 03/06/2020"  ← pre-migration + post-migration both use this
+    #   "DJ do dia 26/02/2024"          ← post-migration only; some publication types omit DJ number
+    # `numero` is captured as None for the no-number form. See ADR-0003.
+    r"^\s*DJ(?:\s+Nr\.\s*(\d+))?\s+do dia\s+(\d{2}/\d{2}/\d{4})\s*$"
+)
 _ONCLICK_RE = re.compile(
     r"abreDetalheDiarioProcesso\(\s*"
     r"(\d+)\s*,\s*'(\d{2}/\d{2}/\d{4})'\s*,\s*"
     r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)"
 )
+# Redirect-form entry — STF's post-migration replacement for the JS callback.
+# Anchor href starts with the digital.stf.jus.br landing path; we capture the
+# full URL as `external_redirect` and emit one PublicacaoDJe per redirect.
+_REDIRECT_HREF_PREFIX = "https://digital.stf.jus.br/publico/publicacoes"
 
 
 def _empty_detail_fields() -> dict:
@@ -62,16 +72,24 @@ def parse_dje_listing(html: str) -> list[dict]:
     """Parse `listarDiarioJustica.asp` into PublicacaoDJe entries (listing fields only).
 
     The HTML is a flat stream of `<strong>` section-label tags + `<a>`
-    entry links under one container. The shape per group is:
+    entry anchors under one container. Two anchor shapes coexist since
+    STF's 2022-12-19 content-URL migration (see ADR-0003):
 
-        <strong>DJ Nr. N do dia DD/MM/YYYY</strong>  ← DJ header
-        <strong>  Secao</strong>                    ← 2 leading nbsp
-        <strong>    Subsecao</strong>               ← 4 leading nbsp
-        <a onclick="abreDetalheDiarioProcesso(...)">titulo</a>
+        <strong>DJ Nr. N do dia DD/MM/YYYY</strong>      ← DJ header (numbered)
+        <strong>DJ do dia DD/MM/YYYY</strong>            ← DJ header (no number, post-migration)
+        <strong>  Secao</strong>                         ← 2 leading nbsp
+        <strong>    Subsecao</strong>                    ← 4 leading nbsp
+        <a onclick="abreDetalheDiarioProcesso(...)">titulo</a>      ← Distribuição (legacy, both eras)
+        <a href="https://digital.stf.jus.br/publico/publicacoes">…</a>  ← Decisão/Acórdão redirect (post-2022-12-19)
 
-    We walk `<strong>` / `<a>` in order, buffering the section strongs
-    between DJ-header boundaries; each `<a>` with the expected onclick
-    emits one entry using the most-recent DJ header + section buffer.
+    For onclick-form entries, the `incidente_linked` and `detail_url` come
+    from the JS callback args; detail fields are filled in later by
+    `parse_dje_detail`.
+
+    For redirect-form entries, only listing-level metadata is recoverable
+    (DJ number, DJ date, redirect URL); `detail_url` and
+    `incidente_linked` are None and decision content stays on STF's new
+    platform behind AWS WAF (deferred to Phase 2 of ADR-0003).
     """
     soup = BeautifulSoup(html, "lxml")
     entries: list[dict] = []
@@ -79,37 +97,63 @@ def parse_dje_listing(html: str) -> list[dict]:
     current_numero: Optional[int] = None
     current_data_raw: Optional[str] = None
     section_buf: list[str] = []
+    # Track redirect entries seen under the current DJ header so we don't
+    # double-emit when a single header has multiple redirect anchors (rare,
+    # but defensive against future STF page-shape changes).
+    redirect_emitted_for_header: bool = False
 
     for el in soup.find_all(["strong", "a"]):
         if el.name == "strong":
             text = el.get_text(strip=True)
             m = _DJ_HEADER_RE.match(text)
             if m:
-                current_numero = int(m.group(1))
+                current_numero = int(m.group(1)) if m.group(1) is not None else None
                 current_data_raw = m.group(2)
                 section_buf = []
+                redirect_emitted_for_header = False
             else:
                 section_buf.append(text)
             continue
 
-        # <a>
+        # <a>: prefer onclick (legacy / Distribuição) when both shapes appear
+        # under the same header — onclick entries carry richer metadata.
+        if current_data_raw is None:
+            continue
         onclick = el.get("onclick") or ""
         m = _ONCLICK_RE.search(onclick)
-        if not m or current_numero is None:
+        if m:
+            dj, data, incidente, capitulo, num_mat, cod_mat = m.groups()
+            entry = {
+                "numero": current_numero,
+                "data": to_iso(current_data_raw),
+                "secao": section_buf[0] if len(section_buf) >= 1 else "",
+                "subsecao": section_buf[1] if len(section_buf) >= 2 else "",
+                "titulo": el.get_text(strip=True),
+                "detail_url": _build_detail_url(
+                    dj, data, incidente, capitulo, num_mat, cod_mat
+                ),
+                "incidente_linked": int(incidente),
+                "external_redirect": None,
+            }
+            entry.update(_empty_detail_fields())
+            entries.append(entry)
             continue
-        dj, data, incidente, capitulo, num_mat, cod_mat = m.groups()
 
-        entry = {
-            "numero": current_numero,
-            "data": to_iso(current_data_raw),
-            "secao": section_buf[0] if len(section_buf) >= 1 else "",
-            "subsecao": section_buf[1] if len(section_buf) >= 2 else "",
-            "titulo": el.get_text(strip=True),
-            "detail_url": _build_detail_url(dj, data, incidente, capitulo, num_mat, cod_mat),
-            "incidente_linked": int(incidente),
-        }
-        entry.update(_empty_detail_fields())
-        entries.append(entry)
+        href = el.get("href") or ""
+        if href.startswith(_REDIRECT_HREF_PREFIX) and not redirect_emitted_for_header:
+            entry = {
+                "numero": current_numero,
+                "data": to_iso(current_data_raw),
+                "secao": "",
+                "subsecao": "",
+                "titulo": "",
+                "detail_url": None,
+                "incidente_linked": None,
+                "external_redirect": href,
+            }
+            entry.update(_empty_detail_fields())
+            entries.append(entry)
+            redirect_emitted_for_header = True
 
     return entries
 

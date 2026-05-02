@@ -23,6 +23,12 @@ regardless of `--provedor`. Preserves parity with the prior
 from __future__ import annotations
 
 import logging
+
+from judex.utils.log_render import (
+    compact_target_id,
+    render_progress_line,
+    render_target_line,
+)
 import threading
 import time
 from collections import Counter
@@ -141,7 +147,13 @@ def run_extract_sweep(
                 error_type="NoLocalBytes",
                 attempt=store.attempt_count(tgt.url) + 1,
             ))
-            logging.warning(f"[{i}/{n}] {tgt.url}: no_bytes")
+            print(render_target_line(
+                n=i, total=n, status="no_bytes",
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail="run baixar-pecas first",
+            ), flush=True)
             return "no_bytes"
 
         # Resolve the per-target provider — router fork (`auto` mode) or
@@ -206,21 +218,34 @@ def run_extract_sweep(
             if elements is not None:
                 peca_cache.write_elements(tgt.url, elements)
             counters.extracted += 1
-            logging.info(
-                f"[{i}/{n}] {tgt.url}: ok ({len(text)} chars, {extractor_label})"
-            )
+            print(render_target_line(
+                n=i, total=n, status="ok",
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=f"{extractor_label} · {len(text):,} chars",
+            ), flush=True)
         elif status == "ok" and not text:
             status = "empty"
             counters.failed += 1
             error = error or "empty"
             error_type = error_type or "empty"
-            logging.warning(f"[{i}/{n}] {tgt.url}: empty")
+            print(render_target_line(
+                n=i, total=n, status="empty",
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=f"{extractor_label or '-'} · 0 chars",
+            ), flush=True)
         else:
             counters.failed += 1
-            logging.warning(
-                f"[{i}/{n}] {tgt.url}: {status}"
-                + (f" ({error})" if error else "")
-            )
+            print(render_target_line(
+                n=i, total=n, status=status,
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=(error or status),
+            ), flush=True)
 
         store.record(_make_record(
             tgt, status=status, error=error, error_type=error_type,
@@ -233,12 +258,17 @@ def run_extract_sweep(
 
     def on_progress(i: int, n: int) -> None:
         _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
-        print(
-            f"  [progress] ok={counters.extracted} cached={counters.cached_hits} "
-            f"no_bytes={counters.no_bytes} fail={counters.failed} · "
-            f"{rate:.2f} tgt/s · eta {eta_s / 60:.1f} min",
-            flush=True,
-        )
+        print(render_progress_line(
+            n=i, total=n,
+            counters={
+                "ok": counters.extracted,
+                "cached": counters.cached_hits,
+                "no_bytes": counters.no_bytes,
+                "fail": counters.failed,
+            },
+            rate_per_sec=rate, rate_label="tgt/s",
+            eta_min=eta_s / 60,
+        ), flush=True)
 
     def is_already_done(tgt: PecaTarget) -> bool:
         return resume and store.already_ok(tgt.url)
