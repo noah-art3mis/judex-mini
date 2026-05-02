@@ -928,6 +928,21 @@ def coletar(
         10, "--paralelo",
         help="Threads paralelas para extrair-pecas (passa direto). Default 10.",
     ),
+    ocr_tesseract_provider: str = typer.Option(
+        "tesseract_fly", "--ocr-tesseract-provider",
+        help="OCR backend usado pelo router auto quando o doc_type "
+             "requer escalação (ACÓRDÃO). 'tesseract_fly' é cobrado pelo "
+             "Fly (~$0.01/1k páginas) mas é paralelizável via --paralelo; "
+             "'tesseract' é local, gratuito, e gargalo de CPU. Default "
+             "'tesseract_fly' para coletas em escala — passe 'tesseract' "
+             "se você não quer cobrança por páginas.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula confirmação interativa do banner de custo (uso "
+             "não-supervisionado). Sem esta flag, em TTY o coletar "
+             "pede confirmação antes de iniciar.",
+    ),
 ) -> None:
     """Orquestra o pipeline completo (ADR-0004): varrer → varrer-retry →
     baixar → baixar-retry → extrair → extrair-retry, com classificador
@@ -970,6 +985,7 @@ def coletar(
 
     runners = make_subprocess_runners(
         config, provedor=provedor, paralelo=paralelo,
+        ocr_tesseract_provider=ocr_tesseract_provider,
     )
 
     typer.echo(
@@ -980,6 +996,42 @@ def coletar(
         f"gates(varrer={gate_varrer}, baixar={gate_baixar}, "
         f"extrair={gate_extrair}) · provedor={provedor} · paralelo={paralelo}"
     )
+
+    # Cost banner — always printed before the run starts so the
+    # operator sees what's billable before committing time. Each line
+    # names the resource, its rate, and the rough scope; exact dollar
+    # cost depends on per-target outcomes (cache hits, doc_types) and
+    # is reported at end-of-run by each child stage's report.md.
+    typer.echo("")
+    typer.echo("  Cost notice (resources billed by external providers):")
+    n_cases = config.fim - config.inicio + 1
+    if ocr_tesseract_provider == "tesseract_fly":
+        typer.echo(
+            f"    OCR fallback (tesseract_fly): $0.01 / 1k pages, billed by Fly. "
+            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs (typically 1-2 per case)."
+        )
+    elif ocr_tesseract_provider == "tesseract_modal":
+        typer.echo(
+            f"    OCR fallback (tesseract_modal): billed by Modal. "
+            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs."
+        )
+    else:
+        typer.echo(
+            f"    OCR fallback ({ocr_tesseract_provider}): local CPU, $0."
+        )
+    typer.echo(
+        "    Proxies: not configured (direct-IP, $0). "
+        "If sweeps are sharded with --proxy-pool, residential "
+        "bandwidth bills at ~$3.65/GB."
+    )
+
+    if not nao_perguntar and sys.stdin.isatty():
+        typer.echo("")
+        typer.echo("Prosseguir? [s/N] ", nl=False)
+        answer = sys.stdin.readline().strip().lower()
+        if answer not in {"s", "sim", "y", "yes"}:
+            typer.echo("cancelado.")
+            raise typer.Exit(code=0)
 
     result = run_coleta(config, runners)
 

@@ -26,6 +26,7 @@ chains that finished.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -398,7 +399,10 @@ def stage_metrics_from_dir(out_dir: Path, stage: str) -> StageMetrics:
 # ----- production wiring (subprocess) --------------------------------------
 
 
-def _run_subprocess(argv: list[str], log_path: Path) -> int:
+def _run_subprocess(
+    argv: list[str], log_path: Path,
+    *, env: Optional[dict[str, str]] = None,
+) -> int:
     """Run a subcommand, tee its stdout/stderr to a log file. Returns
     the exit code. The chain log lives at ``<saida>/coletar.log`` —
     this helper writes per-stage launcher logs alongside.
@@ -406,7 +410,7 @@ def _run_subprocess(argv: list[str], log_path: Path) -> int:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a") as logf:
         proc = subprocess.run(
-            argv, stdout=logf, stderr=subprocess.STDOUT, text=True,
+            argv, stdout=logf, stderr=subprocess.STDOUT, text=True, env=env,
         )
     return proc.returncode
 
@@ -416,6 +420,7 @@ def make_subprocess_runners(
     *,
     provedor: str = "auto",
     paralelo: int = 10,
+    ocr_tesseract_provider: str = "tesseract_fly",
 ) -> dict[str, StageRunner]:
     """Build the three production StageRunners by shelling out to
     ``judex varrer-processos`` / ``baixar-pecas`` / ``extrair-pecas``.
@@ -423,7 +428,26 @@ def make_subprocess_runners(
     Each runner spawns the existing CLI command via ``uv run``,
     capturing stdout/stderr to ``<out_dir>/launcher-stdout.log``.
     After exit, scans the produced state/errors files for metrics.
+
+    `ocr_tesseract_provider` controls where the auto-router sends
+    ACÓRDÃO doc-types when extrair-pecas runs with `--provedor auto`:
+
+      - ``"tesseract"``     — local CPU, free, slower (CPU-bound, no
+        parallel benefit on a busy host)
+      - ``"tesseract_fly"`` — Fly-hosted, billed at $0.01 / 1k pages,
+        parallelizes via Modal-style fan-out (paralelo > 1 helps)
+      - ``"tesseract_modal"`` — Modal-hosted, similar billing
+
+    `coletar` defaults to ``tesseract_fly`` because the orchestrator
+    is meant for production-scale backfills where wall-time dominates;
+    the cost banner at the CLI startup discloses the rate so the
+    operator can opt out by passing ``--ocr-tesseract-provider tesseract``.
+    Direct ``extrair-pecas`` invocations keep the local default.
     """
+    extrair_env: dict[str, str] = {
+        **os.environ,
+        "JUDEX_AUTO_TESSERACT_PROVIDER": ocr_tesseract_provider,
+    }
 
     def varrer_forward(out_dir: Path) -> StageMetrics:
         argv = [
@@ -482,7 +506,7 @@ def make_subprocess_runners(
             "--paralelo", str(paralelo),
             "--retomar", "--nao-perguntar",
         ]
-        _run_subprocess(argv, out_dir / "launcher-stdout.log")
+        _run_subprocess(argv, out_dir / "launcher-stdout.log", env=extrair_env)
         return stage_metrics_from_dir(out_dir, "extrair")
 
     def extrair_retry(out_dir: Path, errors_path: Path) -> StageMetrics:
@@ -498,7 +522,7 @@ def make_subprocess_runners(
             "--paralelo", str(paralelo),
             "--forcar", "--retomar", "--nao-perguntar",
         ]
-        _run_subprocess(argv, out_dir / "launcher-stdout.log")
+        _run_subprocess(argv, out_dir / "launcher-stdout.log", env=extrair_env)
         return stage_metrics_from_dir(out_dir, "extrair")
 
     return {
