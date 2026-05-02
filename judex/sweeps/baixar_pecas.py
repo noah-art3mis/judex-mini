@@ -67,15 +67,16 @@ def run_download_pecas(
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    from judex.utils.cli_render import render_info, render_warning
+
     if apenas_substantivas:
         before = len(targets)
         targets = filter_substantive(targets)
         dropped = before - len(targets)
         if dropped:
-            print(
-                f"--apenas-substantivas: dropped {dropped} tier-C targets "
-                f"({before} → {len(targets)}). Use --todos-tipos to disable.",
-                flush=True,
+            render_info(
+                f"--apenas-substantivas: dropped {dropped:,} tier-C targets "
+                f"({before:,} → {len(targets):,}). Use --todos-tipos to disable."
             )
 
     # Pre-flight tipo summary + unseen-tipo warning. Runs regardless of
@@ -83,16 +84,15 @@ def run_download_pecas(
     top, unseen = summarize_tipos(targets)
     if top:
         top_str = ", ".join(f"{t!r} ({n:,})" for t, n in top)
-        print(f"top tipos: {top_str}", flush=True)
+        render_info(f"top tipos: {top_str}")
     if unseen:
-        unseen_str = ", ".join(
-            f"{t!r} (n={n:,})" for t, n in sorted(unseen.items(), key=lambda kv: -kv[1])
+        unseen_sorted = sorted(unseen.items(), key=lambda kv: -kv[1])
+        body = ["not in classification, kept by default:"]
+        body += [f"  • {t!r} (n={n:,})" for t, n in unseen_sorted]
+        body.append(
+            "see docs/peca-tipo-classification.md § Policy for unseen tipos."
         )
-        print(
-            f"⚠  unseen tipo(s) — not in classification, kept by default: {unseen_str}. "
-            f"See docs/peca-tipo-classification.md § Policy for unseen tipos.",
-            flush=True,
-        )
+        render_warning("unseen tipo(s)", body)
 
     if limite and len(targets) > limite:
         targets = targets[:limite]

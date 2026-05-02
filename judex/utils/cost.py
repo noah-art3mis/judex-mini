@@ -245,23 +245,50 @@ def _format_wall(wall_s: float) -> str:
 def render_forecast_table(
     forecasts: list[Forecast], *, n_units: int, unit_label: str,
 ) -> str:
-    """Render forecasts as a fixed-width table for the CLI preview.
+    """Render forecasts as a rich-drawn table, returned as a string.
 
-    Designed for the launcher's stdout — readable plain, no
-    rich-formatted output (logs end up in ``launcher-stdout.log``).
+    Callers ``typer.echo`` the result; the value lands in
+    ``launcher-stdout.log`` on detached sweeps. Rendered against a
+    non-TTY ``Console`` so the string contains box-drawing characters
+    but no ANSI escapes — readable in plain log viewers.
     """
-    header = f"forecast — {n_units:,} {unit_label}"
-    rows = [
-        header,
-        "-" * len(header),
-        f"  {'mode':<22}  {'wall':>6}  {'cost':>8}  notes",
-    ]
+    import io
+
+    from rich import box
+    from rich.console import Console
+    from rich.table import Table
+
+    buf = io.StringIO()
+    console = Console(
+        file=buf,
+        force_terminal=False,
+        color_system=None,
+        width=92,
+        highlight=False,
+        emoji=False,
+    )
+    table = Table(
+        title=f"forecast — {n_units:,} {unit_label}",
+        title_justify="left",
+        title_style="bold",
+        box=box.ROUNDED,
+        header_style="bold",
+        show_lines=False,
+        padding=(0, 1),
+    )
+    table.add_column("mode", justify="left", no_wrap=True)
+    table.add_column("wall", justify="right", no_wrap=True)
+    table.add_column("cost", justify="right", no_wrap=True)
+    table.add_column("notes", justify="left", overflow="fold")
     for f in forecasts:
-        rows.append(
-            f"  {f.mode:<22}  {_format_wall(f.wall_s):>6}  "
-            f"${f.cost_usd:>7.2f}  {f.notes}"
+        table.add_row(
+            f.mode,
+            _format_wall(f.wall_s).strip(),
+            f"${f.cost_usd:.2f}",
+            f.notes,
         )
-    return "\n".join(rows) + "\n"
+    console.print(table)
+    return buf.getvalue()
 
 
 # ----- Post-hoc attribution dataclasses --------------------------------------
