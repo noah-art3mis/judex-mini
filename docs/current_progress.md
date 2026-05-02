@@ -31,21 +31,53 @@ export PATH="$HOME/.fly/bin:$PATH"
 export FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract
 export JUDEX_AUTO_TESSERACT_PROVIDER=tesseract_fly
 
-nohup bash -c '
-set -e
+setsid nohup bash -c '
+# Pre-warm the Fly OCR cluster — eliminates the Stage-C cold-start 502
+# storm without paying for an always-warm pool. ~$0.002/pulse; auto-stop
+# returns Machines to $0 ~5 min after the run finishes.
+fly machine start --select -a judex-ocr-tesseract-arcos || true
+sleep 15
+
 uv run judex varrer-processos -c HC -i <PID_LO> -f <PID_HI> \
     --saida runs/active/backfill-hc<YYYY>-<date>/varrer \
     --diretorio-itens data/source/processos \
     --rotulo hc<YYYY>_backfill_<date> --retomar
+
 uv run judex baixar-pecas -c HC -i <PID_LO> -f <PID_HI> \
     --saida runs/active/backfill-hc<YYYY>-<date>/baixar \
     --retomar --nao-perguntar
+
 uv run judex extrair-pecas -c HC -i <PID_LO> -f <PID_HI> \
     --provedor auto \
     --saida runs/active/backfill-hc<YYYY>-<date>/extrair \
-    --paralelo 60 --retomar --nao-perguntar
-' > runs/active/backfill-hc<YYYY>-<date>/launcher-stdout.log 2>&1 &
+    --paralelo 10 --retomar --nao-perguntar
+' > runs/active/backfill-hc<YYYY>-<date>/launcher-stdout.log 2>&1 < /dev/null &
+disown
 ```
+
+**Template invariants** (don't drop these — each one is a scar from a
+real failure mode this session):
+
+- `setsid nohup … </dev/null & disown` — full session detach. Plain
+  `nohup` survives terminal SIGHUP but not WSL VM suspend (HC 2026
+  original chain died this way ~2 hr in on 2026-05-01).
+- **No `set -e`** in the wrapper. `baixar-pecas` exits non-zero when
+  *any* failures occur (e.g. 10 stable surface-2 404s), and `set -e`
+  would kill the chain before Stage C runs. Each stage's own
+  `--retomar` makes re-launching after a manual stop safe.
+- `fly machine start --select` pre-warm pulse before any extrair work.
+  `--paralelo 10` matches the cluster's organic warm-up rate; pre-warm
+  ensures the cluster is ready when the parallel barrage hits. Without
+  pre-warm, even the new tenacity retry can't always catch all
+  cold-start 502s when 10 requests fire against 0 warm Machines.
+- `--paralelo 10` (not 60). The 60-parallel number was tuned for the
+  always-warm Modal cluster; on Fly with `min_machines_running = 0`
+  it overwhelms the wake-on-request capacity. 10 lets the proxy keep
+  pace with demand. Trade: ~30 min wall vs ~11 min on HC 2026, but
+  with a much higher final success rate.
+- `|| true` on the pre-warm — a transient `fly` CLI failure shouldn't
+  kill the chain. The retry layer in `tesseract_fly.py` will absorb
+  the cold-start storm if pre-warm doesn't fire.
 
 **Per-year PID ranges** (from warehouse, refresh if corpus grows):
 
