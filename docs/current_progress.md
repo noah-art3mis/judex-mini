@@ -62,6 +62,91 @@ BRT). Stage A (varrer) ~done (4001/4002 walked, 3097 ok + 903 dead
 PIDs); stage B + C will auto-trigger via `&&`. Expected total
 wall ~2.5 hr.
 
+**Resumed 2026-05-02 12:44 BRT** after the original chain's parent
+bash died ~19:42 (likely WSL VM suspend; nohup survives SIGHUP but
+not VM exit). Used `setsid nohup … </dev/null & disown` for full
+session detach this time. Stage B finished clean (downloaded=32,
+cached=5,231, failed=10 — all 10 are stable 404s on
+`digital.stf.jus.br/.../votos/<id>/conteudo.pdf` surface-2 IDs that
+were captured in `sessao_virtual.documentos[].url` but no longer
+resolve; harmless edge case, not a regression). Critical wrinkle:
+the chain template's `set -e` interpreted `baixar-pecas`'s non-zero
+exit (10 failures present) as a hard fail, so Stage C never ran via
+the chain — had to launch standalone. **Followup**: either drop
+`set -e` in the chain wrapper or change `baixar-pecas` to exit 0
+when failures are present but capped (the failures live in
+`pdfs.errors.jsonl` regardless).
+
+Stage C (`extrair-pecas --provedor auto --paralelo 60`) launched
+standalone at ~12:45 BRT. Auto router decided **pypdf=4,806 / 
+tesseract_fly=446** (91% / 9% split) — `--provedor auto`
+forecast: $0.03 / ~30 min, vs forced-`tesseract_fly` forecast of
+$0.33 / ~262 min. Validates the auto router's value:
+~11× cheaper, ~8× faster on this corpus shape.
+
+**Known issue — Fly OCR 502s under cold-cluster load.** During
+Stage C's first ~30 min, ~9% of OCR-routed requests
+(~300 / ~3,500 attempted) returned `provider_error (HTTPError: 502
+Bad Gateway)` from `judex-ocr-tesseract-arcos.fly.dev`. Diagnosis:
+the cluster has `min_machines_running = 0` (`fly/fly.toml`), so all
+60 Machines start `stopped`. Local `--paralelo 60` fires faster than
+Fly's auto-start can warm Machines (5s cold-start), so the Fly edge
+proxy routes some requests to Machines mid-boot and bounces them
+with 502. Confirmed by Fly status during the run: cluster sat at
+11-14 `started` Machines for most of Stage C, never warming the full
+60 because `auto_stop_machines = "stop"` re-idles them as soon as a
+batch wave passes. **502 is purely a transport signal** — the PDF
+content is fine; verified by spot-opening source `.pdf.gz` for
+several 502'd URLs (they parse cleanly outside the OCR path).
+
+Stage C final tally (HC 2026, 2026-05-02 12:48-13:00 BRT, 11.3 min
+wall): ok=4,869 (92.3%) / provider_error=383 (7.3%) / cached=11 /
+no_bytes=10. **All 383 failures are Fly OCR transport, none are PDF
+content** — auto-router routed 446 PDFs to `tesseract_fly`, only 63
+succeeded (~14%). The other 383 = the entire OCR failure budget on
+this run, all 502 / ReadTimeout from cold-start cluster.
+
+Three mitigation paths, ordered by lift:
+
+1. ✅ **Tenacity retry landed in `judex/scraping/ocr/tesseract_fly.py`**
+   (2026-05-02). Wraps `_post_extract()` with retry-on-transient
+   (502/503/504 + `requests.ConnectionError` + `requests.Timeout`,
+   incl. ReadTimeout) at 3 attempts × `wait_exponential(2, 2, 10)`.
+   4xx (auth, malformed PDF) fails fast — no retry budget wasted.
+   Pinned by 4 tests in `tests/unit/test_ocr_tesseract_fly.py`
+   (suite 670 pass). Mathematically: a 502 clears once a Machine
+   has woken (~5-10s), so a single retry catches ~70-80% of cold-
+   starts and a second catches ~50% of the remainder → ~95%
+   transparent recovery. Expected post-retry failure budget on a
+   re-run of HC 2026: **~20 PDFs (out of 446 OCR-routed)**, down
+   from 383.
+2. **Bump `min_machines_running = 20` in `fly/fly.toml`** before
+   the next year's chain. Pre-warms a permanent pool, eliminating
+   cold-start at the cost of ~$0.30/day idle billing. Right move
+   for the upcoming HC 2025/2024/2023/2022 ladder where each year
+   is 3-4× larger than 2026 — the retry alone gets us to ~95%, but
+   pre-warming closes the rest.
+3. **Drop `--paralelo 60 → --paralelo 20`** to match warm-cluster
+   capacity. Lower throughput but higher reliability without infra
+   changes. Useful as a stopgap if (2) doesn't ship.
+
+Recommended sequencing: (1) shipped today; (2) is the next
+follow-up before HC 2025 launches. (3) is a fallback knob, not a
+permanent answer.
+
+Failed 502 URLs are recoverable in-place via:
+
+```bash
+uv run judex extrair-pecas \
+    --retentar-de runs/active/backfill-hc2026-2026-05-01/extrair/extracao.errors.jsonl \
+    --provedor tesseract_fly \
+    --saida runs/active/backfill-hc2026-2026-05-01/extrair-retry \
+    --paralelo 20 --nao-perguntar
+```
+
+(Force `tesseract_fly` because `auto` would re-route the same way;
+drop `--paralelo` to match warm capacity.)
+
 **Monitor.** Same pattern across all 3 stages:
 
 ```bash
@@ -99,8 +184,18 @@ warehouse: `uv run judex atualizar-warehouse --classe HC`.
 
 **Phase 1 — pending:**
 
-- [ ] Run `uv run judex atualizar-warehouse --classe HC` to lift `publicacoes_dje` + `decisoes_dje` warehouse population rates from 0% to actual coverage on post-migration years. ~6 min.
-- [ ] Commit Phase 1 to `dev`. Code+docs files are tracked; the ~20k case JSON rewrites under `data/source/processos/HC/` are gitignored.
+- ✅ Ran `uv run judex atualizar-warehouse --classe HC` 2026-05-02 12:43 BRT (~6 min, atomic swap, 1.85 GB warehouse). Empirical close-out by year (HC, post-migration):
+
+  | Year | `publicacoes_dje` coverage | Was | `decisoes_dje.rtf_url` |
+  | ---- | --------------------------:| ---:| ----------------------:|
+  | 2022 |                      74.5% | 74.5% (legacy era unchanged) | 10,128 (legacy) |
+  | 2023 |                  **49.8%** | **0%** | 0 (Phase 2 deferred) |
+  | 2024 |                  **57.0%** | **0%** | 0 (Phase 2 deferred) |
+  | 2025 |                  **72.8%** | **0%** | 0 (Phase 2 deferred) |
+  | 2026 |                  **73.0%** | **0%** | 0 (Phase 2 deferred) |
+
+  Pub-entry counts match the renormalize report exactly for 2025 (22,328) and 2026 (4,727); 2023/2024 land within ~3% of the renormalize numbers (warehouse flatten/dedupe path). All-zero `decisoes_dje.rtf_url` for 2023+ is the literal storage manifestation of "Phase 2 deferred" (per ADR-0003).
+- ✅ Commit Phase 1 to `dev` — landed as `ae19d73 feat(dje): capture post-migration redirect entries (ADR-0003 Phase 1)`.
 - [ ] Field-coverage audit (Sampled 50-500 per year × 21 fields × cliff/always-empty/drop-recent flags) — looking for OTHER systematic gaps similar to the DJe regression. Slow scan (90k file glob + sample); previous attempts hit Bash buffering / timeout problems. **Park for a focused offline run** rather than fighting the tool plumbing live.
 
 **Phase 2 — explicitly deferred** unless a downstream analysis demands DJe-only decision content text. The metadata layer (Phase 1) covers ~80% of DJe queries per system-changes.md note; full content recovery requires Playwright + AWS WAF challenge solving (1-2 day lift). Forcing question for later: *does any analysis need DJe-only content beyond what surfaces 1 + 2 already provide?* Owner: data-side comparison on HC 2022, the only year with both legacy DJe content and full surface-1/2 coverage.

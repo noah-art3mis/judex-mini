@@ -39,8 +39,36 @@ from __future__ import annotations
 import os
 
 import requests
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
+
+
+def _is_retryable_http(exc: BaseException) -> bool:
+    """Retryable: 502/503/504 (Fly proxy can't reach a Machine — usually
+    cold-start) and ReadTimeout / ConnectionError (Machine accepted but
+    Tesseract OOM-restarted mid-OCR). 4xx (auth, malformed PDF) are
+    permanent — fail fast.
+    """
+    if isinstance(exc, requests.HTTPError):
+        status = exc.response.status_code if exc.response is not None else None
+        return status in {502, 503, 504}
+    if isinstance(exc, (requests.ConnectionError, requests.Timeout)):
+        return True
+    return False
+
+
+_retry_fly = retry(
+    retry=retry_if_exception(_is_retryable_http),
+    wait=wait_exponential(multiplier=2, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 
 
 def _endpoint_url(config: OCRConfig) -> str:
@@ -62,18 +90,23 @@ def _endpoint_url(config: OCRConfig) -> str:
     return url
 
 
+@_retry_fly
+def _post_extract(url: str, *, headers: dict, pdf_bytes: bytes, timeout: int) -> dict:
+    r = requests.post(url, data=pdf_bytes, headers=headers, timeout=timeout)
+    r.raise_for_status()
+    return r.json() or {}
+
+
 def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
     headers = {"Content-Type": "application/pdf"}
     if config.api_key:
         headers["Authorization"] = f"Bearer {config.api_key}"
-    r = requests.post(
+    payload = _post_extract(
         _endpoint_url(config),
-        data=pdf_bytes,
         headers=headers,
+        pdf_bytes=pdf_bytes,
         timeout=config.timeout,
     )
-    r.raise_for_status()
-    payload = r.json() or {}
     return ExtractResult(
         text=(payload.get("text") or "").strip(),
         elements=None,
