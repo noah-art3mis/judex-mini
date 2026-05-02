@@ -39,10 +39,21 @@ def _fold(s: str | None) -> str:
 
 
 # Tier A — substantive argumentation. Always kept.
+#
+# First three are `andamentos[].link.tipo` values (surface 1, ALL CAPS).
+# Last four are `sessao_virtual[].documentos[].tipo` values (surface 2,
+# title case) — added when ADR-0001 promoted that surface to a
+# first-class peça source. All seven are intrinsically argumentative;
+# see docs/peca-tipo-classification.md § Tier A for the per-tipo
+# rationale and the redundancy note vs. INTEIRO TEOR DO ACÓRDÃO.
 TIER_A_DOC_TYPES: frozenset[str] = frozenset({
     "DECISÃO MONOCRÁTICA",
     "INTEIRO TEOR DO ACÓRDÃO",
     "MANIFESTAÇÃO DA PGR",
+    "Voto",
+    "Relatório",
+    "Voto Vogal",
+    "Voto Vista",
 })
 
 # Tier B — mixed; kept at the download layer (length gate is post-hoc in
