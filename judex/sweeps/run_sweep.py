@@ -47,6 +47,7 @@ from judex.config import ScraperConfig
 from judex.scraping.http_session import RetryableHTTPError, new_session
 from judex.scraping.proxy_pool import ProxyPool
 from judex.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
+from judex.utils.log_render import render_progress_line, render_target_line
 from judex.scraping.scraper import NoIncidenteError, scrape_processo_http
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -676,23 +677,36 @@ def _wipe_html_caches(rows: list[tuple[str, int, Optional[str]]]) -> None:
 
 
 def _print_row(i: int, n: int, res: ProcessResult) -> None:
-    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
-    print(
-        f"  [{i:>4d}/{n}] {res.classe:<4s} {res.processo:<8d} "
-        f"{res.wall_s:>6.2f}s  status={res.status:<5s}  "
-        f"retries={retries}  diffs={res.diff_count}  anomalies={len(res.anomalies)}"
-        + (f"  ERR: {res.error}" if res.error else ""),
-        flush=True,
-    )
+    extras: list[str] = []
+    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items() if v) or ""
+    if retries:
+        extras.append(f"retries={retries}")
+    if res.diff_count:
+        extras.append(f"diffs={res.diff_count}")
+    if res.anomalies:
+        extras.append(f"anomalies={len(res.anomalies)}")
+    detail_parts: list[str] = [f"{res.wall_s:.2f}s"]
+    if extras:
+        detail_parts.append(" ".join(extras))
+    if res.error:
+        detail_parts.append(f"ERR: {res.error}")
+    print(render_target_line(
+        n=i, total=n, status=res.status,
+        identifier=f"{res.classe} {res.processo}",
+        detail=" · ".join(detail_parts),
+    ), flush=True)
 
 
 def _print_row_warm(i: int, n: int, classe: str, processo: int, res: ProcessResult) -> None:
-    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items()) or "0"
-    print(
-        f"  [{i:>4d}/{n}] {classe:<4s} {processo:<8d} "
-        f"{res.wall_s * 1000:>7.1f}ms  status={res.status}  retries={retries}",
-        flush=True,
-    )
+    retries = ",".join(f"{k}×{v}" for k, v in res.retries.items() if v) or ""
+    detail_parts = [f"{res.wall_s * 1000:.1f}ms"]
+    if retries:
+        detail_parts.append(f"retries={retries}")
+    print(render_target_line(
+        n=i, total=n, status=res.status,
+        identifier=f"{classe} {processo}",
+        detail=" · ".join(detail_parts),
+    ), flush=True)
 
 
 @dataclass
@@ -843,13 +857,19 @@ def _run_passes(
 
     def on_progress_cold(i: int, n: int) -> None:
         _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
-        print(
-            f"  [progress] ok={totals['ok']} fail={totals['fail']} "
-            f"error={totals['error']} skipped={totals['skipped']} "
-            f"429×{totals['429']} 5xx×{totals['5xx']} · "
-            f"{rate:.2f} proc/s · eta {eta_s/60:.1f} min",
-            flush=True,
-        )
+        print(render_progress_line(
+            n=i, total=n,
+            counters={
+                "ok": totals["ok"],
+                "fail": totals["fail"],
+                "error": totals["error"],
+                "skipped": totals["skipped"],
+                "429": totals["429"],
+                "5xx": totals["5xx"],
+            },
+            rate_per_sec=rate, rate_label="proc/s",
+            eta_min=eta_s / 60,
+        ), flush=True)
 
     warm_results: Optional[list[ProcessResult]] = None
     if pool_active:

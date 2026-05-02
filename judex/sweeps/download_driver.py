@@ -23,6 +23,12 @@ Skip logic per target:
 from __future__ import annotations
 
 import logging
+
+from judex.utils.log_render import (
+    compact_target_id,
+    render_progress_line,
+    render_target_line,
+)
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -228,16 +234,25 @@ def run_download_sweep(
 
         if status == "ok":
             counters.downloaded += 1
-            logging.info(f"[{i}/{n}] {tgt.url}: ok ({len(body or b'')} bytes)")
+            print(render_target_line(
+                n=i, total=n, status="ok",
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=f"{len(body or b''):,} bytes",
+            ), flush=True)
         else:
             counters.failed += 1
             if error is None:
                 error = status
                 error_type = error_type or status
-            logging.warning(
-                f"[{i}/{n}] {tgt.url}: {status}"
-                + (f" ({error})" if error else "")
-            )
+            print(render_target_line(
+                n=i, total=n, status=status,
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=(error or status),
+            ), flush=True)
 
         # Observe first so the regime stamped on this record includes its
         # own contribution to the rolling window — the cliff-trigger record
@@ -277,12 +292,16 @@ def run_download_sweep(
 
     def on_progress(i: int, n: int) -> None:
         _, rate, eta_s = _shared.elapsed_rate_eta(started, i, n)
-        print(
-            f"  [progress] ok={counters.downloaded} cached={counters.cached_hits} "
-            f"fail={counters.failed} · {rate:.2f} tgt/s · "
-            f"eta {eta_s / 60:.1f} min",
-            flush=True,
-        )
+        print(render_progress_line(
+            n=i, total=n,
+            counters={
+                "ok": counters.downloaded,
+                "cached": counters.cached_hits,
+                "fail": counters.failed,
+            },
+            rate_per_sec=rate, rate_label="tgt/s",
+            eta_min=eta_s / 60,
+        ), flush=True)
 
     def is_already_done(tgt: PecaTarget) -> bool:
         return resume and store.already_ok(tgt.url)
