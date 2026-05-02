@@ -51,17 +51,22 @@ _STATUS_STYLE: dict[str, tuple[str, str]] = {
     "ok":              ("✓", _ANSI_GREEN),
     "downloaded":      ("✓", _ANSI_GREEN),
     "extracted":       ("✓", _ANSI_GREEN),
+    "complete":        ("✓", _ANSI_GREEN),
     # cached / skipped (already done — neutral, dim)
     "cached":          ("⊘", _ANSI_CYAN),
     "skipped":         ("⊘", _ANSI_CYAN),
-    # benign empty / no-data
+    # benign empty / no-data / STF-side gaps (work cannot be done, not a failure)
     "empty":           ("·", _ANSI_DIM),
     "no_bytes":        ("·", _ANSI_DIM),
+    "empty_response":  ("·", _ANSI_DIM),
+    "unallocated":     ("·", _ANSI_DIM),
     # errors
     "fail":            ("✗", _ANSI_RED),
     "error":           ("✗", _ANSI_RED),
     "provider_error":  ("✗", _ANSI_RED),
     "http_error":      ("✗", _ANSI_RED),
+    "unknown_type":    ("✗", _ANSI_RED),
+    "non_document_response": ("✗", _ANSI_RED),
     # warning-ish
     "anomaly":         ("⚠", _ANSI_YELLOW),
 }

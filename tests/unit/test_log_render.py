@@ -88,6 +88,39 @@ def test_target_line_unknown_status_falls_back_to_neutral_glyph():
     assert len(line) > 10
 
 
+def test_target_line_known_sweep_statuses_have_non_neutral_glyph():
+    """Pin every status the sweep drivers actually emit. Catches the
+    `? unallocated` regression observed live in HC 2025 varrer where
+    `unallocated` (legitimate STF-side dead PID) was rendering with the
+    `?` fallback glyph because it wasn't in the style map.
+    """
+    sweep_statuses_with_glyph = [
+        # HC year-ladder Stage A surfaces these
+        ("ok", "✓"),
+        ("fail", "✗"),
+        ("error", "✗"),
+        ("skipped", "⊘"),
+        ("unallocated", "·"),  # the live-observed gap
+        # peça pipeline (Stage B + C) surfaces these
+        ("cached", "⊘"),
+        ("no_bytes", "·"),
+        ("empty", "·"),
+        ("provider_error", "✗"),
+        ("http_error", "✗"),
+        ("unknown_type", "✗"),
+        ("non_document_response", "✗"),
+        ("empty_response", "·"),
+    ]
+    for status, expected_glyph in sweep_statuses_with_glyph:
+        line = render_target_line(
+            n=1, total=1, status=status,
+            identifier="HC 1 abc1234", detail="x",
+            timestamp="00:00:00", use_color=False,
+        )
+        assert expected_glyph in line, f"{status} should render {expected_glyph}, got: {line!r}"
+        assert "?" not in line.split()[1:3], f"{status} fell back to ? glyph: {line!r}"
+
+
 def test_target_line_no_color_when_use_color_false():
     """ANSI escape sequences must NOT appear when color is off (log files)."""
     line = render_target_line(
