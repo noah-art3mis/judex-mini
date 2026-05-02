@@ -11,14 +11,17 @@ unstable on the 4 GB WSL2 box (Pool deadlocks under OOM); landed
 `judex-ocr-tesseract-arcos.fly.dev` (gru, 60 shared-cpu-2x
 Machines, auto-stop-when-idle).
 
-**Status as of 2026-05-02 14:30 BRT.** Corpus: **90,763** HC
+**Status as of 2026-05-02 20:37 BRT.** Corpus: **90,763** HC
 cases. PDF cache 99,095 `.pdf.gz` (+38 from HC 2026 baixar) +
 3,621 `.rtf.gz`, **109,777** `.txt.gz` (+3,956 from HC 2026
 extract). 93,074 `.extractor` sidecars (gap of ~16k vs
 `.txt.gz` is pre-sidecar-discipline residue, not a regression).
 Warehouse rebuilt 2026-05-02 12:43 BRT (1.85 GB; DJe Phase 1
-populated). Two chains in flight: HC 2025 (Stage A · 17%) and
-HC 2021 (Stage A · 0.2%), sharing `portal.stf.jus.br` WAF.
+populated). Both HC backfill chains (2025 + 2021) **stopped at
+user request 20:30-20:33 BRT** while in Stage C (extrair) — see
+"Halt 2026-05-02 20:33 BRT" below for state snapshots + resume
+commands. Now in flight: a `coletar`-orchestrator smoke test
+(HC 245000-245099, exercises today's ADR-0004 commits).
 
 ## Active task — HC year-ladder backfill via 3-stage chain
 
@@ -209,6 +212,53 @@ None`), restarted from the same `--saida` (resume picked up the
 2,750 records. HC 2026 didn't surface this because Stage A ran
 2026-05-01 *before* the parser fix landed; the bug was latent
 until the next varrer-processos invocation.
+
+**Halt 2026-05-02 20:33 BRT — both backfill chains stopped at
+user request.** Both chains had progressed Stage A (varrer) and
+Stage B (baixar) cleanly and were in Stage C (extrair) at halt
+time. SIGTERM was sent at 20:30 BRT; the `--paralelo 10`
+extractors didn't drain in 10s (workers blocked on in-flight
+`tesseract_fly` round-trips), so escalated to SIGKILL at 20:33.
+State snapshots at halt:
+
+| Chain    | Stage C progress              | Throughput / ETA              | State file mtime |
+| -------- | ----------------------------- | ----------------------------- | ---------------- |
+| HC 2025  | 13,512 / 28,261 (47.8%)       | 0.76 tgt/s · ETA ~323 min     | 20:33            |
+| HC 2021  | 1,179  / 10,062 (~11.7%)      | early ramp                    | 20:32            |
+
+HC 2025 ok=5,784 / cached=6,162 / no_bytes=11 / fail=1,543 at
+halt — the ~11% running fail rate is well above HC 2026's
+post-mitigation 0%, which would have been worth a regime probe
+mid-run. SIGKILL is safe because `peca_store.py`'s atomic
+write contract (tempfile + fsync + rename) means each
+`pdfs.state.json` is either the prior or current snapshot,
+never a half-write; `--retomar` resumes from the last flushed
+record. Resume commands (Stage C only — Stages A + B are
+fully done):
+
+```bash
+uv run judex extrair-pecas -c HC -i 250920 -f 267137 \
+    --provedor auto --saida runs/active/backfill-hc2025-2026-05-02/extrair \
+    --paralelo 10 --retomar --nao-perguntar
+
+uv run judex extrair-pecas -c HC -i 198000 -f 210963 \
+    --provedor auto --saida runs/active/backfill-hc2021-2026-05-02/extrair \
+    --paralelo 10 --retomar --nao-perguntar
+```
+
+**`coletar`-orchestrator smoke test in flight** (PID 504746,
+launched 20:22 BRT). Exercises today's three commits — `42f1d12
+feat(coletar): orchestrator for the 6-stage pipeline (ADR-0004)`,
+`53d3ce3 feat(replay): status-aware retry replay via
+error_triage classifier`, `0abeef7 docs(adr): ADR-0004 coleta
+orchestrator with status-aware retry`. Scope: HC 245000-245099
+(100 cases, narrow slice of HC 2024 PID range). Run dir
+`runs/active/coletar-smoke-2026-05-02/` with the orchestrator's
+own `varrer/`, `baixar/`, `extrair/` sub-dirs (one launcher log
+at the run root, not per-stage). At 20:37 BRT: extrair sub-stage
+50/171 (29.2%) at 0.08 tgt/s, ETA ~24.6 min — slow rate worth
+watching but plausible given the small denominator and the
+`tesseract_fly` Modal hop dominating any non-pypdf doc.
 
 **Monitor.** Same pattern across all 3 stages:
 
