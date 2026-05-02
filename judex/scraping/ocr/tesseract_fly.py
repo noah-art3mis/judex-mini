@@ -65,8 +65,8 @@ def _is_retryable_http(exc: BaseException) -> bool:
 
 _retry_fly = retry(
     retry=retry_if_exception(_is_retryable_http),
-    wait=wait_exponential(multiplier=2, min=2, max=10),
-    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
+    stop=stop_after_attempt(5),
     reraise=True,
 )
 

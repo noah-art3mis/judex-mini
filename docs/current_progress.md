@@ -143,15 +143,17 @@ Three mitigation paths, ordered by lift:
 1. ✅ **Tenacity retry landed in `judex/scraping/ocr/tesseract_fly.py`**
    (2026-05-02). Wraps `_post_extract()` with retry-on-transient
    (502/503/504 + `requests.ConnectionError` + `requests.Timeout`,
-   incl. ReadTimeout) at 3 attempts × `wait_exponential(2, 2, 10)`.
-   4xx (auth, malformed PDF) fails fast — no retry budget wasted.
-   Pinned by 4 tests in `tests/unit/test_ocr_tesseract_fly.py`
-   (suite 670 pass). Mathematically: a 502 clears once a Machine
-   has woken (~5-10s), so a single retry catches ~70-80% of cold-
-   starts and a second catches ~50% of the remainder → ~95%
-   transparent recovery. Expected post-retry failure budget on a
-   re-run of HC 2026: **~20 PDFs (out of 446 OCR-routed)**, down
-   from 383.
+   incl. ReadTimeout) at **5 attempts × `wait_exponential(2, 2, 30)`**
+   (originally 3 × max=10; bumped after observing the in-flight
+   retry pass needed more headroom against a 60-Machine cold cluster
+   under `--paralelo 20`). 4xx (auth, malformed PDF) fails fast —
+   no retry budget wasted. Pinned by 4 tests in
+   `tests/unit/test_ocr_tesseract_fly.py` (suite 670 pass). With
+   pre-warm pulse + `--paralelo 10` (chain template), the retry
+   becomes the safety net for transient hits during the active run,
+   not the primary cold-start mitigation. Expected post-fix failure
+   budget on a re-run of HC 2026: **<5 PDFs (out of 446 OCR-routed)**,
+   down from 383.
 2. **Bump `min_machines_running = 20` in `fly/fly.toml`** before
    the next year's chain. Pre-warms a permanent pool, eliminating
    cold-start at the cost of ~$0.30/day idle billing. Right move

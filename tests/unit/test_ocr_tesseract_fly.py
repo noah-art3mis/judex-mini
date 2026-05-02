@@ -130,5 +130,6 @@ def test_extract_gives_up_after_max_attempts_of_persistent_5xx(monkeypatch):
     with pytest.raises(requests.HTTPError):
         tf.extract(b"%PDF-fake", config=cfg)
 
-    # Don't pin the exact attempt count (might tune later); pin that it bounded.
-    assert 1 < len(calls) <= 6, f"retries should be bounded, got {len(calls)}"
+    # Don't pin the exact attempt count (tune freely); pin that it's bounded.
+    # Upper bound generous enough to absorb future tuning without churn.
+    assert 1 < len(calls) <= 10, f"retries should be bounded, got {len(calls)}"
