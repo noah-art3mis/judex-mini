@@ -140,7 +140,12 @@ def resolve_incidente(
     loc = r.headers.get("Location", "")
     m = re.search(r"incidente=(\d+)", loc)
     if not m:
-        logging.warning(
+        # Downgraded from WARNING to DEBUG: ~7% of HC PIDs are unallocated
+        # (legitimate STF-side gaps). The downstream caller marks them as
+        # status=unallocated, and the renderer prints `· unallocated …`,
+        # which already conveys the signal. Logging the same fact at WARNING
+        # produced ~600 redundant lines per HC year sweep.
+        logging.debug(
             f"{classe} {processo}: no incidente in redirect ({r.status_code} {loc!r})"
         )
         raise NoIncidenteError(http_status=r.status_code, location=loc)
