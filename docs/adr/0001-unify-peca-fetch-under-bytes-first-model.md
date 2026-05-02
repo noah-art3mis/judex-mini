@@ -1,12 +1,12 @@
 # ADR-0001: Unify peça fetch under the bytes-first / extract-later model
 
-**Status**: Accepted (2026-05-01). Both implementation steps landed; backfill pending operator action.
+**Status**: Accepted (2026-05-01). Steps 1 + 2 landed; step 3 validates **2 of 3 surfaces** — surface 3 (DJe) emits zero URLs on post-2022 data due to an STF-side platform migration. Surface-3 capture awaits **ADR-0003**.
 
 | Step | What | Landed in | Notes |
 |---|---|---|---|
 | 1 | `collect_peca_targets` enumerates all three surfaces with a `surface ∈ {"andamento", "sessao_virtual", "dje"}` tag | commit `bc04799` | Read-side; tested in `tests/unit/test_peca_targets.py`. |
 | 2 | Synchronous PDF/RTF fetch removed from `varrer-processos` (deletes `_make_pdf_fetcher`, `resolve_documentos`, `pdf_fetcher` plumbing); `documentos[]` and `decisoes[].rtf` become URL-only pointers on disk | this commit | Write-side; `peca_cache` is no longer warmed at scrape time. |
-| 3 (operator) | One-shot `baixar-pecas` pass scoped to surfaces 2 + 3 to warm the bytes side | not yet run | Existing `<sha1>.txt.gz` stays valid until re-extraction is requested; no urgency unless a provider switch is planned. |
+| 3 (operator) | One-shot `baixar-pecas` pass scoped to surfaces 2 + 3 to warm the bytes side | partial — surfaces 1 + 2 work; **surface 3 emits zero URLs for 2023+** (see [ADR-0003](0003-surface-3-dje-capture-path.md)) | Surface 2 verified: HC 2026 has 1,302/1,302 non-None URLs pointing at `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/.../conteudo.pdf`. Surface 3 verified missing: 0 publications captured for HC 2023/2024/2025/2026 (10,233 captured in HC 2022 before STF's 2022-12-19 platform migration). |
 
 ## Context
 

@@ -78,6 +78,35 @@ per doc). Then move on to HC 2025, repeating the chain with the
 next PID range. After all five years close out, rebuild the
 warehouse: `uv run judex atualizar-warehouse --classe HC`.
 
+## In-flight side-quest — ADR-0003 Phase 1 (DJe parser fix)
+
+**Why.** Today's HC 2026 baixar-pecas / extrair-pecas pre-flight surfaced that surface 3 (`publicacoes_dje[]`) emits zero URLs for HC 2023+ in every case JSON since STF's DJe content-URL migration on **2022-12-19** (date pinned by STF's own footer — *"Até o dia 19/12/2022, o Supremo Tribunal Federal mantinha dois Diários de Justiça Eletrônicos com conteúdos distintos"*). Initial diagnosis (system-changes.md row 2026-04-21) blamed the new `digital.stf.jus.br` platform's AWS WAF and queued Playwright as the only fix. Reconnaissance today refuted that: **the legacy `listarDiarioJustica.asp` endpoint still serves the publication metadata** for every year — our `parse_dje_listing` parser was hard-requiring the `abreDetalheDiarioProcesso(...)` JS-callback shape that STF kept only for procedural Distribuição entries. Substantive entries (Decisão / Acórdão / Despacho) post-migration use plain redirect-anchor shape, which the parser silently dropped. ADR-0003 codifies the diagnosis + fix path.
+
+**Phase 1 — landed (parser + tests + types + ADR + docs):**
+
+- ✅ `judex/scraping/extraction/dje.py` — `_DJ_HEADER_RE` loosened to match *"DJ do dia DD/MM/YYYY"* without DJ number; new redirect-anchor branch in the parsing loop emits `PublicacaoDJe` entries with `external_redirect=https://digital.stf.jus.br/publico/publicacoes`, `detail_url=None`, `incidente_linked=None`.
+- ✅ `judex/data/types.py` — `PublicacaoDJe.numero: int → Optional[int]`; `detail_url: str → Optional[str]`; `incidente_linked: int → Optional[int]`; new `external_redirect: Optional[str]`. Pre-migration entries unchanged in shape.
+- ✅ `tests/unit/test_extract_dje.py` — 4 new tests against captured HC 236529 (HC 2024) + HC 267138 (HC 2026) listing fixtures. Existing 10 tests still pass. Full unit suite 665/665 pass.
+- ✅ ADR-0003 (`docs/adr/0003-surface-3-dje-capture-path.md`) — full diagnosis + Phase 1 vs Phase 2 (deferred Playwright) + open questions.
+- ✅ ADR-0001 — header updated to "step 3 validates 2 of 3 surfaces; surface 3 awaits ADR-0003".
+- ✅ `docs/system-changes.md` row dated 2022-12-19 — corrected from "Playwright queued" to "Phase 1 in progress; Phase 2 deferred".
+
+**Phase 1 — landed (renormalize HC 2023-2026 case JSONs, no STF traffic):**
+
+- ✅ One-shot Python pass: read every HC 2023-2026 case JSON, extract `dje_listing.html` from per-case tar.gz cache at `data/raw/html/HC_<pid>.tar.gz`, run patched parser, atomic-write the case JSON when parser yields ≥1 entry. Conservative selection: skip cases with already-populated `publicacoes_dje[]` (preserves HC 2022's 18,585 legacy entries; explicit non-goal of Phase 1).
+- ✅ Run summary (528s wall, ~76 files/s): **20,690 cases populated, 51,361 publication entries surfaced.** 14,933 cases unchanged (degenerate-cache HTML — page-shell with no result content). 299 cases without HTML cache. Year-by-year coverage: 2023 → 15,660 / 2024 → 19,588 / 2025 → 22,328 / 2026 → 4,727.
+- ✅ Manual portal verification: HC 223889 (2023, 1 entry, `numero=None`, `data=2023-01-09`) matches what STF's browser page shows.
+
+**Phase 1 — pending:**
+
+- [ ] Run `uv run judex atualizar-warehouse --classe HC` to lift `publicacoes_dje` + `decisoes_dje` warehouse population rates from 0% to actual coverage on post-migration years. ~6 min.
+- [ ] Commit Phase 1 to `dev`. Code+docs files are tracked; the ~20k case JSON rewrites under `data/source/processos/HC/` are gitignored.
+- [ ] Field-coverage audit (Sampled 50-500 per year × 21 fields × cliff/always-empty/drop-recent flags) — looking for OTHER systematic gaps similar to the DJe regression. Slow scan (90k file glob + sample); previous attempts hit Bash buffering / timeout problems. **Park for a focused offline run** rather than fighting the tool plumbing live.
+
+**Phase 2 — explicitly deferred** unless a downstream analysis demands DJe-only decision content text. The metadata layer (Phase 1) covers ~80% of DJe queries per system-changes.md note; full content recovery requires Playwright + AWS WAF challenge solving (1-2 day lift). Forcing question for later: *does any analysis need DJe-only content beyond what surfaces 1 + 2 already provide?* Owner: data-side comparison on HC 2022, the only year with both legacy DJe content and full surface-1/2 coverage.
+
+**HC 2022 enrichment — open follow-up.** Phase 1's selection skipped HC 2022 (already populated, no regression risk). But the cached HTML for those cases has been refreshed since the original 2022 scrape (HC 210826 has 1 entry on disk, parser would emit 3 from current cache: 1 legacy + 2 redirect). Renormalizing HC 2022 with a *merge-not-replace* strategy could add ~2 redirect entries per case on top of existing legacy entries — strict gain, no data loss. Not blocked by anything; defer until Phase 1 ships and proves stable.
+
 ## Backlog (carried over from prior cycle)
 
 1. **Urgent — DJe scraper regression** (post-2022 blackout).
