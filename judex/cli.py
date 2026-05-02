@@ -877,6 +877,123 @@ def extrair_pecas(
 
 
 # ---------------------------------------------------------------------------
+# `coletar` — orquestra o pipeline completo (ADR-0004)
+
+
+@app.command(name="coletar")
+def coletar(
+    classe: str = typer.Option(
+        ..., "-c", "--classe",
+        help="Classe STF (ex: HC).",
+    ),
+    inicio: int = typer.Option(
+        ..., "-i", "--inicio",
+        help="processo_id inicial (inclusive).",
+    ),
+    fim: int = typer.Option(
+        ..., "-f", "--fim",
+        help="processo_id final (inclusive).",
+    ),
+    saida: Path = typer.Option(
+        ..., "--saida",
+        help="Diretório raiz da coleta. Cria <saida>/{varrer,baixar,extrair}/ "
+        "e seus diretórios de retry. REPORT.md final fica em <saida>/.",
+    ),
+    rotulo: str = typer.Option(
+        ..., "--rotulo",
+        help="Rótulo da coleta (usado em logs e relatório).",
+    ),
+    max_retry_cycles: int = typer.Option(
+        2, "--max-retry-cycles",
+        help="Máximo de ciclos de retry por etapa (cap, com early-exit em "
+        "residual=0 ou no-shrink). Default 2 — ver ADR-0004.",
+    ),
+    gate_varrer: float = typer.Option(
+        0.02, "--gate-varrer",
+        help="Taxa de transientes que aborta varrer. Default 2%.",
+    ),
+    gate_baixar: float = typer.Option(
+        0.02, "--gate-baixar",
+        help="Taxa de transientes que aborta baixar. Default 2%.",
+    ),
+    gate_extrair: float = typer.Option(
+        0.02, "--gate-extrair",
+        help="Taxa de transientes que aborta extrair. Default 2%.",
+    ),
+    provedor: str = typer.Option(
+        "auto", "--provedor",
+        help="Extractor para extrair-pecas e seus retries. Default 'auto'.",
+    ),
+    paralelo: int = typer.Option(
+        10, "--paralelo",
+        help="Threads paralelas para extrair-pecas (passa direto). Default 10.",
+    ),
+) -> None:
+    """Orquestra o pipeline completo (ADR-0004): varrer → varrer-retry →
+    baixar → baixar-retry → extrair → extrair-retry, com classificador
+    status-aware (judex.sweeps.error_triage), cap de retries, e
+    transient-rate gate por etapa.
+
+    Cada etapa escreve sua própria pasta dentro de --saida; cada ciclo
+    de retry escreve em <saida>/<etapa>-retry-{1,2}/. O REPORT.md final
+    sai em <saida>/REPORT.md com a tabela por etapa + grade da run
+    quality (clean / acceptable / degraded / broken).
+
+    Halt-on-abort: se uma etapa tropeçar no gate, etapas subsequentes
+    não rodam; quality = broken; operador investiga e retoma.
+
+    Examples:
+
+        uv run judex coletar -c HC -i 250920 -f 267137 \\
+            --saida runs/active/backfill-hc2025-2026-05-02 \\
+            --rotulo hc2025_backfill
+    """
+    from judex.sweeps.coletar import (
+        ColetaConfig,
+        make_subprocess_runners,
+        run_coleta,
+    )
+
+    config = ColetaConfig(
+        classe=classe.upper(),
+        inicio=inicio,
+        fim=fim,
+        saida=saida,
+        rotulo=rotulo,
+        max_retry_cycles=max_retry_cycles,
+        transient_gates={
+            "varrer": gate_varrer,
+            "baixar": gate_baixar,
+            "extrair": gate_extrair,
+        },
+    )
+
+    runners = make_subprocess_runners(
+        config, provedor=provedor, paralelo=paralelo,
+    )
+
+    typer.echo(
+        f"Coleta {config.classe} {config.inicio}..{config.fim} → {config.saida}"
+    )
+    typer.echo(
+        f"  max-retry-cycles={config.max_retry_cycles} · "
+        f"gates(varrer={gate_varrer}, baixar={gate_baixar}, "
+        f"extrair={gate_extrair}) · provedor={provedor} · paralelo={paralelo}"
+    )
+
+    result = run_coleta(config, runners)
+
+    typer.echo("")
+    typer.echo(f"Quality: **{result.quality}**")
+    if result.aborted_at_stage:
+        typer.echo(f"  Aborted at stage: {result.aborted_at_stage}")
+    typer.echo(f"  Report: {config.saida / 'REPORT.md'}")
+
+    # Exit code: 0 if completed (any quality), 2 if aborted mid-flight.
+    raise typer.Exit(code=0 if result.aborted_at_stage is None else 2)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
 
 
