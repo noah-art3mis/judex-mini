@@ -35,11 +35,24 @@ from pathlib import Path
 from typing import Any, Optional
 
 import typer
+from dotenv import load_dotenv
 
 from judex.utils.validation import (
     validate_process_range,
     validate_stf_case_type,
 )
+
+# Load .env from the project root (or any parent of cwd) at CLI import.
+# This is what makes ``judex executar --provedor tesseract_fly`` "just work"
+# without an explicit ``export FLY_TESSERACT_URL=…`` — and, more importantly,
+# is the path that lets each operator point the CLI at *their own* paid
+# infrastructure (Fly endpoint, Datalab/Mistral/RunPod/Gemini API keys)
+# without anyone's URL or token getting baked into the codebase. The
+# ``.env.example`` at the repo root documents every variable the providers
+# read; ``.env`` itself is gitignored so secrets never leave the operator's
+# machine. Pattern matches ``scripts/wait_for_chandra_ready.py`` and friends,
+# which already do the same. Silent no-op when no .env is found.
+load_dotenv()
 
 DEFAULT_NOTEBOOKS: tuple[str, ...] = (
     "hc_explorer",
