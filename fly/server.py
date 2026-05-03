@@ -100,6 +100,35 @@ _OCR_POOL = ThreadPoolExecutor(
 )
 
 
+# Per-Machine /extract concurrency cap. Enforces the docstring
+# invariant — "each Fly Machine handles one PDF at a time" — that
+# nothing in the prior code actually enforced. Without this,
+# loop.run_in_executor(None, ...) admits up to min(32, cpu_count + 4)
+# = 8 concurrent _ocr_pdf_sync invocations on shared-cpu-4x, each
+# holding its own pdf_bytes + 16-page raster chunk (~176 MB) in RAM.
+# Fly logs on 2026-05-03 13:16:34 UTC showed an OOM at anon-rss=
+# 1863 MB on a 2 GB Machine — math closes if 4-5 requests stacked
+# simultaneously (1058 MB steady + 5 × 176 MB = 1938 MB). Semaphore(1)
+# brings the live shape back to fly.toml lines 53-78's projected
+# 1234 MB peak with 40% headroom.
+#
+# Acquired BEFORE await request.body() so queued requests don't
+# materialise pdf_bytes in RAM while waiting; Fly's edge router
+# distributes incoming connections across Machines so a busy Machine
+# returns control to the loop without holding bytes.
+_REQUEST_SEMAPHORE = asyncio.Semaphore(1)
+
+
+# Server-side defence against outlier PDFs that bypass client-side
+# size filtering. The 1 MB OutlierPdfError threshold lives in the
+# tesseract_fly provider router (judex/scraping/ocr/), not here; a
+# malformed/wayward client could push a 50 MB scan and OOM a single
+# Machine even with the semaphore in place. 5 MB ≈ 36× the corpus
+# average (judex.utils.cost._AVG_PDF_MB = 0.139 MB) — generous for
+# legitimate edge cases, hard cap on worst-case raster footprint.
+_MAX_PDF_BYTES = 5 * 1024 * 1024
+
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"ok": True}
@@ -158,10 +187,19 @@ def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
 
 @app.post("/extract")
 async def extract(request: Request) -> JSONResponse:
-    pdf_bytes = await request.body()
-    if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
-        raise HTTPException(status_code=400, detail="body must be PDF bytes")
+    async with _REQUEST_SEMAPHORE:
+        pdf_bytes = await request.body()
+        if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
+            raise HTTPException(status_code=400, detail="body must be PDF bytes")
+        if len(pdf_bytes) > _MAX_PDF_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"PDF size {len(pdf_bytes)} bytes exceeds "
+                    f"{_MAX_PDF_BYTES} byte server-side cap"
+                ),
+            )
 
-    loop = asyncio.get_running_loop()
-    payload = await loop.run_in_executor(None, _ocr_pdf_sync, pdf_bytes)
-    return JSONResponse(payload)
+        loop = asyncio.get_running_loop()
+        payload = await loop.run_in_executor(None, _ocr_pdf_sync, pdf_bytes)
+        return JSONResponse(payload)
