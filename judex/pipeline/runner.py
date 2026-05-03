@@ -82,34 +82,81 @@ def render_report_md(
     state: PipelineState,
     result: RunResult,
     provedor: str,
+    pool_concurrencies: Optional[dict[str, int]] = None,
 ) -> str:
     """One-page Markdown summary of the run. Written to
     ``<saida>/report.md`` on clean exit.
+
+    ``pool_concurrencies`` lets the utilisation column divide busy
+    time by concurrency, so a pool with 4-way concurrency can't
+    show >100%. Defaults to 1-per-pool when not provided (back
+    compat with the slice-2 callers).
     """
+    pc = pool_concurrencies or {}
+
     # Per-pool counters
     pool_lines = []
+    total_busy = 0.0
     for pool_name, c in result.counters.items():
-        util = c.busy_seconds / max(result.wall_seconds, 1e-6)
+        k = pc.get(pool_name, 1)
+        denom = max(result.wall_seconds, 1e-6) * max(k, 1)
+        util = c.busy_seconds / denom
+        total_busy += c.busy_seconds
         pool_lines.append(
             f"| {pool_name} | {c.started} | {c.finished} | {c.failed} | "
             f"{c.busy_seconds:.1f} | {util:.0%} |"
         )
 
-    # State-side breakdown by status
+    # State-side breakdown by status + cost-relevant counts
     meta_status: _Counter = _Counter()
     bytes_status: _Counter = _Counter()
     text_status: _Counter = _Counter()
+    bytes_ok = 0
+    text_ok = 0
     for case in targets:
         s = state.meta_status(case) or "missing"
         meta_status[s] += 1
         for url in state.known_bytes_urls(case):
-            bytes_status[state.bytes_status(case, url=url) or "missing"] += 1
-            text_status[state.text_status(case, url=url) or "missing"] += 1
+            bs = state.bytes_status(case, url=url) or "missing"
+            ts = state.text_status(case, url=url) or "missing"
+            bytes_status[bs] += 1
+            text_status[ts] += 1
+            if bs == "ok":
+                bytes_ok += 1
+            if ts == "ok":
+                text_ok += 1
 
     def _fmt_counter(c: _Counter) -> str:
         if not c:
             return "(none)"
         return ", ".join(f"{k}={v}" for k, v in sorted(c.items()))
+
+    # Comparison metrics: pipelining ratio + cost
+    # Legacy chain (varrer -> baixar -> extrair) runs phases serially,
+    # so its wall would equal the sum of per-pool busy times. The
+    # pipelining win is (1 - actual_wall / legacy_estimate).
+    legacy_wall_estimate = total_busy
+    if legacy_wall_estimate > 0:
+        ratio = result.wall_seconds / legacy_wall_estimate
+        savings_pct = (1 - ratio) * 100
+    else:
+        ratio = 1.0
+        savings_pct = 0.0
+
+    # OCR cost: pypdf is free; API providers carry per-PDF cost.
+    # Defer to judex.utils.cost.estimate_cost via dispatch when
+    # available; default to 0.0 for pypdf.
+    ocr_cost_usd = 0.0
+    try:
+        from judex.scraping.ocr.dispatch import estimate_cost
+        # Anchor at ~5 pages/peça per CLAUDE.md (HC PDFs are short).
+        # Real per-PDF page count would require parsing each PDF; an
+        # average is good enough for the comparison line.
+        avg_pages_per_peca = 5
+        ocr_cost_usd = estimate_cost(provedor, text_ok * avg_pages_per_peca) or 0.0
+    except Exception:  # noqa: BLE001
+        # Don't fail the report on cost-estimation hiccups; leave at 0.
+        pass
 
     md = []
     md.append("# Unified pipeline run\n")
@@ -120,15 +167,32 @@ def render_report_md(
     md.append("")
     md.append("## Per-pool")
     md.append("")
-    md.append("| pool | started | finished | failed | busy_s | utilisation |")
+    md.append("| pool | started | finished | failed | busy_s | utilisation* |")
     md.append("|---|---|---|---|---|---|")
     md.extend(pool_lines)
+    md.append("")
+    md.append("*utilisation = `busy_s / (wall_s × concurrency)` — capped at 100% by definition.")
     md.append("")
     md.append("## Per-stage status (state-side)")
     md.append("")
     md.append(f"- meta:  {_fmt_counter(meta_status)}")
     md.append(f"- bytes: {_fmt_counter(bytes_status)}")
     md.append(f"- text:  {_fmt_counter(text_status)}")
+    md.append("")
+    md.append("## Comparison vs. legacy chain (varrer → baixar → extrair)")
+    md.append("")
+    md.append("Legacy runs phases serially; its wall ≈ sum of per-pool busy time.")
+    md.append("Pipelining wins by overlapping pools.")
+    md.append("")
+    md.append("| metric                          | this run | legacy (≈ sum-of-busy) |")
+    md.append("|---|---|---|")
+    md.append(f"| wall (s)                        | {result.wall_seconds:.1f} | {legacy_wall_estimate:.1f} |")
+    md.append(f"| cases                           | {len(targets)} | {len(targets)} |")
+    md.append(f"| peças bytes ok                  | {bytes_ok} | {bytes_ok} |")
+    md.append(f"| peças text ok                   | {text_ok} | {text_ok} |")
+    md.append(f"| OCR cost (USD, provedor=`{provedor}`) | ${ocr_cost_usd:.4f} | ${ocr_cost_usd:.4f} |")
+    md.append(f"| pipelining ratio                | **{ratio:.2f}** (1.00 = no overlap) | n/a |")
+    md.append(f"| wall savings vs sequential      | **{savings_pct:.0f}%** | n/a |")
     md.append("")
     return "\n".join(md)
 
@@ -185,7 +249,11 @@ def run_pipeline(
     else:
         result = asyncio.run(run_scheduler(seeds, config, state))
 
-    report = render_report_md(targets=targets, state=state, result=result, provedor=provedor)
+    pool_concurrencies = {p.name: p.concurrency for p in pools}
+    report = render_report_md(
+        targets=targets, state=state, result=result, provedor=provedor,
+        pool_concurrencies=pool_concurrencies,
+    )
     (saida / "report.md").write_text(report, encoding="utf-8")
     log.info("executar: done. wall=%.1fs · report=%s", result.wall_seconds, saida / "report.md")
 
