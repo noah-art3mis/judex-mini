@@ -43,18 +43,29 @@ from rich.table import Table
 from rich.text import Text
 
 
-SweepMode = Literal["varrer", "baixar"]
+SweepMode = Literal["varrer", "baixar", "executar"]
 
 
 @dataclass
 class ShardStat:
-    """Per-shard snapshot — what probe() computes, what render() displays."""
+    """Per-shard snapshot — what probe() computes, what render() displays.
+
+    ``statuses`` / ``regimes`` populate for varrer (CliffDetector ladder)
+    and baixar (status mix). ``meta_counts`` / ``bytes_counts`` /
+    ``text_counts`` populate for executar (the unified pipeline's three
+    stages have distinct status mixes; collapsing them into one Counter
+    would lose the ``meta=unallocated_pid`` vs ``text=provider_error``
+    distinction the operator most needs).
+    """
     name: str
     records: int
     target: Optional[int]
     mode: SweepMode = "varrer"
     statuses: Counter = field(default_factory=Counter)
     regimes: Counter = field(default_factory=Counter)
+    meta_counts: Counter = field(default_factory=Counter)
+    bytes_counts: Counter = field(default_factory=Counter)
+    text_counts: Counter = field(default_factory=Counter)
     min_processo: Optional[int] = None
     earliest_ts: Optional[datetime] = None
     latest_ts: Optional[datetime] = None
@@ -87,6 +98,26 @@ STATUS_META = {
     "cached": (0, "cached", "dim"),
 }
 
+# executar (unified pipeline) status taxonomy. Covers every status
+# emitted by the three handlers so the per-stage cell never falls
+# back to the raw status name. ``provider_error`` is OCR's signature
+# transient failure (Fly cold-start, scanned-PDF timeout); shown
+# distinctly from ``http_error`` because the operator's response is
+# different (re-OCR vs proxy-rotate).
+EXECUTAR_STATUS_META = {
+    "ok":              (1, "ok",         "green"),
+    "skipped_cached":  (0, "cached",     "dim"),
+    "cached":          (0, "cached",     "dim"),
+    "skipped":         (0, "skipped",    "dim"),
+    "empty":           (0, "empty",      "dim"),
+    "no_bytes":        (2, "no-bytes",   "yellow"),
+    "unallocated_pid": (2, "unalloc",    "yellow"),
+    "fail":            (3, "fail",       "red"),
+    "error":           (3, "err",        "red"),
+    "provider_error":  (3, "prov-err",   "red"),
+    "http_error":      (3, "http-err",   "red"),
+}
+
 
 def _count_csv_rows(path: Path) -> Optional[int]:
     try:
@@ -117,7 +148,15 @@ def _detect_mode_and_state(shard_dir: Path) -> tuple[SweepMode, Optional[Path]]:
 
     Returns ``(mode, state_path_or_None)``. State path is None when the
     shard has launched but hasn't written its first record yet.
+
+    Detection order matches the precedence we want when multiple files
+    coexist (e.g. an old varrer state alongside a fresh executar run):
+    executar > baixar > varrer. The unified pipeline is the strategic
+    direction, so its state file wins when present.
     """
+    executar = shard_dir / "executar.state.json"
+    if executar.exists():
+        return "executar", executar
     pdfs = shard_dir / "pdfs.state.json"
     if pdfs.exists():
         return "baixar", pdfs
@@ -153,6 +192,10 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
     """Read one shard's state file and return a structured snapshot.
 
     Dispatches on which state file exists:
+    - ``executar.state.json`` → executar mode (unified pipeline),
+      case-keyed with nested ``fetch_meta`` / ``fetch_bytes`` /
+      ``extract_text`` sub-records. Target from the partitioned shard
+      CSV row count (one CSV row = one case = one meta task).
     - ``pdfs.state.json`` → baixar mode, URL-keyed, target from
       driver.log's `targets: N PDFs` line.
     - ``sweep.state.json`` → varrer mode, case-keyed, target from the
@@ -162,6 +205,7 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
     if mode == "baixar":
         target = _parse_baixar_target(shard_dir)
     else:
+        # executar and varrer both use case-row CSVs.
         target = _find_target(out_root, shard_dir.name)
 
     if sf is None:
@@ -171,6 +215,10 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
 
     mtime = sf.stat().st_mtime
     data = json.loads(sf.read_text())
+
+    if mode == "executar":
+        return _probe_executar(shard_dir.name, data, target, mtime)
+
     statuses: Counter = Counter()
     regimes: Counter = Counter()
     min_pid: Optional[int] = None
@@ -202,6 +250,89 @@ def probe_shard(shard_dir: Path, out_root: Path) -> ShardStat:
         name=shard_dir.name, records=len(data), target=target, mode=mode,
         statuses=statuses, regimes=regimes,
         min_processo=min_pid, earliest_ts=earliest, latest_ts=latest,
+        mtime=mtime,
+    )
+
+
+def _probe_executar(
+    name: str, data: dict, target: Optional[int], mtime: float,
+) -> ShardStat:
+    """Build a ShardStat from an ``executar.state.json`` payload.
+
+    The unified pipeline's state has a top-level ``cases`` dict; each
+    case carries ``fetch_meta`` (singleton dict) and ``fetch_bytes`` /
+    ``extract_text`` (URL-keyed dicts). ``records`` is set to the
+    case count so the same target denominator (CSV rows) renders a
+    sensible percentage. Per-stage status counts populate
+    ``meta_counts`` / ``bytes_counts`` / ``text_counts``.
+
+    Min-pid is parsed from the case key string ``f"{classe}-{pid}"``
+    rather than from per-record fields — the unified state doesn't
+    carry ``processo`` on each entry.
+    """
+    cases = data.get("cases") or {}
+    meta_counts: Counter = Counter()
+    bytes_counts: Counter = Counter()
+    text_counts: Counter = Counter()
+    min_pid: Optional[int] = None
+    earliest: Optional[datetime] = None
+    latest: Optional[datetime] = None
+
+    def _track_ts(ts: Optional[str]) -> None:
+        nonlocal earliest, latest
+        if not ts:
+            return
+        try:
+            dt = datetime.fromisoformat(ts)
+        except ValueError:
+            return
+        earliest = dt if earliest is None else min(earliest, dt)
+        latest = dt if latest is None else max(latest, dt)
+
+    for case_key, case in cases.items():
+        if not isinstance(case, dict):
+            continue
+        # Case key is "<CLASSE>-<pid>" — split on the LAST hyphen so
+        # composite classes (none today, but defensive) survive.
+        if isinstance(case_key, str) and "-" in case_key:
+            tail = case_key.rsplit("-", 1)[-1]
+            try:
+                p = int(tail)
+                min_pid = p if min_pid is None else min(min_pid, p)
+            except ValueError:
+                pass
+        meta = case.get("fetch_meta")
+        if isinstance(meta, dict):
+            s = meta.get("status")
+            if s:
+                meta_counts[s] += 1
+            _track_ts(meta.get("ts"))
+        for entry in (case.get("fetch_bytes") or {}).values():
+            if not isinstance(entry, dict):
+                continue
+            s = entry.get("status")
+            if s:
+                bytes_counts[s] += 1
+            _track_ts(entry.get("ts"))
+        for entry in (case.get("extract_text") or {}).values():
+            if not isinstance(entry, dict):
+                continue
+            s = entry.get("status")
+            if s:
+                text_counts[s] += 1
+            _track_ts(entry.get("ts"))
+
+    return ShardStat(
+        name=name,
+        records=len(cases),
+        target=target,
+        mode="executar",
+        meta_counts=meta_counts,
+        bytes_counts=bytes_counts,
+        text_counts=text_counts,
+        min_processo=min_pid,
+        earliest_ts=earliest,
+        latest_ts=latest,
         mtime=mtime,
     )
 
@@ -246,7 +377,42 @@ def _shard_summary_cell(st: ShardStat) -> Text:
     """Pick the right counter+meta for the shard's mode."""
     if st.mode == "baixar":
         return _fmt_meta(st.statuses, STATUS_META)
+    if st.mode == "executar":
+        return _fmt_executar_stages(st)
     return _fmt_meta(st.regimes, REGIME_META)
+
+
+def _fmt_executar_stages(st: ShardStat) -> Text:
+    """Render the three executar stages stacked into one cell.
+
+    Layout::
+
+        meta: ok=440 unalloc=60
+        bytes: ok=1450 empty=50
+        text: ok=600 cached=489 prov-err=11
+
+    Newline-separated so each stage gets its own line. Stages with
+    zero counts collapse to ``—`` so we don't waste a row on a stage
+    that hasn't started yet (typical at first-write — meta has rows,
+    bytes/text have nothing).
+    """
+    parts = []
+    for label, counts in (
+        ("meta",  st.meta_counts),
+        ("bytes", st.bytes_counts),
+        ("text",  st.text_counts),
+    ):
+        body = _fmt_meta(counts, EXECUTAR_STATUS_META) if counts else Text("—", style="dim")
+        line = Text()
+        line.append(f"{label:>5}: ", style="dim")
+        line.append_text(body)
+        parts.append(line)
+    out = Text()
+    for i, part in enumerate(parts):
+        if i > 0:
+            out.append("\n")
+        out.append_text(part)
+    return out
 
 
 def _rec_per_second(st: ShardStat) -> float:
@@ -258,6 +424,13 @@ def _rec_per_second(st: ShardStat) -> float:
 
 def render(stats: list[ShardStat], out_root: Path) -> Table:
     """Build the rich Table. Pure function of stats + out-root label."""
+    cluster_mode: SweepMode = stats[0].mode if stats else "varrer"
+    summary_header = {
+        "varrer":   "regimes",
+        "baixar":   "status",
+        "executar": "stages",
+    }[cluster_mode]
+
     table = Table(
         title=f"Sweep probe · {out_root}",
         title_justify="left",
@@ -269,7 +442,7 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
     table.add_column("%", justify="right")
     table.add_column("rec/s", justify="right")
     table.add_column("min pid", justify="right")
-    table.add_column("regimes")  # may wrap on narrow terminals
+    table.add_column(summary_header)  # may wrap on narrow terminals
     table.add_column("age", justify="right")
 
     now = time.time()
@@ -277,6 +450,9 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
     grand_target = 0
     all_statuses: Counter = Counter()
     all_regimes: Counter = Counter()
+    all_meta: Counter = Counter()
+    all_bytes: Counter = Counter()
+    all_text: Counter = Counter()
     cluster_earliest: Optional[datetime] = None
     cluster_latest: Optional[datetime] = None
 
@@ -286,6 +462,9 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
             grand_target += st.target
         all_statuses.update(st.statuses)
         all_regimes.update(st.regimes)
+        all_meta.update(st.meta_counts)
+        all_bytes.update(st.bytes_counts)
+        all_text.update(st.text_counts)
         if st.earliest_ts:
             cluster_earliest = st.earliest_ts if cluster_earliest is None else min(cluster_earliest, st.earliest_ts)
         if st.latest_ts:
@@ -309,11 +488,8 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
             age_cell,
         )
 
-    # Cluster-mode is whichever mode the shards are in (they all share
-    # one in practice; if mixed, fall back to varrer/regimes).
-    cluster_mode: SweepMode = stats[0].mode if stats else "varrer"
-
-    # Footer: cluster totals
+    # Footer: cluster totals (cluster_mode set above so the header
+    # column name and the cluster summary cell agree on shape).
     if cluster_earliest and cluster_latest and grand_records > 1:
         cluster_span = (cluster_latest - cluster_earliest).total_seconds()
         cluster_rps = grand_records / cluster_span if cluster_span > 0 else 0.0
@@ -330,11 +506,19 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
         eta_cell = Text("—", style="dim")
         rps_cell = Text("—", style="bold")
 
-    cluster_summary = (
-        _fmt_meta(all_statuses, STATUS_META)
-        if cluster_mode == "baixar"
-        else _fmt_meta(all_regimes, REGIME_META)
-    )
+    if cluster_mode == "baixar":
+        cluster_summary = _fmt_meta(all_statuses, STATUS_META)
+    elif cluster_mode == "executar":
+        # Synthesise a ShardStat-shape so we re-use _fmt_executar_stages
+        # for the cluster row. Avoids duplicating the per-stage layout.
+        cluster_st = ShardStat(
+            name="TOTAL", records=grand_records, target=grand_target,
+            mode="executar",
+            meta_counts=all_meta, bytes_counts=all_bytes, text_counts=all_text,
+        )
+        cluster_summary = _fmt_executar_stages(cluster_st)
+    else:
+        cluster_summary = _fmt_meta(all_regimes, REGIME_META)
 
     table.add_section()
     table.add_row(

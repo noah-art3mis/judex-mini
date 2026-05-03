@@ -208,6 +208,153 @@ def test_probe_shard_baixar_handles_missing_driver_log(tmp_path: Path) -> None:
     assert st.target is None
 
 
+# --- executar (unified pipeline) mode ------------------------------------
+
+
+def _write_executar_state(shard_dir: Path, cases: dict) -> None:
+    """Mirror executar.state.json: ``{schema_version, started_at, cases:
+    {<key>: {fetch_meta, fetch_bytes, extract_text}}}``."""
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 2,
+        "started_at": "2026-05-03T00:00:00+00:00",
+        "snapshot_at": "2026-05-03T01:00:00+00:00",
+        "cases": cases,
+    }
+    (shard_dir / "executar.state.json").write_text(json.dumps(payload))
+
+
+def test_probe_shard_detects_executar_mode_and_walks_nested_cases(
+    tmp_path: Path,
+) -> None:
+    """Pre-fix bug: probe iterated `data.values()` flatly, so an
+    executar.state.json (`{schema_version, cases: {...}}`) yielded
+    `records=3` (counting top-level non-case fields) and
+    `statuses={}` (no top-level status field). Now: records = case
+    count, per-stage counters populated."""
+    shard = tmp_path / "shard-a"
+    _write_executar_state(shard, {
+        "HC-100": {
+            "fetch_meta": {"status": "ok", "ts": "2026-05-03T00:01:00+00:00"},
+            "fetch_bytes": {
+                "u1": {"status": "ok", "ts": "2026-05-03T00:02:00+00:00"},
+                "u2": {"status": "empty"},
+            },
+            "extract_text": {
+                "u1": {"status": "ok", "extractor": "pypdf", "chars": 1200},
+                "u2": {"status": "provider_error", "error": "timeout"},
+            },
+        },
+        "HC-99": {
+            "fetch_meta": {"status": "unallocated_pid"},
+            "fetch_bytes": {},
+            "extract_text": {},
+        },
+    })
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.mode == "executar"
+    assert st.records == 2  # case count, not field count
+    assert st.meta_counts["ok"] == 1
+    assert st.meta_counts["unallocated_pid"] == 1
+    assert st.bytes_counts["ok"] == 1
+    assert st.bytes_counts["empty"] == 1
+    assert st.text_counts["ok"] == 1
+    assert st.text_counts["provider_error"] == 1
+
+
+def test_probe_shard_executar_min_pid_parses_from_case_keys(tmp_path: Path) -> None:
+    """Unified state has no per-record `processo` field — pid lives in
+    the case-key string `<CLASSE>-<pid>`. Without parsing it out, the
+    probe column shows `—` and the operator loses the 'where is this
+    shard' signal that varrer/baixar both surface."""
+    shard = tmp_path / "shard-a"
+    _write_executar_state(shard, {
+        "HC-252920": {"fetch_meta": {"status": "ok"}, "fetch_bytes": {}, "extract_text": {}},
+        "HC-252901": {"fetch_meta": {"status": "ok"}, "fetch_bytes": {}, "extract_text": {}},
+        "HC-252915": {"fetch_meta": {"status": "ok"}, "fetch_bytes": {}, "extract_text": {}},
+    })
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.min_processo == 252901
+
+
+def test_probe_shard_executar_uses_csv_target(tmp_path: Path) -> None:
+    """Executar shares the case-row CSV target convention with varrer
+    (one CSV row = one case = one meta task), so the percentage
+    column is anchored on a denominator the operator already trusts."""
+    shard = tmp_path / "shard-a"
+    _write_executar_state(shard, {
+        "HC-100": {"fetch_meta": {"status": "ok"}, "fetch_bytes": {}, "extract_text": {}},
+    })
+    shards_dir = tmp_path / "shards"
+    shards_dir.mkdir()
+    (shards_dir / "year.shard.0.csv").write_text(
+        "classe,processo\nHC,100\nHC,99\nHC,98\nHC,97\nHC,96\n"
+    )
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.target == 5
+    assert st.records == 1  # only one case has a state entry yet
+
+
+def test_probe_shard_executar_takes_precedence_over_varrer(tmp_path: Path) -> None:
+    """If a stale `sweep.state.json` and a fresh `executar.state.json`
+    coexist (e.g. operator re-launched on top of an old run dir), the
+    executar file wins. Varrer's flat schema would mis-count the
+    nested `cases` dict as one record otherwise."""
+    shard = tmp_path / "shard-a"
+    _write_executar_state(shard, {
+        "HC-100": {"fetch_meta": {"status": "ok"}, "fetch_bytes": {}, "extract_text": {}},
+    })
+    # Stale flat-shape state from a prior varrer run:
+    (shard / "sweep.state.json").write_text(json.dumps({
+        "HC_999": {"status": "ok", "regime": "warming"},
+    }))
+
+    st = probe_shard(shard, tmp_path)
+
+    assert st.mode == "executar"
+    assert st.records == 1  # from cases dict, not the stale varrer file
+
+
+def test_cli_probe_renders_executar_mode_with_stages_header(tmp_path: Path) -> None:
+    """End-to-end smoke: a sharded executar run produces a table that
+    visibly includes the per-stage counts and the renamed `stages`
+    column header (vs `regimes` for varrer)."""
+    _write_executar_state(tmp_path / "shard-a", {
+        "HC-100": {
+            "fetch_meta": {"status": "ok"},
+            "fetch_bytes": {"u": {"status": "ok"}},
+            "extract_text": {"u": {"status": "provider_error"}},
+        },
+    })
+    _write_executar_state(tmp_path / "shard-b", {
+        "HC-50": {
+            "fetch_meta": {"status": "ok"},
+            "fetch_bytes": {"v": {"status": "ok"}},
+            "extract_text": {"v": {"status": "ok"}},
+        },
+    })
+
+    result = CliRunner().invoke(app, ["probe", "--out-root", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "shard-a" in result.output
+    assert "shard-b" in result.output
+    # Per-stage labels in the cell.
+    assert "meta" in result.output
+    assert "bytes" in result.output
+    assert "text" in result.output
+    # The error count must surface — that's the operator's main signal.
+    assert "prov-err" in result.output
+    # Column header reflects executar mode.
+    assert "stages" in result.output
+
+
 def test_cli_probe_errors_when_no_shards(tmp_path: Path) -> None:
     """An out-root with no shard-* subdirs must exit non-zero with a
     clear error — protects against silent misuse (typo in path, etc)."""
