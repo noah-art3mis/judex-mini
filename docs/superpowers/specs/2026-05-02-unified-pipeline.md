@@ -4,20 +4,21 @@ Status: **draft, exploration on `explore/unified-pipeline`**. Author: 2026-05-02
 
 ## Goal
 
-Collapse the three forward sweeps into a single command (`judex executar`) backed by a scheduler that:
+Collapse the three forward sweeps into a single fire-and-forget command (`judex executar`). The operator submits a target set once and walks away; on return the run is either done or in a clearly documented failure state, with **one log, one PID, one state file, one resume point**. No more "kick off varrer, wait, kick off baixar, wait, kick off extrair, oh wait the breaker tripped on extrair, retry from errors" choreography.
 
-1. Treats per-case work as a **DAG of tasks** (`FetchCaseMetadata` → `FetchPecaBytes` → `ExtractText`), not three serial passes.
-2. Maintains **three independent worker pools** (`portal`, `sistemas`, `ocr`), each with its own concurrency, throttle, proxy posture, and circuit breaker.
-3. Drives all three pools concurrently against a single target set, so the slowest pool sets the wall-clock — not the sum of three sequential phases.
-4. Emits the same on-disk artefacts as today (the four-file quartet under `data/raw/pecas/` + `data/derived/pecas-texto/`, the case JSON under `data/source/processos/<classe>/`). The runtime changes; the storage contract does not.
+Concretely, the command is backed by a scheduler that:
 
-If the prototype (§ Validation) does not show ≥40% wall-time reduction vs. the current 3-command chain on a real workload, **this branch is killed and `coletar` (ADR-0004) ships instead**.
+1. Treats per-case work as a **DAG of tasks** (`FetchCaseMetadata` → `FetchPecaBytes` → `ExtractText`), not three serial passes — so the operator interface (one command) and the runtime structure (concurrent pools) match.
+2. Maintains **three independent worker pools** (`portal`, `sistemas`, `ocr`), each with its own concurrency, throttle, proxy posture, and circuit breaker — so a stall in one pool doesn't take the whole run down.
+3. Emits the same on-disk artefacts as today (the four-file quartet under `data/raw/pecas/` + `data/derived/pecas-texto/`, the case JSON under `data/source/processos/<classe>/`). The runtime changes; the storage contract does not.
+
+The architecture is positioned as a *refinement* on top of `coletar` (which already delivers fire-and-forget for the 3-command chain via subprocess composition). The unified pipeline collapses `coletar`'s six substages — three forward + three retry — into a single process with one log and one state file, eliminating the "child sweep dir" substructure entirely. **The win is operational, not primarily throughput.**
 
 ## Relationship to ADR-0004 (`coletar`)
 
 ADR-0004 proposes `judex coletar`, which composes the three existing commands as a six-stage chain (`varrer → varrer-retry → baixar → baixar-retry → extrair → extrair-retry`) with a status-aware classifier and per-stage transient-rate gate. That ADR is on the **retry/quality axis**.
 
-**Status as of this spec's writing: `coletar` is already shipped.** Local-`dev` is 6 commits ahead of `origin/dev` with the orchestrator, replay classifier, and Fly OCR fallback all landed (`0abeef7 docs(adr)` → `671abfb docs(progress)`). The sequencing question is moot; `coletar` exists. The unified pipeline is therefore evaluated as a *successor*, not a *concurrent alternative*.
+**Status as of this spec's writing: `coletar` exists as committed, tested code on `explore/unified-pipeline`** (commits `0abeef7 docs(adr)` → `671abfb docs(progress)`), but has NOT been merged to `dev` yet. `dev` HEAD is `e996617`. The 6-commit batch (ADR-0004, replay classifier, coletar orchestrator, Fly OCR, progress doc) is production-ready but pending promotion. Promotion is independent of this exploration — `coletar` can land on `dev` whenever, and the unified pipeline is evaluated as a *successor* either way.
 
 This spec is on the **throughput/concurrency axis**. `coletar` is still serial: every case goes through `varrer` for the whole target list before any case starts `baixar`. The unified pipeline pipelines per-case: case 2's metadata is fetched while case 1's peças are downloading and case 0's text is being extracted.
 
@@ -38,45 +39,31 @@ This makes the `coletar` work not-wasted in either outcome.
 
 ## Why
 
-### Win 1 — Within-target pipelining
+### Win 1 (headline) — Single fire-and-forget surface
 
-A year-of-HC sweep today does ~15k metadata fetches, then ~15k×~8 PDF byte fetches, then ~15k×~8 text extractions in three serial phases. Wall-time is the sum of three independent rate limits.
+`coletar` collapses three commands into one chain, but the operator still sees six substages, six per-substage logs, six per-substage state files, and a launcher process tree with multiple children. Resuming a partial run requires understanding which substage you're in.
 
-In the DAG model, case 2's `FetchCaseMetadata` runs concurrently with case 1's `FetchPecaBytes` runs concurrently with case 0's `ExtractText`. Steady-state throughput becomes:
+`judex executar` collapses all of that into **one process, one log file, one state file, one PID**. Resume is uniform: `--retomar` reads the state file, finds tasks whose status isn't `ok`, requeues them, runs. There is no "which substage are we resuming from" question because there are no substages — there are only tasks, each tagged with their pool.
 
-```
-throughput = min(
-    portal_rate,
-    sistemas_rate / avg_pecas_per_case,
-    ocr_rate     / avg_pecas_per_case,
-)
-```
-
-Anchor numbers (from `judex/utils/cost.py` + recent reports):
-
-- `portal_rate` ≈ 0.33 req/s direct-IP, 4.2 req/s with 16-shard proxies (HC 2024/2025 overnight averages).
-- `sistemas_rate` ≈ 0.33 req/s direct, comparable proxy speedup.
-- `ocr_rate` (`pypdf`) ≈ 10 req/s local; (`mistral`) ≈ 0.29 req/s sync; (`chandra`) ≈ 0.07 req/s sync.
-
-For a year-of-HC at proxy concurrency: **projected wall ≈ 12–15h vs. observed 27–30h serial**. ~50% reduction.
-
-For `pypdf` extraction (free, local), ocr_rate is so far above the WAF rates that ocr never bottlenecks; pipelining gives near-pure 50% reduction. For `mistral`/`chandra`, ocr starts dominating; pipelining still wins because the WAF stages aren't paying for the OCR wall.
+This is the load-bearing benefit. It's qualitative (no benchmark passes/fails), and it accumulates: every backfill saved from the cognitive overhead of six substages compounds the operator's confidence that long runs are tractable.
 
 ### Win 2 — Continuous tri-bottleneck saturation across targets
 
-Today's manual choreography ("kick off 2025-A while 2024-B is still running") is the operator's job. Get it wrong and one of the three IPs sits idle for hours.
+Today's manual choreography ("kick off 2025-A while 2024-B is still running") is the operator's job. Get it wrong and one of the three IPs sits idle for hours. `coletar` doesn't fix this — each `coletar` instance still drives the three stages serially.
 
-Unified scheduler: enqueue (HC-2025 ∪ HC-2026 ∪ HC-2027) and the scheduler keeps all three pools saturated. Cross-target parallelism is automatic, not a choreography ritual.
+Unified scheduler: enqueue (HC-2025 ∪ HC-2026 ∪ HC-2027) into one process and the scheduler keeps all three pools saturated. Cross-target parallelism is automatic, not a choreography ritual. **This is the closest thing the rewrite has to a "throughput" win**, and even here the win is the operator not having to choreograph it, not the absolute speedup.
 
 ### Win 3 — Fail-isolation per pool
 
-`mistral` quota exhaustion currently kills `extrair-pecas` mid-run. With per-pool breakers, `ocr` pool pauses while `portal` and `sistemas` keep draining their queues. The DAG state survives; OCR resumes when quota resets without losing the upstream work.
+`mistral` quota exhaustion currently kills `extrair-pecas` mid-run; under `coletar` it trips the per-stage gate and aborts the chain. With per-pool breakers in the unified scheduler, the `ocr` pool pauses while `portal` and `sistemas` keep draining their queues. The DAG state survives; OCR resumes when quota resets without losing the upstream work — the run never has to "abort and restart."
 
-ADR-0004's per-stage transient-rate gate maps directly: per-pool gate trips only that pool, not the whole sweep.
+### Win 4 — Within-target pipelining (bonus, not headline)
 
-### Win 4 — One observability surface
+A year-of-HC sweep at the unified scheduler runs all three pools concurrently against a single target set. Steady-state throughput is bottleneck-bound: `min(portal_rate, sistemas_rate / avg_pecas_per_case, ocr_rate / avg_pecas_per_case)`.
 
-`judex executar` emits one progress stream with per-pool breakdowns. `judex probe --watch` becomes the single live monitor instead of three `tail -f`s on three launcher logs. Regime analysis (cliff/SSL-EOF detection) reads one log and segregates by pool tag.
+Honest math: for this workload the bottleneck is **always sistemas** because peças/case (~8) × per-task wall (~3 s direct-IP) dominates the per-case portal cost. The pipelining ceiling is bounded by `1 − max(a, b, c) / (a + b + c)`. For typical anchors that ceiling is **15–25% wall-time reduction** vs. fully sequential, not the 40–55% an earlier draft of this spec claimed. At proxy concurrency it stays in the same band; OCR-heavy runs (Mistral / Chandra) drop the win further as OCR comes to dominate total wall.
+
+This is real but secondary. If fire-and-forget is the goal, the 15–25% bonus is gravy; the rewrite would still pay off without it.
 
 ### Win 5 — Adaptive scheduling (deferred to v2)
 
@@ -253,31 +240,32 @@ uv run judex executar \
 
 ## Migration plan (the one we discussed)
 
-1. **Design note** (this file). Lock the architecture and the kill criterion.
-2. ~~**`coletar` lands first**~~ — already done on local `dev` (commits `0abeef7` → `671abfb`).
-3. **Throwaway prototype.** `scratch/pipeline_prototype.py`. ~150 lines, in-process asyncio, three semaphores, no persistence, runs against a 50-case HC slice. Measures wall-time vs. an equivalent sequential 3-command run on the same slice. Half a day.
-4. **Decision point.**
-   - If prototype wall < 0.6× sequential wall → continue to step 5.
-   - Else → kill branch, archive design note under `docs/superpowers/specs/archive/`. `coletar` (already on `dev`) is the final form.
-5. **Real implementation.** New module `judex/pipeline/`. Imports `error_triage` and pool primitives from `judex/sweeps/`. Adds `judex executar` to `judex/cli.py`.
-6. **Parity validation.** Run `judex executar` on a recent backfill target (e.g., HC 2026 Q1) and compare output to the existing source JSONs + cache state. `validar-gabarito` must remain green.
+1. **Design note** (this file). Lock the architecture and the success criterion.
+2. ~~`coletar` lands first~~ — already on `explore/unified-pipeline` (commits `0abeef7` → `671abfb`); promotion to `dev` is mechanical.
+3. **Scheduler scaffold + smoke test.** `scratch/pipeline_prototype.py` (already in this worktree). Three asyncio.Queues, three pool worker coroutines, mock-mode smoke test that validates correctness without spending WAF budget. **Done.** Mock confirmed scheduler terminates cleanly, processes all expected tasks, saturates the bottleneck pool. (The earlier "~150 lines, half a day" budget held.)
+4. ~~Decision point on throughput threshold~~ — removed; the success criterion is ergonomic, not a benchmark gate. The mock-mode work was still useful: it surfaced the pipelining ceiling math that this spec now reflects.
+5. **Real implementation.** New module `judex/pipeline/`. Imports `error_triage` and pool primitives from `judex/sweeps/`. Adds `judex executar` to `judex/cli.py`. Persistent state (snapshot-not-rewrite), signal handlers, breaker integration, proxy pools.
+6. **Ergonomic validation.** Run `judex executar` on a recent backfill target (e.g., HC 2026 Q1). Verify the six fire-and-forget invariants in § Validation hold. `validar-gabarito` must remain green. Wall-time ratio vs. an equivalent `coletar` run goes in the run's `report.md` as an artefact.
 7. **Removal.** Delete `varrer-processos` / `baixar-pecas` / `extrair-pecas` / `coletar` from `judex/cli.py`. Delete `shard_launcher.py`, `run_sweep.py`, `baixar_pecas.py`, `extrair_pecas.py` driver modules (parsing/extraction logic stays as library code). Delete the per-stage drivers' tests. Update `CLAUDE.md`, `docs/cost-estimates.md`, `docs/peca-sweep-conventions.md`, `docs/agent-sweeps.md`, `docs/data-layout.md`. One squash commit on `dev`.
 
 Step 7 is the one that must NOT be skipped or softened. Per `CLAUDE.md § Conventions`, no backcompat shims; the old commands die when the new one ships.
 
 ## Validation
 
-The kill criterion is empirical, not a debate.
+The criterion is **ergonomic**, not a benchmark. The unified pipeline succeeds if all of the following hold for a real backfill against an HC year:
 
-- **Slice:** 50 cases sampled from HC 2024 (representative peça-density and outcome-shape).
-- **Baseline:** sequential `varrer-processos` → `baixar-pecas` → `extrair-pecas --provedor pypdf` on the slice. Direct-IP, no proxies. Measures `t_baseline`.
-- **Prototype:** `scratch/pipeline_prototype.py` on the same slice, same connectivity. Measures `t_proto`.
-- **Pass:** `t_proto / t_baseline ≤ 0.60`.
-- **Fail:** `t_proto / t_baseline > 0.60`. Branch dies.
+1. **One submission.** The operator runs `judex executar --csv year.csv --saida runs/active/<label>` and walks away. No follow-up commands needed for the run to complete. (Errors that need human triage are surfaced; transient retries happen inside the scheduler.)
+2. **One log.** A single `executar.log` (or `tail -f launcher-stdout.log`) tells the operator what's happening across all three pools. No need to multiplex three `tail -f`s.
+3. **One state file.** A single `executar.state.json` describes per-case task status. `--retomar` is uniform: requeue anything whose status isn't `ok`.
+4. **One PID.** Killing the process kills the whole run cleanly. State flushes on signal.
+5. **Resume across pool failures.** If the OCR API quota dies overnight, the run pauses cleanly; `--retomar` the next day finishes without re-running portal or sistemas tasks that already succeeded.
+6. **Output artefacts identical to today.** `validar-gabarito` stays green; the four-file quartet contents and source JSONs match what the 3-command chain would have produced for the same input.
 
-The 0.60 threshold is conservative: theoretical pipelining gives ~0.50, so we leave 0.10 for asyncio overhead and the scheduler's bookkeeping. If we can't even hit 0.60, the architectural complexity isn't paying for itself.
+The throughput win (~15–25% per-target, plus continuous tri-bottleneck saturation across targets) is **not** part of the success criterion. It's a bonus measured post-hoc and reported, not a gate.
 
-If proxies are stable enough to test with, run a second proxy-mode comparison: 16-shard sequential (current production posture) vs. unified scheduler with `concurrencia=16`. Anchor target: same 0.60.
+### Soft sanity check (optional)
+
+Before declaring the implementation done, run one comparison on a 50-case HC slice: unified pipeline vs. `coletar` chain on the same slice, both at the operator's preferred connectivity. Report the wall-time ratio in the run's `report.md`. Use this only as evidence in case anyone wonders later "did the rewrite at least *not* make things worse" — not as a gate.
 
 ## Risks
 
@@ -301,9 +289,10 @@ If proxies are stable enough to test with, run a second proxy-mode comparison: 1
 5. **State is one snapshot file per `--saida`.** No per-task file. Snapshot, not per-record rewrite.
 6. **Storage contract unchanged.** Four-file quartet stays. Source JSONs stay. `validar-gabarito` is the regression test.
 7. **No backcompat.** When unified ships, `varrer-processos` / `baixar-pecas` / `extrair-pecas` / `coletar` are removed.
-8. **Kill criterion is `t_proto / t_baseline ≤ 0.60` on a 50-case HC 2024 slice.** Below 0.60 → continue. Above → branch dies, `coletar` is the final form.
+8. **Success criterion is ergonomic, not throughput.** The unified pipeline ships if the six fire-and-forget invariants in § Validation hold on a real backfill. Wall-time ratio vs. `coletar` is reported as an artefact, not as a gate. (Earlier draft locked a `t_proto / t_baseline ≤ 0.60` throughput gate; that gate is mathematically unreachable for this workload's bottleneck shape and was the wrong frame for what the rewrite is actually buying.)
 9. **Reuse ADR-0004's `error_triage`.** The unified pipeline's `--replay-de` semantics are exactly ADR-0004's retry semantics, applied per-pool instead of per-stage.
 10. **Portuguese flag names.** `--apenas-estagio`, `--portal-concurrencia`, `--sistemas-concurrencia`, `--ocr-concurrencia`, `--proxies-portal`, `--proxies-sistemas`, `--provedor`, `--forcar`, `--retomar`, `--rotulo`, `--saida`, `--nao-perguntar`. English kept for `--dry-run` and short flags `-c/-i/-f`.
+11. **Asyncio + bounded semaphores, NOT a DAG framework.** Considered Airflow, dbt, Prefect, Dagster, Ray — all rejected. dbt is the wrong layer (SQL-on-warehouse). Airflow is the wrong shape (time-of-day batch with static DAGs and minute/hour-granularity tasks; this workload is per-record streaming with dynamic task emission and sub-second tasks at ~120k/year-of-HC volume — Airflow's metadata DB and scheduler are not designed for that). Prefect 2 / Dagster are closer-fit but cost ~10× operational complexity (server, agents, state DB) for a single-machine scraper, and their retry primitives don't know about pool-scoped 403 budgets — we'd write custom retry/backoff inside their abstractions anyway. Ray is wrong scale. The load-bearing complexity is per-pool throttle/breaker logic that's already in `judex/sweeps/` and tuned to STF's WAF behaviour; the right move is to compose those existing modules into a thin asyncio scheduler, not to wrap them in a generic DAG runtime that doesn't know about WAF reputation.
 
 ## Open questions (to resolve before step 5, not before step 3)
 
