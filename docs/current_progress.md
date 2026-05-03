@@ -97,7 +97,7 @@ changes, committed together as `4cb7b2f`:
 | run | dir | shards | targets | status |
 |---|---|---|---|---|
 | HC 2020 (sharded) | `runs/active/hc2020-sharded/` | 16 | 9,137 cases | resumed; ~99.6% text complete; ~620 stuck `provider_error` being chewed through with new tenacity budget |
-| HC 2021 (sharded) | `runs/active/2026-05-03-hc2021-executar/` | 16 | 7,085 cases (gap) | fresh; meta + bytes complete reliably (WAF-bound, not OCR-affected); text follows |
+| HC 2021 (sharded) | `runs/archive/2026-05-03-hc2021-executar/` | 16 | 7,085 cases (gap) | **done** 2026-05-03 18:32 BRT (launcher wall 5h 36m; per-shard wall 3h 31m–5h 27m). Meta ok=5,084 (71.8%) + unallocated_pid=1,975 (28.0%) + http_error=26. Bytes ok=14,671/15,751 (93.1%); text ok=13,792/14,671 (**94.0%**). 15 of 16 shards graded D individually only because per-shard text denominators include 1,080 `missing` rows that were never-fetched bytes (empty/http_error), not OCR failures — see close-out. |
 
 Total in-flight: 32 OCR POSTs against 9 Machines. The 503 fast-fail
 shape spreads load via Fly's edge proxy; tenacity's 300 s budget
@@ -136,6 +136,50 @@ Practical workflow:
   resumable with `executar`'s state shape, but the cache it produced
   is corpus-shared, so its contribution survives in the new run via
   `skipped_cached`.
+
+**Close-out — HC 2021 done (2026-05-03 18:32 BRT).** All 16 shards
+emitted terminal `report.md`; aggregator counters frozen across 7
+consecutive 30 s ticks; no `judex` / `uv run` processes alive.
+Final tallies (sum across `shard-{a..p}/report.md`, matches monitor):
+
+| stage            | total  | ok     | other                                          |
+|------------------|-------:|-------:|------------------------------------------------|
+| meta (portal)    |  7,085 |  5,084 | unallocated_pid=1,975 (28.0%); http_error=26   |
+| bytes (sistemas) | 15,751 | 14,671 | empty=1,035; http_error=45                     |
+| text (ocr)       | 14,671 | 13,792 | provider_error=879                             |
+
+Aggregate text quality = `text_ok / bytes_ok` = 13,792 / 14,671 =
+**94.0%** (C-grade). The per-shard `report.md` D-grades are an
+artefact of the shard-side denominator including 1,080 `missing` rows
+— bytes that were never fetched (empty + http_error) — not OCR
+failures; the OCR pool itself converted 94.0% of fetched bytes.
+
+The Stage 2 fix (`4cb7b2f`: 503 fast-fail + 300 s tenacity budget)
+held end-to-end: OCR pool ran at 100% utilisation for the full
+5h 36m, no SSL-EOF tail-storm, no fleet collapse. Per-shard wall
+variance (3h 31m–5h 27m) is the expected queue-distribution effect
+on a 16-shard / 9-Machine ratio with per-Machine `Semaphore(1)`.
+
+Run dir archived in place: `runs/archive/2026-05-03-hc2021-executar/`.
+
+Open follow-ups (not blocking):
+
+- **1,975 `unallocated_pid` (28.0% of cases)** is high. Likely a mix
+  of segredo-de-justiça / sealed cases (legitimate `pid=null`) and
+  scrape-side parse misses; one pass of `judex.sweeps.error_triage.
+  recovery_recipe` over `executar.errors.jsonl` (concatenated across
+  shards) discriminates which.
+- **879 `provider_error`** (6.0% of fetched bytes) is the residual
+  OCR tail. Re-running the same `--saida` retries them within the
+  ADR-0005 2-retry budget; past that, `--retentar-de` resets the
+  budget for those targets specifically.
+- **1,035 `empty` PDFs** (downloaded but 0-byte after decompress) are
+  most likely STF-side capture gaps; cross-check `error_triage` to
+  distinguish from a `baixar-pecas` write-side bug.
+- **Completion-tracker refresh deferred.** `docs/completion-tracker.md`
+  still shows HC 2021 at `❌ 0.5%` bytes; the table is sourced from a
+  warehouse rebuild, so update it after the next `atualizar-warehouse`
+  pass (the on-disk cache already carries the new bytes/text).
 
 ## Open thread — ADR-0006 state journal: rebase landed, FF to `dev` ready (2026-05-03)
 
