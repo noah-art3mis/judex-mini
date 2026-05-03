@@ -543,7 +543,7 @@ async def test_shutdown_check_drains_cleanly(tmp_path: Path) -> None:
     # whatever the counters say.
     total_finished = sum(c.finished for c in result.counters.values())
     # State has no half-recorded entries.
-    assert (tmp_path / "s.json").exists()
+    assert (tmp_path / "executar.state.json").exists()
 
 
 @pytest.mark.asyncio
@@ -553,7 +553,7 @@ async def test_round_trip_resume(tmp_path: Path) -> None:
     First handler crashes the run by setting shutdown after one task;
     second invocation loads state from disk and finishes the rest.
     """
-    state_path = tmp_path / "s.json"
+    state_path = tmp_path / "executar.state.json"
     targets = [("HC", i) for i in range(3)]
 
     # First run: process only HC-0's meta, then "shut down".
@@ -729,7 +729,7 @@ async def test_shutdown_mid_fanout_exits_cleanly_with_durable_state(
     successor puts in ``_run_one``); the contract here is durability
     of what was recorded, not zero-loss of what wasn't.
     """
-    state_path = tmp_path / "s.json"
+    state_path = tmp_path / "executar.state.json"
     state = PipelineState.load(state_path)
 
     started_meta = {"n": 0}

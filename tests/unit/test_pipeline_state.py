@@ -216,10 +216,10 @@ def test_atomic_snapshot_no_partial_write(tmp_path: Path, monkeypatch: pytest.Mo
     file must be either the prior good copy or absent — never a
     half-written JSON that ``json.loads`` chokes on.
     """
-    path = tmp_path / "s.json"
-    state = PipelineState.load(path)
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     state.snapshot()
+    path = tmp_path / "executar.state.json"
 
     # Capture the good copy.
     good = path.read_bytes()
@@ -246,11 +246,11 @@ def test_atomic_snapshot_no_partial_write(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_snapshot_creates_parent_dirs(tmp_path: Path) -> None:
-    path = tmp_path / "nested" / "deep" / "s.json"
-    state = PipelineState.load(path)
+    saida = tmp_path / "nested" / "deep"
+    state = PipelineState.open(saida=saida)
     state.record_meta(("HC", 1), status="ok")
     state.snapshot()
-    assert path.exists()
+    assert (saida / "executar.state.json").exists()
 
 
 def test_known_urls_for_case_round_trip(tmp_path: Path) -> None:
@@ -265,3 +265,217 @@ def test_known_urls_for_case_round_trip(tmp_path: Path) -> None:
     assert state.known_bytes_urls(("HC", 1)) == {"u1", "u2"}
     assert state.known_bytes_urls(("HC", 2)) == {"u3"}
     assert state.known_bytes_urls(("HC", 999)) == set()
+
+
+# ---------------------------------------------------------------------------
+# ADR-0006 — Journal-mode contracts (snapshot + log reconciliation).
+#
+# These pin the four invariants the journal Module is built to enforce:
+#
+# 1. ``test_open_recovers_post_snapshot_log_rows``: the headline
+#    SIGKILL-correctness fix — work that was logged but not snapshotted
+#    survives a hard kill. The pre-ADR-0006 contract lost up to one
+#    snapshot interval (5 s) of work because ``load`` only read the
+#    snapshot. ``open`` reads snapshot **and** replays log rows whose
+#    ``ts > snapshot_at``.
+# 2. ``test_open_replay_is_idempotent``: replay deserialises log rows
+#    directly into ``CaseRecord`` slots (the E1 bypass-mutators
+#    decision), so ``retry_count`` reflects history rather than being
+#    re-incremented by the auto-increment in ``record_*``. Without
+#    this, replaying a log with two attempts would yield retry_count=4
+#    on reload, spuriously firing the cap=2 gate.
+# 3. ``test_open_quarantines_stale_log``: the run-id staleness defence
+#    (D7). A log from a prior aborted run, co-resident with a fresh
+#    snapshot, must not be silently replayed onto unrelated state.
+# 4. ``test_retry_count_survives_log_replay_without_double_counting``:
+#    the cross-boundary semantics for the cap=2 retry gate inherited
+#    from ADR-0005. retry_count from log replay matches what the live
+#    handlers wrote; resuming and re-running doesn't multiply it.
+# ---------------------------------------------------------------------------
+
+
+def _append_log_row(saida: Path, row: dict) -> None:
+    """Append one JSON-line to ``saida/executar.log.jsonl``.
+
+    Used by tests that simulate "scheduler wrote a log row that the
+    snapshot didn't capture" without going through the live scheduler.
+    The journal's load path doesn't care who wrote the row — it
+    re-applies anything past ``snapshot_at`` whose ``run_id`` matches.
+    """
+    import json as _json
+
+    log_path = saida / "executar.log.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(_json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def test_open_recovers_post_snapshot_log_rows(tmp_path: Path) -> None:
+    """SIGKILL between snapshots: log replay restores in-flight work.
+
+    Sequence: record HC-1, snapshot (HC-1 is durable in snapshot).
+    Then a log row for HC-2 arrives without a follow-up snapshot —
+    simulating a SIGKILL after the row fsynced but before the next
+    5 s snapshot. ``open`` must reconstruct both cases from the
+    snapshot + log together.
+    """
+    state = PipelineState.open(saida=tmp_path)
+    state.record_meta(("HC", 1), status="ok")
+    state.snapshot()
+    snapshot_at = state.snapshot_at  # ts of the snapshot just written
+    run_id = state.run_id
+
+    # Append a log row strictly after snapshot_at — represents a
+    # handler that completed and fsynced its row before SIGKILL.
+    _append_log_row(
+        tmp_path,
+        {
+            "ts": "2099-01-01T00:00:00+00:00",  # well past snapshot_at
+            "run_id": run_id,
+            "kind": "fetch_meta",
+            "classe": "HC",
+            "processo": 2,
+            "status": "ok",
+            "error": None,
+            "retry_count": 0,
+        },
+    )
+
+    # Drop in-memory state, reload from disk.
+    state.close()
+    reloaded = PipelineState.open(saida=tmp_path)
+    assert reloaded.meta_status(("HC", 1)) == "ok", "snapshot path lost HC-1"
+    assert reloaded.meta_status(("HC", 2)) == "ok", "log replay didn't restore HC-2"
+    # snapshot_at survives so a subsequent snapshot still anchors replay correctly.
+    assert reloaded.run_id == run_id
+
+
+def test_open_replay_is_idempotent(tmp_path: Path) -> None:
+    """Replay of an existing log row must not double-increment retry_count.
+
+    The pre-ADR-0006 ``recover_state_from_log`` called the live
+    ``record_*`` mutators on every log row, which auto-incremented
+    retry_count — so replaying a log of 2 attempts would yield
+    retry_count=4 instead of 1. The journal's E1 decision bypasses
+    the mutators and applies log rows directly.
+    """
+    state = PipelineState.open(saida=tmp_path)
+    state.record_meta(("HC", 1), status="http_error")  # attempt 1: retry=0
+    state.record_meta(("HC", 1), status="http_error")  # attempt 2: retry=1
+    assert state.meta_retry_count(("HC", 1)) == 1
+    run_id = state.run_id
+    # Snapshot anchors the run_id on disk so the second open() inherits
+    # it (and the injected rows below pass the staleness check).
+    state.snapshot()
+    state.close()
+
+    # Inject log rows representing the live mutator's writes for a
+    # *different* case (HC-2) — the test is whether replay applies
+    # them with retry_count=1 (the value in the row), not retry_count=2
+    # (replay would compute that if it called the mutators per-row).
+    # Using HC-2 instead of HC-1 sidesteps the snapshot's HC-1 record.
+    for retry in (0, 1):
+        _append_log_row(
+            tmp_path,
+            {
+                "ts": f"2099-01-0{retry + 1}T00:00:00+00:00",
+                "run_id": run_id,
+                "kind": "fetch_meta",
+                "classe": "HC",
+                "processo": 2,  # fresh case to avoid colliding with the in-memory record
+                "status": "http_error",
+                "error": "WAF 403",
+                "retry_count": retry,
+            },
+        )
+
+    reloaded = PipelineState.open(saida=tmp_path)
+    # Both records replayed; retry_count is what the live mutator
+    # computed (1 for the second attempt), not 3 (replay-incremented).
+    assert reloaded.meta_retry_count(("HC", 2)) == 1
+
+
+def test_open_quarantines_stale_log(tmp_path: Path) -> None:
+    """A log row whose run_id doesn't match the snapshot raises StaleLogError.
+
+    Failure mode: an aborted prior run wrote ``executar.state.json`` and
+    ``executar.log.jsonl``; a fresh ``open()`` allocates a new run_id
+    and writes a new snapshot, but the prior log lingers on disk. The
+    prior run's rows must not be silently replayed onto the new run's
+    state — they belong to a different scrape.
+    """
+    from judex.pipeline.state import StaleLogError
+
+    state = PipelineState.open(saida=tmp_path)
+    state.record_meta(("HC", 1), status="ok")
+    state.snapshot()
+    legitimate_run_id = state.run_id
+
+    # Inject a row from a different run (simulated as a row left behind
+    # from a prior aborted run that shared the same saida directory).
+    _append_log_row(
+        tmp_path,
+        {
+            "ts": "2099-01-01T00:00:00+00:00",
+            "run_id": "stale-run-id-from-aborted-prior-run",
+            "kind": "fetch_meta",
+            "classe": "HC",
+            "processo": 999,
+            "status": "ok",
+            "error": None,
+            "retry_count": 0,
+        },
+    )
+    state.close()
+
+    with pytest.raises(StaleLogError, match="run_id"):
+        PipelineState.open(saida=tmp_path)
+    assert legitimate_run_id  # quench unused-var warnings; pinned for test clarity
+
+
+def test_retry_count_survives_log_replay_without_double_counting(
+    tmp_path: Path,
+) -> None:
+    """Cap=2 gate (ADR-0005) holds across the load boundary.
+
+    Scenario: handler attempts a task twice, both fail, retry_count
+    reaches 1. The log carries both rows. After ``open()`` replays the
+    log, the in-memory retry_count is 1 — *not* 2 (one per replayed
+    row, the buggy mutator-replay path) and *not* 3 (one per row plus
+    one for the in-memory state being non-None on second apply).
+
+    A subsequent live ``record_meta`` increments to 2 = RETRY_CAP, at
+    which point the scheduler's seed builder should stop re-seeding
+    this task.
+    """
+    state = PipelineState.open(saida=tmp_path)
+    run_id = state.run_id
+    # Snapshot anchors run_id (and snapshot_at = before injected rows'
+    # ts) so the reload below replays the injected rows.
+    state.snapshot()
+    state.close()
+
+    # Inject two log rows representing two prior attempts.
+    for retry in (0, 1):
+        _append_log_row(
+            tmp_path,
+            {
+                "ts": f"2099-01-0{retry + 1}T00:00:00+00:00",
+                "run_id": run_id,
+                "kind": "fetch_meta",
+                "classe": "HC",
+                "processo": 1,
+                "status": "http_error",
+                "error": "WAF 403",
+                "retry_count": retry,
+            },
+        )
+
+    reloaded = PipelineState.open(saida=tmp_path)
+    assert reloaded.meta_retry_count(("HC", 1)) == 1, "replay corrupted retry_count"
+
+    # Live mutator on top of replayed state increments by one — the
+    # third attempt brings retry_count to 2 (= RETRY_CAP), which is
+    # what gates re-seeding in scheduler.seeds_from_targets.
+    reloaded.record_meta(("HC", 1), status="http_error")
+    assert reloaded.meta_retry_count(("HC", 1)) == 2

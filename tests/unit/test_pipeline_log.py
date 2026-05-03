@@ -30,7 +30,6 @@ from judex.pipeline.log import (
     derive_errors_file,
     make_log_record,
     read_errors_file,
-    recover_state_from_log,
 )
 from judex.pipeline.models import Task
 from judex.pipeline.runner import (
@@ -63,12 +62,15 @@ def _text_task(url: str, case: tuple[str, int] = ("HC", 100)) -> Task:
     )
 
 
+_TEST_RUN_ID = "test-run-id-fixture"
+
+
 def test_log_append_round_trip(tmp_path: Path) -> None:
     """One row written → one row readable. fsync per row means the file
     survives a forced read between writes."""
     log = PipelineLog(tmp_path / LOG_NAME)
     rec = make_log_record(
-        task=_meta_task(), status="ok", wall_s=1.5,
+        task=_meta_task(), run_id=_TEST_RUN_ID, status="ok", wall_s=1.5,
     )
     log.append(rec)
 
@@ -81,6 +83,7 @@ def test_log_append_round_trip(tmp_path: Path) -> None:
     assert parsed["status"] == "ok"
     assert parsed["wall_s"] == 1.5
     assert parsed["pool"] == "portal"
+    assert parsed["run_id"] == _TEST_RUN_ID
 
 
 def test_log_carries_regime_fields(tmp_path: Path) -> None:
@@ -90,6 +93,7 @@ def test_log_carries_regime_fields(tmp_path: Path) -> None:
     log = PipelineLog(tmp_path / LOG_NAME)
     log.append(make_log_record(
         task=_bytes_task("https://stf/x.pdf"),
+        run_id=_TEST_RUN_ID,
         status="http_error", wall_s=20.0,
         error="WAF 403",
         regime="approaching_collapse",
@@ -103,53 +107,50 @@ def test_log_carries_regime_fields(tmp_path: Path) -> None:
     assert parsed["regime_promoted_by"] == "axis_a"
 
 
-def test_recover_state_from_log_rebuilds_dag(tmp_path: Path) -> None:
-    """Hard-kill simulation: log has rows that the snapshot doesn't.
-    recover_state_from_log replays the log into a fresh PipelineState
-    so the next run resumes from the log-true position, not the stale
-    snapshot."""
-    log = PipelineLog(tmp_path / LOG_NAME)
-    log.append(make_log_record(task=_meta_task(("HC", 1)), status="ok", wall_s=1.0))
-    log.append(make_log_record(
-        task=_bytes_task("https://stf/a.pdf", ("HC", 1)),
-        status="ok", wall_s=2.0,
-    ))
-    log.append(make_log_record(
-        task=_text_task("https://stf/a.pdf", ("HC", 1)),
-        status="ok", wall_s=0.3, extractor="pypdf",
-    ))
-    log.append(make_log_record(
-        task=_meta_task(("HC", 2)),
-        status="http_error", wall_s=15.0, error="WAF 403",
-    ))
-
-    state = recover_state_from_log(tmp_path / LOG_NAME)
-    assert state.meta_status(("HC", 1)) == "ok"
-    assert state.bytes_status(("HC", 1), url="https://stf/a.pdf") == "ok"
-    assert state.text_status(("HC", 1), url="https://stf/a.pdf") == "ok"
-    assert state.text_extractor(("HC", 1), url="https://stf/a.pdf") == "pypdf"
-    assert state.meta_status(("HC", 2)) == "http_error"
+# The two pre-ADR-0006 ``recover_state_from_log`` tests that used to
+# live here (``test_recover_state_from_log_rebuilds_dag``,
+# ``test_recover_skips_truncated_tail_line``) are retired: their
+# concern — log replay rebuilding in-memory state — is now covered by
+# ``test_pipeline_state.py::test_open_recovers_post_snapshot_log_rows``
+# and friends, which exercise the journal's ``open()`` reconciliation
+# against the same fixture shape plus the additional run_id and
+# retry_count invariants the journal contract enforces.
+#
+# The ``chars`` round-trip test below is preserved (dev added it for
+# the per-task tail-line feature) but retargeted to the journal API:
+# ``make_log_record(chars=...)`` writes the field, the journal's
+# ``open()`` replay projects it back into ``state.text_chars``.
 
 
 def test_log_record_carries_chars_and_recovers_into_state(tmp_path: Path) -> None:
     """``chars`` is the per-task-line OCR-output-size signal. It must
-    survive the round-trip: ``make_log_record`` accepts it,
-    ``to_json`` writes it, ``recover_state_from_log`` reads it back
-    into ``state.text_chars``. Without this, hard-kill resume drops
-    the chars column for any extract_text row replayed from the log,
-    which silently breaks the next session's tail-line UI for cached
-    rows."""
+    survive the round-trip: ``make_log_record`` accepts it, ``to_json``
+    writes it, the journal's ``open()`` replay reads it back into
+    ``state.text_chars``. Without this, hard-kill resume drops the
+    chars column for any extract_text row replayed from the log,
+    silently breaking the next session's tail-line UI for cached rows.
+    """
+    # Open + snapshot anchors the run_id on disk so the log rows below
+    # (which carry the same run_id) pass the staleness defence on the
+    # second open.
+    state = PipelineState.open(saida=tmp_path)
+    run_id = state.run_id
+    state.snapshot()
+    state.close()
+
     log = PipelineLog(tmp_path / LOG_NAME)
     log.append(make_log_record(
-        task=_meta_task(("HC", 1)), status="ok", wall_s=1.0,
+        task=_meta_task(("HC", 1)),
+        run_id=run_id, status="ok", wall_s=1.0,
     ))
     log.append(make_log_record(
         task=_bytes_task("https://stf/a.pdf", ("HC", 1)),
-        status="ok", wall_s=2.0,
+        run_id=run_id, status="ok", wall_s=2.0,
     ))
     log.append(make_log_record(
         task=_text_task("https://stf/a.pdf", ("HC", 1)),
-        status="ok", wall_s=0.3, extractor="pypdf", chars=18234,
+        run_id=run_id, status="ok", wall_s=0.3,
+        extractor="pypdf", chars=18234,
     ))
 
     parsed = [
@@ -158,23 +159,8 @@ def test_log_record_carries_chars_and_recovers_into_state(tmp_path: Path) -> Non
     ]
     assert parsed[2]["chars"] == 18234
 
-    state = recover_state_from_log(tmp_path / LOG_NAME)
-    assert state.text_chars(("HC", 1), url="https://stf/a.pdf") == 18234
-
-
-def test_recover_skips_truncated_tail_line(tmp_path: Path) -> None:
-    """A truncated final line (process killed mid-write) doesn't crash
-    recovery — the prior rows are still durable."""
-    path = tmp_path / LOG_NAME
-    path.write_text(
-        json.dumps({
-            "ts": "2026-01-01T00:00:00Z", "kind": "fetch_meta",
-            "classe": "HC", "processo": 1, "status": "ok", "wall_s": 1.0,
-        }) + "\n"
-        + '{"kind": "fetch_meta", "classe": "HC", "processo":'  # truncated
-    )
-    state = recover_state_from_log(path)
-    assert state.meta_status(("HC", 1)) == "ok"
+    reopened = PipelineState.open(saida=tmp_path)
+    assert reopened.text_chars(("HC", 1), url="https://stf/a.pdf") == 18234
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +171,7 @@ def test_recover_skips_truncated_tail_line(tmp_path: Path) -> None:
 def test_derive_errors_file_writes_only_non_ok(tmp_path: Path) -> None:
     """One row per non-ok target. ok rows are not present (they're not
     errors). Atomic file: never partial."""
-    state = PipelineState(path=tmp_path / "executar.state.json", cases={}, started_at="x")
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     state.record_meta(("HC", 2), status="http_error", error="WAF 403")
     state.record_bytes(("HC", 1), url="https://stf/a.pdf", status="ok", doc_type="VOTO")
@@ -224,7 +210,7 @@ def test_derive_errors_file_excludes_skipped_cached(tmp_path: Path) -> None:
     the v1.5 deepenings: a 5-case re-run produced 9 spurious
     skipped_cached rows in executar.errors.jsonl.
     """
-    state = PipelineState(path=tmp_path / "executar.state.json", cases={}, started_at="x")
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     state.record_bytes(("HC", 1), url="https://stf/x.pdf", status="ok", doc_type="VOTO")
     state.record_text(
@@ -241,7 +227,7 @@ def test_derive_errors_file_excludes_skipped_cached(tmp_path: Path) -> None:
 def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None:
     """If bytes failed, text below it can never have been ok — the bytes
     row alone captures the failure root. Don't emit a redundant text row."""
-    state = PipelineState(path=tmp_path / "executar.state.json", cases={}, started_at="x")
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     state.record_bytes(
         ("HC", 1), url="https://stf/x.pdf", status="http_error", error="x",
@@ -327,7 +313,7 @@ def test_handle_extract_text_skips_when_sidecar_matches(tmp_path: Path, monkeypa
     # Pre-seed: cached text + matching sidecar.
     peca_cache.write(url, "cached text body", extractor="pypdf")
 
-    state = PipelineState(path=tmp_path / "s.json", cases={}, started_at="x")
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     handlers = handlers_mod.make_handlers(state, provedor="pypdf", forcar=False)
 
@@ -355,7 +341,7 @@ def test_handle_extract_text_forcar_bypasses_sidecar(tmp_path: Path, monkeypatch
     # No bytes in cache → handler will hit no_bytes, but only because
     # forcar=True bypassed the would-be skipped_cached short-circuit.
 
-    state = PipelineState(path=tmp_path / "s.json", cases={}, started_at="x")
+    state = PipelineState.open(saida=tmp_path)
     state.record_meta(("HC", 1), status="ok")
     handlers = handlers_mod.make_handlers(state, provedor="pypdf", forcar=True)
 

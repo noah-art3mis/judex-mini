@@ -304,6 +304,25 @@ def _read_task_chars(state: PipelineState, task: Task) -> Optional[int]:
     return entry.get("chars") if entry else None
 
 
+def _read_task_retry_count(state: PipelineState, task: Task) -> int:
+    """Project the per-record ``retry_count`` value the live mutator
+    just wrote.
+
+    The log row carries this so ADR-0006 § D4 / E1 replay can preserve
+    it on resume rather than re-incrementing through the live mutator.
+    """
+    if task.kind == "fetch_meta":
+        return state.meta_retry_count(task.case_key)
+    url = task.payload.get("url")
+    if url is None:
+        return 0
+    if task.kind == "fetch_bytes":
+        return state.bytes_retry_count(task.case_key, url=url)
+    if task.kind == "extract_text":
+        return state.text_retry_count(task.case_key, url=url)
+    return 0
+
+
 def _short_identifier(task: Task) -> str:
     """Compact per-task id for the tail log, mirroring legacy
     ``judex.utils.log_render.compact_target_id`` shape:
@@ -400,11 +419,14 @@ async def _run_one(
         # error_triage, and --retentar-de need. fsynced per row.
         if runtime.log is not None:
             error_msg = _read_task_error(runtime.state, task)
+            retry_count = _read_task_retry_count(runtime.state, task)
             rkw = regime_kwargs(regime_reading)
             record = make_log_record(
                 task=task,
+                run_id=runtime.state.run_id,
                 status=outcome or "error",
                 wall_s=elapsed,
+                retry_count=retry_count,
                 error=error_msg,
                 extractor=line_extractor,
                 chars=line_chars,

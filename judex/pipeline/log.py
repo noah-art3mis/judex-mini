@@ -10,16 +10,16 @@ Why both. The legacy three-command chain shipped both for the same
 reason: a hard kill (SIGKILL, OOM, VM suspend) that lands between two
 periodic snapshot writes will lose the in-memory deltas — the snapshot
 on disk is stale by up to ``snapshot_interval_seconds``. The log is
-durable per record. ``recover_state_from_log`` re-replays the log into
-the same shape ``PipelineState`` holds in memory, so a survivor of a
-kill can come back exactly where it left off, regardless of when the
-last snapshot ran.
+durable per record. ``PipelineState.open()`` reconciles snapshot+log
+on every fresh start (read snapshot → replay every log row whose
+``ts > snapshot_at``), so a survivor of a kill comes back exactly
+where it left off regardless of when the last snapshot ran (ADR-0006).
 
 Why log AND state, not log alone. Reading a 100k-row JSONL on every
 process start would dominate cold-start cost on a year-corpus run.
 ``executar.state.json`` exists so ``probe`` can read the full state in
-one stat+read; the log is consulted only on hot-recovery (ad-hoc
-``recover_state_from_log`` after a kill).
+one stat+read, and so ``open()``'s replay only walks the suffix of
+the log written after the snapshot was taken — bounded work.
 
 Also derives ``executar.errors.jsonl`` — one row per non-ok target
 across all three task kinds, in the same shape as
@@ -57,9 +57,21 @@ class TaskLogRecord:
     Field shape mirrors :class:`judex.sweeps.peca_store.PecaAttemptRecord`
     where it overlaps so :func:`judex.sweeps.error_triage.classify_error`
     works without translation. Pipeline-specific extras live alongside.
+
+    ``run_id`` is the journal's staleness defence (ADR-0006 § D7) — every
+    row carries the run_id of the live ``PipelineState`` that produced
+    it. ``PipelineState.open()``'s replay path raises ``StaleLogError``
+    if a row's run_id doesn't match the snapshot's, preventing a prior
+    aborted run's rows from silently polluting a fresh resume.
+
+    ``retry_count`` carries the value the live ``record_*`` mutator
+    computed at write time so replay (ADR-0006 § D4) can preserve it
+    rather than re-incrementing through the mutator on each replayed
+    row.
     """
 
     ts: str
+    run_id: str
     kind: TaskKind
     classe: str
     processo: int
@@ -76,6 +88,7 @@ class TaskLogRecord:
     error: Optional[str] = None
     http_status: Optional[int] = None
     pool: Optional[str] = None
+    retry_count: int = 0
     # CliffDetector reading at write-time. None on cache-fast-path rows
     # (no HTTP, no measurement). When present, mirrors the legacy
     # ``regime_kwargs`` shape so analisar-regimes consumes the row
@@ -88,6 +101,7 @@ class TaskLogRecord:
     def to_json(self) -> dict[str, Any]:
         return {
             "ts": self.ts,
+            "run_id": self.run_id,
             "kind": self.kind,
             "classe": self.classe,
             "processo": self.processo,
@@ -100,6 +114,7 @@ class TaskLogRecord:
             "error": self.error,
             "http_status": self.http_status,
             "pool": self.pool,
+            "retry_count": self.retry_count,
             "regime": self.regime,
             "regime_fail_rate": self.regime_fail_rate,
             "regime_p95_wall_s": self.regime_p95_wall_s,
@@ -136,63 +151,21 @@ class PipelineLog:
             os.fsync(f.fileno())
 
 
-def recover_state_from_log(log_path: Path | str) -> PipelineState:
-    """Rebuild a :class:`PipelineState` by replaying every log row.
-
-    Used when ``executar.state.json`` is suspected stale (process was
-    SIGKILLed or OOM'd between snapshots). The log is the canonical
-    record; later rows for the same key supersede earlier ones — same
-    convention as :func:`judex.sweeps.store.replay_log`.
-
-    Returns a state pinned to the same on-disk path as ``log_path``'s
-    sibling ``executar.state.json``, so the caller can immediately
-    snapshot it back to disk to refresh the snapshot.
-    """
-    log_path = Path(log_path)
-    state_path = log_path.parent / "executar.state.json"
-    state = PipelineState.load(state_path) if state_path.exists() else PipelineState(
-        path=state_path, cases={}, started_at=_now_iso(),
-    )
-    if not log_path.exists():
-        return state
-
-    with log_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                # Tail of a killed process can leave a half-written
-                # final line; drop it silently — the prior records are
-                # still durable.
-                continue
-            classe = rec.get("classe")
-            processo = rec.get("processo")
-            kind = rec.get("kind")
-            status = rec.get("status")
-            if classe is None or processo is None or not kind or not status:
-                continue
-            case_key = (classe, int(processo))
-            error = rec.get("error")
-            url = rec.get("url")
-            doc_type = rec.get("doc_type")
-            extractor = rec.get("extractor")
-            chars = rec.get("chars")
-            if kind == "fetch_meta":
-                state.record_meta(case_key, status=status, error=error)
-            elif kind == "fetch_bytes" and url:
-                state.record_bytes(
-                    case_key, url=url, status=status, error=error,
-                    doc_type=doc_type,
-                )
-            elif kind == "extract_text" and url:
-                state.record_text(
-                    case_key, url=url, status=status,
-                    extractor=extractor, error=error, chars=chars,
-                )
-    return state
+# ``recover_state_from_log`` was retired by ADR-0006: ``PipelineState.open()``
+# now reconciles snapshot + log natively (read snapshot → replay every
+# log row whose ``ts > snapshot_at``), so the SIGKILL-recovery path is
+# automatic and the standalone replay function is redundant. Callers
+# that previously did the "log fresher than snapshot" mtime check now
+# just call ``PipelineState.open(saida=saida)`` — the journal handles it.
+#
+# Replay also bypasses the live ``record_*`` mutators (ADR-0006 § D4 /
+# E1) so retry_count is preserved from the row rather than re-incremented
+# per replayed row — a correctness bug the old recovery function carried.
+#
+# Note: dev added ``chars`` to the per-row schema after this commit's
+# parent. ``_apply_log_row`` in ``state.py`` should preserve it on
+# replay; the dev-side ``record_text`` and ``record_bytes`` mutators
+# accept ``chars`` as a kwarg.
 
 
 # Statuses that mean "this target is in the desired terminal state" — not
@@ -356,8 +329,10 @@ def read_errors_file(path: Path | str) -> list[dict[str, Any]]:
 def make_log_record(
     *,
     task: Task,
+    run_id: str,
     status: TaskStatus,
     wall_s: float,
+    retry_count: int = 0,
     error: Optional[str] = None,
     extractor: Optional[str] = None,
     chars: Optional[int] = None,
@@ -372,10 +347,17 @@ def make_log_record(
     Helper around :class:`TaskLogRecord` that pulls ``classe``,
     ``processo``, ``url``, ``doc_type``, and ``pool`` straight off the
     task — keeping the scheduler call-site short.
+
+    ``run_id`` is the journal's staleness defence (ADR-0006 § D7) —
+    the scheduler reads it off ``state.run_id`` and threads it through
+    every log row it writes. ``retry_count`` carries the value the
+    live ``record_*`` mutator computed at write time so replay
+    preserves it (ADR-0006 § D4 / E1).
     """
     classe, processo = task.case_key
     return TaskLogRecord(
         ts=_now_iso(),
+        run_id=run_id,
         kind=task.kind,
         classe=classe,
         processo=processo,
@@ -388,6 +370,7 @@ def make_log_record(
         error=error,
         http_status=http_status,
         pool=task.pool,
+        retry_count=retry_count,
         regime=regime,
         regime_fail_rate=regime_fail_rate,
         regime_p95_wall_s=regime_p95_wall_s,

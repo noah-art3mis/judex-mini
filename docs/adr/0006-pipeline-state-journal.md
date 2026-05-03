@@ -1,6 +1,18 @@
 # ADR-0006: Pipeline state journal — fused snapshot+log Module with log-replay reconciliation
 
-**Status**: Proposed (2026-05-03). Deferred — lands **after** [ADR-0005](0005-unified-pipeline.md) slice 6 (legacy command removal). Doesn't block ADR-0005 from flipping to Accepted; the SIGKILL-correctness fix it carries is desirable but not in ADR-0005's validation set. Scope is a single Module deepening inside `judex/pipeline/`; no DAG / scheduler / handler changes.
+**Status**: Proposed (2026-05-03). Implementation underway as of the 2026-05-03 amendment below — the original D2 deferral on [ADR-0005](0005-unified-pipeline.md) slice 6 has been lifted now that legacy commands (`varrer-processos` / `baixar-pecas` / `extrair-pecas` / `coletar`) are staying alongside the unified pipeline indefinitely. Scope is a single Module deepening inside `judex/pipeline/`; no DAG / scheduler / handler changes. Doesn't block ADR-0005 from flipping to Accepted; the SIGKILL-correctness fix it carries is desirable but not in ADR-0005's validation set.
+
+## Amendments
+
+### 2026-05-03 — Lift D2 deferral; implement now
+
+The original Decision (below) chose **D2** ("wait for slice 6, then fuse") over **D1** ("ship now on `dev`, before slice 6") on the rationale that D1 would require keeping legacy `process_store.py` / `peca_store.py` on a different durability contract than the unified pipeline during the validation window — "two migrations, not one."
+
+That rationale is invalidated by a separate operational decision: **legacy commands are staying alongside the unified pipeline indefinitely** (no slice 6 in the immediate plan). With slice 6 not on the near-term roadmap, the "validation window" framing no longer applies; legacy stores sit on their own contract permanently, the unified pipeline gets the journal contract permanently, and there is no migration between the two — they belong to different code paths.
+
+**Override**: D2 → D1. Implementation begins **now** (2026-05-03), in the worktree at `.claude/worktrees/adr-0006-state-journal/` on branch `worktree-adr-0006-state-journal`. The original Decision section (D1–D8 below) governs the design *content*; this amendment governs only the *timing*. ADR-0005 is **not** modified — slice 6 remains a future option, just not a gate on this ADR.
+
+The "D1: Ship now on `dev`, before slice 6 — Rejected" entry under § Considered alternatives at the deferral question (was branch D) is now **adopted** with the same operational caveat the rejection captured: legacy stores stay on the legacy contract; nothing migrates.
 
 ## Context
 
@@ -129,7 +141,7 @@ Considered alternatives at the deferral question (was branch D):
 
 The ADR moves from Proposed to Accepted when:
 
-1. ⏳ ADR-0005 is Accepted (slice 6 has landed; legacy commands deleted).
+1. ⏳ The unified pipeline is in place (slices 1–5 of [ADR-0005](0005-unified-pipeline.md) — landed). *Originally read "ADR-0005 is Accepted (slice 6 has landed)"; relaxed by the 2026-05-03 amendment that lifted the slice-6 gate.*
 2. ⏳ All four new tests above pass on dev.
 3. ⏳ The full unit suite passes (currently 716 as of ADR-0005 slice 5; the four new tests bring the floor to 720).
 4. ⏳ Real-SIGKILL integration test: `kill -9` a mid-run Coleta between snapshot intervals, `--retomar`, verify finished output identical to a single-pass run. (This is ADR-0005 § Validation 3 strengthened from SIGTERM to SIGKILL — the SIGTERM variant doesn't differentiate this Module from the legacy split.)

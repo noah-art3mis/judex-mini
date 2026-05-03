@@ -324,27 +324,21 @@ def run_pipeline(
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)
 
-    state_path = saida / "executar.state.json"
     log_path = saida / "executar.log.jsonl"
 
-    # If the log file is fresher than the snapshot, the snapshot is stale
-    # — the process was killed between snapshot intervals. Replay the
-    # log to recover the up-to-date state, then snapshot before workers
-    # start. Cheap when the log is short; the only cost when both files
-    # are aligned is one stat() per file.
-    if log_path.exists() and (
-        not state_path.exists()
-        or log_path.stat().st_mtime > state_path.stat().st_mtime
-    ):
-        from judex.pipeline.log import recover_state_from_log
-        log.info(
-            "executar: log newer than snapshot; recovering state from %s",
-            log_path,
-        )
-        state = recover_state_from_log(log_path)
-        state.snapshot()
-    else:
-        state = PipelineState.load(state_path)
+    # ADR-0006 § D1: PipelineState.open() reconciles snapshot + log
+    # natively. Reads the snapshot, then replays every log row whose
+    # ``ts > snapshot_at`` directly into in-memory state — so a SIGKILL
+    # between snapshots loses nothing more than the WAL-write itself
+    # can lose. Run-id staleness is checked on the way through;
+    # ``StaleLogError`` propagates if a co-resident log from a prior
+    # run is detected. Replaces the legacy log-vs-snapshot mtime
+    # comparison + recover_state_from_log dance.
+    state = PipelineState.open(saida=saida)
+    # Snapshot immediately so the on-disk state file reflects any rows
+    # we replayed from the log — keeps ``judex probe`` rendering the
+    # post-recovery state during the run.
+    state.snapshot()
 
     portal_proxies = sistemas_proxies = None
     if proxy_pool is not None:

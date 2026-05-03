@@ -1,18 +1,39 @@
-"""Persistent state for the unified pipeline.
+"""Persistent state for the unified pipeline — the journal Module.
 
-A single JSON file under the run's ``--saida`` directory captures the
-per-case DAG progress. The file is loaded once at process start,
-held in memory for the life of the run, and written back as a single
-atomic snapshot — never per-record. This is the lesson learned in
-``judex/sweeps/peca_store.py`` on 2026-04-30: per-record rewrites of
-a 50 MB state file capped throughput at ~0.1 rec/s; periodic
-snapshot does not.
+Two on-disk files cooperate to give the per-case DAG progress
+SIGKILL-exact recoverability:
+
+* ``executar.state.json`` — the **snapshot**. Atomic, periodic
+  (every 5 s by the scheduler), holds the full in-memory state in
+  one file. The fast path: ``judex probe`` reads this and only this.
+* ``executar.log.jsonl`` — the **log**. Append-only, fsynced per row,
+  load-bearing. Every task outcome lands here before the live
+  handler returns. Written by ``judex/pipeline/log.py``;
+  ``classify_unified_error`` and the ``--retentar-de`` machinery
+  consume it.
+
+``PipelineState.open(saida=...)`` reconciles the two: it loads the
+snapshot, then replays every log row whose ``ts > snapshot_at`` into
+the same in-memory shape — so a SIGKILL between snapshots loses
+nothing more than the WAL-write itself can lose. The ``run_id`` field
+on snapshot and every log row is the staleness defence: a log from a
+prior aborted run, co-resident with a fresh snapshot, raises
+``StaleLogError`` instead of being silently replayed onto unrelated
+state.
+
+This Module is the on-disk layout's **ADR-0006** journal contract.
+The snapshot/log split, the reconciliation rule, and the run-id
+defence are pinned by ``tests/unit/test_pipeline_state.py``; see in
+particular the four ``test_open_*`` / ``test_retry_count_survives_*``
+tests at the bottom of that file.
 
 Layout:
 
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "run_id": "8f2a-...",
       "started_at": "2026-05-02T22:00:00Z",
+      "snapshot_at": "2026-05-02T22:00:05Z",
       "cases": {
         "HC-252920": {
           "fetch_meta": {"status": "ok", "ts": "...", "error": null,
@@ -32,15 +53,18 @@ Layout:
 The case key is ``f"{classe}-{processo_id}"`` (string-only for JSON
 fidelity).
 
-``retry_count`` is the number of prior handler invocations that failed
-on this task; auto-incremented by the ``record_*`` mutators on every
-re-recording. The seed builder gates re-seeding on ``retry_count <
-RETRY_CAP`` (=2) per ADR-0005 § Open issue #1, inheriting ADR-0004's
-"cap of 2 retry cycles" contract. Schema bumped 1→2 on 2026-05-03 to
-make the field's presence explicit; pre-bump state files cannot be
-loaded (per CLAUDE.md § Conventions: no backwards-compat shims).
+``retry_count`` is the number of prior handler invocations that
+failed on this task; auto-incremented by the ``record_*`` mutators
+on every re-recording. Replay (during ``open()``) **bypasses** the
+mutators and applies log rows directly to ``CaseRecord`` slots — so
+``retry_count`` reflects the live history rather than being
+re-incremented per replayed row. The seed builder gates re-seeding on
+``retry_count < RETRY_CAP`` (=2) per ADR-0005 § Open issue #1.
 
-Tests pin the contracts; see ``tests/unit/test_pipeline_state.py``.
+Schema bumped 2→3 on 2026-05-03 to add ``run_id`` (the
+``StaleLogError`` defence) and ``snapshot_at`` (the replay anchor)
+explicitly. Pre-bump state files cannot be loaded; CLAUDE.md §
+Conventions: no backwards-compat shims.
 """
 
 from __future__ import annotations
@@ -49,6 +73,7 @@ import datetime as dt
 import json
 import os
 import tempfile
+import uuid
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,7 +82,22 @@ from typing import Optional
 from judex.pipeline.models import TaskStatus
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+
+SNAPSHOT_NAME = "executar.state.json"
+LOG_NAME = "executar.log.jsonl"
+
+
+class StaleLogError(Exception):
+    """Raised by ``PipelineState.open()`` when the log contains rows
+    whose ``run_id`` doesn't match the snapshot's.
+
+    Indicates an aborted prior run's log lingering in the same ``saida``
+    directory next to a fresh snapshot. The operator must investigate
+    (and typically move the stale log out of the way) rather than
+    silently replay foreign rows onto unrelated state. Per ADR-0006
+    § D7.
+    """
 
 
 def _now_iso() -> str:
@@ -98,36 +138,243 @@ class CaseRecord:
         )
 
 
-class PipelineState:
-    """In-memory state with atomic snapshot to disk.
+def _apply_log_row(cases: dict[str, CaseRecord], row: dict) -> None:
+    """Apply one log row directly to the case dict — bypassing the live
+    ``record_*`` mutators (ADR-0006 § D4 / E1).
 
-    Construction is via ``PipelineState.load(path)``. The instance is
-    not thread-safe; the scheduler is single-event-loop and updates
+    The row carries the ``retry_count`` value the live mutator computed
+    when it wrote the row; replay preserves that value rather than
+    re-incrementing through ``record_*``. Without this, replaying the
+    log of a 2-attempt task would yield ``retry_count=4`` (the buggy
+    pre-ADR-0006 ``recover_state_from_log`` path).
+
+    Fields the log row carries (``status``, ``ts``, ``error``,
+    ``doc_type``, ``extractor``, ``chars``, ``retry_count``) are taken
+    from the row; fields not carried in the log schema (``n_pecas`` on
+    ``fetch_meta``) are preserved from any prior record so a snapshot's
+    field doesn't get clobbered when the log replays a status update on
+    the same case.
+    """
+    classe = row.get("classe")
+    processo = row.get("processo")
+    kind = row.get("kind")
+    if classe is None or processo is None or not kind:
+        return
+    case_key = f"{classe}-{processo}"
+    rec = cases.setdefault(case_key, CaseRecord())
+
+    retry_count = row.get("retry_count") or 0
+
+    if kind == "fetch_meta":
+        prior = rec.meta or {}
+        rec.meta = {
+            "status": row.get("status"),
+            "ts": row.get("ts"),
+            "error": row.get("error"),
+            "retry_count": retry_count,
+            # ``n_pecas`` isn't in the log row schema (only in in-memory
+            # state). Preserve from prior to avoid clobbering a
+            # snapshot-loaded value when the log replays a meta update.
+            "n_pecas": prior.get("n_pecas"),
+        }
+    elif kind == "fetch_bytes":
+        url = row.get("url")
+        if url is None:
+            return
+        rec.bytes[url] = {
+            "status": row.get("status"),
+            "ts": row.get("ts"),
+            "error": row.get("error"),
+            "doc_type": row.get("doc_type"),
+            "retry_count": retry_count,
+        }
+    elif kind == "extract_text":
+        url = row.get("url")
+        if url is None:
+            return
+        rec.text[url] = {
+            "status": row.get("status"),
+            "ts": row.get("ts"),
+            "extractor": row.get("extractor"),
+            "error": row.get("error"),
+            "retry_count": retry_count,
+            "chars": row.get("chars"),
+        }
+
+
+class PipelineState:
+    """In-memory state with snapshot+log durability.
+
+    Construction is via ``PipelineState.open(saida=...)``. The instance
+    is not thread-safe; the scheduler is single-event-loop and updates
     state from one coroutine at a time.
+
+    ``run_id`` is allocated on a fresh open (UUID4) or read from the
+    snapshot on a resume. It propagates to every log row written
+    against this state and is the staleness defence: a co-resident log
+    from a prior run will fail to load.
     """
 
-    def __init__(self, path: Path, cases: dict[str, CaseRecord], started_at: str):
-        self._path = path
+    def __init__(
+        self,
+        saida: Path,
+        cases: dict[str, CaseRecord],
+        started_at: str,
+        run_id: str,
+        snapshot_at: Optional[str] = None,
+    ):
+        self._saida = Path(saida)
         self._cases = cases
         self._started_at = started_at
+        self._run_id = run_id
+        self._snapshot_at = snapshot_at
+
+    # ---- Construction ----
+
+    @classmethod
+    def open(
+        cls,
+        *,
+        saida: Path | str,
+        run_id: Optional[str] = None,
+    ) -> PipelineState:
+        """Open the journal at ``saida``.
+
+        Reads the snapshot at ``saida/executar.state.json`` if it
+        exists, then replays every row in ``saida/executar.log.jsonl``
+        whose ``ts > snapshot_at``. Replay applies rows directly to
+        ``CaseRecord`` slots (ADR-0006 § D4); the live ``record_*``
+        mutators are bypassed.
+
+        On a fresh open (no snapshot), a new ``run_id`` is allocated
+        unless one is passed in. On a resume, the snapshot's ``run_id``
+        is reused; the ``run_id`` argument is ignored.
+
+        Raises ``StaleLogError`` if any log row's ``run_id`` doesn't
+        match the effective ``run_id`` — indicates a co-resident log
+        from a prior aborted run.
+
+        Raises ``ValueError`` on schema-version mismatch.
+        """
+        saida = Path(saida)
+        snapshot_path = saida / SNAPSHOT_NAME
+        log_path = saida / LOG_NAME
+
+        cases: dict[str, CaseRecord] = {}
+        snapshot_at: Optional[str] = None
+        effective_run_id: str
+        started_at: str
+
+        if snapshot_path.exists():
+            raw = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            if raw.get("schema_version") != SCHEMA_VERSION:
+                raise ValueError(
+                    f"PipelineState schema mismatch at {snapshot_path}: "
+                    f"file={raw.get('schema_version')} code={SCHEMA_VERSION}"
+                )
+            cases = {
+                key: CaseRecord.from_json(payload)
+                for key, payload in (raw.get("cases") or {}).items()
+            }
+            started_at = raw.get("started_at") or _now_iso()
+            snapshot_at = raw.get("snapshot_at")
+            effective_run_id = raw.get("run_id") or (run_id or str(uuid.uuid4()))
+        else:
+            effective_run_id = run_id or str(uuid.uuid4())
+            started_at = _now_iso()
+
+        if log_path.exists():
+            with log_path.open(encoding="utf-8") as f:
+                for raw_line in f:
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        # Tail of a SIGKILLed process can leave a
+                        # half-written final line; the prior records are
+                        # already durable. Mirrors the legacy
+                        # ``recover_state_from_log`` policy.
+                        continue
+
+                    row_run_id = row.get("run_id")
+                    if row_run_id != effective_run_id:
+                        raise StaleLogError(
+                            f"Log row at {log_path} has run_id="
+                            f"{row_run_id!r} but expected "
+                            f"{effective_run_id!r}; a snapshot from a "
+                            f"different run shares this saida directory. "
+                            f"Move the stale log out of the way before "
+                            f"resuming."
+                        )
+
+                    row_ts = row.get("ts")
+                    if snapshot_at and row_ts and row_ts <= snapshot_at:
+                        continue
+
+                    _apply_log_row(cases, row)
+
+        return cls(
+            saida=saida,
+            cases=cases,
+            started_at=started_at,
+            run_id=effective_run_id,
+            snapshot_at=snapshot_at,
+        )
 
     @classmethod
     def load(cls, path: Path | str) -> PipelineState:
-        path = Path(path)
-        if not path.exists():
-            return cls(path=path, cases={}, started_at=_now_iso())
+        """Backward-compat shim during the ADR-0006 migration window.
 
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        if raw.get("schema_version") != SCHEMA_VERSION:
-            raise ValueError(
-                f"PipelineState schema mismatch at {path}: "
-                f"file={raw.get('schema_version')} code={SCHEMA_VERSION}"
-            )
-        cases = {
-            key: CaseRecord.from_json(payload)
-            for key, payload in (raw.get("cases") or {}).items()
-        }
-        return cls(path=path, cases=cases, started_at=raw.get("started_at") or _now_iso())
+        Treats ``path`` as the snapshot file path; ``saida`` is its
+        parent directory. New code should call ``open(saida=...)``
+        directly. Removed once all in-tree call sites migrate
+        (target: end of the same commit).
+        """
+        return cls.open(saida=Path(path).parent)
+
+    # ---- Properties ----
+
+    @property
+    def saida(self) -> Path:
+        return self._saida
+
+    @property
+    def run_id(self) -> str:
+        return self._run_id
+
+    @property
+    def snapshot_at(self) -> Optional[str]:
+        return self._snapshot_at
+
+    @property
+    def started_at(self) -> str:
+        return self._started_at
+
+    @property
+    def _path(self) -> Path:
+        """Snapshot file path. Backward-compat for callers that
+        reference ``state._path`` directly (e.g. ``probe``)."""
+        return self._saida / SNAPSHOT_NAME
+
+    @property
+    def log_path(self) -> Path:
+        """Log file path."""
+        return self._saida / LOG_NAME
+
+    # ---- Lifecycle ----
+
+    def close(self) -> None:
+        """Release any held resources.
+
+        Today this is a no-op — the snapshot is written via a transient
+        ``tempfile`` handle and the log is opened by ``PipelineLog`` in
+        ``judex/pipeline/log.py`` (separate Module for the duration of
+        the ADR-0006 migration; fused in a follow-up commit per § D2).
+        Reserved so callers can adopt the eventual lifecycle without
+        churn when D2 lands.
+        """
 
     # ---- Query API ----
 
@@ -400,13 +647,20 @@ class PipelineState:
         followed by ``os.replace`` for the cross-platform atomic
         rename. If ``os.replace`` raises, the tempfile is cleaned up
         in the ``finally``; the on-disk target is unchanged.
-        """
-        self._path.parent.mkdir(parents=True, exist_ok=True)
 
+        Updates ``self._snapshot_at`` to the wall-clock time of this
+        write, which is the anchor ``open()`` uses to skip log rows
+        that are already represented in the snapshot.
+        """
+        target = self._path
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        snapshot_at = _now_iso()
         payload = {
             "schema_version": SCHEMA_VERSION,
+            "run_id": self._run_id,
             "started_at": self._started_at,
-            "snapshot_at": _now_iso(),
+            "snapshot_at": snapshot_at,
             "cases": {key: rec.to_json() for key, rec in self._cases.items()},
         }
         body = json.dumps(payload, indent=2, default=str).encode("utf-8")
@@ -414,16 +668,17 @@ class PipelineState:
         # NamedTemporaryFile with delete=False so we can os.replace it
         # into the target. The fd is closed before the rename.
         fd, tmp_path = tempfile.mkstemp(
-            prefix=self._path.name + ".",
+            prefix=target.name + ".",
             suffix=".tmp",
-            dir=self._path.parent,
+            dir=target.parent,
         )
         try:
             with os.fdopen(fd, "wb") as f:
                 f.write(body)
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp_path, self._path)
+            os.replace(tmp_path, target)
+            self._snapshot_at = snapshot_at
         finally:
             # If os.replace succeeded, tmp_path is gone; if it failed,
             # remove the orphan tempfile. Either way, never leave it.
