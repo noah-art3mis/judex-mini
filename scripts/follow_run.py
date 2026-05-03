@@ -136,6 +136,25 @@ def aggregate_state(run_dir: Path) -> dict[str, object]:
     if not state_files:
         return {}
 
+    # Optional sidecar from ``scripts/backfill_n_pecas.py``: maps
+    # ``case_key -> n_pecas`` for cases whose live state.json record
+    # lacks the field (legacy run, started before n_pecas existed).
+    # Live shards never write this file, so the values survive
+    # snapshot churn. Re-loaded each tick — the backfill script may
+    # be re-run mid-session and we want fresh values.
+    sidecar_path = run_dir / "n_pecas.json"
+    sidecar: dict[str, int] = {}
+    if sidecar_path.exists():
+        try:
+            raw = json.loads(sidecar_path.read_text())
+            if isinstance(raw, dict):
+                sidecar = {
+                    k: v for k, v in raw.items()
+                    if isinstance(k, str) and isinstance(v, int)
+                }
+        except (OSError, json.JSONDecodeError):
+            pass  # corrupt sidecar; fall back to count-only
+
     processos: Counter = Counter()
     pecas: Counter = Counter()
     text: Counter = Counter()
@@ -145,7 +164,7 @@ def aggregate_state(run_dir: Path) -> dict[str, object]:
             d = json.loads(sf.read_text())
         except (OSError, json.JSONDecodeError):
             continue  # mid-write race; next tick will see it
-        for case in d.get("cases", {}).values():
+        for case_key, case in (d.get("cases") or {}).items():
             if not isinstance(case, dict):
                 continue
             meta = case.get("fetch_meta") or {}
@@ -154,6 +173,8 @@ def aggregate_state(run_dir: Path) -> dict[str, object]:
                 processos[m_status] += 1
             if m_status == "ok":
                 n = meta.get("n_pecas")
+                if n is None:
+                    n = sidecar.get(case_key)
                 if n is None:
                     pecas_total = None
                 elif pecas_total is not None:
