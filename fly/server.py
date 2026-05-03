@@ -17,6 +17,7 @@ the 2× speedup over Modal's sequential page-loop comes from.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import time
@@ -54,12 +55,13 @@ def healthz() -> dict:
 _RASTER_CHUNK_PAGES = 4
 
 
-@app.post("/extract")
-async def extract(request: Request) -> JSONResponse:
-    pdf_bytes = await request.body()
-    if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
-        raise HTTPException(status_code=400, detail="body must be PDF bytes")
-
+def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
+    """Synchronous OCR pipeline. Runs in a thread (via run_in_executor) so
+    the asyncio event loop stays free to serve /healthz during OCR — Fly's
+    health watchdog kills Machines that fail health checks for ~6 min,
+    which on the prior async-blocking version meant any 295+-page PDF
+    request died mid-OCR (empirically confirmed 2026-05-02).
+    """
     from pdf2image import convert_from_bytes
     from pypdf import PdfReader
 
@@ -84,9 +86,20 @@ async def extract(request: Request) -> JSONResponse:
             with ThreadPoolExecutor(max_workers=n_workers) as pool:
                 page_texts.extend(pool.map(_ocr_one_page, chunk_imgs))
 
-    return JSONResponse({
+    return {
         "text": "\n\n".join(t.strip() for t in page_texts if t and t.strip()),
         "n_pages": n_pages,
         "wall_seconds": round(time.monotonic() - t0, 3),
         "provider": "tesseract_fly",
-    })
+    }
+
+
+@app.post("/extract")
+async def extract(request: Request) -> JSONResponse:
+    pdf_bytes = await request.body()
+    if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="body must be PDF bytes")
+
+    loop = asyncio.get_running_loop()
+    payload = await loop.run_in_executor(None, _ocr_pdf_sync, pdf_bytes)
+    return JSONResponse(payload)
