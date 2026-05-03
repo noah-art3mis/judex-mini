@@ -25,6 +25,8 @@ from collections import Counter as _Counter
 from pathlib import Path
 from typing import Optional
 
+import urllib3
+
 from judex.pipeline.handlers import HandlerFn, make_handlers
 from judex.pipeline.models import Counters, PoolConfig
 from judex.pipeline.scheduler import (
@@ -34,6 +36,14 @@ from judex.pipeline.scheduler import (
     seeds_from_targets,
 )
 from judex.pipeline.state import PipelineState
+
+# Mirror legacy ``run_sweep.py``: STF serves valid certs but our tests use
+# direct-IP HTTPS with verify=False in some paths. Suppress the urllib3
+# "InsecureRequestWarning" flood so launcher.log stays scannable. The
+# legacy `varrer-processos` / `baixar-pecas` commands do this at module
+# import; the unified pipeline was missing it (the noise drowned out
+# every progress line, surfaced on the first real HC 2020 launch).
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HandlersFactory = "Callable[..., dict[str, HandlerFn]]"
 
@@ -225,6 +235,17 @@ def run_pipeline(
     for the portal and sistemas pools — so per-pool cooldowns are
     isolated. When ``None`` (default), both pools run direct-IP.
     """
+    # Configure root logger so the scheduler's [progress] heartbeat,
+    # the per-task lines from ``_run_one``, and the runner's own
+    # info/warning logs all surface on stderr. ``force=True`` is
+    # important because ``judex executar`` may be invoked from a parent
+    # process that already configured logging (e.g. tests, repl) — the
+    # legacy commands do the same. Format mirrors legacy: bare message
+    # (timestamps and pool labels are inside the message itself).
+    logging.basicConfig(
+        level=logging.INFO, format="%(message)s", force=True,
+    )
+
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)
 

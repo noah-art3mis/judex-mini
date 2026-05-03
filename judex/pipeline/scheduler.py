@@ -197,6 +197,22 @@ def _read_task_outcome(state: PipelineState, task: Task) -> Optional[TaskStatus]
     return None
 
 
+def _short_identifier(task: Task) -> str:
+    """Human-friendly per-task identifier for the tail log.
+
+    ``fetch_meta`` shows ``HC-187634``; ``fetch_bytes``/``extract_text``
+    show ``HC-187634/<short-url>`` where the short-url is the last 24
+    chars of the URL (peca id + extension is informative; full URL is
+    too long to scan in a tail stream).
+    """
+    case_label = f"{task.case_key[0]}-{task.case_key[1]}"
+    if task.kind == "fetch_meta":
+        return case_label
+    url = task.payload.get("url", "?")
+    short = url[-24:] if len(url) > 24 else url
+    return f"{case_label}/{short}"
+
+
 async def _run_one(
     task: Task,
     handler: HandlerFn,
@@ -209,9 +225,9 @@ async def _run_one(
     """
     pool = runtime.pools[task.pool]
     runtime.counters[task.pool].started += 1
+    handler_t0 = time.monotonic()
     try:
         async with pool.semaphore:
-            handler_t0 = time.monotonic()
             successors = await asyncio.to_thread(handler, task)
             runtime.counters[task.pool].busy_seconds += time.monotonic() - handler_t0
         runtime.counters[task.pool].finished += 1
@@ -224,6 +240,15 @@ async def _run_one(
         # we treat None as "error" defensively.
         outcome = _read_task_outcome(runtime.state, task)
         pool.record_outcome(ok=(outcome == "ok"))
+
+        # Per-task tail line — matches the shape ops liked from the
+        # legacy varrer/baixar/extrair: ``[POOL] identifier status · Ns``.
+        elapsed = time.monotonic() - handler_t0
+        log.info(
+            "[%s] %s %s · %.2fs",
+            task.pool, _short_identifier(task),
+            outcome or "?", elapsed,
+        )
 
         for follow in successors:
             runtime.in_flight[follow.pool] += 1
