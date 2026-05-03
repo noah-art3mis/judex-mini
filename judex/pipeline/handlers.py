@@ -23,7 +23,10 @@ through the same factory shape.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from judex.pipeline.models import Task, TaskStatus
 from judex.pipeline.state import PipelineState
@@ -64,13 +67,21 @@ def make_handlers(
     *,
     provedor: str = "pypdf",
     fetch_dje: bool = True,
+    source_dir: Optional["Path"] = None,
 ) -> dict[str, HandlerFn]:
     """Build the three real handlers bound to a live ``PipelineState``.
+
+    ``source_dir`` is where ``handle_fetch_meta`` writes case JSONs.
+    Defaults to ``data/source/processos`` (the canonical path in
+    ``CLAUDE.md § data-layout``); per-case files land at
+    ``<source_dir>/<classe>/judex-mini_<classe>_<n>-<n>.json``.
 
     Imports are deferred to keep ``judex.pipeline`` importable without
     the full scrape stack (so unit tests can mock instead of pulling
     requests / OCR modules).
     """
+    import json
+    from pathlib import Path
     from judex.scraping import scraper as _scraper
     from judex.scraping.http_session import _http_get_with_retry, new_session
     from judex.scraping.ocr import dispatch as ocr_dispatch
@@ -82,6 +93,25 @@ def make_handlers(
     portal_session = new_session()
     sistemas_session = new_session()
     ocr_config = OCRConfig(provider=provedor)
+
+    items_root = Path(source_dir) if source_dir else Path("data/source/processos")
+
+    def _write_case_json(classe: str, processo: int, item: dict) -> None:
+        """Atomic write matching ``run_sweep._write_item_json``.
+
+        Lift-and-replicate (not import) because run_sweep's helper is
+        private and shape-coupled to the legacy run-state machinery;
+        the disk-format contract is the part we want to share.
+        """
+        out_dir = items_root / classe
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"judex-mini_{classe}_{processo}-{processo}.json"
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(
+            json.dumps(item, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        tmp.replace(path)
 
     def handle_fetch_meta(task: Task) -> list[Task]:
         classe, processo = task.case_key
@@ -95,6 +125,17 @@ def make_handlers(
         except Exception as exc:  # noqa: BLE001
             status, msg = _classify_http_exception(exc)
             state.record_meta(task.case_key, status=status, error=msg)
+            return []
+
+        # Persist the case JSON to disk. This is what the legacy
+        # ``varrer-processos`` does via run_sweep._write_item_json;
+        # without it, downstream consumers (warehouse rebuild,
+        # validar-gabarito, ad-hoc analysis) don't see the case.
+        try:
+            _write_case_json(classe, processo, dict(item))
+        except Exception as exc:  # noqa: BLE001
+            state.record_meta(task.case_key, status="http_error",
+                              error=f"write failed: {exc}")
             return []
 
         state.record_meta(task.case_key, status="ok")
