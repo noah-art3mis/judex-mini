@@ -39,21 +39,24 @@ primary_region = "gru"
     method = "GET"
     path = "/healthz"
 
-# Per-Machine resource shape. Tesseract LSTM (~150 MB) + per-chunk
-# rasterization (~50 MB for 4 pages at 200 dpi, see server.py's
-# _RASTER_CHUNK_PAGES) + Python/uvicorn baseline (~250 MB) ≈ 450 MB
-# steady-state, regardless of PDF size. 2 GB gives ~4× headroom for
-# Tesseract working set + Pillow temp buffers + glibc/kernel slack.
-# The 2 vCPUs let pages parallel-OCR 2 at a time inside one PDF — the
-# in-container ThreadPoolExecutor in server.py picks this up via
-# os.cpu_count().
+# Per-Machine resource shape. Memory floor derivation (200 dpi A4):
+#   steady-state: Tesseract LSTM 200 + Python/uvicorn 180 + Pillow 80
+#                 + glibc/kernel 50 = 510 MB
+#   per-chunk raster: 16 pages × 11 MB = 176 MB (capped by chunk size)
+#   per-thread Tesseract: 2 vCPUs × 100 MB = 200 MB
+#   peak working set: ~886 MB
+# 1 GB total = 512 MB included + 512 MB additional billed; ~138 MB
+# headroom over peak (~13%). Outliers > 2 MB compressed are skipped
+# pre-flight via tesseract_fly.OutlierPdfError, so the cluster never
+# sees PDFs that would exceed the chunked memory model.
 #
-# Was 4 GB until 2026-05-02; the upfront-rasterize design at the time
-# scaled peak RAM linearly with page count (~11 MB/page × n_pages),
-# so a 200-page ACÓRDÃO needed 2.3 GB just for pixel buffers. After
-# server.py switched to chunked rasterization, that linearity is gone
-# and the 4 GB headroom is wasted spend (~57% of the per-Machine bill
-# is "Additional RAM" billed at $0.00000312/GB-sec).
+# Memory shape evolution on this app:
+#   4 GB (orig) — upfront-rasterize design needed ~2.3 GB for the
+#                 295-page outlier; 4 GB was a safe ceiling.
+#   2 GB        — landed with chunked rasterize (chunk=32). Cut the
+#                 RAM line item ~57%.
+#   1 GB (now)  — landed with chunk=16 + outlier-skip. Cuts the RAM
+#                 line another ~67% (from 1.5 GB additional → 0.5 GB).
 [[vm]]
   size = "shared-cpu-2x"
-  memory = "2gb"
+  memory = "1gb"

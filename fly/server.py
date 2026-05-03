@@ -52,14 +52,18 @@ def healthz() -> dict:
     return {"ok": True}
 
 
-# Chunk size trades pdftoppm subprocess overhead vs peak RAM.
-# Each call re-parses the full PDF index, so big chunks amortize the
-# parse cost. At 32 pages: peak raster ≈ 352 MB (32 × 11 MB), well
-# within the 2 GB shape's headroom; subprocess calls drop ~8× for a
-# 295-page PDF (74 → 10), eliminating the per-chunk re-parse cost
-# that made the first 295-page smoke test (2026-05-02) take >25 min
-# wall against an ~11 min OCR-only projection.
-_RASTER_CHUNK_PAGES = 32
+# Chunk size trades pdftoppm subprocess overhead vs peak RAM. Each
+# call re-parses the full PDF index, so big chunks amortize the parse
+# cost; small chunks bound peak memory uniformly across page counts.
+#
+# At 16 pages: peak raster = 16 × 11 MB = 176 MB. Combined with steady
+# 510 MB + per-thread Tesseract 200 MB → ~886 MB peak working set,
+# fits in the 1 GB shape with ~13% headroom. Subprocess calls scale
+# 1:1 with chunk count: a 50-page PDF needs 4 calls (vs 2 at chunk=32);
+# +2 calls × ~1 s ≈ +2 s wall on p99 PDFs — negligible vs ~50 s OCR.
+# 2-MB+ outliers are short-circuited via OutlierPdfError before reaching
+# this code, so chunk_size only sizes against PDFs ≤ ~150 pages.
+_RASTER_CHUNK_PAGES = 16
 
 
 def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
@@ -78,8 +82,8 @@ def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
 
     # Chunked rasterization: render at most _RASTER_CHUNK_PAGES PIL Images
     # at a time, OCR them, drop them. Peak RAM is bounded by chunk size,
-    # not by total page count, so a 200-page ACÓRDÃO uses the same memory
-    # as a 4-page one. This is what allows [[vm]] memory = "2gb".
+    # not by total page count, so a 150-page non-outlier PDF uses the
+    # same memory as a 4-page one. This is what allows [[vm]] memory = "1gb".
     page_texts: list[str] = []
     for chunk_start in range(1, n_pages + 1, _RASTER_CHUNK_PAGES):
         chunk_end = min(chunk_start + _RASTER_CHUNK_PAGES - 1, n_pages)
