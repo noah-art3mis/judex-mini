@@ -1491,6 +1491,55 @@ def atualizar_warehouse(
 # `probe` — visão unificada do progresso de uma varredura sharded
 
 
+@app.command(name="acompanhar")
+def acompanhar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run. Auto-detecta layout: sharded "
+             "(shard-*/driver.log) ou monolítico (driver.log / "
+             "launcher.log no topo).",
+    ),
+    n: int = typer.Option(
+        20, "-n",
+        help="Linhas iniciais antes do follow.",
+    ),
+    agg_interval: float = typer.Option(
+        30.0, "--agg-interval",
+        help="Em runs shardeados, intervalo (segundos) entre linhas "
+             "agregadas ``─── … ───`` que rolam up todas as state.json "
+             "dos shards. Ignorado em modo monolítico.",
+    ),
+) -> None:
+    """Tail unificado para runs monolíticos e shardeados.
+
+    **Mono** (um único log no topo): exec direto em ``tail -F`` —
+    Ctrl-C pertence ao tail, sem stack-trace de Python.
+
+    **Sharded** (N ``shard-*/driver.log``): multitail Python-side.
+    Compacta a saída de duas formas:
+
+      1. Substitui os cabeçalhos ``==> shard-X/driver.log <==`` do
+         tail por um prefixo compacto ``[X]`` em cada linha de dados.
+      2. **Suprime** as linhas de progresso ``─── 571/571 (100%) … ───``
+         de cada shard (16 idênticas a cada intervalo é puro ruído, e
+         o ``100%`` é enganoso — denominador é só meta-stage). Uma
+         thread agregadora lê todas as ``shard-*/executar.state.json``
+         a cada ``--agg-interval`` segundos e emite UMA linha
+         ``─── ... ───`` cluster-wide com counts reais por estágio
+         (incluindo ``provider_error``, ``unallocated_pid`` etc.).
+
+    Resolução de log priorizando sharded > top-level (``driver.log``
+    > ``launcher.log`` > ``executar.log``). ``tail -F`` (capital) tolera
+    shards cujo ``driver.log`` ainda não existe nos primeiros segundos.
+    """
+    from scripts.follow_run import run_follow
+    raise typer.Exit(code=run_follow(run_dir, n=n, agg_interval=agg_interval))
+
+
+# ---------------------------------------------------------------------------
+# `probe` — tabela rich de progresso shard-a-shard
+
+
 @app.command(name="probe")
 def probe_cmd(
     out_root: Path = typer.Option(
