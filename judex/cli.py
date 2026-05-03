@@ -35,11 +35,24 @@ from pathlib import Path
 from typing import Any, Optional
 
 import typer
+from dotenv import load_dotenv
 
 from judex.utils.validation import (
     validate_process_range,
     validate_stf_case_type,
 )
+
+# Load .env from the project root (or any parent of cwd) at CLI import.
+# This is what makes ``judex executar --provedor tesseract_fly`` "just work"
+# without an explicit ``export FLY_TESSERACT_URL=…`` — and, more importantly,
+# is the path that lets each operator point the CLI at *their own* paid
+# infrastructure (Fly endpoint, Datalab/Mistral/RunPod/Gemini API keys)
+# without anyone's URL or token getting baked into the codebase. The
+# ``.env.example`` at the repo root documents every variable the providers
+# read; ``.env`` itself is gitignored so secrets never leave the operator's
+# machine. Pattern matches ``scripts/wait_for_chandra_ready.py`` and friends,
+# which already do the same. Silent no-op when no .env is found.
+load_dotenv()
 
 DEFAULT_NOTEBOOKS: tuple[str, ...] = (
     "hc_explorer",
@@ -878,6 +891,10 @@ def extrair_pecas(
 
 # ---------------------------------------------------------------------------
 # `coletar` — orquestra o pipeline completo (ADR-0004)
+#
+# Sucedido por ``executar`` (unified pipeline, ADR-2026-05-02). ``coletar``
+# permanece como caminho legado durante a transição; novos sweeps devem usar
+# ``executar``. Veja ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
 
 
 @app.command(name="coletar")
@@ -1043,6 +1060,91 @@ def coletar(
 
     # Exit code: 0 if completed (any quality), 2 if aborted mid-flight.
     raise typer.Exit(code=0 if result.aborted_at_stage is None else 2)
+
+
+# ---------------------------------------------------------------------------
+# `executar` — pipeline unificado fire-and-forget (varrer + baixar + extrair
+#              num único processo asyncio com três pools concorrentes)
+
+
+@app.command(name="executar")
+def executar(
+    csv: Optional[Path] = typer.Option(
+        None, "--csv",
+        help="Arquivo CSV com colunas 'classe,processo' (ou 'processo_id'). "
+             "Cada linha é um alvo do pipeline.",
+    ),
+    saida: Path = typer.Option(
+        ..., "--saida",
+        help="Diretório do run. Recebe executar.state.json + report.md.",
+    ),
+    provedor: str = typer.Option(
+        "pypdf", "--provedor",
+        help="Extrator de texto: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured | auto. "
+             "Padrão: pypdf (local, grátis).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal (case JSON). Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas (PDF bytes). Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR. CPU-bound providers: 4. "
+             "API-bound providers (mistral/chandra/tesseract_fly): 8+.",
+    ),
+    sem_dje: bool = typer.Option(
+        False, "--sem-dje",
+        help="Não buscar publicações DJe durante fetch_meta.",
+    ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo flat de URLs de proxy (uma por linha; comentários '#' "
+             "e linhas em branco são ignorados). Cada handler HTTP rota "
+             "proxies independentemente. Sem este flag: direct-IP.",
+    ),
+) -> None:
+    """Pipeline unificado: varrer + baixar + extrair num único processo.
+
+    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
+    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
+    invocação fire-and-forget. Três asyncio.Queues alimentam três
+    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
+    tarefa emite suas sucessoras ao terminar.
+
+    Estado persistido em ``<saida>/executar.state.json`` (snapshot
+    atômico). Resume é automático: re-rodar com a mesma ``--saida``
+    requeue só o trabalho não-ok. SIGTERM/SIGINT acionam shutdown
+    gracioso (em-voo termina, estado é flushed, processo sai).
+
+    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    """
+    if csv is None:
+        typer.echo("ERROR: --csv é obrigatório (modos range/replay são pós-v1).", err=True)
+        raise typer.Exit(code=2)
+
+    from judex.pipeline.runner import read_targets_csv, run_pipeline
+
+    targets = read_targets_csv(csv)
+    if not targets:
+        typer.echo(f"ERROR: nenhum alvo no CSV {csv}", err=True)
+        raise typer.Exit(code=2)
+
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+        fetch_dje=not sem_dje,
+        proxy_pool=proxy_pool,
+    )
+    raise typer.Exit(code=rc)
 
 
 # ---------------------------------------------------------------------------
