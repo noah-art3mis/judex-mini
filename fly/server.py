@@ -52,7 +52,14 @@ def healthz() -> dict:
     return {"ok": True}
 
 
-_RASTER_CHUNK_PAGES = 4
+# Chunk size trades pdftoppm subprocess overhead vs peak RAM.
+# Each call re-parses the full PDF index, so big chunks amortize the
+# parse cost. At 32 pages: peak raster ≈ 352 MB (32 × 11 MB), well
+# within the 2 GB shape's headroom; subprocess calls drop ~8× for a
+# 295-page PDF (74 → 10), eliminating the per-chunk re-parse cost
+# that made the first 295-page smoke test (2026-05-02) take >25 min
+# wall against an ~11 min OCR-only projection.
+_RASTER_CHUNK_PAGES = 32
 
 
 def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
