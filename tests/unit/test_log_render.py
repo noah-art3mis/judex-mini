@@ -217,8 +217,10 @@ def test_pipeline_progress_processos_pct_only_when_no_totals_supplied():
 
 def test_pipeline_progress_pecas_total_renders_ratio():
     """Once `pecas_total` is known (post-meta-completion in new runs),
-    pecas shows `pecas 1500/2300 (65.2%) ok=...` — the operator's
-    answer to 'how many peca downloads are left'."""
+    pecas shows `pecas 1500/2300 ... (65.2%) ok=...` — the operator's
+    answer to 'how many peca downloads are left'. Padding may sit
+    between the number and the `(` so all stage `%` parens line up
+    vertically (see test_pipeline_progress_pcts_align)."""
     line = render_pipeline_progress_line(
         n_targets=1000,
         processos=Counter({"ok": 1000}),
@@ -227,7 +229,8 @@ def test_pipeline_progress_pecas_total_renders_ratio():
         pecas_total=2300,
         use_color=False,
     )
-    assert "pecas 1500/2300 (65.2%)" in line
+    assert "pecas 1500/2300" in line
+    assert "(65.2%)" in line
 
 
 def test_pipeline_progress_text_total_renders_ratio():
@@ -243,7 +246,30 @@ def test_pipeline_progress_text_total_renders_ratio():
         text_total=2300,
         use_color=False,
     )
-    assert "text 2100/2300 (91.3%)" in line
+    assert "text 2100/2300" in line
+    assert "(91.3%)" in line
+
+
+def test_pipeline_progress_pcts_align_vertically_across_stages():
+    """The user's explicit ask: when multiple stages render a
+    percentage, the ``(`` of each ``(X.X%)`` must line up vertically.
+    Achieved by padding each ``label N/total`` segment to the longest
+    among ratio-bearing stages."""
+    line = render_pipeline_progress_line(
+        n_targets=9137,
+        processos=Counter({"ok": 8101, "unallocated_pid": 1036}),
+        pecas=Counter({"ok": 24337}),
+        text=Counter({"ok": 15173}),
+        pecas_total=25164,
+        text_total=24337,
+        prefix="[12:00:00 agg]",
+        use_color=False,
+    )
+    # Line column positions of the first '(' on each stage row.
+    rows = line.split("\n")
+    paren_cols = [r.index("(") for r in rows if "(" in r]
+    assert len(paren_cols) == 3, rows
+    assert len(set(paren_cols)) == 1, paren_cols  # all aligned
 
 
 def test_pipeline_progress_renders_all_status_keys():

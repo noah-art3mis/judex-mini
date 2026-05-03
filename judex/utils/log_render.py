@@ -217,41 +217,25 @@ def _fmt_stage_counts(c: Mapping[str, int]) -> str:
     return " ".join(f"{k}={v}" for k, v in items)
 
 
-# Width to right-pad stage labels in the multi-line progress block.
-# Equal to ``len("processos")``, the longest stage name; pads ``pecas``
-# and ``text`` so their data columns line up vertically across the
-# three lines of one progress emission.
-_STAGE_LABEL_W = 9
-
-
-def _fmt_stage_block(
+def _stage_pre_pct(
     label: str,
-    counts: Mapping[str, int],
-    *,
-    total: Optional[int] = None,
-    unknown_marker: Optional[str] = None,
-) -> str:
-    """Render one stage as ``  label N[/total (pct%)] mix`` (right-padded).
+    done: int,
+    total: Optional[int],
+    unknown_marker: Optional[str],
+) -> tuple[str, bool, float]:
+    """Compute the ``label N/total`` segment that PRECEDES the
+    ``(X.X%)`` parenthetical.
 
-    ``total`` is the optional cluster-wide denominator: when provided
-    AND non-zero, renders the ``/total (pct%)`` ratio so the operator
-    sees how much of the stage is left. When None or 0, the call falls
-    back to ``unknown_marker`` (e.g. ``"?"`` for processos when
-    ``n_targets`` isn't known yet) or, if no marker either, drops the
-    denominator entirely (legacy state files for pecas/text, where a
-    fabricated denominator would be misleading).
+    Returns ``(pre, has_ratio, pct_value)``. ``has_ratio`` flags whether
+    a ``(pct%)`` follows — only stages with ``total`` set qualify; the
+    ``unknown_marker`` path renders ``?`` instead of a number and has
+    no percentage to pad-align.
     """
-    done = sum(counts.values())
-    mix = _fmt_stage_counts(counts)
-    padded = f"{label:>{_STAGE_LABEL_W}}"
     if total:
-        pct = 100.0 * done / total
-        head = f"{padded} {done}/{total} ({pct:.1f}%)"
-    elif unknown_marker is not None:
-        head = f"{padded} {done}/{unknown_marker}"
-    else:
-        head = f"{padded} {done}"
-    return head + (f" {mix}" if mix else "")
+        return f"{label} {done}/{total}", True, 100.0 * done / total
+    if unknown_marker is not None:
+        return f"{label} {done}/{unknown_marker}", False, 0.0
+    return f"{label} {done}", False, 0.0
 
 
 def render_pipeline_progress_line(
@@ -314,11 +298,39 @@ def render_pipeline_progress_line(
     """
     color_mode = use_color if use_color is not None else should_use_color()
 
-    processos_body = _fmt_stage_block(
-        "processos", processos, total=n_targets or None, unknown_marker="?",
+    # Build each stage's `label N/total` (pre-pct) + its mix separately
+    # so we can pad the pre-pct strings to a uniform width, making the
+    # `(X.X%)` parens line up vertically across the three lines.
+    p_pre, p_has, p_pct = _stage_pre_pct(
+        "processos", sum(processos.values()), n_targets or None, "?",
     )
-    pecas_body = _fmt_stage_block("pecas", pecas, total=pecas_total)
-    text_body = _fmt_stage_block("text", text, total=text_total)
+    pe_pre, pe_has, pe_pct = _stage_pre_pct(
+        "pecas", sum(pecas.values()), pecas_total, None,
+    )
+    t_pre, t_has, t_pct = _stage_pre_pct(
+        "text", sum(text.values()), text_total, None,
+    )
+
+    # Width to pad to: the longest pre-pct among stages that DO render
+    # a percentage. Stages without a ratio (legacy pecas, processos
+    # pre-CSV-resolution) don't need to align — they have nothing to
+    # align with — so they skip padding and read clean.
+    aligned_w = max(
+        (len(p) for p, has in [(p_pre, p_has), (pe_pre, pe_has), (t_pre, t_has)]
+         if has),
+        default=0,
+    )
+
+    def _assemble(pre: str, has_ratio: bool, pct_value: float, mix: str) -> str:
+        if has_ratio:
+            head = f"{pre.ljust(aligned_w)} ({pct_value:.1f}%)"
+        else:
+            head = pre
+        return head + (f" {mix}" if mix else "")
+
+    processos_body = _assemble(p_pre, p_has, p_pct, _fmt_stage_counts(processos))
+    pecas_body = _assemble(pe_pre, pe_has, pe_pct, _fmt_stage_counts(pecas))
+    text_body = _assemble(t_pre, t_has, t_pct, _fmt_stage_counts(text))
 
     # Rate / ETA glued to the text line (same `·` separator as the
     # within-block status mix uses, so visual continuity holds).
