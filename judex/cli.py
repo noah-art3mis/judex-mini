@@ -877,6 +877,84 @@ def extrair_pecas(
 
 
 # ---------------------------------------------------------------------------
+# `executar` — pipeline unificado fire-and-forget (varrer + baixar + extrair
+#              num único processo asyncio com três pools concorrentes)
+
+
+@app.command(name="executar")
+def executar(
+    csv: Optional[Path] = typer.Option(
+        None, "--csv",
+        help="Arquivo CSV com colunas 'classe,processo' (ou 'processo_id'). "
+             "Cada linha é um alvo do pipeline.",
+    ),
+    saida: Path = typer.Option(
+        ..., "--saida",
+        help="Diretório do run. Recebe executar.state.json + report.md.",
+    ),
+    provedor: str = typer.Option(
+        "pypdf", "--provedor",
+        help="Extrator de texto: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured | auto. "
+             "Padrão: pypdf (local, grátis).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal (case JSON). Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas (PDF bytes). Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR. CPU-bound providers: 4. "
+             "API-bound providers (mistral/chandra/tesseract_fly): 8+.",
+    ),
+    sem_dje: bool = typer.Option(
+        False, "--sem-dje",
+        help="Não buscar publicações DJe durante fetch_meta.",
+    ),
+) -> None:
+    """Pipeline unificado: varrer + baixar + extrair num único processo.
+
+    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
+    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
+    invocação fire-and-forget. Três asyncio.Queues alimentam três
+    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
+    tarefa emite suas sucessoras ao terminar.
+
+    Estado persistido em ``<saida>/executar.state.json`` (snapshot
+    atômico). Resume é automático: re-rodar com a mesma ``--saida``
+    requeue só o trabalho não-ok. SIGTERM/SIGINT acionam shutdown
+    gracioso (em-voo termina, estado é flushed, processo sai).
+
+    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    """
+    if csv is None:
+        typer.echo("ERROR: --csv é obrigatório (modos range/replay são pós-v1).", err=True)
+        raise typer.Exit(code=2)
+
+    from judex.pipeline.runner import read_targets_csv, run_pipeline
+
+    targets = read_targets_csv(csv)
+    if not targets:
+        typer.echo(f"ERROR: nenhum alvo no CSV {csv}", err=True)
+        raise typer.Exit(code=2)
+
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+        fetch_dje=not sem_dje,
+    )
+    raise typer.Exit(code=rc)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
 
 
