@@ -169,6 +169,15 @@ _TRANSIENT_NETWORK_PATTERNS = (
     "ReadTimeout",
     "auth triad",
     "cookies",
+    # `ProxyError` is the requests/urllib3 wrapper for proxy-pool churn
+    # (407 auth, 502 from upstream proxy, max-retries exceeded against
+    # the proxy itself). Always transient — re-issue against a fresh
+    # proxy from the pool.
+    "ProxyError",
+    # `ChunkedEncodingError` covers `Response ended prematurely` and
+    # `IncompleteRead` — TCP-level mid-stream breaks. Definitionally
+    # transient — the next request lands.
+    "ChunkedEncodingError",
 )
 
 
@@ -186,7 +195,9 @@ def _classify_varrer(row: dict) -> Kind:
 
     if status == "ok":
         return "ok"
-    if status == "unallocated":
+    # `unallocated` is the legacy `varrer-processos` name; `unallocated_pid`
+    # is the unified-pipeline (`executar`) name for the same ADR-0002 fact.
+    if status in ("unallocated", "unallocated_pid"):
         return "terminal"
 
     # Legacy não-alocado: pre-`unallocated`-status corpus emits this
@@ -197,6 +208,15 @@ def _classify_varrer(row: dict) -> Kind:
 
     # Real 404 (case page genuinely missing) — distinct from unallocated.
     if http_status == 404 or " 404 " in error or error.startswith("404"):
+        return "terminal"
+
+    # `executar` surfaces network-layer failures under status=http_error
+    # (proxy-pool churn, mid-stream breaks). The legacy `varrer-processos`
+    # path used status=fail/error; both must triage on the same network
+    # signal pattern set.
+    if status == "http_error":
+        if _has_transient_network_signal(error):
+            return "transient"
         return "terminal"
 
     if status in ("fail", "error"):
@@ -217,7 +237,10 @@ def _classify_baixar(row: dict) -> Kind:
 
     if status in ("ok", "cached"):
         return "ok"
-    if status == "empty_response":
+    # `empty_response` is the legacy `baixar-pecas` name; `empty` is
+    # the unified-pipeline (`executar`) rename. Both mean "200 OK with
+    # zero-length body" — a pure WAF/LB flake, replay candidate.
+    if status in ("empty_response", "empty"):
         return "transient"
     if status == "non_document_response":
         return "transient"

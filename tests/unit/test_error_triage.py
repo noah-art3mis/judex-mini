@@ -56,6 +56,38 @@ def test_classify_varrer(row: dict, expected: str) -> None:
     assert classify_error("varrer", row) == expected
 
 
+@pytest.mark.parametrize("row,expected", [
+    # Unified-pipeline (`executar`) status alias for ADR-0002. Legacy
+    # `varrer-processos` emits `status=unallocated`; `executar` emits
+    # `status=unallocated_pid`. Same fact, different name. Observed in
+    # HC 2021 executar (1,975 rows / 28% of the 7,085-case input — a
+    # gap-sweep, so high unallocated density is expected).
+    ({"status": "unallocated_pid"}, "terminal"),
+    # Unified-pipeline rows surface proxy-pool / chunked-encoding
+    # exceptions under `status=http_error` rather than as fail/error
+    # rows. Both signatures are definitionally transient (proxy auth
+    # churn, mid-stream connection broken). Observed in HC 2021 executar
+    # fetch_meta (26 ProxyError rows on portal.stf.jus.br) — without
+    # this branch the classifier defaulted them to terminal and 26
+    # replayable cases were dropped.
+    ({"status": "http_error",
+      "error": "ProxyError: HTTPSConnectionPool(host='portal.stf.jus.br', port=443): Max retries exceeded"},
+     "transient"),
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: Response ended prematurely"},
+     "transient"),
+    # http_error on varrer that genuinely is a 404 stays terminal.
+    ({"status": "http_error",
+      "error": "HTTPError: 404 Not Found",
+      "http_status": 404}, "terminal"),
+])
+def test_classify_varrer_unified_pipeline(row: dict, expected: str) -> None:
+    """Unified pipeline (`executar`) emits status names the legacy
+    classifier didn't recognise. Pin the parity here so post-patch
+    drift is loud."""
+    assert classify_error("varrer", row) == expected
+
+
 # ----- baixar ---------------------------------------------------------------
 
 
@@ -87,6 +119,39 @@ def test_classify_varrer(row: dict, expected: str) -> None:
     ({"status": "http_error", "error": "SSLEOFError: EOF occurred"}, "transient"),
 ])
 def test_classify_baixar(row: dict, expected: str) -> None:
+    assert classify_error("baixar", row) == expected
+
+
+@pytest.mark.parametrize("row,expected", [
+    # Unified-pipeline `status="empty"` for "200 OK with zero-length
+    # body". The legacy name was `empty_response` and `executar`
+    # renamed it to `empty`. The signature is exact: every row in the
+    # HC 2021 executar run carrying `status=empty` had the same error
+    # `unrecognised peça magic bytes: b''` (the b'' is literally a
+    # zero-byte response, not a real-404). 1,035 such rows — all
+    # transient WAF/LB flakes; re-request usually lands.
+    ({"status": "empty",
+      "error": "unrecognised peça magic bytes: b''; expected one of [b'%PDF', b'{\\rtf']"},
+     "transient"),
+    # ProxyError under http_error — same proxy-pool-churn shape as
+    # varrer. Observed in HC 2021 executar baixar (13 rows).
+    ({"status": "http_error",
+      "error": "ProxyError: HTTPSConnectionPool(host='sistemas.stf.jus.br', port=443): Max retries exceeded"},
+     "transient"),
+    # ChunkedEncodingError under http_error — mid-stream connection
+    # broken. Definitionally transient. Observed in HC 2021 executar
+    # baixar (17 rows; 7 "Response ended prematurely" + 10
+    # "IncompleteRead" variants — both are the same TCP-level event).
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: Response ended prematurely"},
+     "transient"),
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: ('Connection broken: IncompleteRead(15563 bytes read, 12345 more expected)',)"},
+     "transient"),
+])
+def test_classify_baixar_unified_pipeline(row: dict, expected: str) -> None:
+    """Same unified-pipeline-parity contract as varrer — pin the new
+    status names so they don't silently regress to terminal."""
     assert classify_error("baixar", row) == expected
 
 

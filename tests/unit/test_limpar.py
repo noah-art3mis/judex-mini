@@ -1,19 +1,24 @@
 """Pin `judex limpar` discovery + classification + planning.
 
 `judex limpar <run_dir>` walks a finished `judex executar` run dir,
-partitions every non-ok row by ``(kind, classify_unified_error(row))``
-plus a small ``(kind, status)`` override for the actionable terminals,
-and dispatches recoveries. This file pins:
+reads ``executar.state.json`` (the canonical record) — *not*
+``executar.errors.jsonl`` (which is a derived view that gets narrowed
+when ``--retentar-de`` rewrites it). For every non-ok record in state
+it emits an :class:`ErrorRow` and routes it through
+:func:`classify_unified_error` plus a small override table for the
+actionable terminals + the cap-burnt gate (transient at
+``retry_count >= RETRY_CAP``).
 
-- ``discover_run_dirs`` — mono vs sharded auto-detection.
-- ``classify_residual`` — partitioning, including the override cells.
+This file pins:
+
+- ``discover_run_dirs`` — mono vs sharded auto-detection on state.json.
+- ``classify_residual`` — partitioning, including overrides + cap-burnt.
 - ``plan_recoveries`` — one Spawn per source dir with at least one
-  replay-bucket row.
+  *actively retryable* (REPLAY) row; CAP_BURNT does not auto-dispatch.
 - ``format_summary`` — the spec's one-line format.
 
-Tests are *behavioural* (do these inputs produce these buckets?), not
-ceremonial (do these field names exist?) — the type checker covers the
-latter.
+Tests are *behavioural*: do these inputs produce these buckets? — not
+ceremonial.
 """
 
 from __future__ import annotations
@@ -32,32 +37,63 @@ from judex.sweeps.limpar import (
 )
 
 
+STATE_FILENAME = "executar.state.json"
+
+
+def _write_state(
+    path: Path,
+    cases: dict[str, dict],
+) -> None:
+    """Write a minimal but schema-valid state.json fixture.
+
+    ``cases`` is keyed by ``"HC-12345"`` and each value carries
+    ``fetch_meta`` (optional dict), ``fetch_bytes`` (url→dict),
+    ``extract_text`` (url→dict). Each leaf dict needs at minimum
+    ``status`` + ``retry_count`` (the only fields limpar reads beyond
+    the URL key).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 2,
+        "started_at": "2026-05-03T00:00:00Z",
+        "snapshot_at": "2026-05-03T00:00:01Z",
+        "cases": cases,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _meta(status: str, retry_count: int = 0) -> dict:
+    return {"status": status, "ts": "x", "error": None, "retry_count": retry_count}
+
+
+def _bytes_entry(status: str, retry_count: int = 0) -> dict:
+    return {"status": status, "ts": "x", "error": None, "doc_type": "X",
+            "retry_count": retry_count}
+
+
+def _text_entry(status: str, retry_count: int = 0) -> dict:
+    return {"status": status, "ts": "x", "error": None, "extractor": "pypdf",
+            "retry_count": retry_count}
+
+
 # ----- discover_run_dirs ----------------------------------------------------
 
 
-def _write_errors(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(r) + "\n" for r in rows),
-        encoding="utf-8",
-    )
-
-
 def test_discover_run_dirs_mono(tmp_path: Path) -> None:
-    """Mono layout: errors.jsonl directly at the run-dir top."""
-    _write_errors(
-        tmp_path / "executar.errors.jsonl",
-        [{"kind": "fetch_meta", "classe": "HC", "processo": 1, "status": "http_error"}],
+    """Mono layout: state.json directly at the run-dir top."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {"fetch_meta": _meta("ok")}},
     )
     assert discover_run_dirs(tmp_path) == [tmp_path]
 
 
 def test_discover_run_dirs_sharded(tmp_path: Path) -> None:
-    """Sharded layout: shard-*/executar.errors.jsonl, sorted by suffix."""
+    """Sharded layout: shard-*/state.json, sorted by suffix."""
     for letter in ("a", "b", "c"):
-        _write_errors(
-            tmp_path / f"shard-{letter}" / "executar.errors.jsonl",
-            [{"kind": "fetch_meta", "classe": "HC", "processo": 1, "status": "ok"}],
+        _write_state(
+            tmp_path / f"shard-{letter}" / STATE_FILENAME,
+            {"HC-1": {"fetch_meta": _meta("ok")}},
         )
     out = discover_run_dirs(tmp_path)
     assert out == [
@@ -68,19 +104,19 @@ def test_discover_run_dirs_sharded(tmp_path: Path) -> None:
 
 
 def test_discover_run_dirs_empty(tmp_path: Path) -> None:
-    """No errors.jsonl anywhere → empty list (caller treats as 'nothing to recover')."""
+    """No state.json anywhere → empty list."""
     assert discover_run_dirs(tmp_path) == []
 
 
-def test_discover_run_dirs_sharded_skips_dirs_without_errors_file(
+def test_discover_run_dirs_sharded_skips_dirs_without_state_file(
     tmp_path: Path,
 ) -> None:
-    """A shard dir with no errors.jsonl is dropped — not every shard has a residual."""
-    _write_errors(
-        tmp_path / "shard-a" / "executar.errors.jsonl",
-        [{"kind": "fetch_meta", "classe": "HC", "processo": 1, "status": "http_error"}],
+    """A shard dir with no state.json is dropped."""
+    _write_state(
+        tmp_path / "shard-a" / STATE_FILENAME,
+        {"HC-1": {"fetch_meta": _meta("ok")}},
     )
-    (tmp_path / "shard-b").mkdir()  # no errors file
+    (tmp_path / "shard-b").mkdir()  # no state file
     out = discover_run_dirs(tmp_path)
     assert out == [tmp_path / "shard-a"]
 
@@ -91,29 +127,63 @@ def test_discover_run_dirs_sharded_skips_dirs_without_errors_file(
 def test_classify_residual_partitions_by_kind_and_classifier_output(
     tmp_path: Path,
 ) -> None:
-    """Each row routes to the bucket implied by (kind, classify_unified_error)."""
-    rows = [
-        # Replay buckets (transient)
-        {"kind": "extract_text", "classe": "HC", "processo": 1,
-         "status": "provider_error", "url": "u1"},
-        {"kind": "fetch_bytes", "classe": "HC", "processo": 2,
-         "status": "http_error", "url": "u2"},
-        {"kind": "fetch_meta", "classe": "HC", "processo": 3,
-         "status": "http_error"},
-        # Override: extract_text/empty → provider_switch (not terminal_dropped)
-        {"kind": "extract_text", "classe": "HC", "processo": 4,
-         "status": "empty", "url": "u4"},
-        # Cross-stage: extract_text/no_bytes → refetch_upstream
-        {"kind": "extract_text", "classe": "HC", "processo": 5,
-         "status": "no_bytes", "url": "u5"},
-        # Confirmed-unallocated
-        {"kind": "fetch_meta", "classe": "HC", "processo": 6,
-         "status": "unallocated_pid"},
-        # Plain terminal: fetch_bytes/empty
-        {"kind": "fetch_bytes", "classe": "HC", "processo": 7,
-         "status": "empty", "url": "u7"},
-    ]
-    _write_errors(tmp_path / "executar.errors.jsonl", rows)
+    """Each non-ok record routes to the bucket implied by
+    (kind, classify_unified_error) plus retry_count gate."""
+    cases = {
+        # REPLAY: extract_text/provider_error at retry_count < cap
+        "HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=1)},
+        },
+        # REPLAY: fetch_bytes/http_error
+        "HC-2": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u2": _bytes_entry("http_error", retry_count=0)},
+        },
+        # REPLAY: fetch_meta/http_error
+        "HC-3": {"fetch_meta": _meta("http_error")},
+        # PROVIDER_SWITCH override: extract_text/empty
+        "HC-4": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u4": _bytes_entry("ok")},
+            "extract_text": {"u4": _text_entry("empty")},
+        },
+        # REFETCH_UPSTREAM: extract_text/no_bytes (cross_stage)
+        "HC-5": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u5": _bytes_entry("ok")},
+            "extract_text": {"u5": _text_entry("no_bytes")},
+        },
+        # CONFIRMED_UNALLOCATED
+        "HC-6": {"fetch_meta": _meta("unallocated_pid")},
+        # TERMINAL_DROPPED: fetch_bytes/empty
+        "HC-7": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u7": _bytes_entry("empty")},
+        },
+        # CAP_BURNT: extract_text/provider_error at retry_count >= cap (=2)
+        "HC-8": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u8": _bytes_entry("ok")},
+            "extract_text": {"u8": _text_entry("provider_error", retry_count=2)},
+        },
+        # CAP_BURNT: extract_text/provider_error at retry_count > cap (=5 — the
+        # "rc bumped past cap by tenacity inner-retries" case observed in real
+        # runs)
+        "HC-9": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u9": _bytes_entry("ok")},
+            "extract_text": {"u9": _text_entry("provider_error", retry_count=5)},
+        },
+        # OK case — should not appear in any bucket
+        "HC-10": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u10": _bytes_entry("ok")},
+            "extract_text": {"u10": _text_entry("ok")},
+        },
+    }
+    _write_state(tmp_path / STATE_FILENAME, cases)
 
     buckets = classify_residual([tmp_path])
 
@@ -122,66 +192,85 @@ def test_classify_residual_partitions_by_kind_and_classifier_output(
     assert len(buckets[Bucket.REFETCH_UPSTREAM]) == 1
     assert len(buckets[Bucket.CONFIRMED_UNALLOCATED]) == 1
     assert len(buckets[Bucket.TERMINAL_DROPPED]) == 1
+    assert len(buckets[Bucket.CAP_BURNT]) == 2
 
 
 def test_classify_residual_drops_ok_rows(tmp_path: Path) -> None:
-    """``status=ok`` and ``status=skipped_cached`` should never appear in the
-    residual, but if they do (legacy snapshot artifact), drop them — every
-    non-ok bucket excludes them."""
-    rows = [
-        {"kind": "extract_text", "classe": "HC", "processo": 1,
-         "status": "ok", "url": "u1"},
-        {"kind": "extract_text", "classe": "HC", "processo": 2,
-         "status": "skipped_cached", "url": "u2"},
-    ]
-    _write_errors(tmp_path / "executar.errors.jsonl", rows)
+    """status=ok / skipped_cached records never appear in any bucket."""
+    cases = {
+        "HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("skipped_cached")},
+        },
+    }
+    _write_state(tmp_path / STATE_FILENAME, cases)
     buckets = classify_residual([tmp_path])
     assert all(len(rows) == 0 for rows in buckets.values())
 
 
 def test_classify_residual_aggregates_across_dirs(tmp_path: Path) -> None:
-    """Sharded input: rows from shard-a and shard-b both feed the same buckets."""
-    _write_errors(
-        tmp_path / "shard-a" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 1,
-          "status": "provider_error", "url": "u1"}],
+    """Sharded input: rows from two shards both feed the same buckets."""
+    _write_state(
+        tmp_path / "shard-a" / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
     )
-    _write_errors(
-        tmp_path / "shard-b" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 2,
-          "status": "provider_error", "url": "u2"}],
+    _write_state(
+        tmp_path / "shard-b" / STATE_FILENAME,
+        {"HC-2": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u2": _bytes_entry("ok")},
+            "extract_text": {"u2": _text_entry("provider_error", retry_count=0)},
+        }},
     )
     buckets = classify_residual([tmp_path / "shard-a", tmp_path / "shard-b"])
     assert len(buckets[Bucket.REPLAY]) == 2
 
 
-def test_classify_residual_tags_each_row_with_source_dir(tmp_path: Path) -> None:
-    """plan_recoveries needs to know which dir each row came from to spawn
-    one child per dir. The classifier preserves source_dir on every row."""
-    _write_errors(
-        tmp_path / "shard-a" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 1,
-          "status": "provider_error", "url": "u1"}],
+def test_classify_residual_tags_each_row_with_source_dir_and_retry_count(
+    tmp_path: Path,
+) -> None:
+    """Every ErrorRow carries source_dir (for plan_recoveries dispatch) and
+    retry_count (for cap_burnt routing + cost forecasting)."""
+    _write_state(
+        tmp_path / "shard-a" / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=1)},
+        }},
     )
     buckets = classify_residual([tmp_path / "shard-a"])
     [row] = buckets[Bucket.REPLAY]
     assert row.source_dir == tmp_path / "shard-a"
+    assert row.retry_count == 1
 
 
 # ----- plan_recoveries ------------------------------------------------------
 
 
 def test_plan_recoveries_one_spawn_per_dir_with_replay_rows(tmp_path: Path) -> None:
-    """One Spawn per source dir that has at least one replay-bucket row."""
-    _write_errors(
-        tmp_path / "shard-a" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 1,
-          "status": "provider_error", "url": "u1"}],
+    """One Spawn per source dir that has at least one REPLAY row.
+    CAP_BURNT does not trigger a spawn."""
+    _write_state(
+        tmp_path / "shard-a" / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
     )
-    _write_errors(
-        tmp_path / "shard-b" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 2,
-          "status": "provider_error", "url": "u2"}],
+    _write_state(
+        tmp_path / "shard-b" / STATE_FILENAME,
+        {"HC-2": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u2": _bytes_entry("ok")},
+            "extract_text": {"u2": _text_entry("provider_error", retry_count=0)},
+        }},
     )
     buckets = classify_residual([tmp_path / "shard-a", tmp_path / "shard-b"])
     plan = plan_recoveries(buckets, provedor="auto")
@@ -190,18 +279,25 @@ def test_plan_recoveries_one_spawn_per_dir_with_replay_rows(tmp_path: Path) -> N
     assert {s.saida for s in plan} == {tmp_path / "shard-a", tmp_path / "shard-b"}
 
 
-def test_plan_recoveries_skips_dirs_with_only_terminal_rows(tmp_path: Path) -> None:
-    """A shard whose residual is entirely terminal/cross_stage gets no spawn —
-    `--retentar-de` would no-op there anyway."""
-    _write_errors(
-        tmp_path / "shard-a" / "executar.errors.jsonl",
-        [{"kind": "fetch_meta", "classe": "HC", "processo": 1,
-          "status": "unallocated_pid"}],
+def test_plan_recoveries_skips_dirs_with_only_cap_burnt_rows(tmp_path: Path) -> None:
+    """A shard whose entire transient residual hit cap=2 gets no spawn —
+    `judex executar --retentar-de` would re-load the rows, see retry_count
+    at cap, and emit '0 seeds'. Avoid the wasted spawn."""
+    _write_state(
+        tmp_path / "shard-a" / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=2)},
+        }},
     )
-    _write_errors(
-        tmp_path / "shard-b" / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 2,
-          "status": "provider_error", "url": "u2"}],
+    _write_state(
+        tmp_path / "shard-b" / STATE_FILENAME,
+        {"HC-2": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u2": _bytes_entry("ok")},
+            "extract_text": {"u2": _text_entry("provider_error", retry_count=0)},
+        }},
     )
     buckets = classify_residual([tmp_path / "shard-a", tmp_path / "shard-b"])
     plan = plan_recoveries(buckets, provedor="auto")
@@ -211,19 +307,19 @@ def test_plan_recoveries_skips_dirs_with_only_terminal_rows(tmp_path: Path) -> N
 
 
 def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
-    """Each Spawn carries the argv needed to invoke `judex executar
-    --retentar-de`. Provedor flag is honored."""
-    _write_errors(
-        tmp_path / "executar.errors.jsonl",
-        [{"kind": "extract_text", "classe": "HC", "processo": 1,
-          "status": "provider_error", "url": "u1"}],
+    """Each Spawn carries the argv to invoke `judex executar
+    --retentar-de`. Provedor flag is honored; --nao-perguntar is implicit."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
     )
     buckets = classify_residual([tmp_path])
     [spawn] = plan_recoveries(buckets, provedor="chandra")
 
-    # The argv must include the retentar-de flag pointing at the source
-    # errors.jsonl, the saida flag, the provedor flag, and --nao-perguntar
-    # (limpar-spawned children are non-interactive by construction).
     argv = " ".join(spawn.argv)
     assert "--retentar-de" in argv
     assert "executar.errors.jsonl" in argv
@@ -236,7 +332,7 @@ def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
 
 
 def test_format_summary_apply_format() -> None:
-    """`recovered: N1 transient · N2 cross_stage · N3 provider_switched · N4 confirmed_unallocated · N5 terminal_dropped`"""
+    """`recovered: N1 transient · N2 cap_burnt · N3 cross_stage · N4 provider_switched · N5 confirmed_unallocated · N6 terminal_dropped`"""
     from judex.sweeps.limpar import ErrorRow
 
     def _row(kind: str, status: str) -> ErrorRow:
@@ -247,11 +343,12 @@ def test_format_summary_apply_format() -> None:
             processo=1,
             status=status,
             url=None,
-            raw={},
+            retry_count=0,
         )
 
     buckets: dict[Bucket, list[ErrorRow]] = {
-        Bucket.REPLAY: [_row("extract_text", "provider_error")] * 532,
+        Bucket.REPLAY: [_row("extract_text", "provider_error")] * 301,
+        Bucket.CAP_BURNT: [_row("extract_text", "provider_error")] * 231,
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
         Bucket.CONFIRMED_UNALLOCATED: [_row("fetch_meta", "unallocated_pid")] * 1036,
@@ -259,18 +356,18 @@ def test_format_summary_apply_format() -> None:
     }
     line = format_summary(buckets, dry_run=False)
     assert line == (
-        "recovered: 532 transient · 0 cross_stage · 0 provider_switched · "
-        "1036 confirmed_unallocated · 826 terminal_dropped"
+        "recovered: 301 transient · 231 cap_burnt · 0 cross_stage · "
+        "0 provider_switched · 1036 confirmed_unallocated · 826 terminal_dropped"
     )
 
 
 def test_format_summary_dry_run_prefix() -> None:
-    """Under `--dry-run` (default), the prefix is `would-recover:` so the
-    no-action read is unambiguous."""
+    """Under dry-run, prefix is `would-recover:`."""
     from judex.sweeps.limpar import ErrorRow
 
     buckets: dict[Bucket, list[ErrorRow]] = {
         Bucket.REPLAY: [],
+        Bucket.CAP_BURNT: [],
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
         Bucket.CONFIRMED_UNALLOCATED: [],
@@ -281,10 +378,7 @@ def test_format_summary_dry_run_prefix() -> None:
 
 
 # ----- Pinned smoke against the real run dir -------------------------------
-#
-# Skips when the repo is checked out cold (no runs/active/). When the
-# fixture exists, this catches drift in classify_unified_error + the
-# limpar partitioner against a known-shape residual.
+
 
 _HC2020_SHARDED = Path("runs/active/hc2020-sharded")
 
@@ -294,19 +388,23 @@ _HC2020_SHARDED = Path("runs/active/hc2020-sharded")
     reason="real run dir not present (cold checkout)",
 )
 def test_pinned_residual_hc2020_sharded() -> None:
-    """As of 2026-05-03, the hc2020-sharded run carries:
-    532 extract_text/provider_error (replay),
-    826 fetch_bytes/empty (terminal_dropped),
-    1036 fetch_meta/unallocated_pid (confirmed_unallocated).
+    """As of post-first-limpar-pass on 2026-05-03, the hc2020-sharded run
+    carries (per state.json):
 
-    If this fails, either the residual changed (someone re-ran) or the
-    classifier drifted.
+    - 0 REPLAY (everything that could retry, did)
+    - 231 CAP_BURNT (extract_text/provider_error at retry_count >= 2)
+    - 1036 CONFIRMED_UNALLOCATED (fetch_meta/unallocated_pid)
+    - 826 TERMINAL_DROPPED (fetch_bytes/empty)
+
+    Total non-ok = 2093. If this fails, either the residual changed
+    (someone re-ran) or the classifier drifted.
     """
     dirs = discover_run_dirs(_HC2020_SHARDED)
-    assert len(dirs) == 16  # 16 shards
+    assert len(dirs) == 16
 
     buckets = classify_residual(dirs)
-    assert len(buckets[Bucket.REPLAY]) == 532
+    assert len(buckets[Bucket.REPLAY]) == 0
+    assert len(buckets[Bucket.CAP_BURNT]) == 231
     assert len(buckets[Bucket.CONFIRMED_UNALLOCATED]) == 1036
     assert len(buckets[Bucket.TERMINAL_DROPPED]) == 826
     assert len(buckets[Bucket.PROVIDER_SWITCH]) == 0

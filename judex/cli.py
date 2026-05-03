@@ -1606,12 +1606,11 @@ def limpar(
     if not apply:
         plan = plan_recoveries(buckets, provedor=provedor)
         if plan:
-            typer.echo(f"\nplan: would dispatch {len(plan)} child(ren) under --apply:")
-            for spawn in plan:
-                typer.echo(
-                    f"  {spawn.saida.name}: {spawn.n_replay_rows} replay row(s) → "
-                    f"judex executar --retentar-de {spawn.source_errors_file}"
-                )
+            total_replay = sum(s.n_replay_rows for s in plan)
+            typer.echo(
+                f"plan: would dispatch {len(plan)} child(ren) "
+                f"({total_replay} replay row(s) total) under --apply."
+            )
         raise typer.Exit(code=0)
 
     plan = plan_recoveries(buckets, provedor=provedor)
