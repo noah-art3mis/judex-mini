@@ -89,6 +89,7 @@ def make_handlers(
     from judex.sweeps.peca_classification import filter_substantive
     from judex.sweeps.peca_targets import _iter_case_pdf_targets
     from judex.utils import peca_cache
+    from judex.utils.peca_utils import extract_rtf_text
 
     portal_session = new_session()
     sistemas_session = new_session()
@@ -211,6 +212,33 @@ def make_handlers(
                 status="no_bytes",
                 error="cache miss; run fetch_bytes first",
             )
+            return []
+
+        # RTF bypass: structured-text payload, parsed instantly with
+        # striprtf — no OCR cost, no provider involvement. Same magic-
+        # byte sniff legacy ``extract_driver._detect_bytes_type`` uses.
+        # Without this branch, pypdf chokes on ``{\\rtf`` and records
+        # ``provider_error`` for ~14% of HC 2020-era text URLs (the DJe
+        # decisao.rtf surface).
+        if body[:5] == b"{\\rtf":
+            try:
+                rtf_text = extract_rtf_text(body) or ""
+            except Exception as exc:  # noqa: BLE001
+                state.record_text(
+                    task.case_key,
+                    url=url,
+                    status="provider_error",
+                    extractor="rtf",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+                return []
+            if not rtf_text.strip():
+                state.record_text(
+                    task.case_key, url=url, status="empty", extractor="rtf"
+                )
+                return []
+            peca_cache.write(url, rtf_text, extractor="rtf")
+            state.record_text(task.case_key, url=url, status="ok", extractor="rtf")
             return []
 
         try:
