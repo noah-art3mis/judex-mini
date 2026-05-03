@@ -40,6 +40,7 @@ from typing import Callable, Optional
 
 from judex.scraping.ocr import ExtractResult, OCRConfig
 from judex.scraping.ocr.dispatch import extract_pdf as _dispatch_extract
+from judex.scraping.ocr.tesseract_fly import OutlierPdfError
 from judex.sweeps import shared as _shared
 from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, urls_for_replay
 from judex.utils.cost import estimate_ocr_cost
@@ -61,6 +62,7 @@ class _Counters:
     cached_hits: int = 0
     no_bytes: int = 0
     failed: int = 0
+    outlier_skipped: int = 0
 
 
 def _detect_bytes_type(body: bytes) -> str:
@@ -205,6 +207,14 @@ def run_extract_sweep(
                 status = "unknown_type"
                 error = "bytes are neither PDF nor RTF"
                 error_type = "UnknownType"
+        except OutlierPdfError as e:
+            # Pre-flight size check fired in the provider; this is a
+            # deliberate skip with a manual-fix recommendation, not a
+            # provider bug. Don't classify as error_type via the generic
+            # path — the report renderer surfaces these separately.
+            status = "outlier_skipped"
+            error_type = "OutlierPdf"
+            error = str(e)
         except Exception as e:
             status = "provider_error"
             etype, _hstatus, _ = _shared.classify_exception(e)
@@ -236,6 +246,15 @@ def run_extract_sweep(
                     tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
                 ),
                 detail=f"{extractor_label or '-'} · 0 chars",
+            ), flush=True)
+        elif status == "outlier_skipped":
+            counters.outlier_skipped += 1
+            print(render_target_line(
+                n=i, total=n, status="outlier",
+                identifier=compact_target_id(
+                    tgt.url, classe=tgt.classe, processo_id=tgt.processo_id,
+                ),
+                detail=f"{len(body)/1024/1024:.2f} MB · skip — re-run locally",
             ), flush=True)
         else:
             counters.failed += 1
@@ -338,6 +357,8 @@ def run_extract_sweep(
     print(
         f"\nsummary: extracted={counters.extracted} cached={counters.cached_hits} "
         f"no_bytes={counters.no_bytes} failed={counters.failed}"
+        + (f" outlier_skipped={counters.outlier_skipped}"
+           if counters.outlier_skipped else "")
         + ("  (circuit tripped)" if tripped else ""),
         flush=True,
     )
@@ -505,6 +526,50 @@ def _render_extract_report(
     lines += ["", "## Extractor", "", "| extractor | n |", "|-----------|--:|"]
     for e, n in sorted(extractor_counts.items(), key=lambda kv: -kv[1]):
         lines.append(f"| {e} | {n} |")
+
+    outliers = [
+        (url, r) for url, r in snap.items()
+        if r.get("status") == "outlier_skipped"
+    ]
+    if outliers:
+        # Write a minimal classe,processo CSV that extrair-pecas accepts
+        # via --csv. The user can then re-OCR locally with no extra
+        # massaging — the suggested command below is copy-pasteable.
+        csv_path = out_dir / "outliers.csv"
+        with csv_path.open("w") as f:
+            f.write("classe,processo\n")
+            seen: set[tuple[str, int]] = set()
+            for url, r in outliers:
+                classe = r.get("classe") or ""
+                processo = r.get("processo_id")
+                if processo is None:
+                    continue
+                key = (classe, int(processo))
+                if key in seen:
+                    continue
+                seen.add(key)
+                f.write(f"{classe},{processo}\n")
+        lines += [
+            "",
+            "## Outliers — manual handling needed",
+            "",
+            f"{len(outliers)} PDF(s) (across {len(seen)} case(s)) exceeded the "
+            "cloud-OCR safety envelope. Re-extract locally — local Tesseract "
+            "has no proxy/watchdog constraints:",
+            "",
+            "```bash",
+            f"uv run judex extrair-pecas \\",
+            f"    --csv {csv_path.name} --saida {out_dir} \\",
+            "    --provedor tesseract --forcar",
+            "```",
+            "",
+            "Outlier URLs (status=outlier_skipped in `pdfs.log.jsonl`):",
+            "",
+        ]
+        for url, r in outliers:
+            classe = r.get("classe") or "?"
+            processo = r.get("processo_id") or "?"
+            lines.append(f"- `{url}` — {classe} {processo}")
 
     path = out_dir / "report.md"
     path.write_text("\n".join(lines) + "\n")

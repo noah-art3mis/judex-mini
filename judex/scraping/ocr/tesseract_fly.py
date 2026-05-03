@@ -56,6 +56,23 @@ from tenacity import (
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 
+# Corpus-anchored outlier threshold (2026-05-02). Across 103,916 cached
+# HC PDFs, only 2 exceed 2 MB compressed (0.001%). Above this size the
+# OCR wall time exceeds Fly's proxy hold + watchdog window, so we skip
+# the cloud round-trip entirely and recommend local --provedor tesseract.
+# Re-anchor against the next corpus snapshot if the distribution shifts.
+OUTLIER_BYTES = 2 * 1024 * 1024
+
+
+class OutlierPdfError(RuntimeError):
+    """PDF exceeds the tesseract_fly safety envelope.
+
+    The sweep runner catches this and records ``status='outlier_skipped'``
+    instead of treating it as a provider error. End-of-run report.md
+    surfaces the outlier list with a copy-pasteable local-OCR command.
+    """
+
+
 def _is_retryable_http(exc: BaseException) -> bool:
     """Retryable: 502/503/504 (Fly proxy can't reach a Machine — usually
     cold-start) and ReadTimeout / ConnectionError (Machine accepted but
@@ -105,6 +122,12 @@ def _post_extract(url: str, *, headers: dict, pdf_bytes: bytes, timeout: int) ->
 
 
 def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
+    if len(pdf_bytes) > OUTLIER_BYTES:
+        raise OutlierPdfError(
+            f"PDF size {len(pdf_bytes)/1024/1024:.2f} MB exceeds "
+            f"{OUTLIER_BYTES/1024/1024:.0f} MB cloud-OCR threshold. "
+            "Re-extract this case with --provedor tesseract locally."
+        )
     headers = {"Content-Type": "application/pdf"}
     if config.api_key:
         headers["Authorization"] = f"Bearer {config.api_key}"
