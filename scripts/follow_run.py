@@ -44,14 +44,6 @@ _TAIL_HEADER_RE = re.compile(r"^==>\s+.*?/shard-([a-z]+)/driver\.log\s+<==\s*$")
 # distinctive (─── … ───) so the regex is anchored on those bookends.
 _PROGRESS_LINE_RE = re.compile(r"^─── .* ───\s*$")
 
-# Stage-status ordering: ok/cached classes lead, anomalies trail. Anything
-# missing from this map is sorted to the end (after the known statuses).
-_STATUS_ORDER = (
-    "ok", "skipped_cached", "cached", "skipped",
-    "empty", "no_bytes", "unallocated_pid",
-    "fail", "error", "provider_error", "http_error",
-)
-
 
 def find_log_paths(run_dir: Path) -> list[Path]:
     """Return the log files to tail for ``run_dir``.
@@ -150,22 +142,6 @@ def aggregate_state(run_dir: Path) -> dict[str, Counter]:
     return {"meta": meta, "bytes": bytes_st, "text": text_st}
 
 
-def _fmt_stage(c: Counter) -> str:
-    """Render one stage's counters as ``N (k=v k=v …)``.
-
-    Order: success-y statuses first, failures/anomalies last so the
-    eye lands on issues. Total leads so the user sees stage volume
-    before status mix.
-    """
-    total = sum(c.values())
-    if not c:
-        return "0"
-    priority = {k: i for i, k in enumerate(_STATUS_ORDER)}
-    items = sorted(c.items(), key=lambda kv: priority.get(kv[0], len(_STATUS_ORDER)))
-    inner = " ".join(f"{k}={v}" for k, v in items)
-    return f"{total} ({inner})"
-
-
 def format_aggregate_line(
     agg: dict[str, Counter],
     n_targets: int,
@@ -174,28 +150,28 @@ def format_aggregate_line(
 ) -> str:
     """Format the cluster-wide ``─── ... ───`` progress line.
 
-    Layout::
-
-        ─── [HH:MM:SS agg] meta 500/9137 (5.5%) 500 (ok=440 unallocated_pid=60) ·
-            bytes 1500 (ok=1450 empty=50) ·
-            text 1100 (ok=600 skipped_cached=489 provider_error=11) ───
-
-    Only ``meta`` shows a percentage — its denominator (``n_targets``)
-    is known up front. Bytes/text denominators grow as meta progresses,
-    so showing a percentage there would lie until meta is fully done.
+    Delegates to :func:`judex.utils.log_render.render_pipeline_progress_line`
+    so mono and sharded share one source of truth for the progress
+    line shape — same status ordering, same zero-suppression rules,
+    same percentage discipline (only ``meta`` shows one). The shard
+    aggregate adds the ``[HH:MM:SS agg]`` prefix so the operator can
+    tell it apart from per-shard data lines at a glance, and omits
+    the rate / ETA suffix because those are scheduler-runtime numbers
+    that an out-of-process tail would have to fabricate.
     """
+    from judex.utils.log_render import render_pipeline_progress_line
+
     meta = agg.get("meta") or Counter()
     bytes_st = agg.get("bytes") or Counter()
     text_st = agg.get("text") or Counter()
-    meta_done = sum(meta.values())
-    pct = f" ({100 * meta_done / n_targets:.1f}%)" if n_targets else ""
     ts = (now or datetime.now()).strftime("%H:%M:%S")
-    denom = str(n_targets) if n_targets else "?"
-    return (
-        f"─── [{ts} agg] "
-        f"meta {meta_done}/{denom}{pct} {_fmt_stage(meta)} · "
-        f"bytes {_fmt_stage(bytes_st)} · "
-        f"text {_fmt_stage(text_st)} ───"
+    return render_pipeline_progress_line(
+        n_targets=n_targets,
+        meta=meta,
+        bytes_st=bytes_st,
+        text_st=text_st,
+        prefix=f"[{ts} agg]",
+        use_color=False,
     )
 
 

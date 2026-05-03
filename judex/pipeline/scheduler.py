@@ -514,16 +514,21 @@ async def _periodic_progress(
     started_at: float,
     n_targets: int = 0,
 ) -> None:
-    """Print a one-line progress summary every ``interval`` seconds.
+    """Print a multi-stage progress summary every ``interval`` seconds.
 
-    Format mirrors legacy ``render_progress_line``:
-    ``─── 132/9137 (1.4%) · portal_ok=130 portal_fail=2 bytes_ok=240 ... · 0.31 cases/s · eta 8h ───``
+    Renders via ``render_pipeline_progress_line`` so meta / bytes / text
+    each show their full status mix (``ok``, ``empty``, ``provider_error``,
+    …) instead of collapsing to ``finished/failed``. Same shape as the
+    sharded ``follow_run.format_aggregate_line``: meta carries a
+    percentage (denominator is ``n_targets``, known up front); bytes and
+    text show absolute counts (their denominators grow as meta progresses,
+    so a percentage there would lie until meta finishes).
 
-    ``n_targets`` is the case-count denominator for the portal pool's
-    progress fraction (portal is meta-only, 1 task per case). When
-    zero (unknown), the percentage is omitted.
+    ETA is OCR-driven — text extraction is the slowest stage in practice;
+    the meta-rate ETA the legacy renderer used would zero out the moment
+    meta completed even when 6,000 PDFs are still queued for OCR.
     """
-    from judex.utils.log_render import render_progress_line
+    from judex.utils.log_render import render_pipeline_progress_line
 
     while not shutdown_event.is_set():
         try:
@@ -532,30 +537,35 @@ async def _periodic_progress(
             pass
         elapsed = time.monotonic() - started_at
         portal = runtime.counters["portal"]
-        sistemas = runtime.counters["sistemas"]
         ocr_c = runtime.counters["ocr"]
 
-        # Portal is the bottleneck (case-rate); use its rate for ETA.
-        rate = portal.finished / elapsed if elapsed > 0 else 0.0
-        denom = n_targets or max(portal.started, 1)
-        remaining = max(0, denom - portal.finished)
-        eta_min = (remaining / rate / 60.0) if rate > 0 else 0.0
+        # OCR rate drives ETA — text is the slowest stage. Backlog is
+        # whatever has been seen by OCR but not finished, plus whatever
+        # bytes have completed and will become text tasks. We use OCR's
+        # own (started - finished) as a conservative backlog proxy:
+        # accurate once meta is done, optimistic-but-monotone otherwise.
+        ocr_rate = ocr_c.finished / elapsed if elapsed > 0 else 0.0
+        ocr_remaining = max(0, ocr_c.started - ocr_c.finished)
+        eta_min: Optional[float]
+        if ocr_rate > 0:
+            eta_min = ocr_remaining / ocr_rate / 60.0
+        else:
+            eta_min = None
 
+        # Cases/s = portal rate (meta-finish per second). Operator
+        # already reads cases/s as the cross-pipeline cadence number.
+        cases_rate = portal.finished / elapsed if elapsed > 0 else 0.0
+
+        agg = runtime.state.aggregate_status_counts()
         log.info(
-            render_progress_line(
-                n=portal.finished,
-                total=denom,
-                counters={
-                    "meta_ok": portal.finished - portal.failed,
-                    "meta_fail": portal.failed,
-                    "bytes_ok": sistemas.finished - sistemas.failed,
-                    "bytes_fail": sistemas.failed,
-                    "text_ok": ocr_c.finished - ocr_c.failed,
-                    "text_fail": ocr_c.failed,
-                },
-                rate_per_sec=rate,
-                rate_label="cases/s",
+            render_pipeline_progress_line(
+                n_targets=n_targets,
+                meta=agg["meta"],
+                bytes_st=agg["bytes"],
+                text_st=agg["text"],
+                rate_per_sec=cases_rate,
                 eta_min=eta_min,
+                eta_basis="OCR" if eta_min is not None else None,
                 use_color=False,  # log goes to file, not tty
             )
         )

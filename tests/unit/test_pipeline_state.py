@@ -71,6 +71,29 @@ def test_record_text_stores_chars(tmp_path: Path) -> None:
     assert state.text_chars(("HC", 1), url="u-missing") is None
 
 
+def test_aggregate_status_counts_walks_in_memory_state(tmp_path: Path) -> None:
+    """The mono ``_periodic_progress`` reads the in-memory state
+    directly to render the multi-stage progress line. Counter shape
+    must match the sharded aggregator (which walks cold state files)
+    so both topologies feed the same shared renderer."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    state.record_meta(("HC", 1), status="ok")
+    state.record_meta(("HC", 2), status="unallocated_pid")
+    state.record_bytes(("HC", 1), url="u1", status="ok")
+    state.record_bytes(("HC", 1), url="u2", status="empty")
+    state.record_text(("HC", 1), url="u1", status="ok", extractor="pypdf", chars=200)
+    state.record_text(
+        ("HC", 1), url="u2", status="provider_error", extractor="pypdf",
+    )
+
+    agg = state.aggregate_status_counts()
+
+    assert dict(agg["meta"]) == {"ok": 1, "unallocated_pid": 1}
+    assert dict(agg["bytes"]) == {"ok": 1, "empty": 1}
+    assert dict(agg["text"]) == {"ok": 1, "provider_error": 1}
+
+
 def test_round_trip(tmp_path: Path) -> None:
     """Snapshot, reload, observe identical contents."""
     path = tmp_path / "s.json"

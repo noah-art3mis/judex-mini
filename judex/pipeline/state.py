@@ -49,6 +49,7 @@ import datetime as dt
 import json
 import os
 import tempfile
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -132,6 +133,36 @@ class PipelineState:
 
     def case_count(self) -> int:
         return len(self._cases)
+
+    def aggregate_status_counts(self) -> dict[str, Counter]:
+        """Roll up per-stage status counts across every case.
+
+        Returns ``{"meta": Counter, "bytes": Counter, "text": Counter}``
+        — same shape as the sharded ``aggregate_state`` helper. Used by
+        the mono ``_periodic_progress`` to render the multi-stage
+        progress line; both topologies feed
+        :func:`judex.utils.log_render.render_pipeline_progress_line`
+        from the same Counter shape so the on-screen format is identical
+        (sharded carries an ``[HH:MM:SS agg]`` prefix; mono adds rate +
+        ETA suffix).
+        """
+        meta: Counter = Counter()
+        bytes_st: Counter = Counter()
+        text_st: Counter = Counter()
+        for rec in self._cases.values():
+            if rec.meta is not None:
+                s = rec.meta.get("status")
+                if s:
+                    meta[s] += 1
+            for entry in rec.bytes.values():
+                s = (entry or {}).get("status")
+                if s:
+                    bytes_st[s] += 1
+            for entry in rec.text.values():
+                s = (entry or {}).get("status")
+                if s:
+                    text_st[s] += 1
+        return {"meta": meta, "bytes": bytes_st, "text": text_st}
 
     def meta_status(self, case_key: tuple[str, int]) -> Optional[TaskStatus]:
         rec = self._cases.get(_case_key_str(case_key))

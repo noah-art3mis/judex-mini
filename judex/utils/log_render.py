@@ -199,6 +199,93 @@ def render_progress_line(
     return line
 
 
+_PIPELINE_STATUS_ORDER: tuple[str, ...] = (
+    "ok", "skipped_cached", "cached", "skipped",
+    "empty", "no_bytes", "unallocated_pid",
+    "fail", "error", "provider_error", "http_error",
+)
+
+
+def _fmt_stage_counts(c: Mapping[str, int]) -> str:
+    """Render one stage's status mix as ``ok=440 unallocated_pid=60``,
+    success classes first, anomalies last so the eye lands on errors."""
+    items = [(k, v) for k, v in c.items() if v]
+    if not items:
+        return ""
+    priority = {k: i for i, k in enumerate(_PIPELINE_STATUS_ORDER)}
+    items.sort(key=lambda kv: priority.get(kv[0], len(_PIPELINE_STATUS_ORDER)))
+    return " ".join(f"{k}={v}" for k, v in items)
+
+
+def render_pipeline_progress_line(
+    *,
+    n_targets: int,
+    meta: Mapping[str, int],
+    bytes_st: Mapping[str, int],
+    text_st: Mapping[str, int],
+    prefix: Optional[str] = None,
+    rate_per_sec: Optional[float] = None,
+    eta_min: Optional[float] = None,
+    eta_basis: Optional[str] = None,
+    use_color: bool | None = None,
+) -> str:
+    """Three-stage progress line for the unified executar pipeline.
+
+    Layout (with all optionals)::
+
+        ─── [12:00:00 agg] meta 500/9137 (5.5%) ok=440 unallocated_pid=60 ·
+            bytes 1500 ok=1450 empty=50 ·
+            text 1100 ok=600 skipped_cached=489 provider_error=11 ·
+            0.55 cases/s · eta(OCR) 4.2 min ───
+
+    Differs from :func:`render_progress_line` in that no single
+    ``n/total`` summary fits a three-stage pipeline (1 case → many
+    PDFs → many texts; cardinalities diverge). Only meta has a static
+    denominator (``n_targets``), so only meta carries a percentage —
+    bytes/text show absolute counts to avoid implying a forecast that
+    doesn't exist until meta finishes.
+
+    All status counts render unconditionally (no zero suppression):
+    a ``provider_error=0 → 1`` transition would otherwise materialise
+    out of nowhere with no prior baseline, which makes errors easy
+    to miss when scrolling.
+
+    ``eta_basis`` is a short label for which stage drives the ETA
+    (typically ``"OCR"`` since text extraction is the slowest); shown
+    as ``eta(OCR)`` so the operator knows what the number means.
+    """
+    color_mode = use_color if use_color is not None else should_use_color()
+
+    meta_done = sum(meta.values())
+    pct = (100.0 * meta_done / n_targets) if n_targets else 0.0
+    denom = str(n_targets) if n_targets else "?"
+    pct_str = f" ({pct:.1f}%)" if n_targets else ""
+
+    meta_mix = _fmt_stage_counts(meta)
+    bytes_done = sum(bytes_st.values())
+    bytes_mix = _fmt_stage_counts(bytes_st)
+    text_done = sum(text_st.values())
+    text_mix = _fmt_stage_counts(text_st)
+    parts: list[str] = [
+        f"meta {meta_done}/{denom}{pct_str}" + (f" {meta_mix}" if meta_mix else ""),
+        f"bytes {bytes_done}" + (f" {bytes_mix}" if bytes_mix else ""),
+        f"text {text_done}" + (f" {text_mix}" if text_mix else ""),
+    ]
+    if rate_per_sec is not None:
+        parts.append(f"{rate_per_sec:.2f} cases/s")
+    if eta_min is not None:
+        eta_label = f"eta({eta_basis})" if eta_basis else "eta"
+        parts.append(f"{eta_label} {eta_min:.1f} min")
+
+    body = " · ".join(parts)
+    if prefix:
+        body = f"{prefix} {body}"
+    line = f"─── {body} ───"
+    if color_mode:
+        line = f"{_ANSI_BOLD}{line}{_ANSI_RESET}"
+    return line
+
+
 def render_run_header(
     *,
     title: str,

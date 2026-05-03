@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import re
 
+from collections import Counter
+
 from judex.utils.log_render import (
+    render_pipeline_progress_line,
     render_progress_line,
     render_target_line,
 )
@@ -189,3 +192,103 @@ def test_progress_line_proc_s_label_for_varrer():
     )
     assert "proc/s" in line
     assert "tgt/s" not in line
+
+
+# ---------------------------------------------------------------------------
+# render_pipeline_progress_line — three-stage executar pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_pipeline_progress_meta_pct_only_bytes_text_no_pct():
+    """Meta has a static denominator (n_targets, known up front); bytes
+    and text denominators grow with meta, so a percentage there would
+    lie until meta is fully done. Only meta carries `(X.X%)`."""
+    line = render_pipeline_progress_line(
+        n_targets=1000,
+        meta=Counter({"ok": 500}),
+        bytes_st=Counter({"ok": 1500}),
+        text_st=Counter({"ok": 600}),
+        use_color=False,
+    )
+    assert "(50.0%)" in line
+    assert line.count("%") == 1
+
+
+def test_pipeline_progress_renders_all_status_keys():
+    """Every status with a non-zero count must appear — `provider_error=11`
+    can't get folded into a `fail` bucket or hidden by zero suppression."""
+    line = render_pipeline_progress_line(
+        n_targets=571,
+        meta=Counter({"ok": 500, "unallocated_pid": 70}),
+        bytes_st=Counter({"ok": 1500, "empty": 50}),
+        text_st=Counter({"ok": 600, "skipped_cached": 489, "provider_error": 11}),
+        use_color=False,
+    )
+    assert "ok=500" in line
+    assert "unallocated_pid=70" in line
+    assert "ok=1500" in line and "empty=50" in line
+    assert "skipped_cached=489" in line
+    assert "provider_error=11" in line
+
+
+def test_pipeline_progress_orders_failures_after_successes():
+    """Within a stage, failure-class statuses sort after the success
+    cluster so the operator's eye lands on errors at the rightmost
+    position."""
+    line = render_pipeline_progress_line(
+        n_targets=0,
+        meta=Counter(),
+        bytes_st=Counter(),
+        text_st=Counter({"provider_error": 5, "ok": 100}),
+        use_color=False,
+    )
+    assert line.index("ok=100") < line.index("provider_error=5")
+
+
+def test_pipeline_progress_eta_has_basis_label():
+    """`eta(OCR) 4.2 min` so the operator knows the ETA is OCR-driven,
+    not meta-driven (meta finishes first; quoting its rate would zero
+    out the ETA prematurely)."""
+    line = render_pipeline_progress_line(
+        n_targets=100,
+        meta=Counter({"ok": 100}),
+        bytes_st=Counter({"ok": 250}),
+        text_st=Counter({"ok": 50}),
+        rate_per_sec=0.55,
+        eta_min=4.2,
+        eta_basis="OCR",
+        use_color=False,
+    )
+    assert "0.55 cases/s" in line
+    assert "eta(OCR) 4.2 min" in line
+
+
+def test_pipeline_progress_handles_zero_targets_with_question_mark():
+    """Pre-launch / pre-CSV-resolution edge: render without crashing,
+    show `?` for the unknown denominator and omit the percentage."""
+    line = render_pipeline_progress_line(
+        n_targets=0,
+        meta=Counter(),
+        bytes_st=Counter(),
+        text_st=Counter(),
+        use_color=False,
+    )
+    assert "meta 0/?" in line
+    assert "%" not in line
+
+
+def test_pipeline_progress_prefix_renders_inline_with_space():
+    """The shard aggregate prefix (`[12:00:00 agg]`) must read as a
+    natural opening, not pretend to be a stage. Joined to the body
+    with a space, not the stage `·` separator."""
+    line = render_pipeline_progress_line(
+        n_targets=100,
+        meta=Counter({"ok": 50}),
+        bytes_st=Counter(),
+        text_st=Counter(),
+        prefix="[12:00:00 agg]",
+        use_color=False,
+    )
+    assert "[12:00:00 agg] meta" in line
+    # Sanity: NOT joined as `[12:00:00 agg] · meta`.
+    assert "[12:00:00 agg] · meta" not in line
