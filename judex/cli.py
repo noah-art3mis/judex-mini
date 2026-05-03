@@ -1488,6 +1488,48 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
+# `providers` — comparison table built from each OCR provider's SPEC
+
+
+@app.command(name="providers")
+def providers_cmd(
+    n_pdfs: int = typer.Option(
+        1, "--pdfs",
+        help="Workload size in PDFs for the wall-time column. "
+             "Defaults to 1 (per-PDF view).",
+    ),
+    n_pages: int = typer.Option(
+        5, "--pages",
+        help="Workload size in pages for the cost column. Defaults "
+             "to 5 (rough average page count per peça).",
+    ),
+    batch: bool = typer.Option(
+        False, "--batch/--no-batch",
+        help="Use batch pricing where the provider supports it "
+             "(Mistral, Gemini). Default off — batch wall reflects "
+             "submission time, not the ~24h turnaround, so default-on "
+             "is misleading. Pass --batch to see batch cost (with the "
+             "wall caveat).",
+    ),
+) -> None:
+    """Print the OCR provider comparison table for a given workload size.
+
+    Reads each provider's ``SPEC: ProviderSpec`` from
+    ``judex/scraping/ocr/<provider>.py``, asks for cost(n_pages) and
+    wall(n_pdfs), prints sorted by cost. Providers whose ``wall``
+    anchor isn't measured yet show ``—`` in the minutes column.
+
+    The numbers come from the same SPECs ``extrair-pecas --prever``
+    consults, so this view and the per-sweep forecast are always
+    consistent.
+    """
+    from judex.scraping.ocr.dispatch import render_provider_table
+    typer.echo(render_provider_table(
+        n_pdfs=n_pdfs, n_pages=n_pages, batch_ok=batch,
+    ))
+
+
+# ---------------------------------------------------------------------------
 # `limpar` — close a finished run's residual in one command
 
 

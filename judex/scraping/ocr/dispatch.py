@@ -25,6 +25,9 @@ the provider that owns it.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
+
 from judex.scraping.ocr import chandra as _chandra
 from judex.scraping.ocr import chandra_runpod as _chandra_runpod
 from judex.scraping.ocr import gemini as _gemini
@@ -107,6 +110,98 @@ def estimate_wall(
     spec = get_provider(provider)
     config = OCRConfig(provider=provider, batch=batch)
     return spec.wall(n_pdfs, config)
+
+
+@dataclass(frozen=True)
+class ProviderRow:
+    """One row of :func:`provider_table` output.
+
+    Pure data; the renderer formats it. Either ``cost_usd`` or
+    ``wall_seconds`` may be ``None`` if the provider's anchor raised
+    (e.g. Modal-hosted providers awaiting their first bakeoff).
+    """
+
+    name: str
+    cost_usd: Optional[float]
+    wall_seconds: Optional[float]
+    supports_batch: bool
+
+
+def provider_table(
+    *,
+    n_pdfs: int = 1,
+    n_pages: int = 5,
+    batch_ok: bool = True,
+) -> list[ProviderRow]:
+    """Build a row per provider in REGISTRY at the given workload size.
+
+    Pure function — returns data, doesn't print. Sort is by cost
+    ascending, with ``None``-cost providers (anchor not implemented)
+    sorted last. Used by ``judex providers`` CLI and by ad-hoc scripts
+    that want a programmatic comparison.
+
+    Each provider is asked for its cost with batch=True when both
+    ``batch_ok`` is set and the provider supports it (favouring the
+    cheapest tier the operator can actually use); cost.batch falls
+    back to sync otherwise.
+    """
+    rows: list[ProviderRow] = []
+    for spec in _PROVIDERS:
+        config = OCRConfig(
+            provider=spec.name,
+            batch=batch_ok and spec.supports_batch,
+            api_key="dummy",  # placate provider classes that require it at construction
+        )
+        try:
+            cost: Optional[float] = spec.cost(n_pages, config)
+        except (ValueError, NotImplementedError, Exception):
+            cost = None
+        try:
+            wall: Optional[float] = spec.wall(n_pdfs, config)
+        except (ValueError, NotImplementedError, Exception):
+            wall = None
+        rows.append(ProviderRow(
+            name=spec.name,
+            cost_usd=cost,
+            wall_seconds=wall,
+            supports_batch=spec.supports_batch,
+        ))
+    rows.sort(key=lambda r: (r.cost_usd is None, r.cost_usd or 0.0))
+    return rows
+
+
+def render_provider_table(
+    *,
+    n_pdfs: int = 1,
+    n_pages: int = 5,
+    batch_ok: bool = True,
+) -> str:
+    """Render :func:`provider_table` as a fixed-width plain-text table.
+
+    The format is intentionally terminal-friendly (no Rich, no ANSI):
+    ``provider`` left-aligned, ``cost`` right-aligned, ``wall`` in
+    minutes right-aligned, ``batch?`` last. ``—`` for missing anchors.
+    """
+    rows = provider_table(n_pdfs=n_pdfs, n_pages=n_pages, batch_ok=batch_ok)
+    name_w = max(len("provider"), max(len(r.name) for r in rows))
+    header = (
+        f"{'provider':<{name_w}}  {'$':>9}  {'min':>8}  batch?"
+    )
+    lines = [
+        header,
+        "-" * len(header),
+    ]
+    for r in rows:
+        cost_s = f"${r.cost_usd:.2f}" if r.cost_usd is not None else "—"
+        wall_s = (
+            f"{r.wall_seconds / 60:.0f}"
+            if r.wall_seconds is not None else "—"
+        )
+        batch_s = "yes" if r.supports_batch else "no"
+        lines.append(
+            f"{r.name:<{name_w}}  {cost_s:>9}  {wall_s:>8}  {batch_s}"
+        )
+    return "\n".join(lines)
 
 
 def cheapest_provider(*, batch_ok: bool = True) -> str:

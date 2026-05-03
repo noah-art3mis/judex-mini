@@ -393,24 +393,31 @@ Para evitar queimar proxy e IP quando o WAF entra em regime de bloqueio total, `
 
 ### 7.5 OCR pago: chaves de API e custo
 
-`extrair-pecas` aceita quatro provedores. O padrão (`pypdf`) é local, grátis e tira proveito só da camada de texto — em PDFs escaneados devolve texto vazio ou sujo. Os três OCR exigem chave de API no ambiente:
+`extrair-pecas` aceita vários provedores. O padrão (`pypdf`) é local, grátis e tira proveito só da camada de texto — em PDFs escaneados devolve texto vazio ou sujo. Para volume em escala, os caminhos de produção são `tesseract_fly` (Fly.io self-hosted, mais barato) e `tesseract_modal` (Modal, contingência) — ver [`docs/setup-fly.md`](docs/setup-fly.md) e [`docs/setup-modal.md`](docs/setup-modal.md). Os provedores comerciais abaixo exigem chave de API no ambiente:
 
-| Provedor       | Variável de ambiente     | Onde obter                         |
-|----------------|--------------------------|------------------------------------|
-| `mistral`      | `MISTRAL_API_KEY`        | https://console.mistral.ai/        |
-| `unstructured` | `UNSTRUCTURED_API_KEY`   | https://platform.unstructured.io/  |
-| `chandra`      | `CHANDRA_API_KEY`        | https://www.datalab.to/            |
+| Provedor         | Variável de ambiente                                   | Onde obter                         |
+|------------------|--------------------------------------------------------|------------------------------------|
+| `mistral`        | `MISTRAL_API_KEY`                                      | https://console.mistral.ai/        |
+| `unstructured`   | `UNSTRUCTURED_API_KEY`                                 | https://platform.unstructured.io/  |
+| `chandra`        | `DATALAB_API_KEY`                                      | https://www.datalab.to/            |
+| `gemini`         | `GEMINI_API_KEY`                                       | https://aistudio.google.com/apikey |
+| `chandra_runpod` | `RUNPOD_API_KEY` + `RUNPOD_CHANDRA_ENDPOINT_ID`        | ver [`docs/setup-runpod.md`](docs/setup-runpod.md) |
 
-**Custo por 1 000 páginas** (fonte: `judex/scraping/ocr/dispatch.py`):
+**Custo por 1 000 páginas** (fonte: módulo SPEC de cada provedor em `judex/scraping/ocr/`):
 
-| Provedor       | Tier              | USD / 1k páginas |
-|----------------|-------------------|------------------|
-| `pypdf`        | local             | $0.00            |
-| `mistral`      | batch             | $1.00            |
-| `mistral`      | sync (padrão)     | $2.00            |
-| `unstructured` | fast              | $1.00            |
-| `unstructured` | hi_res            | $10.00           |
-| `chandra`      | todas             | ~$3.00           |
+| Provedor         | Tier              | USD / 1k páginas |
+|------------------|-------------------|------------------|
+| `pypdf`          | local             | $0.00            |
+| `tesseract_fly`  | Fly.io self-host  | ~$0.005          |
+| `tesseract_modal`| Modal CPU         | ~$0.14           |
+| `chandra_runpod` | RunPod 4090       | ~$0.31           |
+| `gemini`         | batch (~24h SLA)  | $0.66            |
+| `mistral`        | batch             | $1.00            |
+| `unstructured`   | fast              | $1.00            |
+| `gemini`         | sync (padrão)     | $1.32            |
+| `mistral`        | sync (padrão)     | $2.00            |
+| `chandra`        | hosted (Datalab)  | ~$3.00           |
+| `unstructured`   | hi_res            | $10.00           |
 
 Configure a chave no shell **de trabalho** (nunca commite) e rode primeiro com `--dry-run` para ver páginas, custo estimado em USD e tempo estimado:
 
