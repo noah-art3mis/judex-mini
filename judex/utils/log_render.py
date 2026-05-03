@@ -217,27 +217,40 @@ def _fmt_stage_counts(c: Mapping[str, int]) -> str:
     return " ".join(f"{k}={v}" for k, v in items)
 
 
+# Width to right-pad stage labels in the multi-line progress block.
+# Equal to ``len("processos")``, the longest stage name; pads ``pecas``
+# and ``text`` so their data columns line up vertically across the
+# three lines of one progress emission.
+_STAGE_LABEL_W = 9
+
+
 def _fmt_stage_block(
     label: str,
     counts: Mapping[str, int],
     *,
     total: Optional[int] = None,
+    unknown_marker: Optional[str] = None,
 ) -> str:
-    """Render one stage as ``label N[/total (pct%)] mix``.
+    """Render one stage as ``  label N[/total (pct%)] mix`` (right-padded).
 
     ``total`` is the optional cluster-wide denominator: when provided
     AND non-zero, renders the ``/total (pct%)`` ratio so the operator
-    sees how much of the stage is left. When None or 0, renders absolute
-    count only — the stage's true total is unknown (legacy state file,
-    or upstream stage still emitting successors).
+    sees how much of the stage is left. When None or 0, the call falls
+    back to ``unknown_marker`` (e.g. ``"?"`` for processos when
+    ``n_targets`` isn't known yet) or, if no marker either, drops the
+    denominator entirely (legacy state files for pecas/text, where a
+    fabricated denominator would be misleading).
     """
     done = sum(counts.values())
     mix = _fmt_stage_counts(counts)
+    padded = f"{label:>{_STAGE_LABEL_W}}"
     if total:
         pct = 100.0 * done / total
-        head = f"{label} {done}/{total} ({pct:.1f}%)"
+        head = f"{padded} {done}/{total} ({pct:.1f}%)"
+    elif unknown_marker is not None:
+        head = f"{padded} {done}/{unknown_marker}"
     else:
-        head = f"{label} {done}"
+        head = f"{padded} {done}"
     return head + (f" {mix}" if mix else "")
 
 
@@ -255,25 +268,30 @@ def render_pipeline_progress_line(
     eta_basis: Optional[str] = None,
     use_color: bool | None = None,
 ) -> str:
-    """Three-stage progress line for the unified executar pipeline.
+    """Three-stage progress block for the unified executar pipeline.
 
-    Layout (with all optionals)::
+    Layout (sharded, with all optionals)::
 
-        ─── [12:00:00 agg] processos 500/9137 (5.5%) ok=440 unallocated_pid=60 ·
-            pecas 1500/2300 (65.2%) ok=1450 empty=50 ·
-            text 1100/1450 (75.9%) ok=600 skipped_cached=489 provider_error=11 ·
-            0.55 cases/s · eta(OCR) 4.2 min ───
+        ─── [12:00:00 agg] processos 500/9137 (5.5%) ok=440 unallocated_pid=60 ───
+        ─── [12:00:00 agg]     pecas 1500/2300 (65.2%) ok=1450 empty=50 ───
+        ─── [12:00:00 agg]      text 1100/1450 (75.9%) ok=600 skipped_cached=489 provider_error=11 · 0.55 cases/s · eta(OCR) 4.2 min ───
+
+    Three lines, one per stage. Each line is self-bookended with
+    ``───`` so it stays visually distinct from per-task tail lines and
+    survives ``grep`` (every line carries the timestamp prefix when
+    sharded). Labels are right-padded to 9 chars (``len("processos")``)
+    so the data columns line up vertically.
 
     Three stages, three nouns: ``processos`` (case-meta scrape),
     ``pecas`` (peca PDF download), ``text`` (text extraction). Each
     stage's denominator is rendered when knowable:
 
     * ``processos`` — denominator is ``n_targets`` (CSV row count, known
-      up front).
+      up front); falls back to ``?`` pre-CSV-resolution.
     * ``pecas`` — denominator is ``pecas_total``: sum of ``n_pecas``
       stamped on each meta=ok record at fan-out time. Becomes known the
       moment meta finishes; None on legacy state files (the renderer
-      falls back to count-only rather than show a wrong number).
+      drops the ratio rather than show a fabricated number).
     * ``text`` — denominator is ``text_total``: equals ``pecas["ok"]`` at
       any moment, since every successful pecas download emits exactly
       one extract_text successor. Always knowable (grows during pecas;
@@ -284,42 +302,39 @@ def render_pipeline_progress_line(
     out of nowhere with no prior baseline, which makes errors easy
     to miss when scrolling.
 
-    ``eta_basis`` is a short label for which stage drives the ETA
-    (typically ``"OCR"`` since text extraction is the slowest); shown
-    as ``eta(OCR)`` so the operator knows what the number means.
+    Rate / ETA, when present, ride along on the ``text`` line — text is
+    the slowest stage and the actual ETA driver, so co-locating those
+    numbers with the text counts puts the bottleneck signal in one
+    place. ``eta_basis`` (e.g. ``"OCR"``) labels which stage's rate
+    drove the ETA, so the operator knows what the number means.
+
+    Returns a single string with embedded ``\\n`` separators (three
+    lines). One ``log.info`` / ``print`` call emits all three; tail
+    viewers see them in order.
     """
     color_mode = use_color if use_color is not None else should_use_color()
 
-    # processos uses ``?`` for unknown total (CSVs not resolved yet)
-    # rather than dropping the denominator — its denominator is always
-    # *conceptually* known (n_targets, the seed list). pecas/text drop
-    # the ratio when unknown because their denominators are derived
-    # signals that may genuinely not exist for legacy state files.
-    processos_done = sum(processos.values())
-    if n_targets:
-        pct = 100.0 * processos_done / n_targets
-        processos_head = f"processos {processos_done}/{n_targets} ({pct:.1f}%)"
-    else:
-        processos_head = f"processos {processos_done}/?"
-    processos_mix = _fmt_stage_counts(processos)
-    parts: list[str] = [
-        processos_head + (f" {processos_mix}" if processos_mix else ""),
-        _fmt_stage_block("pecas", pecas, total=pecas_total),
-        _fmt_stage_block("text", text, total=text_total),
-    ]
+    processos_body = _fmt_stage_block(
+        "processos", processos, total=n_targets or None, unknown_marker="?",
+    )
+    pecas_body = _fmt_stage_block("pecas", pecas, total=pecas_total)
+    text_body = _fmt_stage_block("text", text, total=text_total)
+
+    # Rate / ETA glued to the text line (same `·` separator as the
+    # within-block status mix uses, so visual continuity holds).
     if rate_per_sec is not None:
-        parts.append(f"{rate_per_sec:.2f} cases/s")
+        text_body += f" · {rate_per_sec:.2f} cases/s"
     if eta_min is not None:
         eta_label = f"eta({eta_basis})" if eta_basis else "eta"
-        parts.append(f"{eta_label} {eta_min:.1f} min")
+        text_body += f" · {eta_label} {eta_min:.1f} min"
 
-    body = " · ".join(parts)
-    if prefix:
-        body = f"{prefix} {body}"
-    line = f"─── {body} ───"
+    head = f"─── {prefix} " if prefix else "─── "
+    bodies = [processos_body, pecas_body, text_body]
     if color_mode:
-        line = f"{_ANSI_BOLD}{line}{_ANSI_RESET}"
-    return line
+        lines = [f"{_ANSI_BOLD}{head}{b} ───{_ANSI_RESET}" for b in bodies]
+    else:
+        lines = [f"{head}{b} ───" for b in bodies]
+    return "\n".join(lines)
 
 
 def render_run_header(
