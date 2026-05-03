@@ -1488,7 +1488,7 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
-# `probe` — visão unificada do progresso de uma varredura sharded
+# `acompanhar` — tail unificado mono + sharded com auto-encerramento
 
 
 @app.command(name="acompanhar")
@@ -1505,35 +1505,78 @@ def acompanhar(
     ),
     agg_interval: float = typer.Option(
         30.0, "--agg-interval",
-        help="Em runs shardeados, intervalo (segundos) entre linhas "
-             "agregadas ``─── … ───`` que rolam up todas as state.json "
-             "dos shards. Ignorado em modo monolítico.",
+        help="Intervalo (segundos) entre as linhas agregadas "
+             "``─── … ───`` (sharded) e entre as checagens de "
+             "fim-de-run (mono e sharded).",
+    ),
+    persistir: bool = typer.Option(
+        False, "--persistir",
+        help="Continua tailando após todos os shards terem registrado "
+             "``executar: done`` (comportamento legado). Padrão é "
+             "encerrar com um ``relatar`` consolidado.",
     ),
 ) -> None:
-    """Tail unificado para runs monolíticos e shardeados.
+    """Tail unificado para runs monolíticos e shardeados, com
+    encerramento automático ao final do run.
 
-    **Mono** (um único log no topo): exec direto em ``tail -F`` —
-    Ctrl-C pertence ao tail, sem stack-trace de Python.
+    Padrão: tail + auto-detect de fim-de-run + ``relatar`` consolidado.
+    A linha-âncora é ``executar: done`` (emitida por
+    ``judex/pipeline/runner.py``). Quando todos os shards (ou o log
+    monolítico) registram pelo menos uma, o ``acompanhar`` para o
+    multitail, imprime o resumo e sai com código 0. Use ``--persistir``
+    para o comportamento legado de tailar indefinidamente.
 
-    **Sharded** (N ``shard-*/driver.log``): multitail Python-side.
-    Compacta a saída de duas formas:
+    **Mono** e **sharded** rodam o mesmo loop Python — sem ``execvp`` —
+    para que a detecção de fim-de-run funcione em ambos os layouts.
+    Ctrl-C também é capturado limpo, sem stack-trace de Python.
 
-      1. Substitui os cabeçalhos ``==> shard-X/driver.log <==`` do
-         tail por um prefixo compacto ``[X]`` em cada linha de dados.
-      2. **Suprime** as linhas de progresso ``─── 571/571 (100%) … ───``
-         de cada shard (16 idênticas a cada intervalo é puro ruído, e
-         o ``100%`` é enganoso — denominador é só meta-stage). Uma
-         thread agregadora lê todas as ``shard-*/executar.state.json``
-         a cada ``--agg-interval`` segundos e emite UMA linha
-         ``─── ... ───`` cluster-wide com counts reais por estágio
-         (incluindo ``provider_error``, ``unallocated_pid`` etc.).
+    Em sharded, a saída é compactada de duas formas:
 
-    Resolução de log priorizando sharded > top-level (``driver.log``
-    > ``launcher.log`` > ``executar.log``). ``tail -F`` (capital) tolera
-    shards cujo ``driver.log`` ainda não existe nos primeiros segundos.
+      1. Cabeçalhos ``==> shard-X/driver.log <==`` viram prefixo
+         compacto ``[X]`` por linha.
+      2. As linhas ``─── 571/571 (100%) … ───`` de cada shard são
+         suprimidas (16 idênticas a cada intervalo é puro ruído).
+         Uma thread agregadora emite UMA linha cluster-wide com
+         counts reais (``provider_error``, ``unallocated_pid``, …).
     """
     from scripts.follow_run import run_follow
-    raise typer.Exit(code=run_follow(run_dir, n=n, agg_interval=agg_interval))
+    raise typer.Exit(code=run_follow(
+        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `relatar` — consolidação pós-run (residuals + próximos passos)
+
+
+@app.command(name="relatar")
+def relatar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run (mono ou sharded). "
+             "Funciona tanto para run em curso quanto para run finalizado.",
+    ),
+) -> None:
+    """Consolida o estado de um run de ``executar`` em um relatório único.
+
+    Caminha por ``shard-*/executar.state.json``,
+    ``shard-*/executar.errors.jsonl`` e ``shard-*/report.md`` (ou seus
+    equivalentes top-level em mono) e renderiza:
+
+    - banner de status (``DONE``/``RUNNING``/``EMPTY``);
+    - mix de status por estágio (processos / pecas / text);
+    - wall-clock (maior shard + soma) e custo de OCR (USD);
+    - residuals classificados por ``(kind, status)``, com label
+      humano e contagem;
+    - próximos passos copy-paste (loops ``--retentar-de`` por shard
+      para classes retryable; classes terminais ficam só listadas).
+
+    Idempotente, somente-leitura, executa em <1 s em runs finalizados.
+    Pareado com ``acompanhar`` (que chama o mesmo renderer ao detectar
+    fim-de-run).
+    """
+    from judex.sweeps.run_summary import render_summary, summarize_run
+    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
 
 
 # ---------------------------------------------------------------------------
