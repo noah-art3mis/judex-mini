@@ -57,11 +57,14 @@ from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
 
 
 # Corpus-anchored outlier threshold (2026-05-02). Across 103,916 cached
-# HC PDFs, only 2 exceed 2 MB compressed (0.001%). Above this size the
-# OCR wall time exceeds Fly's proxy hold + watchdog window, so we skip
+# HC PDFs, 17 exceed 1 MB compressed (0.02%). Above this size the
+# 1 GB Machine shape risks memory pressure (123-page PDF empirically
+# stalled past 10 min on the 1 GB / chunk=16 cluster), so we skip
 # the cloud round-trip entirely and recommend local --provedor tesseract.
-# Re-anchor against the next corpus snapshot if the distribution shifts.
-OUTLIER_BYTES = 2 * 1024 * 1024
+# Re-anchor against the next corpus snapshot if the distribution shifts,
+# or if the Machine memory shape changes (raising memory back to 1.5 GB
+# would justify lifting this back to 2 MB).
+OUTLIER_BYTES = 1 * 1024 * 1024
 
 
 class OutlierPdfError(RuntimeError):
