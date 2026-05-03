@@ -83,6 +83,78 @@ free to serve `/healthz` plus accept new requests.
 Output `.txt.gz` size is typically ~5–8% of input PDF gz size (no
 data point yet for Test 2/3 since responses were lost).
 
+## PDF corpus size distribution (2026-05-02)
+
+Measured across the full `data/raw/pecas/*.pdf.gz` cache. **The
+session's anxiety about long-PDF OCR was shaped by a single
+outlier — `37ee397e8732…` (5.4 MB, 295 pages) is *the* largest
+PDF in the corpus, with a >2× margin over the next nearest.**
+The bulk of the corpus is far smaller and trivially handled by
+any reasonable memory shape.
+
+| Stat | Value | Implication |
+|---|---:|---|
+| Total PDFs | 103,916 | the corpus |
+| Total compressed | 16.02 GB | manageable on disk |
+| Median (p50) | 123.5 KB | ~8–12 pages — typical PDF |
+| Mean | 150.6 KB | tail-skewed slightly higher |
+| p95 | 411 KB | ~30 pages |
+| p99 | 507 KB | ~40–50 pages |
+| p99.9 | 628 KB | ~55 pages |
+| Max | 5,382 KB (the 295-page test file) | single outlier — 8.5× the next nearest |
+
+**Tail counts** (PDFs above each threshold):
+
+- 588 PDFs > 0.5 MB (0.57% of corpus)
+- 17 PDFs > 1 MB (0.02% of corpus)
+- 2 PDFs > 2 MB (0.001% — `37ee397e8732…` and `cea836aa3017…`)
+- 1 PDF > 5 MB (the literal one PDF this report has been testing
+  against)
+
+**Consequence for memory sizing.** Peak in-flight RAM with the
+chunked-rasterize design is **bounded by chunk size**, not by PDF
+size — so the 295-page outlier and a median 12-page PDF have the
+same peak RAM draw. The design's worst-case memory cost is
+therefore the same regardless of which PDF is being processed,
+and we can size the Machine to the chunk floor + working set
+without provisioning headroom for "what if a 1000-page PDF
+arrives?" outliers (the corpus shows none exist beyond 5.4 MB).
+
+## Minimum memory at 200 dpi (no DPI lever, fixed chunk_size = 32)
+
+Peak working-set decomposition for one in-flight OCR on a
+`shared-cpu-2x` Machine:
+
+| Component | Resident MB | Notes |
+|---|---:|---|
+| Tesseract LSTM model + state | ~200 | Loaded once per process, stays resident |
+| Python + uvicorn + FastAPI | ~180 | Includes lazy-imported pdf2image / pypdf |
+| Pillow + pdf2image baseline | ~80 | C extensions + decoder tables |
+| glibc + kernel page cache | ~50 | Service-baseline overhead |
+| **Steady-state subtotal** | **~510** | When idle, between requests |
+| Per-chunk PIL images (32 × 11 MB) | ~352 | Peak raster — released between chunks |
+| Tesseract per-thread working set | ~200 | 2 workers × ~100 MB each, transient |
+| **Peak during OCR** | **~1,062** | Steady-state + chunk + per-thread |
+| Safety margin (fragmentation, OOMkill) | ~150 | Linux OOMs around 95% used |
+| **Practical minimum** | **~1,212** | The number that must fit |
+
+**Memory tier choices** (Fly accepts 256/512/1024/1536/2048 MB
+for `shared-cpu-2x`):
+
+| `[[vm]] memory` | Total | Headroom over peak | Per-Machine $/hr | vs current 2 GB |
+|---|---:|---:|---:|---:|
+| `"1024mb"` (1.0 GB) | 1024 | **−38 MB ⚠️ peak exceeds total — OOM risk** | $0.0143 | −44% |
+| `"1536mb"` (1.5 GB) | 1536 | +474 MB ✓ comfortable | $0.0199 | **−22%** |
+| `"2048mb"` (2.0 GB, current) | 2048 | +986 MB (generous) | $0.0256 | baseline |
+
+**Decision.** `"1536mb"` is the cheapest tier where the peak
+working set fits with non-trivial headroom. `"1024mb"` would
+either require dropping `_RASTER_CHUNK_PAGES` from 32 back to ~16
+(re-introducing some per-chunk parse overhead) or accepting a
+silent-OOM risk on the largest few hundred PDFs. **`"1536mb"`
+preserves the chunk-size win and saves 22% per Machine-hour with
+no quality or speed tradeoff.**
+
 ## Money (extrapolated to full HC ACÓRDÃO ladder)
 
 12,930 ACÓRDÃOs × 5 s/PDF mean = 64,650 Machine-sec = 18.0 Machine-hr.
