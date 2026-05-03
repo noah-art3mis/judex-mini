@@ -51,17 +51,22 @@ _STATUS_STYLE: dict[str, tuple[str, str]] = {
     "ok":              ("✓", _ANSI_GREEN),
     "downloaded":      ("✓", _ANSI_GREEN),
     "extracted":       ("✓", _ANSI_GREEN),
+    "complete":        ("✓", _ANSI_GREEN),
     # cached / skipped (already done — neutral, dim)
     "cached":          ("⊘", _ANSI_CYAN),
     "skipped":         ("⊘", _ANSI_CYAN),
-    # benign empty / no-data
+    # benign empty / no-data / STF-side gaps (work cannot be done, not a failure)
     "empty":           ("·", _ANSI_DIM),
     "no_bytes":        ("·", _ANSI_DIM),
+    "empty_response":  ("·", _ANSI_DIM),
+    "unallocated":     ("·", _ANSI_DIM),
     # errors
     "fail":            ("✗", _ANSI_RED),
     "error":           ("✗", _ANSI_RED),
     "provider_error":  ("✗", _ANSI_RED),
     "http_error":      ("✗", _ANSI_RED),
+    "unknown_type":    ("✗", _ANSI_RED),
+    "non_document_response": ("✗", _ANSI_RED),
     # warning-ish
     "anomaly":         ("⚠", _ANSI_YELLOW),
 }
@@ -192,6 +197,156 @@ def render_progress_line(
     if color_mode:
         line = f"{_ANSI_BOLD}{line}{_ANSI_RESET}"
     return line
+
+
+_PIPELINE_STATUS_ORDER: tuple[str, ...] = (
+    "ok", "skipped_cached", "cached", "skipped",
+    "empty", "no_bytes", "unallocated_pid",
+    "fail", "error", "provider_error", "http_error",
+)
+
+
+def _fmt_stage_counts(c: Mapping[str, int]) -> str:
+    """Render one stage's status mix as ``ok=440 unallocated_pid=60``,
+    success classes first, anomalies last so the eye lands on errors."""
+    items = [(k, v) for k, v in c.items() if v]
+    if not items:
+        return ""
+    priority = {k: i for i, k in enumerate(_PIPELINE_STATUS_ORDER)}
+    items.sort(key=lambda kv: priority.get(kv[0], len(_PIPELINE_STATUS_ORDER)))
+    return " ".join(f"{k}={v}" for k, v in items)
+
+
+def _stage_pre_pct(
+    label: str,
+    done: int,
+    total: Optional[int],
+    unknown_marker: Optional[str],
+) -> tuple[str, bool, float]:
+    """Compute the ``label N/total`` segment that PRECEDES the
+    ``(X.X%)`` parenthetical.
+
+    Returns ``(pre, has_ratio, pct_value)``. ``has_ratio`` flags whether
+    a ``(pct%)`` follows — only stages with ``total`` set qualify; the
+    ``unknown_marker`` path renders ``?`` instead of a number and has
+    no percentage to pad-align.
+    """
+    if total:
+        return f"{label} {done}/{total}", True, 100.0 * done / total
+    if unknown_marker is not None:
+        return f"{label} {done}/{unknown_marker}", False, 0.0
+    return f"{label} {done}", False, 0.0
+
+
+def render_pipeline_progress_line(
+    *,
+    n_targets: int,
+    processos: Mapping[str, int],
+    pecas: Mapping[str, int],
+    text: Mapping[str, int],
+    pecas_total: Optional[int] = None,
+    text_total: Optional[int] = None,
+    prefix: Optional[str] = None,
+    rate_per_sec: Optional[float] = None,
+    eta_min: Optional[float] = None,
+    eta_basis: Optional[str] = None,
+    use_color: bool | None = None,
+) -> str:
+    """Three-stage progress block for the unified executar pipeline.
+
+    Layout (sharded, with all optionals)::
+
+        ─── [12:00:00 agg] processos 500/9137 (5.5%) ok=440 unallocated_pid=60 ───
+        ─── [12:00:00 agg]     pecas 1500/2300 (65.2%) ok=1450 empty=50 ───
+        ─── [12:00:00 agg]      text 1100/1450 (75.9%) ok=600 skipped_cached=489 provider_error=11 · 0.55 cases/s · eta(OCR) 4.2 min ───
+
+    Three lines, one per stage. Each line is self-bookended with
+    ``───`` so it stays visually distinct from per-task tail lines and
+    survives ``grep`` (every line carries the timestamp prefix when
+    sharded). Labels are right-padded to 9 chars (``len("processos")``)
+    so the data columns line up vertically.
+
+    Three stages, three nouns: ``processos`` (case-meta scrape),
+    ``pecas`` (peca PDF download), ``text`` (text extraction). Each
+    stage's denominator is rendered when knowable:
+
+    * ``processos`` — denominator is ``n_targets`` (CSV row count, known
+      up front); falls back to ``?`` pre-CSV-resolution.
+    * ``pecas`` — denominator is ``pecas_total``: sum of ``n_pecas``
+      stamped on each meta=ok record at fan-out time. Becomes known the
+      moment meta finishes; None on legacy state files (the renderer
+      drops the ratio rather than show a fabricated number).
+    * ``text`` — denominator is ``text_total``: equals ``pecas["ok"]`` at
+      any moment, since every successful pecas download emits exactly
+      one extract_text successor. Always knowable (grows during pecas;
+      locks once pecas is done).
+
+    All status counts render unconditionally (no zero suppression):
+    a ``provider_error=0 → 1`` transition would otherwise materialise
+    out of nowhere with no prior baseline, which makes errors easy
+    to miss when scrolling.
+
+    Rate / ETA, when present, ride along on the ``text`` line — text is
+    the slowest stage and the actual ETA driver, so co-locating those
+    numbers with the text counts puts the bottleneck signal in one
+    place. ``eta_basis`` (e.g. ``"OCR"``) labels which stage's rate
+    drove the ETA, so the operator knows what the number means.
+
+    Returns a single string with embedded ``\\n`` separators (three
+    lines). One ``log.info`` / ``print`` call emits all three; tail
+    viewers see them in order.
+    """
+    color_mode = use_color if use_color is not None else should_use_color()
+
+    # Build each stage's `label N/total` (pre-pct) + its mix separately
+    # so we can pad the pre-pct strings to a uniform width, making the
+    # `(X.X%)` parens line up vertically across the three lines.
+    p_pre, p_has, p_pct = _stage_pre_pct(
+        "processos", sum(processos.values()), n_targets or None, "?",
+    )
+    pe_pre, pe_has, pe_pct = _stage_pre_pct(
+        "pecas", sum(pecas.values()), pecas_total, None,
+    )
+    t_pre, t_has, t_pct = _stage_pre_pct(
+        "text", sum(text.values()), text_total, None,
+    )
+
+    # Width to pad to: the longest pre-pct among stages that DO render
+    # a percentage. Stages without a ratio (legacy pecas, processos
+    # pre-CSV-resolution) don't need to align — they have nothing to
+    # align with — so they skip padding and read clean.
+    aligned_w = max(
+        (len(p) for p, has in [(p_pre, p_has), (pe_pre, pe_has), (t_pre, t_has)]
+         if has),
+        default=0,
+    )
+
+    def _assemble(pre: str, has_ratio: bool, pct_value: float, mix: str) -> str:
+        if has_ratio:
+            head = f"{pre.ljust(aligned_w)} ({pct_value:.1f}%)"
+        else:
+            head = pre
+        return head + (f" {mix}" if mix else "")
+
+    processos_body = _assemble(p_pre, p_has, p_pct, _fmt_stage_counts(processos))
+    pecas_body = _assemble(pe_pre, pe_has, pe_pct, _fmt_stage_counts(pecas))
+    text_body = _assemble(t_pre, t_has, t_pct, _fmt_stage_counts(text))
+
+    # Rate / ETA glued to the text line (same `·` separator as the
+    # within-block status mix uses, so visual continuity holds).
+    if rate_per_sec is not None:
+        text_body += f" · {rate_per_sec:.2f} cases/s"
+    if eta_min is not None:
+        eta_label = f"eta({eta_basis})" if eta_basis else "eta"
+        text_body += f" · {eta_label} {eta_min:.1f} min"
+
+    head = f"─── {prefix} " if prefix else "─── "
+    bodies = [processos_body, pecas_body, text_body]
+    if color_mode:
+        lines = [f"{_ANSI_BOLD}{head}{b} ───{_ANSI_RESET}" for b in bodies]
+    else:
+        lines = [f"{head}{b} ───" for b in bodies]
+    return "\n".join(lines)
 
 
 def render_run_header(

@@ -11,10 +11,237 @@ unstable on the 4 GB WSL2 box (Pool deadlocks under OOM); landed
 `judex-ocr-tesseract-arcos.fly.dev` (gru, 60 shared-cpu-2x
 Machines, auto-stop-when-idle).
 
-**Status as of 2026-05-01 evening.** Corpus: **90,763** cases.
-PDF cache 99,057 `.pdf.gz` + 3,621 `.rtf.gz`, 105,821 `.txt.gz`.
-Warehouse last rebuilt 2026-04-30 17:45 BRT — needs a refresh
-once the HC 2026 chain closes.
+**Status as of 2026-05-02 20:37 BRT.** Corpus: **90,763** HC
+cases. PDF cache 99,095 `.pdf.gz` (+38 from HC 2026 baixar) +
+3,621 `.rtf.gz`, **109,777** `.txt.gz` (+3,956 from HC 2026
+extract). 93,074 `.extractor` sidecars (gap of ~16k vs
+`.txt.gz` is pre-sidecar-discipline residue, not a regression).
+Warehouse rebuilt 2026-05-02 12:43 BRT (1.85 GB; DJe Phase 1
+populated). Both HC backfill chains (2025 + 2021) **stopped at
+user request 20:30-20:33 BRT** while in Stage C (extrair) — see
+"Halt 2026-05-02 20:33 BRT" below for state snapshots + resume
+commands. Now in flight: a `coletar`-orchestrator smoke test
+(HC 245000-245099, exercises today's ADR-0004 commits).
+
+## Open thread — Fly OCR cluster cost shape (2026-05-02 late evening)
+
+**Why.** The first real Fly invoice landed (May 1+2 = $8.70 over
+181.5 Machine-hours) and revealed two surprises: (a) the prior
+`$0.0118/hr per Machine` quote in `fly/README.md` and
+`tesseract_fly.py:cost()` was **4× under-anchored** because it
+ignored the "Additional RAM" line item, and (b) RAM is **82% of
+the per-Machine bill** at the old `[[vm]] memory = "4gb"`, not the
+expected CPU-dominated split. The bill anchored a real per-hour
+rate of $0.0479 / Machine-hour.
+
+**Landed on `dev`.**
+
+- `71e3d43 feat(fly): chunked rasterize + 2 GB Machine, bill-anchor cost surface`
+  — `fly/server.py` switched from upfront `convert_from_bytes(pdf_bytes,
+  dpi=200)` (peak RAM ≈ 11 MB × n_pages) to chunked
+  `_RASTER_CHUNK_PAGES = 4` rasterization (peak RAM ≈ 50 MB regardless
+  of page count). `[[vm]] memory: "4gb" → "2gb"`. Cost docstring
+  rewritten with two-meter pricing model anchored to the real invoice.
+  Per-Machine rate: $0.0479/hr → $0.0256/hr (**~47% reduction**).
+- `62a1101 docs(fly): smoke-test report for streaming refactor + 1 GB Machine`
+  — full report at `docs/reports/2026-05-02-fly-streaming-refactor-smoke-test.md`.
+
+**Cluster state right now.**
+
+| Field | Value |
+|---|---|
+| Branch | `dev` |
+| Local `fly.toml` | `memory = "2gb"`, `shared-cpu-2x` |
+| Live cluster | 10 Machines × shared-cpu-2x × 2 GB ✓ matches local |
+| Live image | streaming refactor (chunked rasterize) ✓ matches local |
+| Per-Machine rate | $0.0256/hr |
+| Was scaled to | 100 Machines pre-test; **needs restore to 100** |
+
+**Smoke-test results so far.** 1-page PDF: ✅ clean (~4 s wall,
+991 chars, accents intact). 123-page PDF: server-side 200 OK at
+~270 s wall but client got empty body — diagnosed as
+`async def extract()` blocking the asyncio event loop during sync
+OCR work, so `/healthz` fails and Fly's proxy drops the upstream
+connection. **No OOM in logs**, so 2 GB is genuinely sufficient
+for 123-page PDFs. 295-page PDF (`37ee397e8732…`, 5.4 MB gz):
+**not yet run** — direct user concern about long-PDF handling.
+
+**Open follow-ups (priority order).**
+
+1. **Run 295-page PDF test** against the live 2 GB cluster to
+   pin "very long PDFs handled correctly" empirically, not by
+   design extrapolation.
+2. **`async def` → `run_in_executor` one-liner** so long-request
+   responses don't get dropped on the way back through the proxy.
+   Pinned by re-running the 123-page PDF and getting clean text.
+3. **Restore cluster to 100 Machines** (`flyctl scale count 100`)
+   before any production sweep.
+4. **Money optimization choices** still on the table — current
+   $0.0256/hr; achievable lower bounds:
+   - `shared-cpu-2x` + `memory = "1gb"`: $0.0143/hr (44% further
+     cut). Headroom ~314 MB over peak ~710 MB working set — tight,
+     silent-OOM risk on edge PDFs (Pillow large-image spikes).
+   - `shared-cpu-4x` + `memory = "1gb"`: $0.0174/hr (39% cut)
+     **and** 2× wall speedup on 3+ page PDFs (4 parallel Tesseract
+     instances vs 2). Risk: 4 concurrent Tesseract working sets
+     (~600 MB) plus baseline (~400 MB) ≈ 1 GB exact — needs the
+     2 GB shape to be safe in practice.
+   - Both options are shape-only — `server.py` reads
+     `os.cpu_count()` so the worker pool auto-scales to whatever
+     the deployed shape provides. No Python change required.
+5. **Investigate health-check failures** on started Machines —
+   noticed during smoke test that `1 critical` checks were
+   common, possibly from `/healthz` being blocked during long
+   OCRs (same async-blocking root cause as #2).
+
+**Decision pending.** Whether to spend engineering effort on the
+remaining ~$0.10–$0.20/ladder savings, or stop here. The headline
+win (4 GB → 2 GB, 47% off the per-Machine rate) is locked in;
+further cuts are diminishing returns.
+
+### Update 2026-05-03 — tesserocr swap + included-RAM-tier insight
+
+**Three things landed since the prior entry.**
+
+1. **pytesseract → tesserocr** (`fly/server.py`, commits `83766eb`,
+   `6588012`, `557835e`). The pytesseract path spawned a fresh
+   `tesseract` subprocess per page (~150 ms LSTM model load × N
+   pages, parallelized across 2 workers ≈ 4-8 s wasted on a
+   50-page PDF). Swapped to tesserocr (Cython libtesseract
+   bindings) with a per-thread `PyTessBaseAPI` via
+   `threading.local`, held by a **module-scoped**
+   `ThreadPoolExecutor` (per-chunk pool would re-init the LSTM
+   for every PDF, defeating the swap). The model is now loaded
+   N_workers times for the entire server lifetime, not per page.
+   Estimated 1.3-2× speedup on multi-page PDFs.
+2. **CPU-detection investigation** ruled out a non-bug. Confirmed
+   via `flyctl ssh console`: `os.cpu_count()` returns **2** on
+   `shared-cpu-2x` (matches the configured shape, no Firecracker
+   leakage). `/sys/fs/cgroup/cpu.max` does not exist on Fly —
+   Firecracker microVMs present vCPUs to the guest directly,
+   without a cgroup hierarchy. The cgroup-quota fallback in
+   `_resolve_page_workers()` is dead code on Fly (works as
+   portability insurance for redeploys to k8s/Fargate).
+3. **Included-RAM-tier insight rewrites the cost-shape choice.**
+   `shared-cpu-Nx` ships with N × 256 MB included RAM in the
+   per-second CPU rate (verified via Fly pricing docs). At our
+   `[[vm]] memory = "1gb"`, that means:
+   - shared-cpu-2x: 512 MB included → 512 MB additional billed
+   - shared-cpu-4x: **1024 MB included → 0 MB additional billed**
+
+   The CPU-rate jump from 2x → 4x ($0.0087 → $0.0174 in gru) is
+   exactly offset by the eliminated additional-RAM line, so the
+   per-Machine bill is only 22% higher despite 2× the vCPU count.
+   Per-page-slot cost drops ~39%.
+
+**Cost-shape comparison (gru rates, all at 1 GB total RAM).**
+
+| Shape               | Workers | $/hr (gru) | Pages/sec (est) | $/page-slot/hr        |
+|---------------------|---------|------------|-----------------|-----------------------|
+| shared-cpu-2x @ 1gb | 2       | $0.0143    | ~2.0            | $0.00715              |
+| shared-cpu-4x @ 1gb | 4       | $0.0174    | ~4.0            | $0.00435 ← sweet spot |
+| shared-cpu-8x @ 2gb | 8       | ~$0.0349   | ~7.0            | $0.00499              |
+
+Pages/sec figures are estimates from per-page OCR ~1 s × worker
+count, with sub-linear scaling assumed at 8 workers (process-
+global libtesseract state contention). **Needs empirical
+validation** — the table is the basis for picking 4x as the
+landed choice, not a measured baseline.
+
+**Landed shape.** `[[vm]] size = "shared-cpu-4x"`, `memory = "1gb"`.
+Memory peak re-derived for 4 workers: 310 MB baseline + 400 MB
+tesserocr (4 × ~100 MB) + 176 MB raster = **886 MB peak**, ~14%
+headroom over the 1 GB ceiling. Tighter than the prior 2x shape
+(~33% headroom) but above the empirically-confirmed safe floor.
+
+**Experiment to run post-deploy.**
+
+1. Smoke-test 5-10 PDFs spanning page counts on the new 4x
+   cluster. Watch `flyctl logs` for OOM kills or healthcheck
+   flaps. The 14% memory headroom is calculated, not measured.
+2. Sample wall_seconds vs the prior 2x baseline for matched
+   PDFs. Expected: ~50% reduction in per-PDF wall (4 workers
+   vs 2). If actual <40% reduction, suspect contention in
+   libtesseract's process-global state and consider whether
+   stepping up to shared-cpu-8x @ 2gb is worth the cost-per-slot
+   regression ($0.00499 vs $0.00435 — slightly worse, but only
+   meaningful if 8x scales near-linearly).
+3. Validate the per-page-slot cost claim against a real
+   end-to-end sweep bill. Compare $/1k pages between the prior
+   2x runs and the first 4x run. If the 39% saving holds, lock
+   in 4x as the cluster-wide default; if it degrades to <25%,
+   revisit (likely cause: 4-worker contention eating the
+   apparent throughput gain).
+
+Open question: would 8 workers + `OMP_NUM_THREADS=2` (instead of
+8 workers + OMP=1) recover any tail throughput on the 8x shape?
+The math says no — cross-page parallelism dominates per-page OMP
+parallelism whenever the page pool is saturated, which it almost
+always is given chunk_size=16. But worth one A/B run if 8x
+becomes a serious candidate.
+
+### Correction 2026-05-03 — empirical OOM invalidates the 1 GB shape
+
+**What happened.** A separate session deployed the post-tesserocr
+image at `shared-cpu-2x @ 1gb` and ran a 123-page PDF through it.
+Kernel OOM-killed uvicorn at `anon-rss=861 MB` on a 1024 MB Machine
+(per `flyctl logs`):
+
+```
+[ 250.736913] Out of memory: Killed process 644 (uvicorn) anon-rss:861508kB
+```
+
+**Memory model re-anchor.** My static estimate was 100 MB per
+tesserocr worker (back-of-envelope from the size of
+`por.traineddata`). Empirical back-derivation from the 861 MB
+peak: 861 - 310 baseline - 176 raster ≈ 374 MB / 2 workers ≈
+**~187 MB per worker** — almost 2× my estimate. The delta is
+libtesseract's working memory during active recognition (line/
+word bounding-box pyramids, confidence accumulators, recogniser
+state), which scales with image complexity, not just static model
+size. The original 100 MB number was the *resident model size*,
+not the *peak working-set*.
+
+**Re-derived shape table (gru rates, with empirical 187 MB/worker).**
+
+| Shape               | Peak  | Headroom | $/hr (gru) | Workers | $/slot/hr  |
+|---------------------|-------|----------|------------|---------|------------|
+| 2x @ 1gb (DOA)      | 860 MB| -        | $0.0143    | 2       | OOMs       |
+| 2x @ 1.5gb (live-fix)| 860 MB| 44%     | $0.026     | 2       | $0.013     |
+| 2x @ 2gb (validated)| 860 MB| 58%      | $0.0312    | 2       | $0.0156    |
+| **4x @ 2gb (revised)**| 1234 MB| 40%   | $0.0347    | 4       | **$0.00868** ← cheapest safe |
+| 4x @ 1.5gb          | 1234 MB| 20%     | $0.0261    | 4       | $0.00652 (tight) |
+| 8x @ 3gb            | 1982 MB| 35%     | $0.0522    | 8       | $0.00653   |
+
+**Landed shape revision.** `[[vm]] memory: "1gb" → "2gb"`. The
+4x sweet-spot concept holds — 4 workers at $0.00868/slot/hr is
+still 33% cheaper per slot than 2x @ 1.5gb at $0.013/slot/hr.
+What changed: the cost advantage now lives in *slot count*, not
+in *dodging the additional-RAM line item* (4x @ 2gb DOES pay
+$0.0173/hr for the 1 GB above the included tier).
+
+**Live cluster fix (separate from this commit).** The deployed
+`shared-cpu-2x @ 1gb` cluster needs a runtime memory bump or it
+will keep OOM-looping on multi-page PDFs. Two options on the table:
+- `flyctl scale memory 1536 -a judex-ocr-tesseract-arcos` — 2x @
+  1.5gb, 44% headroom, $0.026/hr, instant
+- `flyctl scale memory 2048 -a judex-ocr-tesseract-arcos` — 2x @
+  2gb, validated regime, $0.0312/hr, instant
+
+Either gets the live cluster operational while a deploy of the
+new 4x @ 2gb image is built. Recommended sequencing: (a) live-fix
+to 1.5gb or 2gb to unblock production, (b) `flyctl deploy` the
+revised commit, (c) run smoke test on 4x @ 2gb cluster, (d) if
+clean, lock 4x @ 2gb in as the default and remove the live-fix
+override.
+
+**Lesson recorded.** The original recommendation explicitly said
+"deploy current state first, measure peak RSS, THEN decide if we
+can go to 768 MB." That advice was abandoned in the 4x @ 1gb
+commit, which projected memory from a static model without
+measurement. The OOM is the receipt. Going forward: any RAM
+shape change goes through one measured sweep on the validated
+shape before commit.
 
 ## Active task — HC year-ladder backfill via 3-stage chain
 
@@ -180,6 +407,78 @@ uv run judex extrair-pecas \
 
 (Force `tesseract_fly` because `auto` would re-route the same way;
 drop `--paralelo` to match warm capacity.)
+
+**HC 2026 — closed out 2026-05-02 14:30 BRT.** Retry pass v2 (with
+the new tenacity 5×30 retry + pre-warmed cluster + `--paralelo 10`)
+processed 310 previously-failed URLs with **0 failures** (cost
+$0.04, 3,453 pages OCR'd). Combined coverage: **5,179 ok / 10
+legitimately-dead surface-2 voto IDs = 99.8% effective**, well
+past the ≥99% close-out threshold. OCR quality validated by
+8-sample ACÓRDÃO spot-check: EMENTA + ACÓRDÃO markers present in
+100%, body text clean Portuguese, char counts plausible
+(2.4k-23.7k range). Empirical validation that the four-layer
+defense (pre-warm + paralelo 10 + tenacity 5×30 + auto router)
+turns a 7.3% failure rate into 0% on the same workload.
+
+**HC 2025 chain regression caught + fixed (commit `b5cd7d2`).**
+First varrer-processos run since the Phase 1 parser fix
+(`ae19d73`) surfaced an `AttributeError: 'NoneType' object has no
+attribute 'encode'` on every redirect-form DJe entry —
+`_resolve_publicacoes_dje:150` called `detail_fetcher(None)`
+without checking. ~47% case error rate by record 1,300. Killed
+the chain, fixed (skip the detail fetch when `detail_url is
+None`), restarted from the same `--saida` (resume picked up the
+~480 captured cases). Post-restart error rate: 0 in the first
+2,750 records. HC 2026 didn't surface this because Stage A ran
+2026-05-01 *before* the parser fix landed; the bug was latent
+until the next varrer-processos invocation.
+
+**Halt 2026-05-02 20:33 BRT — both backfill chains stopped at
+user request.** Both chains had progressed Stage A (varrer) and
+Stage B (baixar) cleanly and were in Stage C (extrair) at halt
+time. SIGTERM was sent at 20:30 BRT; the `--paralelo 10`
+extractors didn't drain in 10s (workers blocked on in-flight
+`tesseract_fly` round-trips), so escalated to SIGKILL at 20:33.
+State snapshots at halt:
+
+| Chain    | Stage C progress              | Throughput / ETA              | State file mtime |
+| -------- | ----------------------------- | ----------------------------- | ---------------- |
+| HC 2025  | 13,512 / 28,261 (47.8%)       | 0.76 tgt/s · ETA ~323 min     | 20:33            |
+| HC 2021  | 1,179  / 10,062 (~11.7%)      | early ramp                    | 20:32            |
+
+HC 2025 ok=5,784 / cached=6,162 / no_bytes=11 / fail=1,543 at
+halt — the ~11% running fail rate is well above HC 2026's
+post-mitigation 0%, which would have been worth a regime probe
+mid-run. SIGKILL is safe because `peca_store.py`'s atomic
+write contract (tempfile + fsync + rename) means each
+`pdfs.state.json` is either the prior or current snapshot,
+never a half-write; `--retomar` resumes from the last flushed
+record. Resume commands (Stage C only — Stages A + B are
+fully done):
+
+```bash
+uv run judex extrair-pecas -c HC -i 250920 -f 267137 \
+    --provedor auto --saida runs/active/backfill-hc2025-2026-05-02/extrair \
+    --paralelo 10 --retomar --nao-perguntar
+
+uv run judex extrair-pecas -c HC -i 198000 -f 210963 \
+    --provedor auto --saida runs/active/backfill-hc2021-2026-05-02/extrair \
+    --paralelo 10 --retomar --nao-perguntar
+```
+
+**`coletar`-orchestrator smoke test in flight** (PID 504746,
+launched 20:22 BRT). Exercises today's three commits — `42f1d12
+feat(coletar): orchestrator for the 6-stage pipeline (ADR-0004)`,
+`53d3ce3 feat(replay): status-aware retry replay via
+error_triage classifier`, `0abeef7 docs(adr): ADR-0004 coleta
+orchestrator with status-aware retry`. Scope: HC 245000-245099
+(100 cases, narrow slice of HC 2024 PID range). Run dir
+`runs/active/coletar-smoke-2026-05-02/` with the orchestrator's
+own `varrer/`, `baixar/`, `extrair/` sub-dirs (one launcher log
+at the run root, not per-stage). At 20:37 BRT: extrair sub-stage
+50/171 (29.2%) at 0.08 tgt/s, ETA ~24.6 min — slow rate worth
+watching but plausible given the small denominator and the
+`tesseract_fly` Modal hop dominating any non-pypdf doc.
 
 **Monitor.** Same pattern across all 3 stages:
 

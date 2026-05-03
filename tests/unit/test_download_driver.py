@@ -282,13 +282,17 @@ def test_retomar_skips_already_ok(tmp_path: Path) -> None:
 
 def test_retry_from_filters_to_errors_only(tmp_path: Path) -> None:
     """--retentar-de only re-downloads URLs that appear in the prior
-    run's errors.jsonl; successful URLs are skipped even if they're in
-    the target list.
+    run's errors.jsonl AND classify `transient` per `error_triage`.
+    Successful URLs and terminal failures are skipped.
     """
     def first_getter(session, target, config):
         if target.url.endswith("a.pdf"):
             return b"%PDF-1.4 ok"
-        raise RuntimeError("boom")
+        # 502 Bad Gateway → status=http_error + transient signal in
+        # the error message → classifies as transient and gets
+        # replayed. RuntimeError("boom") would now classify terminal
+        # and the retry would skip it — exercise the transient path.
+        raise RuntimeError("HTTPError: 502 Bad Gateway")
 
     sweep_dir = tmp_path / "sweep"
     run_download_sweep(

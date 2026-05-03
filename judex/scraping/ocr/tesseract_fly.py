@@ -6,13 +6,20 @@ single-call). Same engine, same Portuguese language pack — the
 difference is *where* the CPU cycles run and *how much* you pay.
 
 Cost reference (Fly.io shared-cpu-2x / 4 GB / São Paulo, anchored
-2026-05-01):
+2026-05-02 against a real two-day bill, $8.70 / 181.5 Machine-hours):
 
-- Rate: $0.0118/hr per Machine = $0.00000328/sec active
+- CPU rate: $0.00000242 / Machine-second  (= $0.0087/hr)
+- RAM rate: $0.00000312 / GB-second × 3.5 GB additional RAM per
+  Machine (= $0.0394/hr; the 4 GB request includes 0.5 GB for free,
+  the rest is billed line-by-line as "Additional RAM" on the invoice)
+- Combined: $0.0479 / Machine-hour  ←  4.06× the prior $0.0118 quote,
+  which had silently dropped the additional-RAM line item.
 - Anchored throughput: ~3 sec/PDF mean on cpu=2 (8-page ACÓRDÃO),
   matching the Modal CPU bakeoff anchor in ``tesseract.py``.
-- Effective: ~$0.013 / 1k pages — ~10× cheaper than Modal Tesseract,
-  ~50× cheaper than Datalab Chandra.
+- Effective: ~$0.0050 / 1k pages — still ~5× cheaper than Modal
+  Tesseract, ~20× cheaper than Datalab Chandra. (Lower than the
+  previous $0.013 quote because that figure came from an arithmetic
+  slip, not the bill.)
 
 Auth + endpoint:
 
@@ -47,6 +54,26 @@ from tenacity import (
 )
 
 from judex.scraping.ocr.base import ExtractResult, OCRConfig, ProviderSpec
+
+
+# Corpus-anchored outlier threshold (2026-05-02). Across 103,916 cached
+# HC PDFs, 17 exceed 1 MB compressed (0.02%). Above this size the
+# 1 GB Machine shape risks memory pressure (123-page PDF empirically
+# stalled past 10 min on the 1 GB / chunk=16 cluster), so we skip
+# the cloud round-trip entirely and recommend local --provedor tesseract.
+# Re-anchor against the next corpus snapshot if the distribution shifts,
+# or if the Machine memory shape changes (raising memory back to 1.5 GB
+# would justify lifting this back to 2 MB).
+OUTLIER_BYTES = 1 * 1024 * 1024
+
+
+class OutlierPdfError(RuntimeError):
+    """PDF exceeds the tesseract_fly safety envelope.
+
+    The sweep runner catches this and records ``status='outlier_skipped'``
+    instead of treating it as a provider error. End-of-run report.md
+    surfaces the outlier list with a copy-pasteable local-OCR command.
+    """
 
 
 def _is_retryable_http(exc: BaseException) -> bool:
@@ -98,6 +125,12 @@ def _post_extract(url: str, *, headers: dict, pdf_bytes: bytes, timeout: int) ->
 
 
 def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
+    if len(pdf_bytes) > OUTLIER_BYTES:
+        raise OutlierPdfError(
+            f"PDF size {len(pdf_bytes)/1024/1024:.2f} MB exceeds "
+            f"{OUTLIER_BYTES/1024/1024:.0f} MB cloud-OCR threshold. "
+            "Re-extract this case with --provedor tesseract locally."
+        )
     headers = {"Content-Type": "application/pdf"}
     if config.api_key:
         headers["Authorization"] = f"Bearer {config.api_key}"
@@ -119,10 +152,13 @@ def extract(pdf_bytes: bytes, *, config: OCRConfig) -> ExtractResult:
 
 
 def cost(n_pages: int, config: OCRConfig) -> float:
-    # shared-cpu-2x / 4 GB at $0.0118/hr × ~3 sec/PDF / 8 pages-per-PDF
-    # ≈ $0.013 per 1k pages. Re-anchor against the next Fly bakeoff or
-    # if Fly.io's published rates change.
-    return n_pages * 0.013 / 1000
+    # Bill-anchored 2026-05-02 ($8.70 / 181.5 Machine-hours = $0.0479/hr).
+    # Per-page math: $0.0479/hr × (3 s/PDF) ÷ 3600 s/hr ÷ 8 pages/PDF
+    #              ≈ $5.0e-6/page = $0.005 / 1k pages.
+    # Re-anchor against the next monthly Fly invoice if the bill shifts
+    # ±10%, or after any [[vm]] memory change in fly/fly.toml (RAM is
+    # 82% of the line; halving memory roughly halves the rate).
+    return n_pages * 0.005 / 1000
 
 
 def wall(n_pdfs: int, config: OCRConfig) -> float:

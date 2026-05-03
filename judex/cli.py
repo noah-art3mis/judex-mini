@@ -35,11 +35,24 @@ from pathlib import Path
 from typing import Any, Optional
 
 import typer
+from dotenv import load_dotenv
 
 from judex.utils.validation import (
     validate_process_range,
     validate_stf_case_type,
 )
+
+# Load .env from the project root (or any parent of cwd) at CLI import.
+# This is what makes ``judex executar --provedor tesseract_fly`` "just work"
+# without an explicit ``export FLY_TESSERACT_URL=…`` — and, more importantly,
+# is the path that lets each operator point the CLI at *their own* paid
+# infrastructure (Fly endpoint, Datalab/Mistral/RunPod/Gemini API keys)
+# without anyone's URL or token getting baked into the codebase. The
+# ``.env.example`` at the repo root documents every variable the providers
+# read; ``.env`` itself is gitignored so secrets never leave the operator's
+# machine. Pattern matches ``scripts/wait_for_chandra_ready.py`` and friends,
+# which already do the same. Silent no-op when no .env is found.
+load_dotenv()
 
 DEFAULT_NOTEBOOKS: tuple[str, ...] = (
     "hc_explorer",
@@ -877,6 +890,541 @@ def extrair_pecas(
 
 
 # ---------------------------------------------------------------------------
+# `coletar` — orquestra o pipeline completo (ADR-0004)
+#
+# Sucedido por ``executar`` (unified pipeline, ADR-2026-05-02). ``coletar``
+# permanece como caminho legado durante a transição; novos sweeps devem usar
+# ``executar``. Veja ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+
+
+@app.command(name="coletar")
+def coletar(
+    classe: str = typer.Option(
+        ..., "-c", "--classe",
+        help="Classe STF (ex: HC).",
+    ),
+    inicio: int = typer.Option(
+        ..., "-i", "--inicio",
+        help="processo_id inicial (inclusive).",
+    ),
+    fim: int = typer.Option(
+        ..., "-f", "--fim",
+        help="processo_id final (inclusive).",
+    ),
+    saida: Path = typer.Option(
+        ..., "--saida",
+        help="Diretório raiz da coleta. Cria <saida>/{varrer,baixar,extrair}/ "
+        "e seus diretórios de retry. REPORT.md final fica em <saida>/.",
+    ),
+    rotulo: str = typer.Option(
+        ..., "--rotulo",
+        help="Rótulo da coleta (usado em logs e relatório).",
+    ),
+    max_retry_cycles: int = typer.Option(
+        2, "--max-retry-cycles",
+        help="Máximo de ciclos de retry por etapa (cap, com early-exit em "
+        "residual=0 ou no-shrink). Default 2 — ver ADR-0004.",
+    ),
+    gate_varrer: float = typer.Option(
+        0.02, "--gate-varrer",
+        help="Taxa de transientes que aborta varrer. Default 2%.",
+    ),
+    gate_baixar: float = typer.Option(
+        0.02, "--gate-baixar",
+        help="Taxa de transientes que aborta baixar. Default 2%.",
+    ),
+    gate_extrair: float = typer.Option(
+        0.02, "--gate-extrair",
+        help="Taxa de transientes que aborta extrair. Default 2%.",
+    ),
+    provedor: str = typer.Option(
+        "auto", "--provedor",
+        help="Extractor para extrair-pecas e seus retries. Default 'auto'.",
+    ),
+    paralelo: int = typer.Option(
+        10, "--paralelo",
+        help="Threads paralelas para extrair-pecas (passa direto). Default 10.",
+    ),
+    ocr_tesseract_provider: str = typer.Option(
+        "tesseract_fly", "--ocr-tesseract-provider",
+        help="OCR backend usado pelo router auto quando o doc_type "
+             "requer escalação (ACÓRDÃO). 'tesseract_fly' é cobrado pelo "
+             "Fly (~$0.01/1k páginas) mas é paralelizável via --paralelo; "
+             "'tesseract' é local, gratuito, e gargalo de CPU. Default "
+             "'tesseract_fly' para coletas em escala — passe 'tesseract' "
+             "se você não quer cobrança por páginas.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula confirmação interativa do banner de custo (uso "
+             "não-supervisionado). Sem esta flag, em TTY o coletar "
+             "pede confirmação antes de iniciar.",
+    ),
+) -> None:
+    """Orquestra o pipeline completo (ADR-0004): varrer → varrer-retry →
+    baixar → baixar-retry → extrair → extrair-retry, com classificador
+    status-aware (judex.sweeps.error_triage), cap de retries, e
+    transient-rate gate por etapa.
+
+    Cada etapa escreve sua própria pasta dentro de --saida; cada ciclo
+    de retry escreve em <saida>/<etapa>-retry-{1,2}/. O REPORT.md final
+    sai em <saida>/REPORT.md com a tabela por etapa + grade da run
+    quality (clean / acceptable / degraded / broken).
+
+    Halt-on-abort: se uma etapa tropeçar no gate, etapas subsequentes
+    não rodam; quality = broken; operador investiga e retoma.
+
+    Examples:
+
+        uv run judex coletar -c HC -i 250920 -f 267137 \\
+            --saida runs/active/backfill-hc2025-2026-05-02 \\
+            --rotulo hc2025_backfill
+    """
+    from judex.sweeps.coletar import (
+        ColetaConfig,
+        make_subprocess_runners,
+        run_coleta,
+    )
+
+    config = ColetaConfig(
+        classe=classe.upper(),
+        inicio=inicio,
+        fim=fim,
+        saida=saida,
+        rotulo=rotulo,
+        max_retry_cycles=max_retry_cycles,
+        transient_gates={
+            "varrer": gate_varrer,
+            "baixar": gate_baixar,
+            "extrair": gate_extrair,
+        },
+    )
+
+    runners = make_subprocess_runners(
+        config, provedor=provedor, paralelo=paralelo,
+        ocr_tesseract_provider=ocr_tesseract_provider,
+    )
+
+    typer.echo(
+        f"Coleta {config.classe} {config.inicio}..{config.fim} → {config.saida}"
+    )
+    typer.echo(
+        f"  max-retry-cycles={config.max_retry_cycles} · "
+        f"gates(varrer={gate_varrer}, baixar={gate_baixar}, "
+        f"extrair={gate_extrair}) · provedor={provedor} · paralelo={paralelo}"
+    )
+
+    # Cost banner — always printed before the run starts so the
+    # operator sees what's billable before committing time. Each line
+    # names the resource, its rate, and the rough scope; exact dollar
+    # cost depends on per-target outcomes (cache hits, doc_types) and
+    # is reported at end-of-run by each child stage's report.md.
+    typer.echo("")
+    typer.echo("  Cost notice (resources billed by external providers):")
+    n_cases = config.fim - config.inicio + 1
+    if ocr_tesseract_provider == "tesseract_fly":
+        typer.echo(
+            f"    OCR fallback (tesseract_fly): $0.01 / 1k pages, billed by Fly. "
+            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs (typically 1-2 per case)."
+        )
+    elif ocr_tesseract_provider == "tesseract_modal":
+        typer.echo(
+            f"    OCR fallback (tesseract_modal): billed by Modal. "
+            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs."
+        )
+    else:
+        typer.echo(
+            f"    OCR fallback ({ocr_tesseract_provider}): local CPU, $0."
+        )
+    typer.echo(
+        "    Proxies: not configured (direct-IP, $0). "
+        "If sweeps are sharded with --proxy-pool, residential "
+        "bandwidth bills at ~$3.65/GB."
+    )
+
+    if not nao_perguntar and sys.stdin.isatty():
+        typer.echo("")
+        typer.echo("Prosseguir? [s/N] ", nl=False)
+        answer = sys.stdin.readline().strip().lower()
+        if answer not in {"s", "sim", "y", "yes"}:
+            typer.echo("cancelado.")
+            raise typer.Exit(code=0)
+
+    result = run_coleta(config, runners)
+
+    typer.echo("")
+    typer.echo(f"Quality: **{result.quality}**")
+    if result.aborted_at_stage:
+        typer.echo(f"  Aborted at stage: {result.aborted_at_stage}")
+    typer.echo(f"  Report: {config.saida / 'REPORT.md'}")
+
+    # Exit code: 0 if completed (any quality), 2 if aborted mid-flight.
+    raise typer.Exit(code=0 if result.aborted_at_stage is None else 2)
+
+
+# ---------------------------------------------------------------------------
+# `executar` — pipeline unificado fire-and-forget (varrer + baixar + extrair
+#              num único processo asyncio com três pools concorrentes)
+
+
+@app.command(name="executar")
+def executar(
+    # Modos de entrada (mutuamente exclusivos): range, --csv ou --retentar-de.
+    classe: Optional[str] = typer.Option(
+        None, "-c", "--classe",
+        help="[modo range] Classe processual (HC, RE, AI, ADI etc.). "
+             "Combine com -i e -f para rodar um intervalo contíguo sem CSV.",
+    ),
+    inicio: Optional[int] = typer.Option(
+        None, "-i", "--inicio",
+        help="[modo range] Primeiro processo do intervalo (inclusivo).",
+    ),
+    fim: Optional[int] = typer.Option(
+        None, "-f", "--fim",
+        help="[modo range] Último processo do intervalo (inclusivo).",
+    ),
+    csv: Optional[Path] = typer.Option(
+        None, "--csv",
+        help="[modo CSV] Arquivo com colunas 'classe,processo' (ou 'processo_id'). "
+             "Cada linha é um alvo do pipeline.",
+    ),
+    retentar_de: Optional[Path] = typer.Option(
+        None, "--retentar-de",
+        help="[modo retry] Caminho para um executar.errors.jsonl existente; "
+             "reroda só os (classe, processo) com falha transiente "
+             "(judex.pipeline.log.classify_unified_error).",
+    ),
+    rotulo: Optional[str] = typer.Option(
+        None, "--rotulo",
+        help="Rótulo curto identificando esta execução. Em modo range, "
+             "infere `{CLASSE}_{i}-{f}` se omitido. Quando setado sem "
+             "--saida, --saida defaulta para `runs/coletas/{ts}-{rotulo}/`.",
+    ),
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Diretório do run. Recebe executar.state.json, executar.log.jsonl, "
+             "executar.errors.jsonl, report.md. Auto-default em modo range "
+             "(ou com --rotulo): runs/coletas/{ts}-{rotulo}/.",
+    ),
+    provedor: str = typer.Option(
+        "pypdf", "--provedor",
+        help="Extrator de texto: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured | auto. "
+             "Padrão: pypdf (local, grátis).",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Re-extrai mesmo se o sidecar já for igual a --provedor "
+             "(bypass do skip-on-cache-match em handle_extract_text).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal (case JSON). Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas (PDF bytes). Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR. CPU-bound providers: 4. "
+             "API-bound providers (mistral/chandra/tesseract_fly): 8+.",
+    ),
+    sem_dje: bool = typer.Option(
+        False, "--sem-dje",
+        help="Não buscar publicações DJe durante fetch_meta.",
+    ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo flat de URLs de proxy (uma por linha). Cada handler HTTP "
+             "rota proxies independentemente. Sem este flag: direct-IP. "
+             "Obrigatório em modo sharded (--shards > 1).",
+    ),
+    shards: int = typer.Option(
+        0, "--shards",
+        help="Se > 1, particiona o CSV em N shards e dispara N processos "
+             "paralelos (um por shard). Cada shard recebe sua fatia "
+             "round-robin do --proxy-pool. Exige --csv (ou range), "
+             "--rotulo, --proxy-pool. Mesma forma que varrer-processos / "
+             "baixar-pecas --shards.",
+    ),
+    estrategia_shard: str = typer.Option(
+        "interleave", "--estrategia-shard",
+        help="Particionamento de CSV em modo sharded. 'interleave' "
+             "(padrão) ou 'range'.",
+    ),
+    # Filter knobs — applied case-by-case inside handle_fetch_meta.
+    impte_contem: str = typer.Option(
+        "", "--impte-contem",
+        help="Filtra cases cujo nome do impetrante contenha qualquer dos "
+             "substrings (separados por '|'). Comparação case- e "
+             "accent-insensitive.",
+    ),
+    relator_contem: str = typer.Option(
+        "", "--relator-contem",
+        help="Filtra cases cujo relator contenha qualquer dos substrings "
+             "(separados por '|').",
+    ),
+    tipos_doc: str = typer.Option(
+        "", "--tipos-doc",
+        help="Limita peças aos doc_types listados (separados por '|').",
+    ),
+    excluir_tipos_doc: str = typer.Option(
+        "", "--excluir-tipos-doc",
+        help="Exclui peças cujo doc_type contenha qualquer dos substrings.",
+    ),
+    limite: int = typer.Option(
+        0, "--limite",
+        help="Cap no número total de cases. 0 = sem cap. Aplicado após "
+             "todos os outros filtros, antes do scheduler ver o seed.",
+    ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo + tempo (varrer + baixar + extrair) "
+             "e sai. Atalho para --dry-run que valida o tamanho do alvo "
+             "sem materializar nada além do CSV temporário.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o prompt de confirmação após o banner de custo. "
+             "Necessário para uso non-interactive (cron, nohup).",
+    ),
+) -> None:
+    """Pipeline unificado: varrer + baixar + extrair num único processo.
+
+    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
+    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
+    invocação fire-and-forget. Três asyncio.Queues alimentam três
+    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
+    tarefa emite suas sucessoras ao terminar.
+
+    **Modos de entrada (escolha um):**
+      - range: ``-c HC -i 250000 -f 250100``
+      - CSV:   ``--csv alvos.csv``
+      - retry: ``--retentar-de runs/.../executar.errors.jsonl``
+
+    Estado persistido em ``<saida>/executar.state.json`` (snapshot
+    atômico, periódico) + ``<saida>/executar.log.jsonl`` (append-only,
+    fsynced por linha — durável contra SIGKILL / OOM / VM suspend).
+    Resume é automático: re-rodar com a mesma ``--saida`` requeue só
+    o trabalho não-ok. SIGTERM/SIGINT acionam shutdown gracioso.
+
+    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    """
+    # ----- Mode resolution -----
+    range_flags = [
+        f for f, v in
+        [("-c", classe), ("-i", inicio), ("-f", fim)]
+        if v is not None
+    ]
+    range_mode = len(range_flags) > 0
+    if range_mode and len(range_flags) != 3:
+        raise typer.BadParameter(
+            "Modo range exige os três: -c (classe), -i (inicial), -f (final). "
+            f"Faltou: {[f for f in ('-c', '-i', '-f') if f not in range_flags]}."
+        )
+
+    n_modes = int(range_mode) + int(csv is not None) + int(retentar_de is not None)
+    if n_modes == 0:
+        raise typer.BadParameter(
+            "Escolha um modo de entrada: range (-c/-i/-f), --csv, ou --retentar-de."
+        )
+    if n_modes > 1:
+        raise typer.BadParameter(
+            "Modos de entrada mutuamente exclusivos: escolha apenas um "
+            "entre range (-c/-i/-f), --csv, ou --retentar-de."
+        )
+
+    # ----- Build the (classe, processo) target list -----
+    from judex.pipeline.runner import (
+        read_targets_csv,
+        run_pipeline,
+        targets_from_errors_jsonl,
+        targets_from_range,
+    )
+
+    if range_mode:
+        assert classe is not None and inicio is not None and fim is not None
+        validate_stf_case_type(classe)
+        validate_process_range(inicio, fim)
+        targets = targets_from_range(classe, inicio, fim)
+        if rotulo is None:
+            rotulo = f"{classe.upper()}_{inicio}-{fim}"
+    elif csv is not None:
+        targets = read_targets_csv(csv)
+    else:
+        assert retentar_de is not None
+        targets = targets_from_errors_jsonl(retentar_de)
+
+    if not targets:
+        typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
+        raise typer.Exit(code=2)
+
+    if limite > 0:
+        targets = targets[:limite]
+
+    # ----- Auto-default --saida from --rotulo when omitted -----
+    if saida is None:
+        if rotulo is None:
+            raise typer.BadParameter(
+                "--saida é obrigatório quando nem --rotulo nem modo range "
+                "estão setados (sem rótulo não há nome para o auto-saida)."
+            )
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saida = Path("runs/coletas") / f"{ts}-{rotulo}"
+        typer.echo(f"--saida não fornecido; usando auto-default {saida}")
+
+    # ----- --prever: forecast + early-exit -----
+    if prever:
+        _print_executar_forecast(
+            n_targets=len(targets),
+            provedor=provedor,
+            shards=shards,
+        )
+        raise typer.Exit(code=0)
+
+    # ----- Cost banner + confirmation prompt (skipped under --nao-perguntar) -----
+    if not nao_perguntar:
+        _print_executar_forecast(
+            n_targets=len(targets),
+            provedor=provedor,
+            shards=shards,
+        )
+        if not typer.confirm(
+            f"Confirmar execução de {len(targets)} alvo(s) em {saida}?",
+            default=True,
+        ):
+            typer.echo("Abortado pelo usuário.")
+            raise typer.Exit(code=2)
+
+    # ----- Sharded mode: partition + spawn N detached children -----
+    if shards > 1:
+        if proxy_pool is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --proxy-pool (round-robin entre os shards)."
+            )
+        if rotulo is None:
+            raise typer.BadParameter(
+                "--shards > 1 exige --rotulo (cada shard carrega "
+                "`<rotulo>_shard_<letra>` para pgrep)."
+            )
+
+        # Materialize the resolved targets as a CSV the launcher can
+        # partition. Even in retentar-de mode we write a fresh CSV so
+        # each shard sees a stable, shareable input file.
+        saida.mkdir(parents=True, exist_ok=True)
+        shard_input_csv = saida / "input.csv"
+        with shard_input_csv.open("w", encoding="utf-8", newline="") as fp:
+            w = _csv.writer(fp)
+            w.writerow(["classe", "processo"])
+            for c, p in targets:
+                w.writerow([c, p])
+
+        from judex.sweeps.shard_launcher import launch_sharded
+
+        extra: list[str] = ["--nao-perguntar"]
+        _push(extra, "--provedor", provedor)
+        _push(extra, "--portal-concurrencia", portal_concurrencia)
+        _push(extra, "--sistemas-concurrencia", sistemas_concurrencia)
+        _push(extra, "--ocr-concurrencia", ocr_concurrencia)
+        _push(extra, "--sem-dje", sem_dje)
+        _push(extra, "--forcar", forcar)
+        _push(extra, "--impte-contem", impte_contem)
+        _push(extra, "--relator-contem", relator_contem)
+        _push(extra, "--tipos-doc", tipos_doc)
+        _push(extra, "--excluir-tipos-doc", excluir_tipos_doc)
+        _push(extra, "--limite", limite)
+
+        if estrategia_shard not in ("interleave", "range"):
+            raise typer.BadParameter(
+                f"--estrategia-shard inválida: {estrategia_shard!r}. "
+                "Use 'interleave' ou 'range'."
+            )
+        try:
+            pids_path = launch_sharded(
+                command="executar",
+                csv_path=shard_input_csv,
+                shards=shards,
+                proxy_pool=proxy_pool,
+                saida_root=saida,
+                label_prefix=rotulo,
+                extra_args=extra,
+                strategy=estrategia_shard,  # type: ignore[arg-type]
+            )
+        except ValueError as e:
+            raise typer.BadParameter(str(e))
+
+        typer.echo(f"Lançou {shards} shards em background.")
+        typer.echo(f"  PIDs:   {pids_path}")
+        typer.echo(f"  Watch:  pgrep -af {rotulo}_shard_")
+        typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
+        raise typer.Exit(code=0)
+
+    # ----- Mono mode: run in-process -----
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+        fetch_dje=not sem_dje,
+        proxy_pool=proxy_pool,
+        forcar=forcar,
+        impte_contains=tuple(s for s in impte_contem.split("|") if s),
+        doc_types=tuple(s for s in tipos_doc.split("|") if s),
+        exclude_doc_types=tuple(s for s in excluir_tipos_doc.split("|") if s),
+        relator_contains=tuple(s for s in relator_contem.split("|") if s),
+    )
+    raise typer.Exit(code=rc)
+
+
+def _print_executar_forecast(
+    *, n_targets: int, provedor: str, shards: int,
+) -> None:
+    """Print a combined varrer+baixar+extrair forecast for executar.
+
+    The unified pipeline runs all three legacy stages in one process,
+    so the operator-facing forecast is the *sum* of their walls + costs.
+    Wall is approximate — pipelining overlaps stages — but the cost is
+    exact (every byte downloaded + every page OCR'd is the same as
+    legacy). Anchored constants live in ``judex/utils/cost.py``.
+    """
+    from judex.utils.cost import (
+        forecast_baixar_pecas,
+        forecast_extrair_pecas,
+        forecast_varrer_processos,
+        render_forecast_table,
+    )
+
+    # The unified pipeline has roughly 1.33 substantive peças per case
+    # (CLAUDE.md anchor for the HC corpus); use that as the
+    # case→peça multiplier when pricing the bytes + extract sides.
+    n_pecas = max(1, int(n_targets * 1.33))
+
+    typer.echo(f"\n=== Previsão executar — {n_targets:,} cases / ~{n_pecas:,} peças ===\n")
+
+    typer.echo(render_forecast_table(
+        forecast_varrer_processos(n_targets),
+        n_units=n_targets, unit_label="cases (varrer)",
+    ))
+    typer.echo(render_forecast_table(
+        forecast_baixar_pecas(n_pecas),
+        n_units=n_pecas, unit_label="peças (baixar)",
+    ))
+    typer.echo(render_forecast_table(
+        forecast_extrair_pecas(n_pecas, provedor),
+        n_units=n_pecas, unit_label=f"peças (extrair via {provedor})",
+    ))
+    if shards > 1:
+        typer.echo(
+            f"\nNota: --shards {shards} aplica o speedup de proxy "
+            "(linha '16 shards + proxy' acima); custo de proxy é "
+            "varrer+baixar; OCR não é afetado por sharding (não passa pelo WAF).\n"
+        )
+
+
+# ---------------------------------------------------------------------------
 # `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
 
 
@@ -941,6 +1489,55 @@ def atualizar_warehouse(
 
 # ---------------------------------------------------------------------------
 # `probe` — visão unificada do progresso de uma varredura sharded
+
+
+@app.command(name="acompanhar")
+def acompanhar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run. Auto-detecta layout: sharded "
+             "(shard-*/driver.log) ou monolítico (driver.log / "
+             "launcher.log no topo).",
+    ),
+    n: int = typer.Option(
+        20, "-n",
+        help="Linhas iniciais antes do follow.",
+    ),
+    agg_interval: float = typer.Option(
+        30.0, "--agg-interval",
+        help="Em runs shardeados, intervalo (segundos) entre linhas "
+             "agregadas ``─── … ───`` que rolam up todas as state.json "
+             "dos shards. Ignorado em modo monolítico.",
+    ),
+) -> None:
+    """Tail unificado para runs monolíticos e shardeados.
+
+    **Mono** (um único log no topo): exec direto em ``tail -F`` —
+    Ctrl-C pertence ao tail, sem stack-trace de Python.
+
+    **Sharded** (N ``shard-*/driver.log``): multitail Python-side.
+    Compacta a saída de duas formas:
+
+      1. Substitui os cabeçalhos ``==> shard-X/driver.log <==`` do
+         tail por um prefixo compacto ``[X]`` em cada linha de dados.
+      2. **Suprime** as linhas de progresso ``─── 571/571 (100%) … ───``
+         de cada shard (16 idênticas a cada intervalo é puro ruído, e
+         o ``100%`` é enganoso — denominador é só meta-stage). Uma
+         thread agregadora lê todas as ``shard-*/executar.state.json``
+         a cada ``--agg-interval`` segundos e emite UMA linha
+         ``─── ... ───`` cluster-wide com counts reais por estágio
+         (incluindo ``provider_error``, ``unallocated_pid`` etc.).
+
+    Resolução de log priorizando sharded > top-level (``driver.log``
+    > ``launcher.log`` > ``executar.log``). ``tail -F`` (capital) tolera
+    shards cujo ``driver.log`` ainda não existe nos primeiros segundos.
+    """
+    from scripts.follow_run import run_follow
+    raise typer.Exit(code=run_follow(run_dir, n=n, agg_interval=agg_interval))
+
+
+# ---------------------------------------------------------------------------
+# `probe` — tabela rich de progresso shard-a-shard
 
 
 @app.command(name="probe")

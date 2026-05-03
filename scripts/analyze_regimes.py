@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Literal, Optional
 
-LogKind = Literal["case", "pdf"]
+LogKind = Literal["case", "pdf", "executar"]
 
 # Severity-ordered. Used to (a) decide which regimes count as "cliff"
 # in cliff_first_seen, (b) drive coloring in the rich display.
@@ -67,16 +67,22 @@ def detect_log_kind(run_dir: Path) -> tuple[LogKind, Path]:
     """Return ``(kind, log_path)`` for the run directory.
 
     Prefers the case-sweep log when both are present — the WAF-hot
-    sweep is the one an operator usually wants to inspect.
+    sweep is the one an operator usually wants to inspect. The
+    unified-pipeline log (``executar.log.jsonl``) is checked last
+    because the run dir is single-purpose; falls back only when no
+    legacy log exists.
     """
     case_log = run_dir / "sweep.log.jsonl"
     pdf_log = run_dir / "pdfs.log.jsonl"
+    executar_log = run_dir / "executar.log.jsonl"
     if case_log.exists():
         return "case", case_log
     if pdf_log.exists():
         return "pdf", pdf_log
+    if executar_log.exists():
+        return "executar", executar_log
     raise FileNotFoundError(
-        f"no sweep.log.jsonl or pdfs.log.jsonl in {run_dir}"
+        f"no sweep.log.jsonl, pdfs.log.jsonl, or executar.log.jsonl in {run_dir}"
     )
 
 
@@ -102,10 +108,16 @@ def iter_regime_events(log_path: Path) -> Iterator[RegimeEvent]:
             regime = rec.get("regime")
             if regime is None:
                 continue
-            if "url" in rec:
-                key = rec["url"]
-            elif "classe" in rec and "processo" in rec:
+            # Executar rows have BOTH ``classe``+``processo`` AND ``url``
+            # (the latter is None for fetch_meta but populated for
+            # fetch_bytes / extract_text). Use case-shape keying first
+            # so unified-pipeline events fold into the same case bucket
+            # regardless of which task kind they came from — same operator
+            # mental model as the legacy case sweep.
+            if "classe" in rec and "processo" in rec and rec.get("processo") is not None:
                 key = f"{rec['classe']}_{rec['processo']}"
+            elif "url" in rec and rec.get("url"):
+                key = rec["url"]
             else:
                 continue
             yield RegimeEvent(
@@ -185,7 +197,11 @@ def _render_human(
     from rich.text import Text
 
     console = Console()
-    kind_label = "case sweep" if kind == "case" else "PDF sweep"
+    kind_label = {
+        "case": "case sweep",
+        "pdf": "PDF sweep",
+        "executar": "unified pipeline",
+    }.get(kind, kind)
     console.print(
         f"\n[bold]Regime trajectory · {run_dir} ({kind_label})[/bold]"
     )

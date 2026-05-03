@@ -46,7 +46,9 @@ from judex.sweeps import shared as _shared
 from judex.config import ScraperConfig
 from judex.scraping.http_session import RetryableHTTPError, new_session
 from judex.scraping.proxy_pool import ProxyPool
-from judex.sweeps.process_store import AttemptRecord, SweepStore, load_retry_list
+from judex.sweeps.process_store import (
+    AttemptRecord, SweepStore, processos_for_replay,
+)
 from judex.utils.log_render import render_progress_line, render_target_line
 from judex.scraping.scraper import NoIncidenteError, scrape_processo_http
 
@@ -646,7 +648,7 @@ def _load_rows(
     *, retry_from: Path | None, csv: Path | None,
 ) -> tuple[list[tuple[str, int, Optional[str]]], str]:
     if retry_from:
-        retry_rows = load_retry_list(retry_from)
+        retry_rows = processos_for_replay(retry_from)
         rows = [(c, p, "retry") for c, p in retry_rows]
         return rows, f"retry-from `{retry_from}` ({len(rows)} rows)"
     assert csv is not None  # caller validates one of {csv, retry_from} is set

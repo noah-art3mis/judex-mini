@@ -133,3 +133,37 @@ def test_extract_gives_up_after_max_attempts_of_persistent_5xx(monkeypatch):
     # Don't pin the exact attempt count (tune freely); pin that it's bounded.
     # Upper bound generous enough to absorb future tuning without churn.
     assert 1 < len(calls) <= 10, f"retries should be bounded, got {len(calls)}"
+
+
+def test_extract_raises_outlier_for_oversized_pdfs(monkeypatch):
+    """PDFs larger than OUTLIER_BYTES short-circuit before any HTTP call.
+
+    Anchors the corpus-driven safety envelope: cloud OCR is unreliable on
+    multi-MB PDFs (Fly proxy timeouts, watchdog kills), so we surface a
+    typed exception that the sweep runner translates into status=outlier_skipped
+    and a manual-fix recommendation. No HTTP call should fire.
+    """
+    calls = _install_fake_post(monkeypatch, [])  # no responses queued — must not be called
+
+    big_pdf = b"%PDF-fake" + b"\0" * (tf.OUTLIER_BYTES + 1)
+    cfg = OCRConfig(provider="tesseract_fly", api_url="https://fake.fly.dev/extract")
+    with pytest.raises(tf.OutlierPdfError) as excinfo:
+        tf.extract(big_pdf, config=cfg)
+
+    assert "MB" in str(excinfo.value), "error message should reference the size"
+    assert "tesseract" in str(excinfo.value), "error message should suggest local fallback"
+    assert len(calls) == 0, "outlier check must short-circuit before any HTTP call"
+
+
+def test_extract_passes_through_under_outlier_threshold(monkeypatch):
+    """A PDF exactly at the threshold is allowed through — only > triggers."""
+    responses = [_Resp({"text": "small body", "n_pages": 1})]
+    calls = _install_fake_post(monkeypatch, responses)
+
+    at_limit = b"%PDF-fake" + b"\0" * (tf.OUTLIER_BYTES - len(b"%PDF-fake"))
+    assert len(at_limit) == tf.OUTLIER_BYTES
+    cfg = OCRConfig(provider="tesseract_fly", api_url="https://fake.fly.dev/extract")
+    out = tf.extract(at_limit, config=cfg)
+
+    assert out.text == "small body"
+    assert len(calls) == 1, "PDFs at exactly OUTLIER_BYTES should still go to cloud"

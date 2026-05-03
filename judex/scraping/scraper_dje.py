@@ -145,8 +145,16 @@ def _resolve_publicacoes_dje(
     are None). The bytes-first ``baixar-pecas`` + ``extrair-pecas``
     pipeline materialises canonical text into ``peca_cache`` on demand.
     ``decisoes[].texto`` (HTML-extracted) remains as the DJe fast-path.
+
+    Phase 1 (ADR-0003) redirect-form entries have ``detail_url=None``
+    (post-2022-12-19 STF DJe migration — content moved to
+    ``digital.stf.jus.br`` behind AWS WAF, no legacy detail page to
+    fetch). Skip the fetch for those; their metadata is sufficient.
+    Full content recovery is Phase 2 (Playwright, deferred).
     """
     for entry in entries:
+        if entry.get("detail_url") is None:
+            continue
         detail_html = detail_fetcher(entry["detail_url"])
         detail = dje_ex.parse_dje_detail(detail_html)
         entry.update(detail)

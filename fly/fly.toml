@@ -1,9 +1,11 @@
 # Fly.io Machine config for the Tesseract OCR HTTP service.
 #
-# Pricing math (2026 rates; verify before bulk runs):
-#   shared-cpu-2x with 4 GB RAM = ~$0.0118/hr
+# Pricing math (anchored against 2026-05-02 invoice — fly/README.md
+# has the bill-derivation steps):
+#   shared-cpu-2x + 1 GB RAM ≈ $0.0143/hr per Machine
+#     (CPU $0.00000242/sec + 0.5 GB additional RAM × $0.00000312/sec)
 #   For 12,930 ACÓRDÃOs at ~5 sec OCR each, ~30 Machines in parallel:
-#     compute = 64,650 cpu-sec ≈ 18 cpu-hr × $0.0118 = $0.21
+#     compute = 64,650 Machine-sec ≈ 18 Machine-hr × $0.0143 = $0.26
 #     wall    = ~36 min start-to-finish
 #
 # Region: gru (São Paulo) — closest to STF traffic origin and to
@@ -18,6 +20,17 @@ primary_region = "gru"
 
 [env]
   PORT = "8080"
+  # Pin OpenMP to 1 thread per tesseract subprocess. Each page is OCRed
+  # in its own subprocess and we parallelize *across* pages via the
+  # server's ThreadPoolExecutor — letting OpenMP also fan out underneath
+  # would oversubscribe the 2 vCPUs (n_workers × OMP_threads). Set here
+  # so the env is in scope before uvicorn imports anything.
+  OMP_NUM_THREADS = "1"
+  # Where libtesseract finds *.traineddata. Debian Bookworm's
+  # tesseract-ocr-por package installs to /usr/share/tesseract-ocr/5/
+  # tessdata/. Without this, PyTessBaseAPI(lang="por") raises:
+  #   "Failed to init API, possibly an invalid tessdata path: ./"
+  TESSDATA_PREFIX = "/usr/share/tesseract-ocr/5/tessdata/"
 
 [http_service]
   internal_port = 8080
@@ -37,11 +50,47 @@ primary_region = "gru"
     method = "GET"
     path = "/healthz"
 
-# Per-Machine resource shape. Tesseract LSTM (~150 MB) + 200 dpi PNG
-# rasterization buffers (~200 MB peak for a 200-page ACÓRDÃO) fit
-# in 4 GB with comfortable headroom. The 2 vCPUs let pages parallel-OCR
-# 2 at a time inside one PDF — the in-container ThreadPoolExecutor
-# in server.py picks this up via os.cpu_count().
+# Per-Machine resource shape. Memory floor derivation (200 dpi A4):
+#   steady-state (in-process tesserocr model):
+#     Python/uvicorn 180 + Pillow 80 + glibc/kernel 50 = 310 MB
+#     per-worker PyTessBaseAPI: 4 workers × ~187 MB = 748 MB
+#                                          subtotal ≈ 1058 MB
+#   per-chunk raster: 16 pages × 11 MB = 176 MB (capped by chunk size)
+#   peak working set: ~1234 MB
+# 2 GB total = 1 GB included (shared-cpu-4x tier) + 1 GB additional
+# billed; ~814 MB headroom over peak (~40%). Comfortable.
+#
+# Per-worker tesserocr cost was empirically re-anchored on 2026-05-03
+# after a 1 GB shape OOM-killed uvicorn at anon-rss=861 MB on a
+# 123-page PDF. Back-derived: 861 MB - 310 baseline - 176 raster ≈
+# 374 MB for 2 workers ≈ 187 MB per worker (vs the 100 MB I projected
+# from the static `por.traineddata` size). The delta is the working
+# memory libtesseract holds during active recognition — line/word
+# bounding-box pyramids, confidence accumulators, recogniser state —
+# which scales with image complexity, not just model size.
+#
+# Why shared-cpu-4x @ 2gb (vs shared-cpu-2x @ 1.5gb live-fix): 4
+# workers gives 2× the per-Machine throughput at $0.0347/hr (vs
+# $0.026/hr for 2x @ 1.5gb). Per-page-slot cost: $0.00868 (4x @ 2gb)
+# vs $0.013 (2x @ 1.5gb) — **33% cheaper per slot** while keeping
+# 40% memory headroom. Per-Machine bill is higher (1 GB additional
+# RAM line item); the cost-shape advantage now lives in slot count,
+# not in dodging the additional-RAM line.
+#
+# Shape evolution on this app:
+#   shared-cpu-2x @ 4gb (orig) — upfront-rasterize design needed
+#                                ~2.3 GB for the 295-page outlier.
+#   shared-cpu-2x @ 2gb        — chunked rasterize at chunk=32.
+#   shared-cpu-2x @ 1gb        — chunk=16 + outlier-skip + pytesseract.
+#   shared-cpu-2x @ 1gb (post-tesserocr) — OOMed at 861 MB on 123-page
+#                                          PDF; 1 GB too tight after
+#                                          tesserocr's resident model
+#                                          replaced transient subprocesses.
+#   shared-cpu-4x @ 1gb (DOA)  — never deployed; static memory math
+#                                projected ~886 MB peak but empirical
+#                                re-anchor showed 4 workers needs >1.2 GB.
+#   shared-cpu-4x @ 2gb (now)  — exploit 4-worker throughput with
+#                                empirically-safe headroom.
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "4gb"
+  size = "shared-cpu-4x"
+  memory = "2gb"

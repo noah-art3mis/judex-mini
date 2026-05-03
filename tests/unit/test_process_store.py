@@ -19,7 +19,7 @@ import pytest
 from judex.sweeps.process_store import (
     AttemptRecord,
     SweepStore,
-    load_retry_list,
+    processos_for_replay,
     recover_state_from_log,
 )
 
@@ -106,13 +106,27 @@ def test_errors_file_refreshed_after_successful_retry(tmp_path: Path):
     assert second_err == ""
 
 
-def test_load_retry_list_reads_errors_jsonl(tmp_path: Path):
+def test_processos_for_replay_filters_to_transient(tmp_path: Path):
+    """Status-aware: only `transient` rows are returned. The 903 rows
+    of status=fail + "scrape returned None" observed in HC 2026
+    backfill are *terminal* (não-alocado) and must be dropped, not
+    replayed.
+    """
     path = tmp_path / "sweep.errors.jsonl"
     path.write_text(
-        '{"classe": "ADI", "processo": 2, "status": "fail"}\n'
-        '{"classe": "ADI", "processo": 3, "status": "error"}\n'
+        # Terminal: legacy não-alocado.
+        '{"classe": "ADI", "processo": 1, "status": "fail",'
+        ' "error": "scrape returned None (incidente not resolved): \'\'"}\n'
+        # Transient: WAF 403.
+        '{"classe": "ADI", "processo": 2, "status": "fail",'
+        ' "error": "HTTPError: 403 Forbidden", "http_status": 403}\n'
+        # Transient: 5xx.
+        '{"classe": "ADI", "processo": 3, "status": "error",'
+        ' "error": "HTTPError: 502 Bad Gateway", "http_status": 502}\n'
+        # Terminal: unallocated explicit status.
+        '{"classe": "ADI", "processo": 4, "status": "unallocated"}\n'
     )
-    got = load_retry_list(path)
+    got = processos_for_replay(path)
     assert got == [("ADI", 2), ("ADI", 3)]
 
 

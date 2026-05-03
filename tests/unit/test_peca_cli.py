@@ -48,7 +48,11 @@ def _write_case(
 def test_resolve_picks_retentar_de_first(tmp_path: Path) -> None:
     """Even if range/csv/filter args are set, --retentar-de wins."""
     errors = tmp_path / "pdfs.errors.jsonl"
-    errors.write_text(json.dumps({"url": "https://x.test/retry.pdf"}) + "\n")
+    errors.write_text(json.dumps({
+        "url": "https://x.test/retry.pdf",
+        "status": "provider_error",
+        "error": "HTTPError: 502",
+    }) + "\n")
     _write_case(
         tmp_path / "HC" / "judex-mini_HC_100.json",
         classe="HC", processo_id=100,
@@ -56,6 +60,7 @@ def test_resolve_picks_retentar_de_first(tmp_path: Path) -> None:
     )
 
     targets, mode = _pdf_cli.resolve_targets(
+        stage="extrair",
         retentar_de=errors, csv=tmp_path / "ignored.csv",
         classe="HC", inicio=100, fim=100, roots=[tmp_path],
     )
@@ -79,6 +84,7 @@ def test_resolve_picks_csv_before_range(tmp_path: Path) -> None:
     csv_path.write_text("classe,processo\nHC,200\n")
 
     targets, mode = _pdf_cli.resolve_targets(
+        stage="extrair",
         csv=csv_path, classe="HC", inicio=100, fim=100, roots=[tmp_path],
     )
     assert [t.url for t in targets] == ["https://x.test/200.pdf"]
@@ -93,6 +99,7 @@ def test_resolve_promotes_range_when_inicio_fim_set(tmp_path: Path) -> None:
     )
 
     targets, mode = _pdf_cli.resolve_targets(
+        stage="extrair",
         classe="HC", inicio=100, fim=100, roots=[tmp_path],
     )
     assert [t.url for t in targets] == ["https://x.test/100.pdf"]
@@ -108,6 +115,7 @@ def test_resolve_falls_back_to_filter_when_no_direct_selector(tmp_path: Path) ->
     )
 
     targets, mode = _pdf_cli.resolve_targets(
+        stage="extrair",
         classe="HC", roots=[tmp_path],
     )
     assert [t.url for t in targets] == ["https://x.test/a.pdf"]
@@ -126,7 +134,7 @@ def test_resolve_raises_when_no_scope_specified(tmp_path: Path) -> None:
     moved that footgun to a refused error.
     """
     with pytest.raises(ValueError) as excinfo:
-        _pdf_cli.resolve_targets(roots=[tmp_path])
+        _pdf_cli.resolve_targets(stage="extrair", roots=[tmp_path])
     msg = str(excinfo.value).lower()
     assert "scope" in msg or "filtro" in msg or "csv" in msg or "--" in msg
 
@@ -140,6 +148,7 @@ def test_resolve_filter_with_only_impte_contem_is_allowed(tmp_path: Path) -> Non
         urls=[("https://x.test/a.pdf", "DECISÃO")],
     )
     _, mode = _pdf_cli.resolve_targets(
+        stage="extrair",
         impte_contem="DEFENSORIA", roots=[tmp_path],
     )
     assert "filtr" in mode.lower()

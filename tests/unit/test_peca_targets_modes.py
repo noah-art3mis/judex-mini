@@ -2,7 +2,7 @@
 
 Shared by `baixar-pecas` and `extrair-pecas`. The fallback filter mode
 (`collect_peca_targets`) is tested separately; this file covers
-`targets_from_range`, `targets_from_csv`, and `targets_from_errors_jsonl`.
+`targets_from_range`, `targets_from_csv`, and `targets_for_replay`.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from pathlib import Path
 
 from judex.sweeps.peca_targets import (
     PecaTarget,
+    targets_for_replay,
     targets_from_csv,
-    targets_from_errors_jsonl,
     targets_from_range,
 )
 
@@ -248,10 +248,10 @@ def test_csv_resolves_listed_pairs(tmp_path: Path) -> None:
     ]
 
 
-# ----- targets_from_errors_jsonl ------------------------------------------
+# ----- targets_for_replay -------------------------------------------------
 
 
-def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
+def test_replay_rehydrates_transient_target_fields(tmp_path: Path) -> None:
     """Re-retry reads the prior run's errors log and rebuilds PdfTargets.
 
     Crucially, the rehydrated target carries processo_id / classe /
@@ -263,6 +263,8 @@ def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
         json.dumps({
             "url": "https://stf.test/a.pdf",
             "status": "http_error",
+            "error": "HTTPError: 502 Bad Gateway",
+            "http_status": 502,
             "processo_id": 100,
             "classe": "HC",
             "doc_type": "DECISÃO MONOCRÁTICA",
@@ -271,6 +273,7 @@ def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
         + json.dumps({
             "url": "https://stf.test/b.pdf",
             "status": "provider_error",
+            "error": "HTTPError: 502 Bad Gateway for url: fly.dev/extract",
             "processo_id": 101,
             "classe": "HC",
             "doc_type": "INTEIRO TEOR DO ACÓRDÃO",
@@ -278,18 +281,95 @@ def test_errors_jsonl_rehydrates_target_fields(tmp_path: Path) -> None:
         }) + "\n"
     )
 
-    out = targets_from_errors_jsonl(errors_path)
-
-    assert len(out) == 2
+    out = targets_for_replay(errors_path, stage="extrair")
+    # extrair stage: provider_error is transient, http_error rows
+    # don't appear under extrair in the wild but are classified
+    # `terminal` by the extrair classifier and filtered out.
+    assert [t.url for t in out] == ["https://stf.test/b.pdf"]
     assert out[0] == PecaTarget(
-        url="https://stf.test/a.pdf",
-        processo_id=100,
+        url="https://stf.test/b.pdf",
+        processo_id=101,
         classe="HC",
-        doc_type="DECISÃO MONOCRÁTICA",
-        context={"impte_hits": ["TORON"]},
+        doc_type="INTEIRO TEOR DO ACÓRDÃO",
+        context={},
     )
-    assert out[1].url == "https://stf.test/b.pdf"
-    assert out[1].doc_type == "INTEIRO TEOR DO ACÓRDÃO"
+
+    # Same file, baixar stage: http_error 502 is transient, provider_error
+    # is not a baixar status (terminal default).
+    out_baixar = targets_for_replay(errors_path, stage="baixar")
+    assert [t.url for t in out_baixar] == ["https://stf.test/a.pdf"]
+
+
+def test_replay_drops_terminal_rows(tmp_path: Path) -> None:
+    """Terminal rows (não_alocado, real 404, no_bytes) must not be
+    replayed — they will fail again deterministically and burn retry
+    budget. Pinned by the live HC 2026 backfill data: 903 varrer
+    `fail` rows all classified terminal (não_alocado).
+    """
+    errors_path = tmp_path / "pdfs.errors.jsonl"
+    errors_path.write_text(
+        # Terminal: real 404, peça gone from STF.
+        json.dumps({
+            "url": "https://stf.test/gone.pdf",
+            "status": "http_error",
+            "error": "HTTPError: 404 Not Found",
+            "http_status": 404,
+        }) + "\n"
+        # Transient: WAF 403.
+        + json.dumps({
+            "url": "https://stf.test/blocked.pdf",
+            "status": "http_error",
+            "error": "HTTPError: 403 Forbidden",
+            "http_status": 403,
+        }) + "\n"
+    )
+
+    out = targets_for_replay(errors_path, stage="baixar")
+    assert [t.url for t in out] == ["https://stf.test/blocked.pdf"]
+
+
+def test_replay_drops_cross_stage_rows(tmp_path: Path) -> None:
+    """`no_bytes` rows surfaced by extrair are cross_stage — fixable
+    by baixar-retry, not by re-running extrair on the same URL.
+    Reported as count, not replayed.
+    """
+    errors_path = tmp_path / "pdfs.errors.jsonl"
+    errors_path.write_text(
+        json.dumps({
+            "url": "https://stf.test/no-bytes.pdf",
+            "status": "no_bytes",
+            "error": "run baixar-pecas first",
+        }) + "\n"
+        + json.dumps({
+            "url": "https://stf.test/fly-flake.pdf",
+            "status": "provider_error",
+            "error": "HTTPError: 502 Bad Gateway",
+        }) + "\n"
+    )
+
+    out = targets_for_replay(errors_path, stage="extrair")
+    assert [t.url for t in out] == ["https://stf.test/fly-flake.pdf"]
+
+
+def test_replay_drops_cached_rows(tmp_path: Path) -> None:
+    """baixar's errors.jsonl doubles as a state-snapshot of all non-ok
+    rows; `cached` rows are terminal-ok (already in cache) and
+    historically slipped through into replay, blowing up the target
+    count by orders of magnitude. Status-aware filter must drop them.
+    """
+    errors_path = tmp_path / "pdfs.errors.jsonl"
+    errors_path.write_text(
+        json.dumps({"url": "https://stf.test/a.pdf", "status": "cached"}) + "\n"
+        + json.dumps({"url": "https://stf.test/b.pdf", "status": "cached"}) + "\n"
+        + json.dumps({
+            "url": "https://stf.test/real-fail.pdf",
+            "status": "empty_response",
+            "error": "200 OK with empty body",
+        }) + "\n"
+    )
+
+    out = targets_for_replay(errors_path, stage="baixar")
+    assert [t.url for t in out] == ["https://stf.test/real-fail.pdf"]
 
 
 def test_range_and_csv_collect_rtf_urls(tmp_path: Path) -> None:
@@ -314,19 +394,27 @@ def test_range_and_csv_collect_rtf_urls(tmp_path: Path) -> None:
     assert {t.url for t in out_csv} == {pdf_url, rtf_url}
 
 
-def test_errors_jsonl_tolerates_blank_lines(tmp_path: Path) -> None:
+def test_replay_tolerates_blank_lines(tmp_path: Path) -> None:
     """Editor-added trailing newlines or re-concatenated log files
     must not break the resolver — skip blank lines silently.
     """
     errors_path = tmp_path / "pdfs.errors.jsonl"
     errors_path.write_text(
-        json.dumps({"url": "https://stf.test/a.pdf"}) + "\n"
+        json.dumps({
+            "url": "https://stf.test/a.pdf",
+            "status": "provider_error",
+            "error": "HTTPError: 502",
+        }) + "\n"
         + "\n"
-        + json.dumps({"url": "https://stf.test/b.pdf"}) + "\n"
+        + json.dumps({
+            "url": "https://stf.test/b.pdf",
+            "status": "provider_error",
+            "error": "HTTPError: 502",
+        }) + "\n"
         + "   \n"
     )
 
-    out = targets_from_errors_jsonl(errors_path)
+    out = targets_for_replay(errors_path, stage="extrair")
     assert [t.url for t in out] == [
         "https://stf.test/a.pdf",
         "https://stf.test/b.pdf",

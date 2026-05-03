@@ -28,6 +28,15 @@ import time
 from pathlib import Path
 from textwrap import dedent
 
+from dotenv import load_dotenv
+
+# Pick up the operator's .env so GHOST_ADMIN_KEY / GHOST_URL flow into
+# the Ghost-upload step below without the operator having to remember
+# to ``export`` them in every shell. Same pattern the other scripts
+# use (wait_for_chandra_ready.py, smoke_test_chandra_runpod.py,
+# runpod_status.py). Silent no-op when no .env is found.
+load_dotenv()
+
 import pandas as pd
 import plotly.express as px
 from great_tables import GT, html, loc, style

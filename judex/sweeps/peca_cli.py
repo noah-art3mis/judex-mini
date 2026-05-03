@@ -15,8 +15,8 @@ from judex.scraping.ocr.dispatch import estimate_cost, estimate_wall
 from judex.sweeps.peca_targets import (
     PecaTarget,
     collect_peca_targets,
+    targets_for_replay,
     targets_from_csv,
-    targets_from_errors_jsonl,
     targets_from_range,
 )
 from judex.utils import peca_cache
@@ -35,6 +35,7 @@ _AVG_PAGES_PER_PDF = 4.9
 
 def resolve_targets(
     *,
+    stage: str,
     retentar_de: Path | None = None,
     csv: Path | None = None,
     classe: str | None = None,
@@ -52,6 +53,10 @@ def resolve_targets(
     > filter fallback. The label is human-readable for the preview block
     ("retry foo", "csv alvos.csv", "range HC 100-200", "filtros").
 
+    `stage` is ``"baixar"`` or ``"extrair"`` — routes the
+    ``--retentar-de`` mode through the matching `error_triage`
+    classifier so only transient failures are replayed.
+
     Bare invocation (none of the four modes specified) raises
     ``ValueError``. Walking the entire corpus is a perf-cliff
     footgun: `pdfs.state.json` atomic-rewrites cap downstream
@@ -60,7 +65,7 @@ def resolve_targets(
     """
     if retentar_de:
         path = Path(retentar_de)
-        return targets_from_errors_jsonl(path), f"retry {path.name}"
+        return targets_for_replay(path, stage=stage), f"retry {path.name}"
 
     if csv:
         path = Path(csv)

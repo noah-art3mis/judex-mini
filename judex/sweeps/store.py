@@ -64,7 +64,8 @@ def replay_log(log_path: Path, key_fn: Callable[[dict], str]) -> dict[str, dict[
 
 def read_url_list(jsonl_path: Path, field: str) -> list[dict[str, Any]]:
     """Read a JSONL file into a list of decoded dicts. Each subclass's
-    `load_retry_list` picks the fields it cares about.
+    replay function (`urls_for_replay` / `processos_for_replay`) picks
+    the fields it cares about.
     """
     out: list[dict[str, Any]] = []
     with jsonl_path.open() as f:

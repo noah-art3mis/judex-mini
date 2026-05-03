@@ -153,30 +153,65 @@ Justification: `docs/hc-who-wins.md` § "Research question".
 ### Operational vocabulary
 
 **Sweep**:
-A single execution of `varrer-processos`, `baixar-pecas`, or `extrair-pecas`, producing a directory of artifacts (`<out>/report.md`, `<out>/sweep.log.jsonl`, `<out>/sweep.state.json`, …). The sweep is the project's unit of operational work and the unit of cost forecasting (`--prever`).
-_Avoid_: run, job, batch — `run_dir` is a CLI artifact path, not a parallel concept
+A single **Pool**'s body of work over a continuous run — i.e., all the **Tasks** routed to one of `portal`, `sistemas`, or `ocr`. Each sweep has its own concurrency, throttle, breaker, and (for `portal`/`sistemas`) **WAF** reputation; **cliffs** and the **regime** state machine track each sweep independently. Two execution paths coexist during the unified-pipeline validation window: **embedded sweep** — one of three concurrent sweeps inside a **Coleta** under `judex executar` (the intended primary path); **standalone sweep** — a single execution of legacy `varrer-processos` / `baixar-pecas` / `extrair-pecas` (still operable, slated for removal once the unified path's validation completes per [`docs/superpowers/specs/2026-05-02-unified-pipeline.md`](docs/superpowers/specs/2026-05-02-unified-pipeline.md) § Migration plan step 7).
+_Avoid_: stage (procedural-stage language belongs to the `coletar` chain), pool-pass (a pool drains continuously, not in passes), run/job/batch (`run_dir` is a CLI artifact path, not a parallel concept)
 
-**Shard**:
-One of N parallel children spawned by a sharded sweep, each with its own per-shard CSV partition, proxy pool, and state file (`pdfs.state.json` / `sweep.state.json`). Shards write to per-shard report directories (`<out>/shard-<letter>/`); the launcher writes `<out>/shards.pids`. Sharding is the proxy-pool-aware mode of running a sweep at >1000 targets.
+**Pool**:
+One of three concurrency lanes inside a **Coleta** — `portal` (hits `portal.stf.jus.br` for `fetch_meta` **Tasks**), `sistemas` (hits `sistemas.stf.jus.br` for `fetch_bytes` **Tasks**), `ocr` (local CPU or cloud OCR for `extract_text` **Tasks**). Each pool has its own bounded `asyncio.Semaphore` (set via `--portal-concurrencia` / `--sistemas-concurrencia` / `--ocr-concurrencia`), throttle, circuit breaker, and (for `portal`/`sistemas`) proxy posture. A pool's lifetime work over a Coleta is its **Sweep**.
+_Avoid_: stage (the `coletar`-era three-stage chain is gone), worker (an asyncio worker is one slot inside a Pool), queue (the queue is one of three implementation primitives the Pool is built from)
 
-**Direct-IP mode** _(vs sharded mode)_:
-Running a sweep from a single source IP without proxy rotation. Throughput plateaus at the **WAF** ceiling regardless of CPU. Cost: $0; wall: longer (~12-13h for a year-of-HC peça sweep). Preferred when the proxy pool is stale or has not been validated recently.
+**Task**:
+One unit of work routed to one **Pool** in the **Coleta**'s per-case DAG. Three kinds: `fetch_meta` (`portal`, one per **processo**, emits one `fetch_bytes` per peça URL); `fetch_bytes` (`sistemas`, one per peça URL, emits one `extract_text` on success); `extract_text` (`ocr`, one per peça URL, terminal). Each task is idempotent at the storage layer — re-running with the same arguments yields the same on-disk artefact or skips per `--retomar` / `--forcar`. The state file (`executar.state.json`) records every task's terminal outcome (`ok` / `http_error` / `provider_error` / `no_bytes` / `empty` / `unallocated_pid` / `skipped_cached`).
+_Avoid_: job, item — these are operational synonyms but **Task** is the project canon
 
-**Sharded mode** _(vs direct-IP)_:
-Running N parallel **shards**, each with its own proxy URL pool. Spreads load across N IPs so each draws below the per-IP **WAF** ceiling; total throughput scales near-linearly until the pool itself starts erroring. Cost: residential-proxy bandwidth (~$3.65/GB at the current contract); wall: shorter (~1h for the same sweep that takes 12.5h direct-IP). Preferred for sweeps >1000 targets when the proxy pool is fresh.
+**Direct-IP mode** _(of a Sweep, vs Proxy mode)_:
+A **Pool** running without `--proxies-…` — all tasks emit from a single source IP. Throughput plateaus at the per-IP **WAF** ceiling regardless of `--*-concurrencia`. Cost: $0; wall: longer (anchor: ~12-13h for a year-of-HC `sistemas` sweep). Preferred when the proxy pool is stale or has not been validated recently. The `ocr` Pool runs in this mode by default and has no Proxy-mode dual (no WAF, no STF). On the legacy `varrer-processos` / `baixar-pecas` commands the same posture is the default when `--proxy-pool` is omitted — same operational meaning, different surface.
+
+**Proxy mode** _(of a Sweep, vs Direct-IP mode)_:
+A **Pool** configured with `--proxies-portal FILE` or `--proxies-sistemas FILE` rotates each task across the supplied URL list. Spreads load across N IPs so each draws below the per-IP **WAF** ceiling; Pool throughput scales near-linearly until the proxy supply itself errors. Cost: residential-proxy bandwidth (~$3.65/GB at the current contract); wall: shorter (anchor: ~1h for the same `sistemas` sweep that takes 12.5h direct-IP). Preferred for `(classe, processo_id range)` sets >1000 targets when the proxy pool is fresh. On legacy `varrer-processos --shards N --proxy-pool FILE` / `baixar-pecas --shards N --proxy-pool FILE` the equivalent posture splits a flat proxy file into N round-robin pools and spawns one process child per shard; the unified pipeline collapses that to in-process round-robin without the process-tree mechanism.
+_Avoid_: sharded mode (legacy spelling — the "shard" mechanism was per-process; current is per-Pool), shard (the noun is retired with the legacy launcher; the legacy `--shards N` flag survives on `varrer-processos` / `baixar-pecas` until slice 6)
 
 **WAF** _(web application firewall — at `portal.stf.jus.br` and `sistemas.stf.jus.br`)_:
 The rate-limit boundary STF interposes in front of `/processos/*` (case JSON) and `sistemas.stf.jus.br/pdf/*` (peça bytes). Throttles by per-IP reputation; **responds with HTTP 403, not 429**. The block clears within minutes. Non-browser User-Agents (`curl/*`) get permanent 403. Process-level pacing (`--throttle-sleep`) does not drain the per-IP reputation counter — only cooling time + IP rotation does.
 _Avoid_: rate limiter, throttle (those are mechanisms; "WAF" names the boundary)
 
 **Regime**:
-The state of the live throttle relationship between a running **sweep** and the **WAF**, computed by `judex.utils.cliff_detector`. Four states form a state machine: `warming` (cold start, polite ramp) → `under_utilising` (steady-state below ceiling) → `approaching_collapse` (rising 403 rate, controller demoting) → `collapse` (sustained 403 / failure storm; controller cools and re-promotes). Read live with `judex probe --watch`; reconstruct post-hoc with `judex analisar-regimes <run_dir>`.
+The state of the live failure-rate trajectory of a running **Sweep**, computed by `judex.utils.cliff_detector`. Four states form a state machine: `warming` (cold start, polite ramp) → `under_utilising` (steady-state below the pool's effective ceiling — **WAF** reputation for `portal`/`sistemas`, provider quota / cluster capacity for `ocr`) → `approaching_collapse` (rising error rate) → `collapse` (sustained failure storm). Each **Pool**'s regime is independent and stamped onto every `executar.log.jsonl` row. Under the unified pipeline regime is **observation-only telemetry** — the circuit breaker is the actor that pauses the pool on collapse. Read live with `judex probe --watch`; reconstruct post-hoc with `judex analisar-regimes <run_dir>`.
 
 **Cliff**:
-A sudden throughput collapse during a **sweep** — typically a transition from `under_utilising` through `approaching_collapse` to `collapse` within minutes. Triggers the cliff detector to demote the **regime**; the controller cools the WAF reputation by reducing concurrency or pausing. Cliffs are the load-bearing failure mode the regime state machine exists to handle.
+A sudden throughput collapse during a **Sweep** — typically a transition from `under_utilising` through `approaching_collapse` to `collapse` within minutes. Stamped onto each `executar.log.jsonl` row by the per-**Pool** CliffDetector (`judex.utils.cliff_detector`). The Pool's circuit breaker (separate primitive, configured by `--limiar-circuit` / `--janela-circuit`) is the actor that pauses the pool on sustained collapse; the cliff detector is observation-only telemetry. Cliffs are the load-bearing failure mode the breaker exists to handle. Real-world anchors: `sistemas` 403-storms when the WAF demotes a hot IP; `ocr` 502-storms during Fly cold-start (cluster warming from `min_machines_running = 0`).
 
 **Saturation tail**:
-The slow-rate tail observed in hours 8–13 of long **sweeps** (anchored on the HC 2024 + HC 2023 overnight runs). TLS-handshake degradation produces SSL-EOF errors at increasing frequency; rather than a sharp **cliff**, throughput trickles down. Default action: wait 30 minutes for the controller to demote → cool → re-promote. Killing the sweep throws away TLS-layer reputation that is already cooling.
+The slow-rate tail observed in hours 8–13 of long-running `portal` and `sistemas` **Sweeps** (anchored on the HC 2024 + HC 2023 overnight runs). TLS-handshake degradation produces SSL-EOF errors at increasing frequency; rather than a sharp **cliff**, throughput trickles down. Default action: wait 30 minutes for the circuit breaker to demote → cool → re-promote. Killing the **Coleta** throws away TLS-layer reputation that is already cooling. The `ocr` **Pool** exhibits no equivalent — its failure modes are provider quota exhaustion or cluster cold-start, not connection-state decay.
+
+**Coleta** _(English alias on first use: total run / pipeline run)_:
+One execution of `judex executar` against a (**classe**, processo_id range), producing a single run directory with one log (`executar.log.jsonl`), one state file (`executar.state.json`), one PID, and one resume point (`--retomar`). Three concurrent **Sweeps** — `portal`, `sistemas`, `ocr` — run inside the process, each draining its own **Pool**'s task queue. The unit of canonical operator work for backfilling a year-of-HC and the unit of cost forecasting (`--prever`). The unified pipeline (`judex executar`, [ADR-0005](docs/adr/0005-unified-pipeline.md)) is the intended primary path; the legacy six-stage chain (`varrer → varrer-retry → baixar → baixar-retry → extrair → extrair-retry`) orchestrated by `judex coletar` ([ADR-0004](docs/adr/0004-coleta-orchestrator-with-status-aware-retry.md), now superseded) remains operable during the validation window and produces the same on-disk artefacts under a different run-dir layout (per-stage subdirs, separate state files). Both paths produce a Coleta. The unified pipeline inherits ADR-0004's `error_triage`-driven retry semantics, applied per Pool rather than per stage.
+_Avoid_: backfill (overloaded — used both for the run-dir naming convention and for ad-hoc per-stage replays), pipeline (too generic), execução (operationally synonymous; we say "Coleta" in this project)
+
+**Error triage**:
+Classification of a **Sweep**'s non-ok task outcomes by `judex.sweeps.error_triage.classify_error` into `transient` / `terminal` / `cross_pool` / `ok`. Driven by the typed `TaskStatus` enum (`http_error` / `provider_error` / `no_bytes` / `empty` / `unallocated_pid`) — the unified pipeline's vocabulary is typed where the legacy `errors.jsonl` was free-form, but the classifier's logic is the same module reused verbatim (per [ADR-0005](docs/adr/0005-unified-pipeline.md) § What's inherited from ADR-0004). Only `transient` rows are re-seeded by the resume-time seed builder (`scheduler.seeds_from_targets`) and re-enqueued by `--replay-de`. Terminal rows are dropped permanently (`unallocated_pid` at `portal`, real `404` / `empty` at `sistemas`, `no_bytes` at `ocr`). `cross_pool` is reported as out-of-scope for this **Coleta**. **Note**: a per-task `retry_count` cap=2 inherited from ADR-0004 is **not yet implemented** in the unified pipeline — see [ADR-0005 § Open issue](docs/adr/0005-unified-pipeline.md).
+
+**Transient residual**:
+The count of `transient`-classified tasks still non-ok at the end of a **Coleta** — i.e., after the operator's last `--retomar` resumes have all completed. Reported per **Pool** in the Coleta's `report.md`. Not the same as raw error count — terminal tasks (`unallocated_pid` at `portal`, real `404` / `empty` at `sistemas`, `no_bytes` at `ocr`) are excluded.
+
+**Cross-pool residual**:
+Tasks that are terminal at the current **Pool** but whose underlying failure is in an upstream Pool — concretely, `no_bytes` outcomes surfaced by the `ocr` Pool's `extract_text` tasks that mean the `sistemas` Pool's `fetch_bytes` for that URL did not succeed. Surfaced as a count in the **Coleta**'s `report.md`. Not auto-recovered within a single Coleta (the URL was already past `sistemas`'s retry budget); the operator drains manually via a follow-up `judex executar --replay-de` scoped to those URLs if motivated.
+_Avoid_: cross-stage residual (legacy term — the `coletar` chain had stages, the unified pipeline has Pools)
+
+**Transient gate**:
+A per-**Pool** upper bound on transient rate above which the unified pipeline trips that Pool's circuit breaker rather than continuing to dispatch tasks. Default 2% per Pool (anchored on the 0.04–7.3% range of healthy transient rates observed across HC 2025/2026 backfills, with the HC 2026 OCR `provider_error` outlier treated as anomalous). Trip indicates a systemic issue — proxy pool dead, cookies/WAF rolling block, Fly OCR saturated — that retries cannot fix and that produces silently-incomplete downstream artifacts if ignored. The Coleta's other Pools continue draining their queues (cooperatively starving once their upstream input dries up). Resume via `judex executar --retomar` after the systemic issue is fixed; the breaker re-arms and the Pool resumes. On the legacy `coletar` chain the equivalent gate aborted the whole chain rather than tripping a single per-Pool breaker; semantically the same idea, mechanically blunter.
+
+**Run quality** _(of a Coleta)_:
+A post-hoc classification of a finished **Coleta** by per-**Pool** **transient residual**:
+
+| Quality      | Per-Pool transient residual | Operator action                                        |
+|--------------|-----------------------------|--------------------------------------------------------|
+| `clean`      | all Pools = 0               | none — Coleta converged                                |
+| `acceptable` | all Pools ≤ 1%              | none required; manual drain optional                   |
+| `degraded`   | any Pool 1–5%               | consider tail-drain via `judex executar --replay-de`   |
+| `broken`     | any Pool > 5%               | systemic problem; investigate before re-running        |
+
+Distinct from the pre-flight **transient gate** (which trips a Pool's circuit breaker mid-Coleta): **run quality** grades a finished Coleta. A `broken` outcome on a Coleta that *did* finish (gate didn't trip mid-flight) means transients accumulated only in the retry tail — a different failure mode than a forward-pass collapse.
 
 ## Bridges
 
@@ -197,9 +232,9 @@ Across **processos**:
 - A **canonical lawyer** key (from `lawyer_canonical.classify`) groups **partes** with the same individual or institution across many **processos**.
 
 Operational:
-- A **sweep** is one execution of `varrer-processos`, `baixar-pecas`, or `extrair-pecas`, producing one output directory.
-- A **sharded mode** sweep spawns N **shards**; **direct-IP mode** runs unsharded against the **WAF** ceiling.
-- A running **sweep**'s **regime** evolves `warming` → `under_utilising` → `approaching_collapse` → `collapse`; a **cliff** is the rapid-traversal failure case, a **saturation tail** is the slow-trickle one.
+- A **Coleta** is one execution of `judex executar` against a `(classe, processo_id range)`, producing one run directory; inside it, three **Sweeps** (one per **Pool** — `portal`, `sistemas`, `ocr`) run concurrently, draining queues of **Tasks**.
+- Each WAF-bound **Pool** (`portal`, `sistemas`) runs in **Direct-IP mode** or **Proxy mode** independently, set per-Pool by presence or absence of `--proxies-{portal,sistemas}`. The `ocr` Pool has no Proxy-mode dual.
+- A running **Sweep**'s **Regime** evolves `warming` → `under_utilising` → `approaching_collapse` → `collapse`; a **Cliff** is the rapid-traversal failure case, a **Saturation tail** is the slow-trickle one. A Pool's circuit breaker (configured by `--limiar-circuit` / `--janela-circuit`) is the actor that pauses the pool on sustained collapse; the regime reading itself is observation-only telemetry.
 
 ## Example dialogue
 
@@ -220,3 +255,5 @@ Operational:
 - **System is class-generic, corpus is HC-only.** `StfItem.classe: str` accepts any value and `judex/scraping/` handles arbitrary **classes**, but `data/source/processos/` only holds HC. Code in `judex/scraping/` must not assume HC; code in `judex/analysis/` may, provided HC-only assumptions are stated explicitly at module top.
 
 - **Asymmetric peça fetch path (surface 1 vs surfaces 2 + 3).** Today, **andamento**-attached peças are fetched in two stages (`baixar-pecas` writes bytes, `extrair-pecas` writes text), so re-extraction with a different `--provedor` is supported. **Sessão-virtual** documentos and **DJe** RTF peças are fetched synchronously inside `varrer-processos` (text-only, bytes discarded), so re-extraction is *not* supported for those. The text content for all three surfaces is in the cache regardless. The plan to unify all three under surface 1's model is recorded in [ADR-0001](docs/adr/0001-unify-peca-fetch-under-bytes-first-model.md).
+
+- **Two operator paths during the unified-pipeline validation window.** `judex executar` (unified pipeline, single process, `executar.state.json`) is the intended primary path going forward; the legacy three-command chain (`varrer-processos` → `baixar-pecas` → `extrair-pecas`) and `judex coletar` orchestrator remain operable in parallel until the unified pipeline's validation completes (slice 6 of [`docs/superpowers/specs/2026-05-02-unified-pipeline.md`](docs/superpowers/specs/2026-05-02-unified-pipeline.md)). Both paths produce a **Coleta** but with different run-dir layouts and state-file shapes — they are *not* mutually resumable. Pick one path per `(classe, processo_id range)` and finish the run there. New runs going forward should default to `judex executar` unless a specific failure mode (e.g., a sharded launcher behaviour the unified path has not yet been exercised against) motivates the legacy chain.

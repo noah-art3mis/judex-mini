@@ -43,7 +43,7 @@ from judex.scraping.http_session import _http_get_with_retry, new_session
 from judex.scraping.proxy_pool import ProxyPool
 from judex.sweeps import shared as _shared
 from judex.utils.cost import estimate_proxy_cost
-from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, load_retry_list
+from judex.sweeps.peca_store import PecaAttemptRecord, PecaStore, urls_for_replay
 from judex.sweeps.peca_targets import PecaTarget
 from judex.utils import peca_cache
 from judex.utils.adaptive_throttle import AdaptiveThrottle
@@ -105,7 +105,7 @@ def run_download_sweep(
     store = PecaStore(out_dir)
 
     if retry_from is not None:
-        keep = set(load_retry_list(retry_from))
+        keep = set(urls_for_replay(retry_from, stage="baixar"))
         targets = [t for t in targets if t.url in keep]
 
     if install_signal_handlers:
