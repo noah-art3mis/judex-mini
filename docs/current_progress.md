@@ -23,6 +23,82 @@ user request 20:30-20:33 BRT** while in Stage C (extrair) — see
 commands. Now in flight: a `coletar`-orchestrator smoke test
 (HC 245000-245099, exercises today's ADR-0004 commits).
 
+## Open thread — Fly OCR cluster cost shape (2026-05-02 late evening)
+
+**Why.** The first real Fly invoice landed (May 1+2 = $8.70 over
+181.5 Machine-hours) and revealed two surprises: (a) the prior
+`$0.0118/hr per Machine` quote in `fly/README.md` and
+`tesseract_fly.py:cost()` was **4× under-anchored** because it
+ignored the "Additional RAM" line item, and (b) RAM is **82% of
+the per-Machine bill** at the old `[[vm]] memory = "4gb"`, not the
+expected CPU-dominated split. The bill anchored a real per-hour
+rate of $0.0479 / Machine-hour.
+
+**Landed on `dev`.**
+
+- `71e3d43 feat(fly): chunked rasterize + 2 GB Machine, bill-anchor cost surface`
+  — `fly/server.py` switched from upfront `convert_from_bytes(pdf_bytes,
+  dpi=200)` (peak RAM ≈ 11 MB × n_pages) to chunked
+  `_RASTER_CHUNK_PAGES = 4` rasterization (peak RAM ≈ 50 MB regardless
+  of page count). `[[vm]] memory: "4gb" → "2gb"`. Cost docstring
+  rewritten with two-meter pricing model anchored to the real invoice.
+  Per-Machine rate: $0.0479/hr → $0.0256/hr (**~47% reduction**).
+- `62a1101 docs(fly): smoke-test report for streaming refactor + 1 GB Machine`
+  — full report at `docs/reports/2026-05-02-fly-streaming-refactor-smoke-test.md`.
+
+**Cluster state right now.**
+
+| Field | Value |
+|---|---|
+| Branch | `dev` |
+| Local `fly.toml` | `memory = "2gb"`, `shared-cpu-2x` |
+| Live cluster | 10 Machines × shared-cpu-2x × 2 GB ✓ matches local |
+| Live image | streaming refactor (chunked rasterize) ✓ matches local |
+| Per-Machine rate | $0.0256/hr |
+| Was scaled to | 100 Machines pre-test; **needs restore to 100** |
+
+**Smoke-test results so far.** 1-page PDF: ✅ clean (~4 s wall,
+991 chars, accents intact). 123-page PDF: server-side 200 OK at
+~270 s wall but client got empty body — diagnosed as
+`async def extract()` blocking the asyncio event loop during sync
+OCR work, so `/healthz` fails and Fly's proxy drops the upstream
+connection. **No OOM in logs**, so 2 GB is genuinely sufficient
+for 123-page PDFs. 295-page PDF (`37ee397e8732…`, 5.4 MB gz):
+**not yet run** — direct user concern about long-PDF handling.
+
+**Open follow-ups (priority order).**
+
+1. **Run 295-page PDF test** against the live 2 GB cluster to
+   pin "very long PDFs handled correctly" empirically, not by
+   design extrapolation.
+2. **`async def` → `run_in_executor` one-liner** so long-request
+   responses don't get dropped on the way back through the proxy.
+   Pinned by re-running the 123-page PDF and getting clean text.
+3. **Restore cluster to 100 Machines** (`flyctl scale count 100`)
+   before any production sweep.
+4. **Money optimization choices** still on the table — current
+   $0.0256/hr; achievable lower bounds:
+   - `shared-cpu-2x` + `memory = "1gb"`: $0.0143/hr (44% further
+     cut). Headroom ~314 MB over peak ~710 MB working set — tight,
+     silent-OOM risk on edge PDFs (Pillow large-image spikes).
+   - `shared-cpu-4x` + `memory = "1gb"`: $0.0174/hr (39% cut)
+     **and** 2× wall speedup on 3+ page PDFs (4 parallel Tesseract
+     instances vs 2). Risk: 4 concurrent Tesseract working sets
+     (~600 MB) plus baseline (~400 MB) ≈ 1 GB exact — needs the
+     2 GB shape to be safe in practice.
+   - Both options are shape-only — `server.py` reads
+     `os.cpu_count()` so the worker pool auto-scales to whatever
+     the deployed shape provides. No Python change required.
+5. **Investigate health-check failures** on started Machines —
+   noticed during smoke test that `1 critical` checks were
+   common, possibly from `/healthz` being blocked during long
+   OCRs (same async-blocking root cause as #2).
+
+**Decision pending.** Whether to spend engineering effort on the
+remaining ~$0.10–$0.20/ladder savings, or stop here. The headline
+win (4 GB → 2 GB, 47% off the per-Machine rate) is locked in;
+further cuts are diminishing returns.
+
 ## Active task — HC year-ladder backfill via 3-stage chain
 
 **Why.** Iterate `varrer-processos → baixar-pecas → extrair-pecas`
