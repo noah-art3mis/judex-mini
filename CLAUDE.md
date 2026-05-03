@@ -24,6 +24,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Doing the "who-wins HC" analysis (research question, lit review, validation) | [`docs/hc-who-wins.md`](docs/hc-who-wins.md) — single consolidated doc with §1 Scope and plan / §2 Literature review / §3 Validation. The three pre-2026-05-03 sub-files (`-lit-review`, `-validation`) were merged here; cross-links use intra-doc anchors. |
 | You want to see how a prior experiment turned out OR find the dated empirical snapshot backing a code constant | [`docs/reports/`](docs/reports/) — promoted narratives from validation sweeps **and** date-stamped artefacts that back module constants (e.g. peça-tipo tier counts, HTTP-vs-Selenium bench, OCR bakeoff). |
 | You want to understand how a major feature was designed | [`docs/superpowers/specs/`](docs/superpowers/specs/). |
+| Standing up infra (cloud OCR provider, proxy pool, fresh WSL host) | [`docs/setup-fly.md`](docs/setup-fly.md), [`docs/setup-modal.md`](docs/setup-modal.md), [`docs/setup-runpod.md`](docs/setup-runpod.md), [`docs/setup-proxies.md`](docs/setup-proxies.md), [`docs/setup-wsl.md`](docs/setup-wsl.md) — operational setup; the *why* lives in the linked code SOTs (provider docstrings, `fly/README.md`, `rate-limits.md`). |
 
 **Code-as-SOT pattern.** Several routing rows above point at code first
 and Markdown second. That's deliberate — when a fact lives in *both*
