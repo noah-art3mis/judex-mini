@@ -281,7 +281,9 @@ def run_pipeline(
         PoolConfig(name="sistemas", concurrency=sistemas_concurrencia),
         PoolConfig(name="ocr", concurrency=ocr_concurrencia),
     ]
-    config = SchedulerConfig(pools=pools, handlers=handlers)
+    config = SchedulerConfig(
+        pools=pools, handlers=handlers, n_targets=len(targets),
+    )
 
     seeds = seeds_from_targets(targets, state)
     log.info(

@@ -45,6 +45,11 @@ class SchedulerConfig:
     queue_maxsize: int = 1024
     snapshot_interval_seconds: float = 5.0
     progress_interval_seconds: float = 10.0
+    n_targets: int = 0
+    """Case-count denominator for the periodic progress line. The
+    portal pool runs one fetch_meta task per case, so n_targets is the
+    natural denominator for portal-pool progress. Setting this to zero
+    (the unknown default) suppresses the percentage display."""
 
 
 @dataclass
@@ -198,19 +203,24 @@ def _read_task_outcome(state: PipelineState, task: Task) -> Optional[TaskStatus]
 
 
 def _short_identifier(task: Task) -> str:
-    """Human-friendly per-task identifier for the tail log.
+    """Compact per-task id for the tail log, mirroring legacy
+    ``judex.utils.log_render.compact_target_id`` shape:
 
-    ``fetch_meta`` shows ``HC-187634``; ``fetch_bytes``/``extract_text``
-    show ``HC-187634/<short-url>`` where the short-url is the last 24
-    chars of the URL (peca id + extension is informative; full URL is
-    too long to scan in a tail stream).
+    * ``fetch_meta``: ``"HC 187634"``
+    * ``fetch_bytes`` / ``extract_text``: ``"HC 187634 a3f5b2e"`` —
+      the sha7 of the URL is stable across resumes and short enough
+      to keep tail-log lines aligned.
+
+    Full URL stays in ``executar.state.json`` for any downstream
+    tooling that needs it.
     """
-    case_label = f"{task.case_key[0]}-{task.case_key[1]}"
+    classe, processo = task.case_key
     if task.kind == "fetch_meta":
-        return case_label
-    url = task.payload.get("url", "?")
-    short = url[-24:] if len(url) > 24 else url
-    return f"{case_label}/{short}"
+        return f"{classe} {processo}"
+    from judex.utils.log_render import compact_target_id
+    return compact_target_id(
+        task.payload.get("url", ""), classe=classe, processo_id=processo,
+    )
 
 
 async def _run_one(
@@ -241,13 +251,18 @@ async def _run_one(
         outcome = _read_task_outcome(runtime.state, task)
         pool.record_outcome(ok=(outcome == "ok"))
 
-        # Per-task tail line — matches the shape ops liked from the
-        # legacy varrer/baixar/extrair: ``[POOL] identifier status · Ns``.
+        # Per-task tail line. Format mirrors legacy
+        # ``judex.utils.log_render.render_target_line``:
+        #   HH:MM:SS  ✓ ok        [portal]    HC 187634          ·  3.21s
+        # Timestamp first, glyph + status word (padded to 8 chars so
+        # most lines align), pool tag, compact identifier, wall.
         elapsed = time.monotonic() - handler_t0
+        from judex.utils.log_render import _style_for, _now_hms
+        glyph, _ = _style_for(outcome or "?")
         log.info(
-            "[%s] %s %s · %.2fs",
-            task.pool, _short_identifier(task),
-            outcome or "?", elapsed,
+            "%s  %s %-8s  [%-8s]  %-20s  ·  %.2fs",
+            _now_hms(), glyph, outcome or "?",
+            task.pool, _short_identifier(task), elapsed,
         )
 
         for follow in successors:
@@ -340,22 +355,53 @@ async def _periodic_progress(
     interval: float,
     shutdown_event: asyncio.Event,
     started_at: float,
+    n_targets: int = 0,
 ) -> None:
     """Print a one-line progress summary every ``interval`` seconds.
 
-    Shape mirrors the existing sweep logs:
-    ``[progress] portal=ok/fail · sistemas=ok/fail · ocr=ok/fail · X.XXs``
+    Format mirrors legacy ``render_progress_line``:
+    ``─── 132/9137 (1.4%) · portal_ok=130 portal_fail=2 bytes_ok=240 ... · 0.31 cases/s · eta 8h ───``
+
+    ``n_targets`` is the case-count denominator for the portal pool's
+    progress fraction (portal is meta-only, 1 task per case). When
+    zero (unknown), the percentage is omitted.
     """
+    from judex.utils.log_render import render_progress_line
+
     while not shutdown_event.is_set():
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
         except asyncio.TimeoutError:
             pass
         elapsed = time.monotonic() - started_at
-        parts = []
-        for pool_name, c in runtime.counters.items():
-            parts.append(f"{pool_name}={c.finished}/{c.failed}")
-        log.info("[progress] %s · %.1fs", " · ".join(parts), elapsed)
+        portal = runtime.counters["portal"]
+        sistemas = runtime.counters["sistemas"]
+        ocr_c = runtime.counters["ocr"]
+
+        # Portal is the bottleneck (case-rate); use its rate for ETA.
+        rate = portal.finished / elapsed if elapsed > 0 else 0.0
+        denom = n_targets or max(portal.started, 1)
+        remaining = max(0, denom - portal.finished)
+        eta_min = (remaining / rate / 60.0) if rate > 0 else 0.0
+
+        log.info(
+            render_progress_line(
+                n=portal.finished,
+                total=denom,
+                counters={
+                    "meta_ok": portal.finished - portal.failed,
+                    "meta_fail": portal.failed,
+                    "bytes_ok": sistemas.finished - sistemas.failed,
+                    "bytes_fail": sistemas.failed,
+                    "text_ok": ocr_c.finished - ocr_c.failed,
+                    "text_fail": ocr_c.failed,
+                },
+                rate_per_sec=rate,
+                rate_label="cases/s",
+                eta_min=eta_min,
+                use_color=False,  # log goes to file, not tty
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -409,7 +455,10 @@ async def run_scheduler(
         _periodic_snapshotter(state, config.snapshot_interval_seconds, shutdown_event)
     )
     progress = asyncio.create_task(
-        _periodic_progress(runtime, config.progress_interval_seconds, shutdown_event, started_at)
+        _periodic_progress(
+            runtime, config.progress_interval_seconds, shutdown_event,
+            started_at, n_targets=config.n_targets,
+        )
     )
 
     # Seed. Now safe to bulk-put even when seed_count > queue_maxsize:
