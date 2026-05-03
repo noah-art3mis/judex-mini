@@ -390,6 +390,16 @@ def run_extract_sweep(
     print(f"  log:    {store.log_path}")
     print(f"  errors: {errors_path}")
     print(f"  report: {report_path}")
+    if counters.outlier_skipped:
+        outliers_csv = out_dir / "outliers.csv"
+        print(
+            f"\n  NOTE — {counters.outlier_skipped} outlier(s) deferred to "
+            "local OCR. Re-run with:"
+        )
+        print(
+            f"    uv run judex extrair-pecas --csv {outliers_csv} \\\n"
+            f"        --saida {out_dir} --provedor tesseract --forcar"
+        )
     return (
         counters.extracted,
         counters.cached_hits,
