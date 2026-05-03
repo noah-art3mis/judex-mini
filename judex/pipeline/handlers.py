@@ -106,7 +106,15 @@ def make_handlers(
 
     portal_holder = RotatingSession(portal_proxies)
     sistemas_holder = RotatingSession(sistemas_proxies)
-    ocr_config = OCRConfig(provider=provedor)
+    # Under ``--provedor auto`` the OCRConfig is built per-target inside
+    # ``handle_extract_text`` (the router decides on doc_type); for
+    # single-provider runs we pre-build once and re-use. Mirrors the
+    # legacy fork in ``extrair_pecas.run_extract_pecas``.
+    ocr_config: Optional["OCRConfig"]
+    if provedor == "auto":
+        ocr_config = None
+    else:
+        ocr_config = OCRConfig(provider=provedor)
 
     items_root = Path(source_dir) if source_dir else Path("data/source/processos")
 
@@ -168,11 +176,15 @@ def make_handlers(
         # surfaced 3 dupes / 119 tasks (~2.5%); fixing here keeps
         # report.md counters honest.
         targets = list({t.url: t for t in targets}.values())
+        # Carry ``doc_type`` forward in the Task payload — needed by
+        # ``--provedor auto``'s per-target router (and persisted into
+        # the bytes record by ``handle_fetch_bytes`` so resume
+        # preserves the routing decision).
         return [
             Task(
                 kind="fetch_bytes",
                 pool="sistemas",
-                payload={"url": t.url},
+                payload={"url": t.url, "doc_type": t.doc_type},
                 case_key=task.case_key,
             )
             for t in targets
@@ -180,14 +192,15 @@ def make_handlers(
 
     def handle_fetch_bytes(task: Task) -> list[Task]:
         url = task.payload["url"]
+        doc_type = task.payload.get("doc_type")
 
         if peca_cache.has_bytes(url):
-            state.record_bytes(task.case_key, url=url, status="ok")
+            state.record_bytes(task.case_key, url=url, status="ok", doc_type=doc_type)
             return [
                 Task(
                     kind="extract_text",
                     pool="ocr",
-                    payload={"url": url},
+                    payload={"url": url, "doc_type": doc_type},
                     case_key=task.case_key,
                 )
             ]
@@ -197,28 +210,34 @@ def make_handlers(
         except Exception as exc:  # noqa: BLE001
             sistemas_holder.report_failure(exc)
             status, msg = _classify_http_exception(exc)
-            state.record_bytes(task.case_key, url=url, status=status, error=msg)
+            state.record_bytes(
+                task.case_key, url=url, status=status, error=msg, doc_type=doc_type,
+            )
             return []
 
         try:
             peca_cache.write_bytes(url, r.content)
         except ValueError as exc:
             # Unsupported magic bytes — treat as terminal.
-            state.record_bytes(task.case_key, url=url, status="empty", error=str(exc))
+            state.record_bytes(
+                task.case_key, url=url, status="empty", error=str(exc),
+                doc_type=doc_type,
+            )
             return []
 
-        state.record_bytes(task.case_key, url=url, status="ok")
+        state.record_bytes(task.case_key, url=url, status="ok", doc_type=doc_type)
         return [
             Task(
                 kind="extract_text",
                 pool="ocr",
-                payload={"url": url},
+                payload={"url": url, "doc_type": doc_type},
                 case_key=task.case_key,
             )
         ]
 
     def handle_extract_text(task: Task) -> list[Task]:
         url = task.payload["url"]
+        doc_type = task.payload.get("doc_type")
         body = peca_cache.read_bytes(url)
         if not body:
             state.record_text(
@@ -256,14 +275,29 @@ def make_handlers(
             state.record_text(task.case_key, url=url, status="ok", extractor="rtf")
             return []
 
+        # Resolve the effective provider for THIS target. Under
+        # ``--provedor auto`` the router (lifted from legacy
+        # ``extrair_pecas.pick_provider``) routes ACÓRDÃO doc_types to
+        # tesseract (or whatever ``JUDEX_AUTO_TESSERACT_PROVIDER`` says)
+        # and everything else to pypdf — same policy as the legacy
+        # `extrair-pecas --provedor auto` chain. For single-provider
+        # runs the pre-built ``ocr_config`` is reused unchanged.
+        if provedor == "auto":
+            from judex.sweeps.extrair_pecas import pick_provider
+            effective_provedor = pick_provider(doc_type)
+            effective_config = OCRConfig(provider=effective_provedor)
+        else:
+            effective_provedor = provedor
+            effective_config = ocr_config  # type: ignore[assignment]
+
         try:
-            result = ocr_dispatch.extract_pdf(body, ocr_config)
+            result = ocr_dispatch.extract_pdf(body, effective_config)
         except Exception as exc:  # noqa: BLE001
             state.record_text(
                 task.case_key,
                 url=url,
                 status="provider_error",
-                extractor=provedor,
+                extractor=effective_provedor,
                 error=f"{type(exc).__name__}: {exc}",
             )
             return []
@@ -273,14 +307,16 @@ def make_handlers(
                 task.case_key,
                 url=url,
                 status="empty",
-                extractor=provedor,
+                extractor=effective_provedor,
             )
             return []
 
-        peca_cache.write(url, result.text, extractor=provedor)
+        peca_cache.write(url, result.text, extractor=effective_provedor)
         if result.elements is not None:
             peca_cache.write_elements(url, result.elements)
-        state.record_text(task.case_key, url=url, status="ok", extractor=provedor)
+        state.record_text(
+            task.case_key, url=url, status="ok", extractor=effective_provedor,
+        )
         return []
 
     return {

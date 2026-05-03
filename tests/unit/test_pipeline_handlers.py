@@ -101,3 +101,145 @@ def test_handle_extract_text_records_no_bytes_for_empty_body(
 
     assert successors == []
     assert state.text_status(task.case_key, url=task.payload["url"]) == "no_bytes"
+
+
+# ---------------------------------------------------------------------------
+# `--provedor auto` per-target router (parity with extrair-pecas).
+# ---------------------------------------------------------------------------
+
+
+def _stub_extract_pdf_capture(monkeypatch: pytest.MonkeyPatch) -> list:
+    """Patch ocr_dispatch.extract_pdf to capture each OCRConfig it
+    receives, returning a stub success result so the handler proceeds
+    to the state-write path."""
+    captured: list = []
+
+    def fake_extract_pdf(pdf_bytes: bytes, config) -> object:
+        captured.append(config)
+        from judex.scraping.ocr import ExtractResult
+        return ExtractResult(
+            text="stub text", elements=None,
+            pages_processed=1, provider=config.provider,
+        )
+
+    monkeypatch.setattr(
+        "judex.scraping.ocr.dispatch.extract_pdf", fake_extract_pdf
+    )
+    return captured
+
+
+def test_handle_extract_text_auto_routes_acordao_to_tesseract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--provedor auto`` + a doc_type of INTEIRO TEOR DO ACÓRDÃO must
+    dispatch to the tesseract sub-provider (per legacy ``pick_provider``).
+    The default sub-provider is local ``tesseract``; ``JUDEX_AUTO_TESSERACT_PROVIDER``
+    overrides it (e.g. ``tesseract_fly`` for billed scale-out)."""
+    state = PipelineState.load(tmp_path / "s.json")
+    monkeypatch.delenv("JUDEX_AUTO_TESSERACT_PROVIDER", raising=False)
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+    monkeypatch.setattr(peca_cache, "write_elements", lambda url, els: None)
+
+    captured = _stub_extract_pdf_capture(monkeypatch)
+
+    handlers = make_handlers(state, provedor="auto")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/acordao.pdf",
+                 "doc_type": "INTEIRO TEOR DO ACÓRDÃO"},
+    )
+    handlers["extract_text"](task)
+
+    assert len(captured) == 1
+    assert captured[0].provider == "tesseract"
+    # Sidecar is tagged with the EFFECTIVE provider, not "auto".
+    assert state.is_text_complete(
+        task.case_key, url=task.payload["url"], required_extractor="tesseract"
+    )
+
+
+def test_handle_extract_text_auto_routes_non_acordao_to_pypdf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--provedor auto`` + a non-ACÓRDÃO doc_type uses pypdf — the
+    cheap path. This is the bulk of HC peças (decisão monocrática,
+    petições, certidões)."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+    monkeypatch.setattr(peca_cache, "write_elements", lambda url, els: None)
+
+    captured = _stub_extract_pdf_capture(monkeypatch)
+
+    handlers = make_handlers(state, provedor="auto")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/decisao.pdf",
+                 "doc_type": "DECISÃO MONOCRÁTICA"},
+    )
+    handlers["extract_text"](task)
+
+    assert len(captured) == 1
+    assert captured[0].provider == "pypdf"
+    assert state.is_text_complete(
+        task.case_key, url=task.payload["url"], required_extractor="pypdf"
+    )
+
+
+def test_handle_extract_text_auto_honors_env_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``JUDEX_AUTO_TESSERACT_PROVIDER`` redirects the auto-router's
+    ACÓRDÃO branch to a different tesseract venue (Fly / Modal). This
+    is how legacy ``coletar`` runs Fly OCR under auto mode without a
+    code change."""
+    state = PipelineState.load(tmp_path / "s.json")
+    monkeypatch.setenv("JUDEX_AUTO_TESSERACT_PROVIDER", "tesseract_fly")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+    monkeypatch.setattr(peca_cache, "write_elements", lambda url, els: None)
+
+    captured = _stub_extract_pdf_capture(monkeypatch)
+
+    handlers = make_handlers(state, provedor="auto")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/acordao.pdf",
+                 "doc_type": "INTEIRO TEOR DO ACÓRDÃO"},
+    )
+    handlers["extract_text"](task)
+
+    assert captured[0].provider == "tesseract_fly"
+
+
+def test_handle_extract_text_auto_falls_back_to_pypdf_when_doc_type_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resume without payload-side doc_type (e.g. legacy state file
+    pre-doc-type-tracking) must NOT crash. Router defaults to pypdf
+    on a missing doc_type — the cheap fallback. ACÓRDÃO branch only
+    triggers on an explicit positive match."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+    monkeypatch.setattr(peca_cache, "write_elements", lambda url, els: None)
+
+    captured = _stub_extract_pdf_capture(monkeypatch)
+
+    handlers = make_handlers(state, provedor="auto")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/no-doctype.pdf"},  # no doc_type
+    )
+    handlers["extract_text"](task)
+
+    assert captured[0].provider == "pypdf"

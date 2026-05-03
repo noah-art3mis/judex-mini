@@ -305,6 +305,37 @@ async def test_seeds_skips_no_bytes_text(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_seeds_carry_doc_type_for_auto_router_on_resume(
+    tmp_path: Path,
+) -> None:
+    """``--provedor auto`` decides per-target via doc_type. On resume,
+    re-seeded ``fetch_bytes`` and ``extract_text`` tasks must carry the
+    doc_type that was tagged at first emission — otherwise the auto
+    router would lose its routing key and silently fall back to pypdf
+    on retries, which is wrong for ACÓRDÃO PDFs."""
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_bytes(
+        ("HC", 1), url="acordao.pdf", status="http_error",
+        doc_type="INTEIRO TEOR DO ACÓRDÃO",
+    )
+    state.record_bytes(("HC", 1), url="petition.pdf", status="ok",
+                       doc_type="PETIÇÃO")
+    state.record_text(("HC", 1), url="petition.pdf", status="provider_error",
+                      extractor="pypdf")
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    payload_by_kind = {(s.kind, s.payload["url"]): s.payload for s in seeds}
+
+    # Re-seeded fetch_bytes carries the ACÓRDÃO doc_type.
+    assert payload_by_kind[("fetch_bytes", "acordao.pdf")]["doc_type"] == \
+        "INTEIRO TEOR DO ACÓRDÃO"
+    # Re-seeded extract_text carries PETIÇÃO doc_type.
+    assert payload_by_kind[("extract_text", "petition.pdf")]["doc_type"] == \
+        "PETIÇÃO"
+
+
+@pytest.mark.asyncio
 async def test_seeds_retries_provider_error_text(tmp_path: Path) -> None:
     """``provider_error`` is transient — providers hiccup, network
     flakes between us and Mistral / Datalab, etc. Mirrors

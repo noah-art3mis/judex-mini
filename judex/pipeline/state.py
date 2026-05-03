@@ -193,9 +193,33 @@ class PipelineState:
         url: str,
         status: TaskStatus,
         error: Optional[str] = None,
+        doc_type: Optional[str] = None,
     ) -> None:
         rec = self._ensure_case(case_key)
-        rec.bytes[url] = {"status": status, "ts": _now_iso(), "error": error}
+        # Preserve any prior ``doc_type`` if the caller didn't supply one
+        # — the meta handler tags it on first emission, and downstream
+        # status updates (e.g. http_error → ok on retry) shouldn't lose
+        # it. The bytes handler always passes the doc_type forward when
+        # known; only third-party / test callers may omit.
+        prior = rec.bytes.get(url, {})
+        merged_doc_type = doc_type if doc_type is not None else prior.get("doc_type")
+        rec.bytes[url] = {
+            "status": status,
+            "ts": _now_iso(),
+            "error": error,
+            "doc_type": merged_doc_type,
+        }
+
+    def bytes_doc_type(self, case_key: tuple[str, int], *, url: str) -> Optional[str]:
+        """Doc-type tag stored alongside the bytes record (used by
+        ``--provedor auto`` resume path: re-seeded ``extract_text``
+        tasks carry the doc_type so the per-target router routes
+        correctly across resumes)."""
+        rec = self._cases.get(_case_key_str(case_key))
+        if rec is None:
+            return None
+        entry = rec.bytes.get(url)
+        return entry.get("doc_type") if entry else None
 
     def record_text(
         self,

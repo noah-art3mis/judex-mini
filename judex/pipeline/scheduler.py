@@ -118,6 +118,11 @@ def seeds_from_targets(
         meta_status = state.meta_status(case_key)
         if meta_status == "ok":
             for url in state.known_bytes_urls(case_key):
+                # ``doc_type`` was tagged onto the bytes record by the
+                # meta handler at first emission. Carry it forward into
+                # any re-seeded successor so ``--provedor auto`` routes
+                # consistently across resumes.
+                doc_type = state.bytes_doc_type(case_key, url=url)
                 bytes_status = state.bytes_status(case_key, url=url)
                 if bytes_status != "ok":
                     if _is_retryable_status("fetch_bytes", bytes_status):
@@ -125,7 +130,7 @@ def seeds_from_targets(
                             Task(
                                 kind="fetch_bytes",
                                 pool="sistemas",
-                                payload={"url": url},
+                                payload={"url": url, "doc_type": doc_type},
                                 case_key=case_key,
                             )
                         )
@@ -143,7 +148,7 @@ def seeds_from_targets(
                         Task(
                             kind="extract_text",
                             pool="ocr",
-                            payload={"url": url},
+                            payload={"url": url, "doc_type": doc_type},
                             case_key=case_key,
                         )
                     )
