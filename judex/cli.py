@@ -915,6 +915,12 @@ def executar(
         False, "--sem-dje",
         help="Não buscar publicações DJe durante fetch_meta.",
     ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo flat de URLs de proxy (uma por linha; comentários '#' "
+             "e linhas em branco são ignorados). Cada handler HTTP rota "
+             "proxies independentemente. Sem este flag: direct-IP.",
+    ),
 ) -> None:
     """Pipeline unificado: varrer + baixar + extrair num único processo.
 
@@ -950,6 +956,7 @@ def executar(
         sistemas_concurrencia=sistemas_concurrencia,
         ocr_concurrencia=ocr_concurrencia,
         fetch_dje=not sem_dje,
+        proxy_pool=proxy_pool,
     )
     raise typer.Exit(code=rc)
 

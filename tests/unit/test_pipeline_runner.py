@@ -81,6 +81,61 @@ def test_run_pipeline_writes_state_and_report(tmp_path: Path) -> None:
     assert "targets: 2" in report
 
 
+def test_run_pipeline_threads_proxy_pool_through_to_factory(tmp_path: Path) -> None:
+    """``--proxy-pool FILE`` must flow into ``make_handlers`` as two
+    independent ``ProxyPool`` instances (portal + sistemas, isolated
+    cooldown counters). Without this thread-through, the CLI flag
+    would be inert.
+    """
+    pool_path = tmp_path / "proxies.txt"
+    pool_path.write_text("http://p1:8080\nhttp://p2:8080\n")
+
+    captured: dict[str, object] = {}
+
+    def capturing_factory(state: PipelineState, **kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return _mock_handlers_factory(state, **kwargs)
+
+    saida = tmp_path / "run"
+    rc = run_pipeline(
+        targets=[("HC", 1)],
+        saida=saida,
+        provedor="pypdf",
+        proxy_pool=pool_path,
+        handlers_factory=capturing_factory,
+    )
+    assert rc == 0
+    # Both pools were created (independent instances), each loaded the
+    # 2 entries from disk.
+    portal_proxies = captured["portal_proxies"]
+    sistemas_proxies = captured["sistemas_proxies"]
+    assert portal_proxies is not None
+    assert sistemas_proxies is not None
+    assert portal_proxies is not sistemas_proxies  # independent instances
+    assert portal_proxies.size() == 2
+    assert sistemas_proxies.size() == 2
+
+
+def test_run_pipeline_no_proxy_pool_yields_none_proxies(tmp_path: Path) -> None:
+    """Default (no ``--proxy-pool``) is direct-IP — both proxy kwargs
+    arrive as ``None``."""
+    captured: dict[str, object] = {}
+
+    def capturing_factory(state: PipelineState, **kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return _mock_handlers_factory(state, **kwargs)
+
+    rc = run_pipeline(
+        targets=[("HC", 1)],
+        saida=tmp_path / "run",
+        provedor="pypdf",
+        handlers_factory=capturing_factory,
+    )
+    assert rc == 0
+    assert captured["portal_proxies"] is None
+    assert captured["sistemas_proxies"] is None
+
+
 def test_run_pipeline_resumes_from_existing_state(tmp_path: Path) -> None:
     """A second invocation against an already-complete state file is
     a no-op (no scheduler run, just a fresh report)."""

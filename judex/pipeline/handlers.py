@@ -29,7 +29,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from judex.pipeline.models import Task, TaskStatus
+from judex.pipeline.sessions import RotatingSession
 from judex.pipeline.state import PipelineState
+
+if TYPE_CHECKING:
+    from judex.scraping.proxy_pool import ProxyPool
 
 
 log = logging.getLogger(__name__)
@@ -68,6 +72,8 @@ def make_handlers(
     provedor: str = "pypdf",
     fetch_dje: bool = True,
     source_dir: Optional["Path"] = None,
+    portal_proxies: Optional["ProxyPool"] = None,
+    sistemas_proxies: Optional["ProxyPool"] = None,
 ) -> dict[str, HandlerFn]:
     """Build the three real handlers bound to a live ``PipelineState``.
 
@@ -76,6 +82,13 @@ def make_handlers(
     ``CLAUDE.md § data-layout``); per-case files land at
     ``<source_dir>/<classe>/judex-mini_<classe>_<n>-<n>.json``.
 
+    ``portal_proxies`` / ``sistemas_proxies`` are independent
+    :class:`ProxyPool` references (typically two pools loaded from the
+    same flat file — independent so portal-WAF cooldowns don't leak
+    into sistemas state and vice versa). When ``None``, the
+    corresponding handler runs direct-IP. See
+    :class:`judex.pipeline.sessions.RotatingSession`.
+
     Imports are deferred to keep ``judex.pipeline`` importable without
     the full scrape stack (so unit tests can mock instead of pulling
     requests / OCR modules).
@@ -83,7 +96,7 @@ def make_handlers(
     import json
     from pathlib import Path
     from judex.scraping import scraper as _scraper
-    from judex.scraping.http_session import _http_get_with_retry, new_session
+    from judex.scraping.http_session import _http_get_with_retry
     from judex.scraping.ocr import dispatch as ocr_dispatch
     from judex.scraping.ocr.base import OCRConfig
     from judex.sweeps.peca_classification import filter_substantive
@@ -91,8 +104,8 @@ def make_handlers(
     from judex.utils import peca_cache
     from judex.utils.peca_utils import extract_rtf_text
 
-    portal_session = new_session()
-    sistemas_session = new_session()
+    portal_holder = RotatingSession(portal_proxies)
+    sistemas_holder = RotatingSession(sistemas_proxies)
     ocr_config = OCRConfig(provider=provedor)
 
     items_root = Path(source_dir) if source_dir else Path("data/source/processos")
@@ -118,12 +131,13 @@ def make_handlers(
         classe, processo = task.case_key
         try:
             item = _scraper.scrape_processo_http(
-                classe, processo, session=portal_session, fetch_dje=fetch_dje
+                classe, processo, session=portal_holder.session(), fetch_dje=fetch_dje
             )
         except _scraper.NoIncidenteError:
             state.record_meta(task.case_key, status="unallocated_pid")
             return []
         except Exception as exc:  # noqa: BLE001
+            portal_holder.report_failure(exc)
             status, msg = _classify_http_exception(exc)
             state.record_meta(task.case_key, status=status, error=msg)
             return []
@@ -179,8 +193,9 @@ def make_handlers(
             ]
 
         try:
-            r = _http_get_with_retry(sistemas_session, url, timeout=60)
+            r = _http_get_with_retry(sistemas_holder.session(), url, timeout=60)
         except Exception as exc:  # noqa: BLE001
+            sistemas_holder.report_failure(exc)
             status, msg = _classify_http_exception(exc)
             state.record_bytes(task.case_key, url=url, status=status, error=msg)
             return []

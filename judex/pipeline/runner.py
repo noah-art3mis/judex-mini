@@ -206,6 +206,7 @@ def run_pipeline(
     sistemas_concurrencia: int = 1,
     ocr_concurrencia: int = 4,
     fetch_dje: bool = True,
+    proxy_pool: Optional[Path] = None,
     handlers_factory=None,  # type: ignore[no-untyped-def]
 ) -> int:
     """Run the unified pipeline against ``targets`` to completion.
@@ -215,7 +216,14 @@ def run_pipeline(
     ``dict[TaskKind, HandlerFn]``. Defaults to the real
     ``make_handlers`` wired against the scrape + cache + OCR stack.
     Real-call signature: ``factory(state, provedor=provedor,
-    fetch_dje=fetch_dje)``; test factories can ignore those kwargs.
+    fetch_dje=fetch_dje, portal_proxies=..., sistemas_proxies=...)``;
+    test factories can ignore those kwargs.
+
+    ``proxy_pool`` is a flat file of proxy URLs (one per line; ``#``
+    comments + blank lines ignored). When provided, two independent
+    :class:`ProxyPool` instances are loaded from the file — one each
+    for the portal and sistemas pools — so per-pool cooldowns are
+    isolated. When ``None`` (default), both pools run direct-IP.
     """
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)
@@ -223,8 +231,29 @@ def run_pipeline(
     state_path = saida / "executar.state.json"
     state = PipelineState.load(state_path)
 
+    portal_proxies = sistemas_proxies = None
+    if proxy_pool is not None:
+        from judex.scraping.proxy_pool import ProxyPool
+
+        # Same file, two independent pool instances. Different origins
+        # (portal.stf vs sistemas.stf), different WAF counters at the
+        # remote end, so cooldown bookkeeping must not cross-contaminate.
+        portal_proxies = ProxyPool.from_file(Path(proxy_pool))
+        sistemas_proxies = ProxyPool.from_file(Path(proxy_pool))
+        log.info(
+            "proxy pool loaded: %d entries from %s (portal + sistemas, independent counters)",
+            portal_proxies.size(),
+            proxy_pool,
+        )
+
     factory = handlers_factory or make_handlers
-    handlers = factory(state, provedor=provedor, fetch_dje=fetch_dje)
+    handlers = factory(
+        state,
+        provedor=provedor,
+        fetch_dje=fetch_dje,
+        portal_proxies=portal_proxies,
+        sistemas_proxies=sistemas_proxies,
+    )
 
     pools = [
         PoolConfig(name="portal", concurrency=portal_concurrencia),
