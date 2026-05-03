@@ -225,6 +225,103 @@ async def test_seeds_from_targets_skips_completed_meta(tmp_path: Path) -> None:
     assert ("extract_text", ("HC", 1), "u-1-0") not in kinds
 
 
+# ---------------------------------------------------------------------------
+# Status-aware resume — coletar-parity for retry / drop semantics.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_seeds_skips_unallocated_pid_meta(tmp_path: Path) -> None:
+    """A case whose meta resolved to ``unallocated_pid`` is terminal
+    (the processo_id genuinely doesn't exist at STF). Resume must NOT
+    re-seed it — that would burn portal-pool requests on every resume
+    for cases that will never become ok. Mirrors
+    ``error_triage._classify_varrer``'s ``unallocated → terminal``
+    decision.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 999_999), status="unallocated_pid")
+    state.record_meta(("HC", 1), status="ok")
+
+    seeds = seeds_from_targets([("HC", 999_999), ("HC", 1)], state)
+    kinds = [(t.kind, t.case_key) for t in seeds]
+
+    # 999_999 is terminal; no fetch_meta seed.
+    assert ("fetch_meta", ("HC", 999_999)) not in kinds
+    # HC-1 is ok with no known peças; nothing to seed at all.
+    assert seeds == []
+
+
+@pytest.mark.asyncio
+async def test_seeds_retries_http_error_meta(tmp_path: Path) -> None:
+    """``http_error`` (WAF / timeout / SSL) is transient; resume must
+    re-seed so the next pass picks it up after WAF cools."""
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 5), status="http_error", error="waf_403")
+
+    seeds = seeds_from_targets([("HC", 5)], state)
+    kinds = [(t.kind, t.case_key) for t in seeds]
+
+    assert ("fetch_meta", ("HC", 5)) in kinds
+
+
+@pytest.mark.asyncio
+async def test_seeds_skips_empty_bytes(tmp_path: Path) -> None:
+    """``empty`` on a bytes record means STF returned a body that
+    didn't match the supported magic-bytes (PDF / RTF). The body won't
+    change on retry — terminal, drop. Mirrors
+    ``error_triage._classify_baixar``'s default-to-terminal."""
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_bytes(("HC", 1), url="u-1", status="empty",
+                       error="unsupported magic bytes")
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.payload.get("url")) for t in seeds]
+
+    assert ("fetch_bytes", "u-1") not in kinds
+    # And no spurious downstream extract seed either.
+    assert ("extract_text", "u-1") not in kinds
+
+
+@pytest.mark.asyncio
+async def test_seeds_skips_no_bytes_text(tmp_path: Path) -> None:
+    """``no_bytes`` on a text record is cross-stage: the cache was
+    empty when extract ran. Re-seeding extract_text won't help (it'll
+    just record no_bytes again); the operator needs a bytes-side
+    re-fetch which seeds_from_targets doesn't trigger here. Drop.
+    Mirrors ``error_triage._classify_extrair``'s ``no_bytes →
+    cross_stage``."""
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_bytes(("HC", 1), url="u-1", status="ok")
+    state.record_text(("HC", 1), url="u-1", status="no_bytes",
+                      error="cache miss; run fetch_bytes first")
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.payload.get("url")) for t in seeds]
+
+    assert ("extract_text", "u-1") not in kinds
+
+
+@pytest.mark.asyncio
+async def test_seeds_retries_provider_error_text(tmp_path: Path) -> None:
+    """``provider_error`` is transient — providers hiccup, network
+    flakes between us and Mistral / Datalab, etc. Mirrors
+    ``error_triage._classify_extrair``'s ``provider_error →
+    transient``."""
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_bytes(("HC", 1), url="u-1", status="ok")
+    state.record_text(("HC", 1), url="u-1", status="provider_error",
+                      extractor="pypdf", error="PdfReadError")
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.payload.get("url")) for t in seeds]
+
+    assert ("extract_text", "u-1") in kinds
+
+
 @pytest.mark.asyncio
 async def test_shutdown_check_drains_cleanly(tmp_path: Path) -> None:
     """When ``shutdown_check`` flips to True, in-flight tasks finish,

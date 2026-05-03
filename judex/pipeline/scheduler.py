@@ -54,6 +54,49 @@ class RunResult:
     shutdown_requested: bool = False
 
 
+def _is_retryable_status(kind: str, status: Optional[TaskStatus]) -> bool:
+    """Should the resume builder re-seed a task with this state status?
+
+    Mirrors the policy in :mod:`judex.sweeps.error_triage` translated
+    to the unified pipeline's ``TaskStatus`` vocabulary. The legacy
+    classifier works on errors.jsonl row dicts; the unified pipeline
+    has a typed status enum, so the rules collapse to a small table.
+
+    * ``None`` (never attempted) → retry (first-time work).
+    * ``ok`` → not retryable; caller filters before asking.
+    * ``fetch_meta``: ``http_error`` (WAF / timeout / SSL) is transient;
+      ``unallocated_pid`` is terminal (case genuinely doesn't exist).
+    * ``fetch_bytes``: ``http_error`` is transient; ``empty``
+      (unsupported magic bytes from STF) is terminal.
+    * ``extract_text``: ``provider_error`` is transient (provider
+      hiccups, network flakes); ``empty`` (PDF really has no text)
+      and ``no_bytes`` (cross-stage — bytes side needs a re-fetch,
+      not a re-extract) are terminal at this stage.
+    * Anything unknown → terminal (conservative — error_triage's
+      default-to-terminal rule: better to surface in the residual
+      report than to churn the WAF on an unmapped failure).
+
+    Without this filter, the seed builder re-enqueues every non-ok
+    task on every resume, including terminal ones like
+    ``unallocated_pid``. At year-corpus scale that burns measurable
+    portal-pool wall on cases that will never become ok. This is the
+    operational gap that ``coletar`` closes via its status-aware
+    retry passes; lifting the policy here gives the unified pipeline
+    parity.
+    """
+    if status is None:
+        return True
+    if status == "ok":
+        return False
+    if kind == "fetch_meta":
+        return status == "http_error"
+    if kind == "fetch_bytes":
+        return status == "http_error"
+    if kind == "extract_text":
+        return status == "provider_error"
+    return False
+
+
 def seeds_from_targets(
     targets: list[tuple[str, int]],
     state: PipelineState,
@@ -65,29 +108,37 @@ def seeds_from_targets(
     their downstream work (bytes/text). That work is found by the
     handlers themselves on resume: the scheduler enqueues fresh
     ``fetch_bytes`` and ``extract_text`` tasks for every URL the
-    state has seen but whose status isn't terminal-ok.
+    state has seen whose status is non-ok AND classified retryable.
+    Terminal failures (``unallocated_pid``, ``empty``, ``no_bytes``)
+    are skipped — see ``_is_retryable_status``.
     """
     seeds: list[Task] = []
 
     for case_key in targets:
-        # Always re-seed bytes + text for already-known URLs whose status
-        # isn't ok. This handles the "crashed mid-byte-fetch" case where
-        # meta succeeded but some bytes/text still need work.
-        if state.is_meta_complete(case_key):
+        meta_status = state.meta_status(case_key)
+        if meta_status == "ok":
             for url in state.known_bytes_urls(case_key):
-                if not state.is_bytes_complete(case_key, url=url):
-                    seeds.append(
-                        Task(
-                            kind="fetch_bytes",
-                            pool="sistemas",
-                            payload={"url": url},
-                            case_key=case_key,
+                bytes_status = state.bytes_status(case_key, url=url)
+                if bytes_status != "ok":
+                    if _is_retryable_status("fetch_bytes", bytes_status):
+                        seeds.append(
+                            Task(
+                                kind="fetch_bytes",
+                                pool="sistemas",
+                                payload={"url": url},
+                                case_key=case_key,
+                            )
                         )
-                    )
+                    # bytes is non-ok (whether retryable or terminal):
+                    # there's no point checking text — text on top of
+                    # non-ok bytes can't be ``ok`` either.
                     continue
                 # bytes ok; check text. (No required_extractor here —
                 # caller can use --forcar to invalidate.)
-                if not state.is_text_complete(case_key, url=url):
+                text_status = state.text_status(case_key, url=url)
+                if text_status != "ok" and _is_retryable_status(
+                    "extract_text", text_status
+                ):
                     seeds.append(
                         Task(
                             kind="extract_text",
@@ -96,7 +147,7 @@ def seeds_from_targets(
                             case_key=case_key,
                         )
                     )
-        else:
+        elif _is_retryable_status("fetch_meta", meta_status):
             seeds.append(
                 Task(
                     kind="fetch_meta",
@@ -105,6 +156,8 @@ def seeds_from_targets(
                     case_key=case_key,
                 )
             )
+        # else: meta status is non-ok and terminal (e.g. unallocated_pid)
+        # — skip the case entirely.
 
     return seeds
 
