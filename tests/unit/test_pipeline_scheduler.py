@@ -354,6 +354,108 @@ async def test_seeds_retries_provider_error_text(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_retry_count_auto_increments_on_re_recording(tmp_path: Path) -> None:
+    """Each call to ``record_*`` after the first must bump
+    ``retry_count`` by one. The seed builder reads this counter to
+    enforce ADR-0004's "cap of 2 retry cycles" inheritance — so the
+    counter has to be honest about how many times the handler has
+    been here before. Initial recording leaves rc=0 (no retry yet);
+    second leaves rc=1; third leaves rc=2. See
+    ``docs/adr/0005-unified-pipeline.md`` § Open issue #1.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 0
+
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 1
+
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 2
+
+    # Same contract for bytes and text, keyed by URL.
+    state.record_bytes(("HC", 1), url="u", status="http_error")
+    assert state.bytes_retry_count(("HC", 1), url="u") == 0
+    state.record_bytes(("HC", 1), url="u", status="http_error")
+    assert state.bytes_retry_count(("HC", 1), url="u") == 1
+
+    state.record_text(("HC", 1), url="u", status="provider_error", extractor="pypdf")
+    assert state.text_retry_count(("HC", 1), url="u") == 0
+    state.record_text(("HC", 1), url="u", status="provider_error", extractor="pypdf")
+    assert state.text_retry_count(("HC", 1), url="u") == 1
+
+
+@pytest.mark.asyncio
+async def test_seeds_skips_meta_at_retry_cap(tmp_path: Path) -> None:
+    """A ``fetch_meta`` task with ``retry_count == RETRY_CAP`` (=2)
+    is NOT re-seeded — even though its status (``http_error``) would
+    otherwise be transient. This honors ADR-0004's "cap of 2 retry
+    cycles" contract. After 3 total attempts (initial + 2 retries),
+    the operator is expected to surface the systemic issue rather
+    than burn a fourth attempt.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 2
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.case_key) for t in seeds]
+    assert ("fetch_meta", ("HC", 1)) not in kinds
+
+
+@pytest.mark.asyncio
+async def test_seeds_retries_meta_below_retry_cap(tmp_path: Path) -> None:
+    """Symmetric counterpart: a ``fetch_meta`` task with
+    ``retry_count < RETRY_CAP`` IS re-seeded. Pinning both sides of
+    the gate so a future refactor doesn't accidentally invert it.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 0
+    state.record_meta(("HC", 1), status="http_error", error="waf_403")
+    assert state.meta_retry_count(("HC", 1)) == 1
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.case_key) for t in seeds]
+    assert ("fetch_meta", ("HC", 1)) in kinds
+
+
+@pytest.mark.asyncio
+async def test_seeds_skips_bytes_and_text_at_retry_cap(tmp_path: Path) -> None:
+    """Same cap=2 gate applies to ``fetch_bytes`` and ``extract_text``
+    — the per-Pool breaker is the structural early-warning, the
+    per-Task cap is the ceiling. Tasks at the cap drop out of resume
+    even when their status is otherwise transient.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    state.record_meta(("HC", 1), status="ok")
+
+    # bytes at cap.
+    state.record_bytes(("HC", 1), url="u-bytes", status="http_error")
+    state.record_bytes(("HC", 1), url="u-bytes", status="http_error")
+    state.record_bytes(("HC", 1), url="u-bytes", status="http_error")
+    assert state.bytes_retry_count(("HC", 1), url="u-bytes") == 2
+
+    # text at cap (over an ok bytes record so the seed builder reaches
+    # the text branch).
+    state.record_bytes(("HC", 1), url="u-text", status="ok")
+    state.record_text(("HC", 1), url="u-text", status="provider_error",
+                      extractor="pypdf")
+    state.record_text(("HC", 1), url="u-text", status="provider_error",
+                      extractor="pypdf")
+    state.record_text(("HC", 1), url="u-text", status="provider_error",
+                      extractor="pypdf")
+    assert state.text_retry_count(("HC", 1), url="u-text") == 2
+
+    seeds = seeds_from_targets([("HC", 1)], state)
+    kinds = [(t.kind, t.payload.get("url")) for t in seeds]
+    assert ("fetch_bytes", "u-bytes") not in kinds
+    assert ("extract_text", "u-text") not in kinds
+
+
+@pytest.mark.asyncio
 async def test_shutdown_check_drains_cleanly(tmp_path: Path) -> None:
     """When ``shutdown_check`` flips to True, in-flight tasks finish,
     state is flushed, and the run exits with ``shutdown_requested=True``.

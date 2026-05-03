@@ -1,6 +1,6 @@
 # ADR-0004: `judex coletar` — total-run orchestrator with status-aware retry and per-stage gates
 
-**Status**: Proposed (2026-05-02). Design grilled in the 2026-05-02 session; implementation pending.
+**Status**: Superseded by [ADR-0005](0005-unified-pipeline.md) (2026-05-03). The orchestrator-of-three-commands mechanism is retired in favor of the unified pipeline (`judex executar`); the `error_triage.classify_error` classifier and the per-stage **Transient gate** (now per-Pool) defined here are inherited verbatim by ADR-0005. Original `coletar` implementation lives on `explore/unified-pipeline` and remains operable during the unified pipeline's validation window — see ADR-0005 § Validation criteria for the flip to Accepted.
 
 ## Context
 

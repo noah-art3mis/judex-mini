@@ -192,37 +192,10 @@ def make_handlers(
         )
         tmp.replace(path)
 
-    def handle_fetch_meta(task: Task) -> list[Task]:
-        classe, processo = task.case_key
-        try:
-            item = _scraper.scrape_processo_http(
-                classe, processo, session=portal_holder.session(), fetch_dje=fetch_dje
-            )
-        except _scraper.NoIncidenteError:
-            state.record_meta(task.case_key, status="unallocated_pid")
-            return []
-        except Exception as exc:  # noqa: BLE001
-            portal_holder.report_failure(exc)
-            status, msg = _classify_http_exception(exc)
-            state.record_meta(task.case_key, status=status, error=msg)
-            return []
-
-        # Persist the case JSON to disk. This is what the legacy
-        # ``varrer-processos`` does via run_sweep._write_item_json;
-        # without it, downstream consumers (warehouse rebuild,
-        # validar-gabarito, ad-hoc analysis) don't see the case.
-        try:
-            _write_case_json(classe, processo, dict(item))
-        except Exception as exc:  # noqa: BLE001
-            state.record_meta(task.case_key, status="http_error",
-                              error=f"write failed: {exc}")
-            return []
-
-        state.record_meta(task.case_key, status="ok")
-
+    def _emit_fetch_bytes(task: Task, item: dict) -> list[Task]:
         # Case-level filter knobs. Applied here (not at CLI launch) because
         # the matchable text — impetrante name, relator name — only exists
-        # *after* the case JSON is fetched. Skipping the case is symmetric
+        # *after* the case JSON is available. Skipping the case is symmetric
         # with how legacy `collect_peca_targets` would have dropped the
         # whole case before emitting any peça URL: same effect, same scope.
         if impte_contains and not _impte_matches(item, impte_contains):
@@ -260,6 +233,62 @@ def make_handlers(
             )
             for t in targets
         ]
+
+    def handle_fetch_meta(task: Task) -> list[Task]:
+        classe, processo = task.case_key
+
+        # Storage-level idempotence: if the case JSON already exists on
+        # disk (e.g. from a prior --retomar against state stale at the
+        # 5 s snapshot interval, or from the legacy varrer-processos
+        # output for the same range) read it back without re-hitting
+        # STF. Mirrors handle_fetch_bytes' peca_cache.has_bytes guard
+        # and handle_extract_text's peca_cache.has_text guard. --forcar
+        # bypasses for explicit re-scrape. The portal Pool is the
+        # WAF-hottest, so suppressing this redundant call matters
+        # disproportionately: a hard-kill resume on a 1k-case run can
+        # otherwise re-hit STF for ~5 s × portal-rate cases that
+        # already succeeded.
+        out_path = (
+            items_root / classe / f"judex-mini_{classe}_{processo}-{processo}.json"
+        )
+        if not forcar and out_path.exists():
+            try:
+                cached_item = json.loads(out_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                # Malformed cache; fall through to re-scrape rather than
+                # silently emit zero successors against a half-written
+                # JSON that would also break warehouse rebuild.
+                pass
+            else:
+                state.record_meta(task.case_key, status="ok")
+                return _emit_fetch_bytes(task, cached_item)
+
+        try:
+            item = _scraper.scrape_processo_http(
+                classe, processo, session=portal_holder.session(), fetch_dje=fetch_dje
+            )
+        except _scraper.NoIncidenteError:
+            state.record_meta(task.case_key, status="unallocated_pid")
+            return []
+        except Exception as exc:  # noqa: BLE001
+            portal_holder.report_failure(exc)
+            status, msg = _classify_http_exception(exc)
+            state.record_meta(task.case_key, status=status, error=msg)
+            return []
+
+        # Persist the case JSON to disk. This is what the legacy
+        # ``varrer-processos`` does via run_sweep._write_item_json;
+        # without it, downstream consumers (warehouse rebuild,
+        # validar-gabarito, ad-hoc analysis) don't see the case.
+        try:
+            _write_case_json(classe, processo, dict(item))
+        except Exception as exc:  # noqa: BLE001
+            state.record_meta(task.case_key, status="http_error",
+                              error=f"write failed: {exc}")
+            return []
+
+        state.record_meta(task.case_key, status="ok")
+        return _emit_fetch_bytes(task, dict(item))
 
     def handle_fetch_bytes(task: Task) -> list[Task]:
         url = task.payload["url"]

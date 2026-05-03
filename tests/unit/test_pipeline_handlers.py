@@ -219,6 +219,105 @@ def test_handle_extract_text_auto_honors_env_override(
     assert captured[0].provider == "tesseract_fly"
 
 
+def test_handle_fetch_meta_skips_scrape_when_case_json_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Storage-level idempotence on the portal Pool: when the case JSON
+    is already on disk (e.g. from a --retomar against state stale at
+    the 5 s snapshot interval, or from a prior legacy varrer-processos
+    sweep over the same range), ``handle_fetch_meta`` MUST read the
+    cached JSON and record meta=ok without calling STF.
+
+    Without this guard, hard-kill resume re-hits ``portal.stf.jus.br``
+    for every case whose JSON was written but whose state outcome
+    wasn't snapshotted before SIGKILL — see
+    ``docs/adr/0005-unified-pipeline.md`` § Open issues. The portal
+    Pool is the WAF-hottest, so suppressing the redundant call
+    matters disproportionately.
+
+    Symmetric with the cache-hit guards in ``handle_fetch_bytes``
+    (``peca_cache.has_bytes``) and ``handle_extract_text``
+    (``peca_cache.has_text``).
+    """
+    import json as _json
+
+    state = PipelineState.load(tmp_path / "s.json")
+
+    # Pre-write a minimal case JSON at the path the handler computes
+    # internally. ``items_root`` is the source_dir kwarg; under that we
+    # land at ``<classe>/judex-mini_<classe>_<n>-<n>.json``.
+    classe, processo = "HC", 250000
+    out_dir = tmp_path / classe
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"judex-mini_{classe}_{processo}-{processo}.json"
+    # Minimal item with no peça surfaces — keeps the test focused on
+    # the idempotence skip rather than on follow-up task emission.
+    out_path.write_text(
+        _json.dumps({"classe": classe, "processo_id": processo, "andamentos": []}),
+        encoding="utf-8",
+    )
+
+    # Tripwire: if the handler reaches the network path, the test fails
+    # loudly rather than silently passing because of an unexpected mock.
+    def _scraper_must_not_be_called(*args: object, **kwargs: object) -> object:
+        raise AssertionError(
+            "scrape_processo_http called despite cached case JSON on disk"
+        )
+
+    monkeypatch.setattr(
+        "judex.scraping.scraper.scrape_processo_http",
+        _scraper_must_not_be_called,
+    )
+
+    handlers = make_handlers(state, provedor="pypdf", source_dir=tmp_path)
+    task = Task(kind="fetch_meta", pool="portal", case_key=(classe, processo))
+
+    successors = handlers["fetch_meta"](task)
+
+    # Empty successors because the cached item carries zero peça URLs;
+    # the load-bearing assertion is the next one (state recorded ok
+    # without the scraper running).
+    assert successors == []
+    assert state.meta_status((classe, processo)) == "ok"
+
+
+def test_handle_fetch_meta_falls_through_to_scrape_on_malformed_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Defensive: if the on-disk case JSON exists but is malformed
+    (truncated write from a prior crash, manual edit gone wrong), the
+    handler must fall through to a fresh scrape rather than silently
+    emit zero successors against a half-written JSON. Empty/zero
+    successors on a real case would silently break warehouse rebuild
+    and downstream analysis with no error trail.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+
+    classe, processo = "HC", 250001
+    out_dir = tmp_path / classe
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / f"judex-mini_{classe}_{processo}-{processo}.json").write_text(
+        "{ this is not valid json", encoding="utf-8",
+    )
+
+    scrape_called: list[tuple[str, int]] = []
+
+    def _fake_scrape(classe_arg: str, processo_arg: int, **kwargs: object) -> dict:
+        scrape_called.append((classe_arg, processo_arg))
+        return {"classe": classe_arg, "processo_id": processo_arg, "andamentos": []}
+
+    monkeypatch.setattr(
+        "judex.scraping.scraper.scrape_processo_http", _fake_scrape
+    )
+
+    handlers = make_handlers(state, provedor="pypdf", source_dir=tmp_path)
+    task = Task(kind="fetch_meta", pool="portal", case_key=(classe, processo))
+    handlers["fetch_meta"](task)
+
+    assert scrape_called == [(classe, processo)]
+    assert state.meta_status((classe, processo)) == "ok"
+
+
 def test_handle_extract_text_auto_falls_back_to_pypdf_when_doc_type_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

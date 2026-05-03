@@ -73,7 +73,24 @@ class RunResult:
     shutdown_requested: bool = False
 
 
-def _is_retryable_status(kind: str, status: Optional[TaskStatus]) -> bool:
+RETRY_CAP = 2
+"""Maximum number of retry cycles per task. Inherited from ADR-0004's
+"cap of 2 retry cycles per stage" contract (now per-Task). After
+``retry_count`` reaches ``RETRY_CAP``, the seed builder stops
+re-seeding the task even if its status is otherwise transient — the
+operator is expected to surface the systemic issue (proxy pool dead,
+WAF rolling block, OCR cluster saturated) rather than burn a fourth
+attempt. The breaker tripping at the per-Pool **Transient gate** (2%)
+is the structural early-warning; the per-Task cap is the absolute
+ceiling. See ``docs/adr/0005-unified-pipeline.md`` § Open issue #1
+(now resolved)."""
+
+
+def _is_retryable_status(
+    kind: str,
+    status: Optional[TaskStatus],
+    retry_count: int = 0,
+) -> bool:
     """Should the resume builder re-seed a task with this state status?
 
     Mirrors the policy in :mod:`judex.sweeps.error_triage` translated
@@ -95,25 +112,30 @@ def _is_retryable_status(kind: str, status: Optional[TaskStatus]) -> bool:
       default-to-terminal rule: better to surface in the residual
       report than to churn the WAF on an unmapped failure).
 
+    On top of the kind/status table, the per-Task **retry cap**
+    (:data:`RETRY_CAP`, =2) gates: a task whose ``retry_count``
+    has reached the cap is no longer retryable even if its status
+    would otherwise be transient. This honors ADR-0004's "cap of 2
+    retry cycles" contract, now scoped per-Task instead of per-stage.
+
     Without this filter, the seed builder re-enqueues every non-ok
     task on every resume, including terminal ones like
-    ``unallocated_pid``. At year-corpus scale that burns measurable
-    portal-pool wall on cases that will never become ok. This is the
-    operational gap that ``coletar`` closes via its status-aware
-    retry passes; lifting the policy here gives the unified pipeline
-    parity.
+    ``unallocated_pid`` and indefinitely-retrying transient failures.
+    At year-corpus scale that burns measurable portal-pool wall on
+    cases that will never become ok.
     """
     if status is None:
         return True
     if status == "ok":
         return False
-    if kind == "fetch_meta":
-        return status == "http_error"
-    if kind == "fetch_bytes":
-        return status == "http_error"
-    if kind == "extract_text":
-        return status == "provider_error"
-    return False
+    is_retryable_status = (
+        (kind == "fetch_meta" and status == "http_error")
+        or (kind == "fetch_bytes" and status == "http_error")
+        or (kind == "extract_text" and status == "provider_error")
+    )
+    if not is_retryable_status:
+        return False
+    return retry_count < RETRY_CAP
 
 
 def seeds_from_targets(
@@ -144,7 +166,8 @@ def seeds_from_targets(
                 doc_type = state.bytes_doc_type(case_key, url=url)
                 bytes_status = state.bytes_status(case_key, url=url)
                 if bytes_status != "ok":
-                    if _is_retryable_status("fetch_bytes", bytes_status):
+                    bytes_rc = state.bytes_retry_count(case_key, url=url)
+                    if _is_retryable_status("fetch_bytes", bytes_status, bytes_rc):
                         seeds.append(
                             Task(
                                 kind="fetch_bytes",
@@ -160,8 +183,9 @@ def seeds_from_targets(
                 # bytes ok; check text. (No required_extractor here —
                 # caller can use --forcar to invalidate.)
                 text_status = state.text_status(case_key, url=url)
+                text_rc = state.text_retry_count(case_key, url=url)
                 if text_status != "ok" and _is_retryable_status(
-                    "extract_text", text_status
+                    "extract_text", text_status, text_rc,
                 ):
                     seeds.append(
                         Task(
@@ -171,17 +195,19 @@ def seeds_from_targets(
                             case_key=case_key,
                         )
                     )
-        elif _is_retryable_status("fetch_meta", meta_status):
-            seeds.append(
-                Task(
-                    kind="fetch_meta",
-                    pool="portal",
-                    payload={},
-                    case_key=case_key,
+        else:
+            meta_rc = state.meta_retry_count(case_key)
+            if _is_retryable_status("fetch_meta", meta_status, meta_rc):
+                seeds.append(
+                    Task(
+                        kind="fetch_meta",
+                        pool="portal",
+                        payload={},
+                        case_key=case_key,
+                    )
                 )
-            )
-        # else: meta status is non-ok and terminal (e.g. unallocated_pid)
-        # — skip the case entirely.
+            # else: meta status is non-ok and terminal (unallocated_pid,
+            # or http_error past RETRY_CAP) — skip the case entirely.
 
     return seeds
 

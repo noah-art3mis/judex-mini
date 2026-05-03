@@ -11,23 +11,36 @@ snapshot does not.
 Layout:
 
     {
-      "schema_version": 1,
+      "schema_version": 2,
       "started_at": "2026-05-02T22:00:00Z",
       "cases": {
         "HC-252920": {
-          "fetch_meta": {"status": "ok", "ts": "...", "error": null},
+          "fetch_meta": {"status": "ok", "ts": "...", "error": null,
+                         "retry_count": 0},
           "fetch_bytes": {
-            "<url>": {"status": "ok", "ts": "...", "error": null}
+            "<url>": {"status": "ok", "ts": "...", "error": null,
+                      "doc_type": "PETIÇÃO", "retry_count": 0}
           },
           "extract_text": {
-            "<url>": {"status": "ok", "ts": "...", "extractor": "pypdf"}
+            "<url>": {"status": "ok", "ts": "...", "extractor": "pypdf",
+                      "error": null, "retry_count": 0}
           }
         }
       }
     }
 
 The case key is ``f"{classe}-{processo_id}"`` (string-only for JSON
-fidelity). Tests pin the contracts; see ``tests/unit/test_pipeline_state.py``.
+fidelity).
+
+``retry_count`` is the number of prior handler invocations that failed
+on this task; auto-incremented by the ``record_*`` mutators on every
+re-recording. The seed builder gates re-seeding on ``retry_count <
+RETRY_CAP`` (=2) per ADR-0005 § Open issue #1, inheriting ADR-0004's
+"cap of 2 retry cycles" contract. Schema bumped 1→2 on 2026-05-03 to
+make the field's presence explicit; pre-bump state files cannot be
+loaded (per CLAUDE.md § Conventions: no backwards-compat shims).
+
+Tests pin the contracts; see ``tests/unit/test_pipeline_state.py``.
 """
 
 from __future__ import annotations
@@ -43,7 +56,7 @@ from typing import Optional
 from judex.pipeline.models import TaskStatus
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _now_iso() -> str:
@@ -184,7 +197,19 @@ class PipelineState:
         error: Optional[str] = None,
     ) -> None:
         rec = self._ensure_case(case_key)
-        rec.meta = {"status": status, "ts": _now_iso(), "error": error}
+        prior = rec.meta or {}
+        # ``retry_count`` increments on every re-recording. First call
+        # leaves it at 0 (initial attempt, no retry yet); each
+        # subsequent call adds 1, so the value the seed builder reads
+        # post-handler is "number of failed attempts so far". Gated
+        # against ``RETRY_CAP`` in ``scheduler._is_retryable_status``.
+        retry_count = (prior.get("retry_count") or 0) + (1 if rec.meta is not None else 0)
+        rec.meta = {
+            "status": status,
+            "ts": _now_iso(),
+            "error": error,
+            "retry_count": retry_count,
+        }
 
     def record_bytes(
         self,
@@ -201,13 +226,16 @@ class PipelineState:
         # status updates (e.g. http_error → ok on retry) shouldn't lose
         # it. The bytes handler always passes the doc_type forward when
         # known; only third-party / test callers may omit.
+        prior_existed = url in rec.bytes
         prior = rec.bytes.get(url, {})
         merged_doc_type = doc_type if doc_type is not None else prior.get("doc_type")
+        retry_count = (prior.get("retry_count") or 0) + (1 if prior_existed else 0)
         rec.bytes[url] = {
             "status": status,
             "ts": _now_iso(),
             "error": error,
             "doc_type": merged_doc_type,
+            "retry_count": retry_count,
         }
 
     def bytes_doc_type(self, case_key: tuple[str, int], *, url: str) -> Optional[str]:
@@ -231,12 +259,38 @@ class PipelineState:
         error: Optional[str] = None,
     ) -> None:
         rec = self._ensure_case(case_key)
+        prior_existed = url in rec.text
+        prior = rec.text.get(url, {})
+        retry_count = (prior.get("retry_count") or 0) + (1 if prior_existed else 0)
         rec.text[url] = {
             "status": status,
             "ts": _now_iso(),
             "extractor": extractor,
             "error": error,
+            "retry_count": retry_count,
         }
+
+    # ---- retry_count getters (used by scheduler.seeds_from_targets) ----
+
+    def meta_retry_count(self, case_key: tuple[str, int]) -> int:
+        rec = self._cases.get(_case_key_str(case_key))
+        if rec is None or rec.meta is None:
+            return 0
+        return rec.meta.get("retry_count") or 0
+
+    def bytes_retry_count(self, case_key: tuple[str, int], *, url: str) -> int:
+        rec = self._cases.get(_case_key_str(case_key))
+        if rec is None:
+            return 0
+        entry = rec.bytes.get(url)
+        return (entry.get("retry_count") if entry else 0) or 0
+
+    def text_retry_count(self, case_key: tuple[str, int], *, url: str) -> int:
+        rec = self._cases.get(_case_key_str(case_key))
+        if rec is None:
+            return 0
+        entry = rec.text.get(url)
+        return (entry.get("retry_count") if entry else 0) or 0
 
     def _ensure_case(self, case_key: tuple[str, int]) -> CaseRecord:
         key = _case_key_str(case_key)
