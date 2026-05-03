@@ -114,7 +114,7 @@ def test_cli_probe_runs_once_and_prints_shard_name(tmp_path: Path) -> None:
     _write_state(tmp_path / "shard-a", [_record(100), _record(99)])
     _write_state(tmp_path / "shard-b", [_record(50)])
 
-    result = CliRunner().invoke(app, ["probe", "--out-root", str(tmp_path)])
+    result = CliRunner().invoke(app, ["debug", "probe", "--out-root", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
     assert "shard-a" in result.output
@@ -340,7 +340,7 @@ def test_cli_probe_renders_executar_mode_with_stages_header(tmp_path: Path) -> N
         },
     })
 
-    result = CliRunner().invoke(app, ["probe", "--out-root", str(tmp_path)])
+    result = CliRunner().invoke(app, ["debug", "probe", "--out-root", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
     assert "shard-a" in result.output
@@ -362,7 +362,7 @@ def test_cli_probe_errors_when_no_shards(tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
 
-    result = CliRunner().invoke(app, ["probe", "--out-root", str(empty)])
+    result = CliRunner().invoke(app, ["debug", "probe", "--out-root", str(empty)])
 
     assert result.exit_code != 0
     assert "no shard-*" in result.output

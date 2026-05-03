@@ -76,9 +76,10 @@ app = typer.Typer(
 # the CLI surface.
 debug_app = typer.Typer(
     add_completion=False,
-    help="Comandos legados da chain pré-pipeline (varrer/baixar/extrair/"
-         "coletar). Mantidos como utilitários; `judex executar` é o caminho "
-         "primário.",
+    help="Comandos auxiliares: chain legada pré-pipeline "
+         "(varrer/baixar/extrair/coletar) + utilitários de inspeção, "
+         "validação, comparação de provedores, backup e exportação. "
+         "`judex executar` é o caminho primário do dia-a-dia.",
     no_args_is_help=True,
 )
 app.add_typer(debug_app, name="debug")
@@ -120,7 +121,7 @@ def _find_marimo() -> list[str]:
     )
 
 
-@app.command(name="exportar")
+@debug_app.command(name="exportar")
 def exportar(
     diretorio_saida: Path = typer.Option(
         Path("exports/html"), "--diretorio-saida", "-o",
@@ -185,7 +186,7 @@ def exportar(
 # `fazer-backup` — empacota data/source/processos + data/raw/pecas + data/derived/pecas-texto em um único .zip
 
 
-@app.command(name="fazer-backup")
+@debug_app.command(name="fazer-backup")
 def fazer_backup(
     saida: Optional[Path] = typer.Option(
         None, "--saida", "-o",
@@ -1508,7 +1509,7 @@ def atualizar_warehouse(
 # `providers` — comparison table built from each OCR provider's SPEC
 
 
-@app.command(name="providers")
+@debug_app.command(name="providers")
 def providers_cmd(
     n_pdfs: int = typer.Option(
         1, "--pdfs",
@@ -1749,7 +1750,7 @@ def relatar(
 # `probe` — tabela rich de progresso shard-a-shard
 
 
-@app.command(name="probe")
+@debug_app.command(name="probe")
 def probe_cmd(
     out_root: Path = typer.Option(
         ..., "--out-root",
@@ -1780,7 +1781,7 @@ def probe_cmd(
 # `analisar-regimes` — análise post-hoc da trajetória do CliffDetector
 
 
-@app.command(name="analisar-regimes")
+@debug_app.command(name="analisar-regimes")
 def analisar_regimes(
     run_dir: Path = typer.Argument(
         ...,
@@ -1837,7 +1838,7 @@ def analisar_regimes(
 # `validar-gabarito` — diff contra as fixtures de gabarito
 
 
-@app.command(name="validar-gabarito")
+@debug_app.command(name="validar-gabarito")
 def validar_gabarito() -> None:
     """Diff da saída do raspador contra os gabaritos conferidos à mão.
 

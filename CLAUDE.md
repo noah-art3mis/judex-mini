@@ -102,25 +102,26 @@ installs the `judex` console entry; commands below also work as
 the matching `run_X(**kwargs)` library function in `judex/sweeps/`
 directly — detached invocation is `nohup uv run judex <command> …`.
 
-The legacy three-command chain (`varrer-processos`, `baixar-pecas`,
-`extrair-pecas`) and its `coletar` orchestrator live under the
-`judex debug` sub-app rather than at top level — they're kept as
-ad-hoc utilities (re-running just one stage of a finished Coleta,
-operator habit) but the canonical primary path is `judex executar`
-([ADR-0005](docs/adr/0005-unified-pipeline.md)).
+**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `limpar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — the legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator, plus inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop.
 
 | Command                       | Source                                | What it does                                                                                            |
 |-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. ADR-0005. |
+| `acompanhar`                  | (in-CLI)                              | Tail-with-auto-detection live monitor for monolithic + sharded runs.                                    |
+| `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
+| `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
+| `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
+| `relatorio-diario`            | (in-CLI)                              | Daily report of new STF distributions.                                                                  |
 | `debug varrer-processos`      | `judex/sweeps/run_sweep.py`           | Legacy: case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE`. |
 | `debug baixar-pecas`          | `judex/sweeps/baixar_pecas.py`        | Legacy: PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.       |
 | `debug extrair-pecas`         | `judex/sweeps/extrair_pecas.py`       | Legacy: PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract\|tesseract_fly\|tesseract_modal\|chandra_runpod}`.|
 | `debug coletar`               | `judex/sweeps/coletar.py`             | Legacy: ADR-0004 orchestrator wrapping the three legacy commands as a six-stage chain.                  |
-| `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `providers`                   | (in-CLI, `judex/scraping/ocr/dispatch.py`) | OCR provider comparison table at a given workload size — sorted by cost, sourced from each provider's `SPEC`. |
-| `exportar`                    | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
-| `fazer-backup`                | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
-| `validar-gabarito`            | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+| `debug probe`                 | (in-CLI)                              | Live-progress table for sharded runs (predates `executar`'s nested state).                              |
+| `debug analisar-regimes`      | (in-CLI)                              | Post-hoc regime trajectory reconstruction from a sweep log (cliff / SSL-EOF detection).                  |
+| `debug providers`             | (in-CLI, `judex/scraping/ocr/dispatch.py`) | OCR provider comparison table at a given workload size — sorted by cost, sourced from each provider's `SPEC`. |
+| `debug exportar`              | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
+| `debug fazer-backup`          | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. |
+| `debug validar-gabarito`      | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each
