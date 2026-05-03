@@ -53,33 +53,44 @@ primary_region = "gru"
 # Per-Machine resource shape. Memory floor derivation (200 dpi A4):
 #   steady-state (in-process tesserocr model):
 #     Python/uvicorn 180 + Pillow 80 + glibc/kernel 50 = 310 MB
-#     per-worker PyTessBaseAPI: 4 workers × 100 MB = 400 MB
-#                                          subtotal = 710 MB
+#     per-worker PyTessBaseAPI: 4 workers × ~187 MB = 748 MB
+#                                          subtotal ≈ 1058 MB
 #   per-chunk raster: 16 pages × 11 MB = 176 MB (capped by chunk size)
-#   peak working set: ~886 MB
-# 1 GB total = entirely included on shared-cpu-4x (no additional RAM
-# billed); ~138 MB headroom over peak (~14%). Tighter than the prior
-# 2x shape (~33% headroom) but still above the empirically-confirmed
-# safe floor for the corpus. Outliers > 1 MB compressed are skipped
-# pre-flight via tesseract_fly.OutlierPdfError, so the cluster never
-# sees PDFs that would exceed the chunked memory model.
+#   peak working set: ~1234 MB
+# 2 GB total = 1 GB included (shared-cpu-4x tier) + 1 GB additional
+# billed; ~814 MB headroom over peak (~40%). Comfortable.
 #
-# Why shared-cpu-4x @ 1gb (vs shared-cpu-2x @ 1gb): 4 vCPUs = 4
-# in-process page workers, doubling per-Machine throughput. The CPU
-# rate roughly doubles ($0.0087/hr → $0.0174/hr in gru), but the
-# included-RAM tier doubles too (512 MB → 1024 MB), so we no longer
-# pay the +0.5 GB additional-RAM line item. Net per-Machine bill:
-# ~$0.0143/hr (2x @ 1gb) → ~$0.0174/hr (4x @ 1gb), only 22% more
-# expensive for ~2× throughput. $/page-slot drops ~39% — the cluster
-# needed for a fixed throughput target shrinks to ~half the count.
+# Per-worker tesserocr cost was empirically re-anchored on 2026-05-03
+# after a 1 GB shape OOM-killed uvicorn at anon-rss=861 MB on a
+# 123-page PDF. Back-derived: 861 MB - 310 baseline - 176 raster ≈
+# 374 MB for 2 workers ≈ 187 MB per worker (vs the 100 MB I projected
+# from the static `por.traineddata` size). The delta is the working
+# memory libtesseract holds during active recognition — line/word
+# bounding-box pyramids, confidence accumulators, recogniser state —
+# which scales with image complexity, not just model size.
+#
+# Why shared-cpu-4x @ 2gb (vs shared-cpu-2x @ 1.5gb live-fix): 4
+# workers gives 2× the per-Machine throughput at $0.0347/hr (vs
+# $0.026/hr for 2x @ 1.5gb). Per-page-slot cost: $0.00868 (4x @ 2gb)
+# vs $0.013 (2x @ 1.5gb) — **33% cheaper per slot** while keeping
+# 40% memory headroom. Per-Machine bill is higher (1 GB additional
+# RAM line item); the cost-shape advantage now lives in slot count,
+# not in dodging the additional-RAM line.
 #
 # Shape evolution on this app:
 #   shared-cpu-2x @ 4gb (orig) — upfront-rasterize design needed
 #                                ~2.3 GB for the 295-page outlier.
 #   shared-cpu-2x @ 2gb        — chunked rasterize at chunk=32.
-#   shared-cpu-2x @ 1gb        — chunk=16 + outlier-skip + tesserocr.
-#   shared-cpu-4x @ 1gb (now)  — exploit the included-RAM tier; double
-#                                workers without paying for more RAM.
+#   shared-cpu-2x @ 1gb        — chunk=16 + outlier-skip + pytesseract.
+#   shared-cpu-2x @ 1gb (post-tesserocr) — OOMed at 861 MB on 123-page
+#                                          PDF; 1 GB too tight after
+#                                          tesserocr's resident model
+#                                          replaced transient subprocesses.
+#   shared-cpu-4x @ 1gb (DOA)  — never deployed; static memory math
+#                                projected ~886 MB peak but empirical
+#                                re-anchor showed 4 workers needs >1.2 GB.
+#   shared-cpu-4x @ 2gb (now)  — exploit 4-worker throughput with
+#                                empirically-safe headroom.
 [[vm]]
   size = "shared-cpu-4x"
-  memory = "1gb"
+  memory = "2gb"

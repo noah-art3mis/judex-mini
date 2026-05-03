@@ -180,6 +180,69 @@ parallelism whenever the page pool is saturated, which it almost
 always is given chunk_size=16. But worth one A/B run if 8x
 becomes a serious candidate.
 
+### Correction 2026-05-03 — empirical OOM invalidates the 1 GB shape
+
+**What happened.** A separate session deployed the post-tesserocr
+image at `shared-cpu-2x @ 1gb` and ran a 123-page PDF through it.
+Kernel OOM-killed uvicorn at `anon-rss=861 MB` on a 1024 MB Machine
+(per `flyctl logs`):
+
+```
+[ 250.736913] Out of memory: Killed process 644 (uvicorn) anon-rss:861508kB
+```
+
+**Memory model re-anchor.** My static estimate was 100 MB per
+tesserocr worker (back-of-envelope from the size of
+`por.traineddata`). Empirical back-derivation from the 861 MB
+peak: 861 - 310 baseline - 176 raster ≈ 374 MB / 2 workers ≈
+**~187 MB per worker** — almost 2× my estimate. The delta is
+libtesseract's working memory during active recognition (line/
+word bounding-box pyramids, confidence accumulators, recogniser
+state), which scales with image complexity, not just static model
+size. The original 100 MB number was the *resident model size*,
+not the *peak working-set*.
+
+**Re-derived shape table (gru rates, with empirical 187 MB/worker).**
+
+| Shape               | Peak  | Headroom | $/hr (gru) | Workers | $/slot/hr  |
+|---------------------|-------|----------|------------|---------|------------|
+| 2x @ 1gb (DOA)      | 860 MB| -        | $0.0143    | 2       | OOMs       |
+| 2x @ 1.5gb (live-fix)| 860 MB| 44%     | $0.026     | 2       | $0.013     |
+| 2x @ 2gb (validated)| 860 MB| 58%      | $0.0312    | 2       | $0.0156    |
+| **4x @ 2gb (revised)**| 1234 MB| 40%   | $0.0347    | 4       | **$0.00868** ← cheapest safe |
+| 4x @ 1.5gb          | 1234 MB| 20%     | $0.0261    | 4       | $0.00652 (tight) |
+| 8x @ 3gb            | 1982 MB| 35%     | $0.0522    | 8       | $0.00653   |
+
+**Landed shape revision.** `[[vm]] memory: "1gb" → "2gb"`. The
+4x sweet-spot concept holds — 4 workers at $0.00868/slot/hr is
+still 33% cheaper per slot than 2x @ 1.5gb at $0.013/slot/hr.
+What changed: the cost advantage now lives in *slot count*, not
+in *dodging the additional-RAM line item* (4x @ 2gb DOES pay
+$0.0173/hr for the 1 GB above the included tier).
+
+**Live cluster fix (separate from this commit).** The deployed
+`shared-cpu-2x @ 1gb` cluster needs a runtime memory bump or it
+will keep OOM-looping on multi-page PDFs. Two options on the table:
+- `flyctl scale memory 1536 -a judex-ocr-tesseract-arcos` — 2x @
+  1.5gb, 44% headroom, $0.026/hr, instant
+- `flyctl scale memory 2048 -a judex-ocr-tesseract-arcos` — 2x @
+  2gb, validated regime, $0.0312/hr, instant
+
+Either gets the live cluster operational while a deploy of the
+new 4x @ 2gb image is built. Recommended sequencing: (a) live-fix
+to 1.5gb or 2gb to unblock production, (b) `flyctl deploy` the
+revised commit, (c) run smoke test on 4x @ 2gb cluster, (d) if
+clean, lock 4x @ 2gb in as the default and remove the live-fix
+override.
+
+**Lesson recorded.** The original recommendation explicitly said
+"deploy current state first, measure peak RSS, THEN decide if we
+can go to 768 MB." That advice was abandoned in the 4x @ 1gb
+commit, which projected memory from a static model without
+measurement. The OOM is the receipt. Going forward: any RAM
+shape change goes through one measured sweep on the validated
+shape before commit.
+
 ## Active task — HC year-ladder backfill via 3-stage chain
 
 **Why.** Iterate `varrer-processos → baixar-pecas → extrair-pecas`
