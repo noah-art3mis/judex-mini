@@ -560,9 +560,11 @@ async def _periodic_progress(
         log.info(
             render_pipeline_progress_line(
                 n_targets=n_targets,
-                meta=agg["meta"],
-                bytes_st=agg["bytes"],
-                text_st=agg["text"],
+                processos=agg["processos"],
+                pecas=agg["pecas"],
+                text=agg["text"],
+                pecas_total=agg["pecas_total"],
+                text_total=agg["text_total"],
                 rate_per_sec=cases_rate,
                 eta_min=eta_min,
                 eta_basis="OCR" if eta_min is not None else None,

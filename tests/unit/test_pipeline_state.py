@@ -89,9 +89,73 @@ def test_aggregate_status_counts_walks_in_memory_state(tmp_path: Path) -> None:
 
     agg = state.aggregate_status_counts()
 
-    assert dict(agg["meta"]) == {"ok": 1, "unallocated_pid": 1}
-    assert dict(agg["bytes"]) == {"ok": 1, "empty": 1}
+    assert dict(agg["processos"]) == {"ok": 1, "unallocated_pid": 1}
+    assert dict(agg["pecas"]) == {"ok": 1, "empty": 1}
     assert dict(agg["text"]) == {"ok": 1, "provider_error": 1}
+
+
+def test_aggregate_status_counts_returns_pecas_total_when_all_records_have_n_pecas(
+    tmp_path: Path,
+) -> None:
+    """``pecas_total`` answers the operator's question 'how many peca
+    fetches are we expected to do?' — the denominator the aggregate
+    progress line needs to render a meaningful percentage post-meta-
+    completion. Sums ``n_pecas`` across all meta=ok records (only ok
+    cases emit pecas successors)."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    state.record_meta(("HC", 1), status="ok", n_pecas=3)
+    state.record_meta(("HC", 2), status="ok", n_pecas=5)
+    # unallocated_pid records emit zero successors; their n_pecas is
+    # naturally None / irrelevant, must NOT poison the total.
+    state.record_meta(("HC", 3), status="unallocated_pid")
+
+    agg = state.aggregate_status_counts()
+
+    assert agg["pecas_total"] == 8
+
+
+def test_aggregate_status_counts_returns_none_pecas_total_for_legacy_state(
+    tmp_path: Path,
+) -> None:
+    """Legacy state files (written before n_pecas existed) have
+    meta=ok records without the field. The aggregator returns None
+    rather than an undercount — the renderer then drops the pecas
+    ratio rather than show a wrong number. Surfaces only on resume
+    of an in-progress run that started under old code."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    state.record_meta(("HC", 1), status="ok", n_pecas=3)
+    # Simulate a legacy record by hand-writing into _cases without
+    # n_pecas.
+    state._ensure_case(("HC", 2)).meta = {
+        "status": "ok", "ts": "2026-05-03T00:00:00Z",
+        "error": None, "retry_count": 0,
+        # n_pecas missing
+    }
+
+    agg = state.aggregate_status_counts()
+
+    assert agg["pecas_total"] is None
+
+
+def test_aggregate_status_counts_text_total_equals_pecas_ok(tmp_path: Path) -> None:
+    """text_total = pecas["ok"] at any moment, since every successful
+    pecas download emits exactly one extract_text successor. Checked
+    explicitly here so the renderer can rely on the invariant."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    state.record_meta(("HC", 1), status="ok", n_pecas=3)
+    state.record_bytes(("HC", 1), url="u1", status="ok")
+    state.record_bytes(("HC", 1), url="u2", status="ok")
+    state.record_bytes(("HC", 1), url="u3", status="empty")
+    # Two text tasks have run so far; one is still queued.
+    state.record_text(("HC", 1), url="u1", status="ok", extractor="pypdf", chars=500)
+
+    agg = state.aggregate_status_counts()
+
+    assert agg["text_total"] == 2  # pecas["ok"]
+    assert sum(agg["text"].values()) == 1  # one text outcome recorded
 
 
 def test_round_trip(tmp_path: Path) -> None:

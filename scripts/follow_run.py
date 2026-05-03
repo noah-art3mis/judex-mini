@@ -106,20 +106,40 @@ def _count_total_targets(run_dir: Path) -> int:
     return total
 
 
-def aggregate_state(run_dir: Path) -> dict[str, Counter]:
-    """Roll up per-stage status counts across every shard's state file.
+def aggregate_state(run_dir: Path) -> dict[str, object]:
+    """Roll up per-stage status counts + totals across every shard's
+    state file.
 
     Returns ``{}`` (not a dict-of-empty-counters) when no state files
-    exist yet — used by the aggregator thread to skip emitting an
+    exist yet — the aggregator thread uses this to skip emitting an
     "all zeros" line during the first few seconds after launch.
+
+    Otherwise returns the same shape as
+    :meth:`judex.pipeline.state.PipelineState.aggregate_status_counts`::
+
+        {
+            "processos": Counter,
+            "pecas":     Counter,
+            "text":      Counter,
+            "pecas_total": Optional[int],   # sum of n_pecas across
+                                              # processos=ok records
+            "text_total":  int,             # = pecas["ok"]
+        }
+
+    ``pecas_total`` is None when ANY meta=ok record on ANY shard lacks
+    the ``n_pecas`` field — the renderer then drops the pecas ratio
+    rather than show a wrong number. (Legacy state files written
+    before n_pecas existed will have this property; new runs will
+    always populate it.)
     """
     state_files = sorted(run_dir.glob("shard-*/executar.state.json"))
     if not state_files:
         return {}
 
-    meta: Counter = Counter()
-    bytes_st: Counter = Counter()
-    text_st: Counter = Counter()
+    processos: Counter = Counter()
+    pecas: Counter = Counter()
+    text: Counter = Counter()
+    pecas_total: Optional[int] = 0
     for sf in state_files:
         try:
             d = json.loads(sf.read_text())
@@ -128,22 +148,35 @@ def aggregate_state(run_dir: Path) -> dict[str, Counter]:
         for case in d.get("cases", {}).values():
             if not isinstance(case, dict):
                 continue
-            m_status = (case.get("fetch_meta") or {}).get("status")
+            meta = case.get("fetch_meta") or {}
+            m_status = meta.get("status")
             if m_status:
-                meta[m_status] += 1
+                processos[m_status] += 1
+            if m_status == "ok":
+                n = meta.get("n_pecas")
+                if n is None:
+                    pecas_total = None
+                elif pecas_total is not None:
+                    pecas_total += n
             for v in (case.get("fetch_bytes") or {}).values():
                 s = (v or {}).get("status")
                 if s:
-                    bytes_st[s] += 1
+                    pecas[s] += 1
             for v in (case.get("extract_text") or {}).values():
                 s = (v or {}).get("status")
                 if s:
-                    text_st[s] += 1
-    return {"meta": meta, "bytes": bytes_st, "text": text_st}
+                    text[s] += 1
+    return {
+        "processos": processos,
+        "pecas": pecas,
+        "text": text,
+        "pecas_total": pecas_total,
+        "text_total": pecas.get("ok", 0),
+    }
 
 
 def format_aggregate_line(
-    agg: dict[str, Counter],
+    agg: dict[str, object],
     n_targets: int,
     *,
     now: Optional[datetime] = None,
@@ -153,23 +186,25 @@ def format_aggregate_line(
     Delegates to :func:`judex.utils.log_render.render_pipeline_progress_line`
     so mono and sharded share one source of truth for the progress
     line shape — same status ordering, same zero-suppression rules,
-    same percentage discipline (only ``meta`` shows one). The shard
-    aggregate adds the ``[HH:MM:SS agg]`` prefix so the operator can
-    tell it apart from per-shard data lines at a glance, and omits
-    the rate / ETA suffix because those are scheduler-runtime numbers
-    that an out-of-process tail would have to fabricate.
+    same denominator discipline. The shard aggregate adds the
+    ``[HH:MM:SS agg]`` prefix so the operator can tell it apart from
+    per-shard data lines at a glance, and omits the rate / ETA suffix
+    because those are scheduler-runtime numbers that an out-of-process
+    tail can't fabricate without instrumentation.
     """
     from judex.utils.log_render import render_pipeline_progress_line
 
-    meta = agg.get("meta") or Counter()
-    bytes_st = agg.get("bytes") or Counter()
-    text_st = agg.get("text") or Counter()
+    processos = agg.get("processos") or Counter()
+    pecas = agg.get("pecas") or Counter()
+    text = agg.get("text") or Counter()
     ts = (now or datetime.now()).strftime("%H:%M:%S")
     return render_pipeline_progress_line(
         n_targets=n_targets,
-        meta=meta,
-        bytes_st=bytes_st,
-        text_st=text_st,
+        processos=processos,  # type: ignore[arg-type]
+        pecas=pecas,          # type: ignore[arg-type]
+        text=text,            # type: ignore[arg-type]
+        pecas_total=agg.get("pecas_total"),  # type: ignore[arg-type]
+        text_total=agg.get("text_total"),    # type: ignore[arg-type]
         prefix=f"[{ts} agg]",
         use_color=False,
     )

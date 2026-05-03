@@ -51,11 +51,11 @@ class ShardStat:
     """Per-shard snapshot — what probe() computes, what render() displays.
 
     ``statuses`` / ``regimes`` populate for varrer (CliffDetector ladder)
-    and baixar (status mix). ``meta_counts`` / ``bytes_counts`` /
+    and baixar (status mix). ``processos_counts`` / ``pecas_counts`` /
     ``text_counts`` populate for executar (the unified pipeline's three
     stages have distinct status mixes; collapsing them into one Counter
-    would lose the ``meta=unallocated_pid`` vs ``text=provider_error``
-    distinction the operator most needs).
+    would lose the ``processos=unallocated_pid`` vs
+    ``text=provider_error`` distinction the operator most needs).
     """
     name: str
     records: int
@@ -63,8 +63,8 @@ class ShardStat:
     mode: SweepMode = "varrer"
     statuses: Counter = field(default_factory=Counter)
     regimes: Counter = field(default_factory=Counter)
-    meta_counts: Counter = field(default_factory=Counter)
-    bytes_counts: Counter = field(default_factory=Counter)
+    processos_counts: Counter = field(default_factory=Counter)
+    pecas_counts: Counter = field(default_factory=Counter)
     text_counts: Counter = field(default_factory=Counter)
     min_processo: Optional[int] = None
     earliest_ts: Optional[datetime] = None
@@ -271,8 +271,8 @@ def _probe_executar(
     carry ``processo`` on each entry.
     """
     cases = data.get("cases") or {}
-    meta_counts: Counter = Counter()
-    bytes_counts: Counter = Counter()
+    processos_counts: Counter = Counter()
+    pecas_counts: Counter = Counter()
     text_counts: Counter = Counter()
     min_pid: Optional[int] = None
     earliest: Optional[datetime] = None
@@ -305,14 +305,14 @@ def _probe_executar(
         if isinstance(meta, dict):
             s = meta.get("status")
             if s:
-                meta_counts[s] += 1
+                processos_counts[s] += 1
             _track_ts(meta.get("ts"))
         for entry in (case.get("fetch_bytes") or {}).values():
             if not isinstance(entry, dict):
                 continue
             s = entry.get("status")
             if s:
-                bytes_counts[s] += 1
+                pecas_counts[s] += 1
             _track_ts(entry.get("ts"))
         for entry in (case.get("extract_text") or {}).values():
             if not isinstance(entry, dict):
@@ -327,8 +327,8 @@ def _probe_executar(
         records=len(cases),
         target=target,
         mode="executar",
-        meta_counts=meta_counts,
-        bytes_counts=bytes_counts,
+        processos_counts=processos_counts,
+        pecas_counts=pecas_counts,
         text_counts=text_counts,
         min_processo=min_pid,
         earliest_ts=earliest,
@@ -387,24 +387,26 @@ def _fmt_executar_stages(st: ShardStat) -> Text:
 
     Layout::
 
-        meta: ok=440 unalloc=60
-        bytes: ok=1450 empty=50
-        text: ok=600 cached=489 prov-err=11
+        processos: ok=440 unalloc=60
+            pecas: ok=1450 empty=50
+             text: ok=600 cached=489 prov-err=11
 
     Newline-separated so each stage gets its own line. Stages with
     zero counts collapse to ``—`` so we don't waste a row on a stage
-    that hasn't started yet (typical at first-write — meta has rows,
-    bytes/text have nothing).
+    that hasn't started yet (typical at first-write — processos has
+    rows, pecas/text have nothing). Labels are right-aligned to the
+    width of the longest stage name (``processos``) so the colons line
+    up vertically.
     """
     parts = []
     for label, counts in (
-        ("meta",  st.meta_counts),
-        ("bytes", st.bytes_counts),
-        ("text",  st.text_counts),
+        ("processos", st.processos_counts),
+        ("pecas",     st.pecas_counts),
+        ("text",      st.text_counts),
     ):
         body = _fmt_meta(counts, EXECUTAR_STATUS_META) if counts else Text("—", style="dim")
         line = Text()
-        line.append(f"{label:>5}: ", style="dim")
+        line.append(f"{label:>9}: ", style="dim")
         line.append_text(body)
         parts.append(line)
     out = Text()
@@ -450,8 +452,8 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
     grand_target = 0
     all_statuses: Counter = Counter()
     all_regimes: Counter = Counter()
-    all_meta: Counter = Counter()
-    all_bytes: Counter = Counter()
+    all_processos: Counter = Counter()
+    all_pecas: Counter = Counter()
     all_text: Counter = Counter()
     cluster_earliest: Optional[datetime] = None
     cluster_latest: Optional[datetime] = None
@@ -462,8 +464,8 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
             grand_target += st.target
         all_statuses.update(st.statuses)
         all_regimes.update(st.regimes)
-        all_meta.update(st.meta_counts)
-        all_bytes.update(st.bytes_counts)
+        all_processos.update(st.processos_counts)
+        all_pecas.update(st.pecas_counts)
         all_text.update(st.text_counts)
         if st.earliest_ts:
             cluster_earliest = st.earliest_ts if cluster_earliest is None else min(cluster_earliest, st.earliest_ts)
@@ -514,7 +516,9 @@ def render(stats: list[ShardStat], out_root: Path) -> Table:
         cluster_st = ShardStat(
             name="TOTAL", records=grand_records, target=grand_target,
             mode="executar",
-            meta_counts=all_meta, bytes_counts=all_bytes, text_counts=all_text,
+            processos_counts=all_processos,
+            pecas_counts=all_pecas,
+            text_counts=all_text,
         )
         cluster_summary = _fmt_executar_stages(cluster_st)
     else:

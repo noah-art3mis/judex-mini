@@ -256,10 +256,10 @@ def test_probe_shard_detects_executar_mode_and_walks_nested_cases(
 
     assert st.mode == "executar"
     assert st.records == 2  # case count, not field count
-    assert st.meta_counts["ok"] == 1
-    assert st.meta_counts["unallocated_pid"] == 1
-    assert st.bytes_counts["ok"] == 1
-    assert st.bytes_counts["empty"] == 1
+    assert st.processos_counts["ok"] == 1
+    assert st.processos_counts["unallocated_pid"] == 1
+    assert st.pecas_counts["ok"] == 1
+    assert st.pecas_counts["empty"] == 1
     assert st.text_counts["ok"] == 1
     assert st.text_counts["provider_error"] == 1
 
@@ -345,9 +345,10 @@ def test_cli_probe_renders_executar_mode_with_stages_header(tmp_path: Path) -> N
     assert result.exit_code == 0, result.output
     assert "shard-a" in result.output
     assert "shard-b" in result.output
-    # Per-stage labels in the cell.
-    assert "meta" in result.output
-    assert "bytes" in result.output
+    # Per-stage labels in the cell — domain-language nouns matching
+    # `varrer-processos` / `baixar-pecas` / `extrair-pecas`.
+    assert "processos" in result.output
+    assert "pecas" in result.output
     assert "text" in result.output
     # The error count must surface — that's the operator's main signal.
     assert "prov-err" in result.output

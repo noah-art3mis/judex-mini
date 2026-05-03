@@ -134,35 +134,77 @@ class PipelineState:
     def case_count(self) -> int:
         return len(self._cases)
 
-    def aggregate_status_counts(self) -> dict[str, Counter]:
-        """Roll up per-stage status counts across every case.
+    def aggregate_status_counts(self) -> dict[str, object]:
+        """Roll up per-stage status counts + totals across every case.
 
-        Returns ``{"meta": Counter, "bytes": Counter, "text": Counter}``
-        — same shape as the sharded ``aggregate_state`` helper. Used by
-        the mono ``_periodic_progress`` to render the multi-stage
-        progress line; both topologies feed
+        Returns::
+
+            {
+                "processos": Counter,   # case-meta-stage status mix
+                "pecas":     Counter,   # peca-bytes-stage status mix
+                "text":      Counter,   # text-extract-stage status mix
+                "pecas_total": Optional[int],  # sum of n_pecas across
+                                                # processos records, or
+                                                # None if any record
+                                                # lacks the field
+                "text_total": int,             # = pecas["ok"] (every
+                                                # successful pecas fetch
+                                                # emits exactly one text
+                                                # successor)
+            }
+
+        Same shape as the sharded ``aggregate_state`` helper. Both
+        topologies feed
         :func:`judex.utils.log_render.render_pipeline_progress_line`
-        from the same Counter shape so the on-screen format is identical
-        (sharded carries an ``[HH:MM:SS agg]`` prefix; mono adds rate +
-        ETA suffix).
+        from this dict so the on-screen format is identical (sharded
+        carries an ``[HH:MM:SS agg]`` prefix; mono adds rate + ETA
+        suffix).
+
+        ``pecas_total`` is the cluster-wide denominator the operator
+        needs to read "how much pecas-fetch work is left". Computed from
+        the ``n_pecas`` field stamped onto each meta record at fan-out
+        time (see :meth:`record_meta`). Returns None when any meta=ok
+        record lacks the field — the renderer falls back to count-only
+        rather than show a misleading ratio that's missing some cases.
+
+        ``text_total`` is exact at any moment: every pecas-ok terminal
+        outcome emits exactly one extract_text successor, so the
+        running pecas["ok"] is always the running text_total. After
+        pecas finishes, this value is locked.
         """
-        meta: Counter = Counter()
-        bytes_st: Counter = Counter()
-        text_st: Counter = Counter()
+        processos: Counter = Counter()
+        pecas: Counter = Counter()
+        text: Counter = Counter()
+        pecas_total: Optional[int] = 0
         for rec in self._cases.values():
             if rec.meta is not None:
                 s = rec.meta.get("status")
                 if s:
-                    meta[s] += 1
+                    processos[s] += 1
+                # pecas_total only makes sense on meta=ok cases (the
+                # only ones that emit pecas successors). Any ok record
+                # missing n_pecas means we can't report a total.
+                if s == "ok":
+                    n = rec.meta.get("n_pecas")
+                    if n is None:
+                        pecas_total = None
+                    elif pecas_total is not None:
+                        pecas_total += n
             for entry in rec.bytes.values():
                 s = (entry or {}).get("status")
                 if s:
-                    bytes_st[s] += 1
+                    pecas[s] += 1
             for entry in rec.text.values():
                 s = (entry or {}).get("status")
                 if s:
-                    text_st[s] += 1
-        return {"meta": meta, "bytes": bytes_st, "text": text_st}
+                    text[s] += 1
+        return {
+            "processos": processos,
+            "pecas": pecas,
+            "text": text,
+            "pecas_total": pecas_total,
+            "text_total": pecas.get("ok", 0),
+        }
 
     def meta_status(self, case_key: tuple[str, int]) -> Optional[TaskStatus]:
         rec = self._cases.get(_case_key_str(case_key))
@@ -233,6 +275,7 @@ class PipelineState:
         *,
         status: TaskStatus,
         error: Optional[str] = None,
+        n_pecas: Optional[int] = None,
     ) -> None:
         rec = self._ensure_case(case_key)
         prior = rec.meta or {}
@@ -242,11 +285,19 @@ class PipelineState:
         # post-handler is "number of failed attempts so far". Gated
         # against ``RETRY_CAP`` in ``scheduler._is_retryable_status``.
         retry_count = (prior.get("retry_count") or 0) + (1 if rec.meta is not None else 0)
+        # ``n_pecas`` is the count of fetch_pecas successor tasks the
+        # meta handler emitted for this case. Persisted so the live
+        # progress aggregator can compute the cluster-wide pecas total
+        # without runtime introspection. None on non-ok meta outcomes
+        # (where the handler emits zero successors anyway), and on
+        # legacy state files written before the field was added — the
+        # aggregator treats absent as "unknown total".
         rec.meta = {
             "status": status,
             "ts": _now_iso(),
             "error": error,
             "retry_count": retry_count,
+            "n_pecas": n_pecas,
         }
 
     def record_bytes(

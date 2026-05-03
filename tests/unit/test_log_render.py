@@ -199,19 +199,51 @@ def test_progress_line_proc_s_label_for_varrer():
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_progress_meta_pct_only_bytes_text_no_pct():
-    """Meta has a static denominator (n_targets, known up front); bytes
-    and text denominators grow with meta, so a percentage there would
-    lie until meta is fully done. Only meta carries `(X.X%)`."""
+def test_pipeline_progress_processos_pct_only_when_no_totals_supplied():
+    """Without pecas_total / text_total, only processos carries the
+    `(X.X%)` ratio — its denominator (n_targets) is always known up
+    front; pecas/text fall back to absolute counts so we don't show
+    a wrong ratio for legacy state files."""
     line = render_pipeline_progress_line(
         n_targets=1000,
-        meta=Counter({"ok": 500}),
-        bytes_st=Counter({"ok": 1500}),
-        text_st=Counter({"ok": 600}),
+        processos=Counter({"ok": 500}),
+        pecas=Counter({"ok": 1500}),
+        text=Counter({"ok": 600}),
         use_color=False,
     )
     assert "(50.0%)" in line
     assert line.count("%") == 1
+
+
+def test_pipeline_progress_pecas_total_renders_ratio():
+    """Once `pecas_total` is known (post-meta-completion in new runs),
+    pecas shows `pecas 1500/2300 (65.2%) ok=...` — the operator's
+    answer to 'how many peca downloads are left'."""
+    line = render_pipeline_progress_line(
+        n_targets=1000,
+        processos=Counter({"ok": 1000}),
+        pecas=Counter({"ok": 1450, "empty": 50}),
+        text=Counter({"ok": 600}),
+        pecas_total=2300,
+        use_color=False,
+    )
+    assert "pecas 1500/2300 (65.2%)" in line
+
+
+def test_pipeline_progress_text_total_renders_ratio():
+    """text_total = pecas["ok"] is always knowable from the live state
+    (no n_pecas needed). Renderer surfaces it whenever the caller
+    supplies the value, so even on legacy runs the operator gets
+    a text ratio (which is the slowest stage and the real ETA driver)."""
+    line = render_pipeline_progress_line(
+        n_targets=1000,
+        processos=Counter({"ok": 1000}),
+        pecas=Counter({"ok": 2300, "empty": 50}),
+        text=Counter({"ok": 1500, "skipped_cached": 600}),
+        text_total=2300,
+        use_color=False,
+    )
+    assert "text 2100/2300 (91.3%)" in line
 
 
 def test_pipeline_progress_renders_all_status_keys():
@@ -219,9 +251,9 @@ def test_pipeline_progress_renders_all_status_keys():
     can't get folded into a `fail` bucket or hidden by zero suppression."""
     line = render_pipeline_progress_line(
         n_targets=571,
-        meta=Counter({"ok": 500, "unallocated_pid": 70}),
-        bytes_st=Counter({"ok": 1500, "empty": 50}),
-        text_st=Counter({"ok": 600, "skipped_cached": 489, "provider_error": 11}),
+        processos=Counter({"ok": 500, "unallocated_pid": 70}),
+        pecas=Counter({"ok": 1500, "empty": 50}),
+        text=Counter({"ok": 600, "skipped_cached": 489, "provider_error": 11}),
         use_color=False,
     )
     assert "ok=500" in line
@@ -237,9 +269,9 @@ def test_pipeline_progress_orders_failures_after_successes():
     position."""
     line = render_pipeline_progress_line(
         n_targets=0,
-        meta=Counter(),
-        bytes_st=Counter(),
-        text_st=Counter({"provider_error": 5, "ok": 100}),
+        processos=Counter(),
+        pecas=Counter(),
+        text=Counter({"provider_error": 5, "ok": 100}),
         use_color=False,
     )
     assert line.index("ok=100") < line.index("provider_error=5")
@@ -247,13 +279,13 @@ def test_pipeline_progress_orders_failures_after_successes():
 
 def test_pipeline_progress_eta_has_basis_label():
     """`eta(OCR) 4.2 min` so the operator knows the ETA is OCR-driven,
-    not meta-driven (meta finishes first; quoting its rate would zero
-    out the ETA prematurely)."""
+    not meta-driven (processos finishes first; quoting its rate would
+    zero out the ETA prematurely)."""
     line = render_pipeline_progress_line(
         n_targets=100,
-        meta=Counter({"ok": 100}),
-        bytes_st=Counter({"ok": 250}),
-        text_st=Counter({"ok": 50}),
+        processos=Counter({"ok": 100}),
+        pecas=Counter({"ok": 250}),
+        text=Counter({"ok": 50}),
         rate_per_sec=0.55,
         eta_min=4.2,
         eta_basis="OCR",
@@ -265,15 +297,16 @@ def test_pipeline_progress_eta_has_basis_label():
 
 def test_pipeline_progress_handles_zero_targets_with_question_mark():
     """Pre-launch / pre-CSV-resolution edge: render without crashing,
-    show `?` for the unknown denominator and omit the percentage."""
+    show `?` for the unknown processos denominator and omit the
+    percentage."""
     line = render_pipeline_progress_line(
         n_targets=0,
-        meta=Counter(),
-        bytes_st=Counter(),
-        text_st=Counter(),
+        processos=Counter(),
+        pecas=Counter(),
+        text=Counter(),
         use_color=False,
     )
-    assert "meta 0/?" in line
+    assert "processos 0/?" in line
     assert "%" not in line
 
 
@@ -283,12 +316,12 @@ def test_pipeline_progress_prefix_renders_inline_with_space():
     with a space, not the stage `·` separator."""
     line = render_pipeline_progress_line(
         n_targets=100,
-        meta=Counter({"ok": 50}),
-        bytes_st=Counter(),
-        text_st=Counter(),
+        processos=Counter({"ok": 50}),
+        pecas=Counter(),
+        text=Counter(),
         prefix="[12:00:00 agg]",
         use_color=False,
     )
-    assert "[12:00:00 agg] meta" in line
-    # Sanity: NOT joined as `[12:00:00 agg] · meta`.
-    assert "[12:00:00 agg] · meta" not in line
+    assert "[12:00:00 agg] processos" in line
+    # Sanity: NOT joined as `[12:00:00 agg] · processos`.
+    assert "[12:00:00 agg] · processos" not in line

@@ -217,12 +217,38 @@ def _fmt_stage_counts(c: Mapping[str, int]) -> str:
     return " ".join(f"{k}={v}" for k, v in items)
 
 
+def _fmt_stage_block(
+    label: str,
+    counts: Mapping[str, int],
+    *,
+    total: Optional[int] = None,
+) -> str:
+    """Render one stage as ``label N[/total (pct%)] mix``.
+
+    ``total`` is the optional cluster-wide denominator: when provided
+    AND non-zero, renders the ``/total (pct%)`` ratio so the operator
+    sees how much of the stage is left. When None or 0, renders absolute
+    count only — the stage's true total is unknown (legacy state file,
+    or upstream stage still emitting successors).
+    """
+    done = sum(counts.values())
+    mix = _fmt_stage_counts(counts)
+    if total:
+        pct = 100.0 * done / total
+        head = f"{label} {done}/{total} ({pct:.1f}%)"
+    else:
+        head = f"{label} {done}"
+    return head + (f" {mix}" if mix else "")
+
+
 def render_pipeline_progress_line(
     *,
     n_targets: int,
-    meta: Mapping[str, int],
-    bytes_st: Mapping[str, int],
-    text_st: Mapping[str, int],
+    processos: Mapping[str, int],
+    pecas: Mapping[str, int],
+    text: Mapping[str, int],
+    pecas_total: Optional[int] = None,
+    text_total: Optional[int] = None,
     prefix: Optional[str] = None,
     rate_per_sec: Optional[float] = None,
     eta_min: Optional[float] = None,
@@ -233,17 +259,25 @@ def render_pipeline_progress_line(
 
     Layout (with all optionals)::
 
-        ─── [12:00:00 agg] meta 500/9137 (5.5%) ok=440 unallocated_pid=60 ·
-            bytes 1500 ok=1450 empty=50 ·
-            text 1100 ok=600 skipped_cached=489 provider_error=11 ·
+        ─── [12:00:00 agg] processos 500/9137 (5.5%) ok=440 unallocated_pid=60 ·
+            pecas 1500/2300 (65.2%) ok=1450 empty=50 ·
+            text 1100/1450 (75.9%) ok=600 skipped_cached=489 provider_error=11 ·
             0.55 cases/s · eta(OCR) 4.2 min ───
 
-    Differs from :func:`render_progress_line` in that no single
-    ``n/total`` summary fits a three-stage pipeline (1 case → many
-    PDFs → many texts; cardinalities diverge). Only meta has a static
-    denominator (``n_targets``), so only meta carries a percentage —
-    bytes/text show absolute counts to avoid implying a forecast that
-    doesn't exist until meta finishes.
+    Three stages, three nouns: ``processos`` (case-meta scrape),
+    ``pecas`` (peca PDF download), ``text`` (text extraction). Each
+    stage's denominator is rendered when knowable:
+
+    * ``processos`` — denominator is ``n_targets`` (CSV row count, known
+      up front).
+    * ``pecas`` — denominator is ``pecas_total``: sum of ``n_pecas``
+      stamped on each meta=ok record at fan-out time. Becomes known the
+      moment meta finishes; None on legacy state files (the renderer
+      falls back to count-only rather than show a wrong number).
+    * ``text`` — denominator is ``text_total``: equals ``pecas["ok"]`` at
+      any moment, since every successful pecas download emits exactly
+      one extract_text successor. Always knowable (grows during pecas;
+      locks once pecas is done).
 
     All status counts render unconditionally (no zero suppression):
     a ``provider_error=0 → 1`` transition would otherwise materialise
@@ -256,20 +290,22 @@ def render_pipeline_progress_line(
     """
     color_mode = use_color if use_color is not None else should_use_color()
 
-    meta_done = sum(meta.values())
-    pct = (100.0 * meta_done / n_targets) if n_targets else 0.0
-    denom = str(n_targets) if n_targets else "?"
-    pct_str = f" ({pct:.1f}%)" if n_targets else ""
-
-    meta_mix = _fmt_stage_counts(meta)
-    bytes_done = sum(bytes_st.values())
-    bytes_mix = _fmt_stage_counts(bytes_st)
-    text_done = sum(text_st.values())
-    text_mix = _fmt_stage_counts(text_st)
+    # processos uses ``?`` for unknown total (CSVs not resolved yet)
+    # rather than dropping the denominator — its denominator is always
+    # *conceptually* known (n_targets, the seed list). pecas/text drop
+    # the ratio when unknown because their denominators are derived
+    # signals that may genuinely not exist for legacy state files.
+    processos_done = sum(processos.values())
+    if n_targets:
+        pct = 100.0 * processos_done / n_targets
+        processos_head = f"processos {processos_done}/{n_targets} ({pct:.1f}%)"
+    else:
+        processos_head = f"processos {processos_done}/?"
+    processos_mix = _fmt_stage_counts(processos)
     parts: list[str] = [
-        f"meta {meta_done}/{denom}{pct_str}" + (f" {meta_mix}" if meta_mix else ""),
-        f"bytes {bytes_done}" + (f" {bytes_mix}" if bytes_mix else ""),
-        f"text {text_done}" + (f" {text_mix}" if text_mix else ""),
+        processos_head + (f" {processos_mix}" if processos_mix else ""),
+        _fmt_stage_block("pecas", pecas, total=pecas_total),
+        _fmt_stage_block("text", text, total=text_total),
     ]
     if rate_per_sec is not None:
         parts.append(f"{rate_per_sec:.2f} cases/s")

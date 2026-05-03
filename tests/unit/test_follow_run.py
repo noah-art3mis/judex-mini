@@ -149,39 +149,105 @@ def _make_state(cases: dict[str, dict]) -> dict:
             "snapshot_at": "2026-05-03T01:00:00+00:00", "cases": cases}
 
 
-def _case(meta: str, bytes_urls: dict[str, str] | None = None,
-          text_urls: dict[str, str] | None = None) -> dict:
+def _case(meta: str, peca_urls: dict[str, str] | None = None,
+          text_urls: dict[str, str] | None = None,
+          n_pecas: int | None = None) -> dict:
+    fetch_meta: dict = {"status": meta, "ts": "2026-05-03T00:00:00+00:00"}
+    if n_pecas is not None:
+        fetch_meta["n_pecas"] = n_pecas
     return {
-        "fetch_meta": {"status": meta, "ts": "2026-05-03T00:00:00+00:00"},
-        "fetch_bytes": {u: {"status": s} for u, s in (bytes_urls or {}).items()},
+        "fetch_meta": fetch_meta,
+        "fetch_bytes": {u: {"status": s} for u, s in (peca_urls or {}).items()},
         "extract_text": {u: {"status": s} for u, s in (text_urls or {}).items()},
     }
 
 
 def test_aggregate_state_rolls_up_three_stages_across_shards(tmp_path: Path) -> None:
-    """The whole point of the synthetic aggregator: one number per
-    stage-status across N shards, replacing N noisy per-shard lines."""
+    """One number per stage-status across N shards, replacing N noisy
+    per-shard lines."""
     sa = tmp_path / "shard-a"; sa.mkdir()
     (sa / "executar.state.json").write_text(json.dumps(_make_state({
-        "HC-100": _case("ok", {"u1": "ok", "u2": "empty"}, {"u1": "ok"}),
+        "HC-100": _case("ok", {"u1": "ok", "u2": "empty"}, {"u1": "ok"}, n_pecas=2),
         "HC-99": _case("unallocated_pid"),
     })))
     sb = tmp_path / "shard-b"; sb.mkdir()
     (sb / "executar.state.json").write_text(json.dumps(_make_state({
-        "HC-50": _case("ok", {"u3": "ok"}, {"u3": "provider_error"}),
+        "HC-50": _case("ok", {"u3": "ok"}, {"u3": "provider_error"}, n_pecas=1),
     })))
 
     agg = aggregate_state(tmp_path)
 
-    assert agg["meta"] == Counter({"ok": 2, "unallocated_pid": 1})
-    assert agg["bytes"] == Counter({"ok": 2, "empty": 1})
+    assert agg["processos"] == Counter({"ok": 2, "unallocated_pid": 1})
+    assert agg["pecas"] == Counter({"ok": 2, "empty": 1})
     assert agg["text"] == Counter({"ok": 1, "provider_error": 1})
+
+
+def test_aggregate_state_sums_pecas_total_across_shards(tmp_path: Path) -> None:
+    """`pecas_total` is the cluster-wide denominator the operator
+    needs once meta finishes — answers 'how many peca downloads
+    are we expected to do?'. Sums n_pecas across every shard's
+    meta=ok records."""
+    sa = tmp_path / "shard-a"; sa.mkdir()
+    (sa / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-100": _case("ok", n_pecas=3),
+        "HC-99": _case("ok", n_pecas=5),
+    })))
+    sb = tmp_path / "shard-b"; sb.mkdir()
+    (sb / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-50": _case("ok", n_pecas=2),
+        "HC-49": _case("unallocated_pid"),  # zero successors, not in total
+    })))
+
+    agg = aggregate_state(tmp_path)
+
+    assert agg["pecas_total"] == 10  # 3 + 5 + 2
+
+
+def test_aggregate_state_returns_none_pecas_total_for_legacy_shard(
+    tmp_path: Path,
+) -> None:
+    """A legacy shard whose meta records lack n_pecas means we can't
+    report a cluster-wide total without misleading. Renderer falls
+    back to count-only for pecas — text still gets a ratio (derived
+    from pecas['ok'])."""
+    sa = tmp_path / "shard-a"; sa.mkdir()
+    (sa / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-100": _case("ok", n_pecas=3),  # new
+    })))
+    sb = tmp_path / "shard-b"; sb.mkdir()
+    (sb / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-50": _case("ok"),  # legacy: no n_pecas
+    })))
+
+    agg = aggregate_state(tmp_path)
+
+    assert agg["pecas_total"] is None
+
+
+def test_aggregate_state_text_total_equals_pecas_ok_across_shards(
+    tmp_path: Path,
+) -> None:
+    """text_total = pecas['ok'] (every successful pecas emits exactly
+    one text successor). Computed at any moment; doesn't depend on
+    n_pecas, so it works for legacy runs too."""
+    sa = tmp_path / "shard-a"; sa.mkdir()
+    (sa / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-100": _case("ok", {"u1": "ok", "u2": "ok", "u3": "empty"}),
+    })))
+    sb = tmp_path / "shard-b"; sb.mkdir()
+    (sb / "executar.state.json").write_text(json.dumps(_make_state({
+        "HC-50": _case("ok", {"u4": "ok"}),
+    })))
+
+    agg = aggregate_state(tmp_path)
+
+    assert agg["text_total"] == 3  # 2 pecas-ok in shard-a + 1 in shard-b
 
 
 def test_aggregate_state_returns_empty_when_no_state_files(tmp_path: Path) -> None:
     """Pre-launch (or right after launch, before first snapshot): the
-    aggregator suppresses the line entirely instead of printing
-    ``meta 0/0 0 · bytes 0 · text 0`` — pure noise."""
+    aggregator suppresses the line entirely instead of printing all
+    zeros — pure noise."""
     assert aggregate_state(tmp_path) == {}
 
 
@@ -197,71 +263,81 @@ def test_aggregate_state_tolerates_corrupt_state_file(tmp_path: Path) -> None:
 
     agg = aggregate_state(tmp_path)
 
-    assert agg["meta"] == Counter({"ok": 1})
+    assert agg["processos"] == Counter({"ok": 1})
 
 
 # --- format_aggregate_line -------------------------------------------------
 
 
 def test_format_aggregate_line_shows_all_three_stages_with_counts() -> None:
-    """The user's most explicit ask: errors visible. ``provider_error=11``
-    must appear in the rendered line, not get suppressed at zero or
-    folded into a generic ``fail`` bucket."""
+    """Errors must be visible: ``provider_error=11`` cannot get
+    suppressed at zero or folded into a generic ``fail`` bucket."""
     agg = {
-        "meta": Counter({"ok": 500, "unallocated_pid": 70}),
-        "bytes": Counter({"ok": 1500, "empty": 50}),
+        "processos": Counter({"ok": 500, "unallocated_pid": 70}),
+        "pecas": Counter({"ok": 1500, "empty": 50}),
         "text": Counter({"ok": 600, "skipped_cached": 489, "provider_error": 11}),
+        "pecas_total": None,
+        "text_total": 1500,
     }
     line = format_aggregate_line(agg, n_targets=571, now=datetime(2026, 5, 3, 12, 0, 0))
 
     assert "[12:00:00 agg]" in line
-    assert "meta 570/571" in line
+    assert "processos 570/571" in line
     assert "ok=500" in line
     assert "unallocated_pid=70" in line
-    assert "bytes" in line and "ok=1500" in line and "empty=50" in line
+    assert "pecas" in line and "ok=1500" in line and "empty=50" in line
     assert "text" in line
     assert "provider_error=11" in line
     assert line.startswith("───") and line.endswith("───")
 
 
-def test_format_aggregate_line_shows_meta_pct_only_not_bytes_text() -> None:
-    """Bytes/text denominators grow with meta progress, so showing a
-    percentage there would lie until meta is fully done. Only meta
-    has a static, known denominator (``n_targets``)."""
+def test_format_aggregate_line_renders_pecas_ratio_when_total_known() -> None:
+    """The deepening this commit ships: once n_pecas is recorded on
+    meta, the aggregator surfaces a pecas denominator. Operator can
+    finally read 'how many pecas downloads are left' at a glance."""
     agg = {
-        "meta": Counter({"ok": 500}),
-        "bytes": Counter({"ok": 1500}),
-        "text": Counter({"ok": 600}),
+        "processos": Counter({"ok": 9137}),
+        "pecas": Counter({"ok": 24337, "empty": 826, "http_error": 1}),
+        "text": Counter({"ok": 12312}),
+        "pecas_total": 28000,
+        "text_total": 24337,
     }
-    line = format_aggregate_line(agg, n_targets=1000)
+    line = format_aggregate_line(agg, n_targets=9137)
 
-    # meta has a percentage:
-    assert "(50.0%)" in line
-    # bytes/text don't — no other "(X.X%)" tokens than the meta one.
-    assert line.count("%") == 1
+    assert "pecas 25164/28000" in line
+    assert "text 12312/24337" in line
 
 
-def test_format_aggregate_line_orders_statuses_with_failures_last() -> None:
-    """Eye should land on errors. Within a stage's ``(...)``, failure
-    statuses sort after the success/cached/empty cluster so they're
-    in the rightmost (last-read) position."""
+def test_format_aggregate_line_drops_pecas_ratio_for_legacy(tmp_path: Path) -> None:
+    """If pecas_total is None (legacy shard, mixed-version cluster),
+    render count-only for pecas. text still shows a ratio because
+    text_total = pecas['ok'] doesn't depend on the new field."""
     agg = {
-        "meta": Counter(),
-        "bytes": Counter(),
-        "text": Counter({"provider_error": 5, "ok": 100}),
+        "processos": Counter({"ok": 9137}),
+        "pecas": Counter({"ok": 24337, "empty": 826}),
+        "text": Counter({"ok": 12312}),
+        "pecas_total": None,
+        "text_total": 24337,
     }
-    line = format_aggregate_line(agg, n_targets=0)
+    line = format_aggregate_line(agg, n_targets=9137)
 
-    ok_idx = line.index("ok=100")
-    err_idx = line.index("provider_error=5")
-    assert ok_idx < err_idx
+    # No pecas ratio:
+    assert "pecas 25163/" not in line
+    # text ratio still rendered:
+    assert "text 12312/24337" in line
 
 
 def test_format_aggregate_line_handles_zero_targets() -> None:
     """Pre-CSV-resolution edge: shards CSVs not present yet. Render
-    without crashing; show ``?`` for the denominator."""
-    agg = {"meta": Counter(), "bytes": Counter(), "text": Counter()}
+    without crashing; show ``?`` for the processos denominator."""
+    agg = {
+        "processos": Counter(),
+        "pecas": Counter(),
+        "text": Counter(),
+        "pecas_total": None,
+        "text_total": 0,
+    }
     line = format_aggregate_line(agg, n_targets=0)
 
-    assert "meta 0/?" in line
+    assert "processos 0/?" in line
     assert "%" not in line

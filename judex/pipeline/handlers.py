@@ -260,8 +260,11 @@ def make_handlers(
                 # JSON that would also break warehouse rebuild.
                 pass
             else:
-                state.record_meta(task.case_key, status="ok")
-                return _emit_fetch_bytes(task, cached_item)
+                successors = _emit_fetch_bytes(task, cached_item)
+                state.record_meta(
+                    task.case_key, status="ok", n_pecas=len(successors),
+                )
+                return successors
 
         try:
             item = _scraper.scrape_processo_http(
@@ -287,8 +290,11 @@ def make_handlers(
                               error=f"write failed: {exc}")
             return []
 
-        state.record_meta(task.case_key, status="ok")
-        return _emit_fetch_bytes(task, dict(item))
+        successors = _emit_fetch_bytes(task, dict(item))
+        state.record_meta(
+            task.case_key, status="ok", n_pecas=len(successors),
+        )
+        return successors
 
     def handle_fetch_bytes(task: Task) -> list[Task]:
         url = task.payload["url"]
