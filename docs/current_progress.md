@@ -99,6 +99,87 @@ remaining ~$0.10–$0.20/ladder savings, or stop here. The headline
 win (4 GB → 2 GB, 47% off the per-Machine rate) is locked in;
 further cuts are diminishing returns.
 
+### Update 2026-05-03 — tesserocr swap + included-RAM-tier insight
+
+**Three things landed since the prior entry.**
+
+1. **pytesseract → tesserocr** (`fly/server.py`, commits `83766eb`,
+   `6588012`, `557835e`). The pytesseract path spawned a fresh
+   `tesseract` subprocess per page (~150 ms LSTM model load × N
+   pages, parallelized across 2 workers ≈ 4-8 s wasted on a
+   50-page PDF). Swapped to tesserocr (Cython libtesseract
+   bindings) with a per-thread `PyTessBaseAPI` via
+   `threading.local`, held by a **module-scoped**
+   `ThreadPoolExecutor` (per-chunk pool would re-init the LSTM
+   for every PDF, defeating the swap). The model is now loaded
+   N_workers times for the entire server lifetime, not per page.
+   Estimated 1.3-2× speedup on multi-page PDFs.
+2. **CPU-detection investigation** ruled out a non-bug. Confirmed
+   via `flyctl ssh console`: `os.cpu_count()` returns **2** on
+   `shared-cpu-2x` (matches the configured shape, no Firecracker
+   leakage). `/sys/fs/cgroup/cpu.max` does not exist on Fly —
+   Firecracker microVMs present vCPUs to the guest directly,
+   without a cgroup hierarchy. The cgroup-quota fallback in
+   `_resolve_page_workers()` is dead code on Fly (works as
+   portability insurance for redeploys to k8s/Fargate).
+3. **Included-RAM-tier insight rewrites the cost-shape choice.**
+   `shared-cpu-Nx` ships with N × 256 MB included RAM in the
+   per-second CPU rate (verified via Fly pricing docs). At our
+   `[[vm]] memory = "1gb"`, that means:
+   - shared-cpu-2x: 512 MB included → 512 MB additional billed
+   - shared-cpu-4x: **1024 MB included → 0 MB additional billed**
+
+   The CPU-rate jump from 2x → 4x ($0.0087 → $0.0174 in gru) is
+   exactly offset by the eliminated additional-RAM line, so the
+   per-Machine bill is only 22% higher despite 2× the vCPU count.
+   Per-page-slot cost drops ~39%.
+
+**Cost-shape comparison (gru rates, all at 1 GB total RAM).**
+
+| Shape               | Workers | $/hr (gru) | Pages/sec (est) | $/page-slot/hr        |
+|---------------------|---------|------------|-----------------|-----------------------|
+| shared-cpu-2x @ 1gb | 2       | $0.0143    | ~2.0            | $0.00715              |
+| shared-cpu-4x @ 1gb | 4       | $0.0174    | ~4.0            | $0.00435 ← sweet spot |
+| shared-cpu-8x @ 2gb | 8       | ~$0.0349   | ~7.0            | $0.00499              |
+
+Pages/sec figures are estimates from per-page OCR ~1 s × worker
+count, with sub-linear scaling assumed at 8 workers (process-
+global libtesseract state contention). **Needs empirical
+validation** — the table is the basis for picking 4x as the
+landed choice, not a measured baseline.
+
+**Landed shape.** `[[vm]] size = "shared-cpu-4x"`, `memory = "1gb"`.
+Memory peak re-derived for 4 workers: 310 MB baseline + 400 MB
+tesserocr (4 × ~100 MB) + 176 MB raster = **886 MB peak**, ~14%
+headroom over the 1 GB ceiling. Tighter than the prior 2x shape
+(~33% headroom) but above the empirically-confirmed safe floor.
+
+**Experiment to run post-deploy.**
+
+1. Smoke-test 5-10 PDFs spanning page counts on the new 4x
+   cluster. Watch `flyctl logs` for OOM kills or healthcheck
+   flaps. The 14% memory headroom is calculated, not measured.
+2. Sample wall_seconds vs the prior 2x baseline for matched
+   PDFs. Expected: ~50% reduction in per-PDF wall (4 workers
+   vs 2). If actual <40% reduction, suspect contention in
+   libtesseract's process-global state and consider whether
+   stepping up to shared-cpu-8x @ 2gb is worth the cost-per-slot
+   regression ($0.00499 vs $0.00435 — slightly worse, but only
+   meaningful if 8x scales near-linearly).
+3. Validate the per-page-slot cost claim against a real
+   end-to-end sweep bill. Compare $/1k pages between the prior
+   2x runs and the first 4x run. If the 39% saving holds, lock
+   in 4x as the cluster-wide default; if it degrades to <25%,
+   revisit (likely cause: 4-worker contention eating the
+   apparent throughput gain).
+
+Open question: would 8 workers + `OMP_NUM_THREADS=2` (instead of
+8 workers + OMP=1) recover any tail throughput on the 8x shape?
+The math says no — cross-page parallelism dominates per-page OMP
+parallelism whenever the page pool is saturated, which it almost
+always is given chunk_size=16. But worth one A/B run if 8x
+becomes a serious candidate.
+
 ## Active task — HC year-ladder backfill via 3-stage chain
 
 **Why.** Iterate `varrer-processos → baixar-pecas → extrair-pecas`

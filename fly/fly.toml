@@ -53,26 +53,33 @@ primary_region = "gru"
 # Per-Machine resource shape. Memory floor derivation (200 dpi A4):
 #   steady-state (in-process tesserocr model):
 #     Python/uvicorn 180 + Pillow 80 + glibc/kernel 50 = 310 MB
-#     per-worker PyTessBaseAPI: 2 workers × 100 MB = 200 MB
-#                                          subtotal = 510 MB
+#     per-worker PyTessBaseAPI: 4 workers × 100 MB = 400 MB
+#                                          subtotal = 710 MB
 #   per-chunk raster: 16 pages × 11 MB = 176 MB (capped by chunk size)
-#   peak working set: ~686 MB
-# 1 GB total = 512 MB included + 512 MB additional billed; ~338 MB
-# headroom over peak (~33%). Headroom went up vs the pytesseract era:
-# the LSTM model is now resident once-per-worker in our process heap
-# instead of being re-mmap'd by transient tesseract subprocesses, so
-# there's no transient-subprocess RAM stacked on top of the chunk.
-# Outliers > 2 MB compressed are skipped pre-flight via
-# tesseract_fly.OutlierPdfError, so the cluster never sees PDFs that
-# would exceed the chunked memory model.
+#   peak working set: ~886 MB
+# 1 GB total = entirely included on shared-cpu-4x (no additional RAM
+# billed); ~138 MB headroom over peak (~14%). Tighter than the prior
+# 2x shape (~33% headroom) but still above the empirically-confirmed
+# safe floor for the corpus. Outliers > 1 MB compressed are skipped
+# pre-flight via tesseract_fly.OutlierPdfError, so the cluster never
+# sees PDFs that would exceed the chunked memory model.
 #
-# Memory shape evolution on this app:
-#   4 GB (orig) — upfront-rasterize design needed ~2.3 GB for the
-#                 295-page outlier; 4 GB was a safe ceiling.
-#   2 GB        — landed with chunked rasterize (chunk=32). Cut the
-#                 RAM line item ~57%.
-#   1 GB (now)  — landed with chunk=16 + outlier-skip. Cuts the RAM
-#                 line another ~67% (from 1.5 GB additional → 0.5 GB).
+# Why shared-cpu-4x @ 1gb (vs shared-cpu-2x @ 1gb): 4 vCPUs = 4
+# in-process page workers, doubling per-Machine throughput. The CPU
+# rate roughly doubles ($0.0087/hr → $0.0174/hr in gru), but the
+# included-RAM tier doubles too (512 MB → 1024 MB), so we no longer
+# pay the +0.5 GB additional-RAM line item. Net per-Machine bill:
+# ~$0.0143/hr (2x @ 1gb) → ~$0.0174/hr (4x @ 1gb), only 22% more
+# expensive for ~2× throughput. $/page-slot drops ~39% — the cluster
+# needed for a fixed throughput target shrinks to ~half the count.
+#
+# Shape evolution on this app:
+#   shared-cpu-2x @ 4gb (orig) — upfront-rasterize design needed
+#                                ~2.3 GB for the 295-page outlier.
+#   shared-cpu-2x @ 2gb        — chunked rasterize at chunk=32.
+#   shared-cpu-2x @ 1gb        — chunk=16 + outlier-skip + tesserocr.
+#   shared-cpu-4x @ 1gb (now)  — exploit the included-RAM tier; double
+#                                workers without paying for more RAM.
 [[vm]]
-  size = "shared-cpu-2x"
+  size = "shared-cpu-4x"
   memory = "1gb"
