@@ -46,6 +46,58 @@ is returned (or a forced-skip list, depending on whether downstream
 work makes sense given the failure)."""
 
 
+def _fold(s: str) -> str:
+    """Lowercase + strip accents — matches ``peca_classification._fold``
+    so doc-type matches are accent- and case-insensitive (real-world
+    HC corpus has both ``ACÓRDÃO`` and ``ACORDÃO``)."""
+    import unicodedata
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s.lower())
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def _doc_type_in(doc_type: Optional[str], needles: tuple[str, ...]) -> bool:
+    if not doc_type:
+        return False
+    folded = _fold(doc_type)
+    return any(_fold(n) in folded for n in needles if n)
+
+
+def _impte_matches(item: dict, needles: tuple[str, ...]) -> bool:
+    """True iff any IMPTE party name contains any needle (case/accent-insensitive).
+
+    Walks ``partes[]`` looking for entries whose ``categoria`` starts
+    with ``IMPTE`` (impetrante). Empty / missing partes returns False —
+    a case with no parsed parties can't match.
+    """
+    partes = item.get("partes") or []
+    if not isinstance(partes, list):
+        return False
+    folded = [_fold(n) for n in needles if n]
+    if not folded:
+        return False
+    for parte in partes:
+        if not isinstance(parte, dict):
+            continue
+        categoria = (parte.get("categoria") or "").upper()
+        if not categoria.startswith("IMPTE"):
+            continue
+        nome = parte.get("nome") or ""
+        nome_fold = _fold(nome)
+        if any(n in nome_fold for n in folded):
+            return True
+    return False
+
+
+def _relator_matches(item: dict, needles: tuple[str, ...]) -> bool:
+    relator = item.get("relator") or item.get("relator_atual") or ""
+    if not relator:
+        return False
+    folded = _fold(relator)
+    return any(_fold(n) in folded for n in needles if n)
+
+
 def _classify_http_exception(exc: BaseException) -> tuple[TaskStatus, str]:
     """Map an HTTP-side exception to a (status, error_message) pair.
 
@@ -74,6 +126,11 @@ def make_handlers(
     source_dir: Optional["Path"] = None,
     portal_proxies: Optional["ProxyPool"] = None,
     sistemas_proxies: Optional["ProxyPool"] = None,
+    forcar: bool = False,
+    impte_contains: tuple[str, ...] = (),
+    doc_types: tuple[str, ...] = (),
+    exclude_doc_types: tuple[str, ...] = (),
+    relator_contains: tuple[str, ...] = (),
 ) -> dict[str, HandlerFn]:
     """Build the three real handlers bound to a live ``PipelineState``.
 
@@ -163,8 +220,22 @@ def make_handlers(
 
         state.record_meta(task.case_key, status="ok")
 
+        # Case-level filter knobs. Applied here (not at CLI launch) because
+        # the matchable text — impetrante name, relator name — only exists
+        # *after* the case JSON is fetched. Skipping the case is symmetric
+        # with how legacy `collect_peca_targets` would have dropped the
+        # whole case before emitting any peça URL: same effect, same scope.
+        if impte_contains and not _impte_matches(item, impte_contains):
+            return []
+        if relator_contains and not _relator_matches(item, relator_contains):
+            return []
+
         targets = list(_iter_case_pdf_targets(dict(item)))
         targets = filter_substantive(targets)
+        if doc_types:
+            targets = [t for t in targets if _doc_type_in(t.doc_type, doc_types)]
+        if exclude_doc_types:
+            targets = [t for t in targets if not _doc_type_in(t.doc_type, exclude_doc_types)]
         # Dedup by URL: ``_iter_case_pdf_targets`` does NOT dedupe
         # within a case (per its docstring), so the same peça URL can
         # appear via multiple surfaces (e.g., once on an andamento.link
@@ -238,6 +309,30 @@ def make_handlers(
     def handle_extract_text(task: Task) -> list[Task]:
         url = task.payload["url"]
         doc_type = task.payload.get("doc_type")
+
+        # Sidecar-match skip — symmetric with legacy
+        # ``judex.sweeps.extract_driver``'s "spec truth table". If a
+        # ``.extractor`` sidecar already records the same provider
+        # we'd otherwise dispatch, the cached text is what we'd
+        # produce, so re-running is wasted OCR cost. ``--forcar``
+        # bypasses this check (for re-OCR with the same provider) and
+        # the per-target ``effective_provedor`` (computed below for
+        # ``auto``) is what the sidecar must match — not the run's
+        # bare ``--provedor``.
+        if not forcar and peca_cache.has_text(url):
+            sidecar = peca_cache.read_extractor(url)
+            if provedor == "auto":
+                from judex.sweeps.extrair_pecas import pick_provider
+                expected = pick_provider(doc_type)
+            else:
+                expected = provedor
+            if sidecar == expected:
+                state.record_text(
+                    task.case_key, url=url, status="skipped_cached",
+                    extractor=sidecar,
+                )
+                return []
+
         body = peca_cache.read_bytes(url)
         if not body:
             state.record_text(

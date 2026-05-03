@@ -45,8 +45,11 @@ of the child should be written (create/truncate)."""
 
 
 # Commands that take ``--rotulo`` (which the launcher synthesises per-shard).
-# Other supported commands omit the flag entirely.
-_COMMANDS_WITH_ROTULO: frozenset[str] = frozenset({"varrer-processos"})
+# Other supported commands omit the flag entirely. ``executar``'s rotulo is
+# only used to derive the auto-saida path when no explicit --saida is given;
+# in sharded mode each child still gets an explicit --saida (its shard dir),
+# so the per-shard --rotulo is purely a pgrep tag.
+_COMMANDS_WITH_ROTULO: frozenset[str] = frozenset({"varrer-processos", "executar"})
 
 
 def split_proxy_file(proxy_file: Path, n: int, out_dir: Path) -> list[Path]:

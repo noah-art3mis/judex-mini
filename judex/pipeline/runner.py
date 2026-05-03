@@ -86,6 +86,47 @@ def read_targets_csv(path: Path) -> list[tuple[str, int]]:
     return out
 
 
+def targets_from_range(classe: str, inicio: int, fim: int) -> list[tuple[str, int]]:
+    """Synthesise the inclusive ``[inicio..fim]`` range as ``(classe, n)`` tuples.
+
+    Cheaper symmetric of legacy ``varrer-processos -c -i -f``: no CSV
+    materialisation, no on-disk roots probe — the unified pipeline
+    discovers each case at runtime via ``handle_fetch_meta``, so we
+    can hand the bare range straight to the scheduler.
+    """
+    return [(classe.upper(), n) for n in range(inicio, fim + 1)]
+
+
+def targets_from_errors_jsonl(errors_path: Path) -> list[tuple[str, int]]:
+    """Read ``executar.errors.jsonl`` → unique ``(classe, processo)`` cases
+    with at least one retryable failure.
+
+    Uses :func:`judex.pipeline.log.classify_unified_error` to decide
+    per row — the unified-vocabulary sibling of legacy
+    ``judex.sweeps.error_triage.classify_error``. Terminal rows
+    (``unallocated_pid``, ``empty``, ``no_bytes``) are dropped: they
+    can't recover via re-run, so re-seeding them just burns a
+    portal/sistemas slot on a known-dead target.
+    """
+    from judex.pipeline.log import classify_unified_error, read_errors_file
+
+    seen: set[tuple[str, int]] = set()
+    out: list[tuple[str, int]] = []
+    for row in read_errors_file(errors_path):
+        if classify_unified_error(row) != "transient":
+            continue
+        classe = row.get("classe")
+        processo = row.get("processo")
+        if classe is None or processo is None:
+            continue
+        key = (str(classe), int(processo))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
+
+
 def render_report_md(
     *,
     targets: list[tuple[str, int]],
@@ -168,12 +209,35 @@ def render_report_md(
         # Don't fail the report on cost-estimation hiccups; leave at 0.
         pass
 
+    # Quality grade — A/B/C/D/F on the run's text-ok ratio. Cheap proxy
+    # for "is the OCR side healthy". Denominator is text-attempted (not
+    # all peças necessarily get a text task — those still in fetch_bytes
+    # don't count); numerator is text-ok across all attempted URLs.
+    text_attempted = sum(text_status.values())
+    text_ok_ratio = text_ok / text_attempted if text_attempted else 0.0
+    if text_attempted == 0:
+        quality_grade = "n/a"
+    elif text_ok_ratio >= 0.99:
+        quality_grade = "A"
+    elif text_ok_ratio >= 0.95:
+        quality_grade = "B"
+    elif text_ok_ratio >= 0.90:
+        quality_grade = "C"
+    elif text_ok_ratio >= 0.80:
+        quality_grade = "D"
+    else:
+        quality_grade = "F"
+
     md = []
     md.append("# Unified pipeline run\n")
     md.append(f"- targets: {len(targets)}")
     md.append(f"- provedor: `{provedor}`")
     md.append(f"- wall: {result.wall_seconds:.1f}s")
     md.append(f"- shutdown_requested: {result.shutdown_requested}")
+    md.append(
+        f"- quality grade: **{quality_grade}** "
+        f"(text_ok={text_ok}/{text_attempted} = {text_ok_ratio:.1%})"
+    )
     md.append("")
     md.append("## Per-pool")
     md.append("")
@@ -217,6 +281,11 @@ def run_pipeline(
     ocr_concurrencia: int = 4,
     fetch_dje: bool = True,
     proxy_pool: Optional[Path] = None,
+    forcar: bool = False,
+    impte_contains: tuple[str, ...] = (),
+    doc_types: tuple[str, ...] = (),
+    exclude_doc_types: tuple[str, ...] = (),
+    relator_contains: tuple[str, ...] = (),
     handlers_factory=None,  # type: ignore[no-untyped-def]
 ) -> int:
     """Run the unified pipeline against ``targets`` to completion.
@@ -250,7 +319,26 @@ def run_pipeline(
     saida.mkdir(parents=True, exist_ok=True)
 
     state_path = saida / "executar.state.json"
-    state = PipelineState.load(state_path)
+    log_path = saida / "executar.log.jsonl"
+
+    # If the log file is fresher than the snapshot, the snapshot is stale
+    # — the process was killed between snapshot intervals. Replay the
+    # log to recover the up-to-date state, then snapshot before workers
+    # start. Cheap when the log is short; the only cost when both files
+    # are aligned is one stat() per file.
+    if log_path.exists() and (
+        not state_path.exists()
+        or log_path.stat().st_mtime > state_path.stat().st_mtime
+    ):
+        from judex.pipeline.log import recover_state_from_log
+        log.info(
+            "executar: log newer than snapshot; recovering state from %s",
+            log_path,
+        )
+        state = recover_state_from_log(log_path)
+        state.snapshot()
+    else:
+        state = PipelineState.load(state_path)
 
     portal_proxies = sistemas_proxies = None
     if proxy_pool is not None:
@@ -274,6 +362,11 @@ def run_pipeline(
         fetch_dje=fetch_dje,
         portal_proxies=portal_proxies,
         sistemas_proxies=sistemas_proxies,
+        forcar=forcar,
+        impte_contains=impte_contains,
+        doc_types=doc_types,
+        exclude_doc_types=exclude_doc_types,
+        relator_contains=relator_contains,
     )
 
     pools = [
@@ -283,6 +376,7 @@ def run_pipeline(
     ]
     config = SchedulerConfig(
         pools=pools, handlers=handlers, n_targets=len(targets),
+        log_path=log_path,
     )
 
     seeds = seeds_from_targets(targets, state)
@@ -307,6 +401,15 @@ def run_pipeline(
         pool_concurrencies=pool_concurrencies,
     )
     (saida / "report.md").write_text(report, encoding="utf-8")
-    log.info("executar: done. wall=%.1fs · report=%s", result.wall_seconds, saida / "report.md")
+
+    # Derive ``executar.errors.jsonl`` from the final state. One row per
+    # non-ok target across all three task kinds — feeds the
+    # ``--retentar-de`` replay path next time.
+    from judex.pipeline.log import derive_errors_file
+    errors_path = derive_errors_file(saida, state, targets)
+    log.info(
+        "executar: done. wall=%.1fs · report=%s · errors=%s",
+        result.wall_seconds, saida / "report.md", errors_path,
+    )
 
     return 1 if result.shutdown_requested else 0

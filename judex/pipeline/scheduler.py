@@ -27,12 +27,15 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from judex.pipeline.handlers import HandlerFn
+from judex.pipeline.log import PipelineLog, make_log_record
 from judex.pipeline.models import Counters, PoolConfig, PoolName, Task, TaskStatus
 from judex.pipeline.pools import Pool, build_pools
 from judex.pipeline.state import PipelineState
+from judex.sweeps.shared import CliffDetector, regime_kwargs
 
 
 log = logging.getLogger(__name__)
@@ -50,6 +53,17 @@ class SchedulerConfig:
     portal pool runs one fetch_meta task per case, so n_targets is the
     natural denominator for portal-pool progress. Setting this to zero
     (the unknown default) suppresses the percentage display."""
+    log_path: Optional["Path"] = None
+    """Path to ``executar.log.jsonl``. When set, every task outcome is
+    appended (fsynced) to this file as one JSON row — the canonical
+    durable record for hard-kill recovery and post-hoc analysis. When
+    ``None`` (default), no log file is written; useful for unit tests
+    that mock the scheduler in-memory."""
+    cliff_window: int = 50
+    """Rolling-window size for the per-pool CliffDetector. Mirrors the
+    legacy varrer/baixar default. Set to 0 to disable regime stamping
+    (cheap but loses the cliff-trajectory signal in
+    ``executar.log.jsonl``)."""
 
 
 @dataclass
@@ -183,6 +197,14 @@ class _SchedulerRuntime:
     pools: dict[PoolName, Pool]
     counters: dict[PoolName, Counters]
     state: PipelineState  # for breaker readback after each task
+    log: Optional[PipelineLog] = None
+    """Append-only log writer. ``None`` in unit tests that don't want
+    to materialise a log file; production runs always pass one through
+    :class:`SchedulerConfig.log_path`."""
+    cliff_detectors: dict[PoolName, CliffDetector] = field(default_factory=dict)
+    """Per-pool CliffDetector. Stamped onto every log row so post-hoc
+    ``analisar-regimes`` reconstructs the regime trajectory without
+    hand-rolling jq queries against the log file."""
     in_flight: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 
@@ -200,6 +222,42 @@ def _read_task_outcome(state: PipelineState, task: Task) -> Optional[TaskStatus]
     if task.kind == "extract_text":
         return state.text_status(task.case_key, url=task.payload.get("url", ""))
     return None
+
+
+def _read_task_error(state: PipelineState, task: Task) -> Optional[str]:
+    """Project the per-record ``error`` string from state into the log row.
+
+    Symmetric with :func:`_read_task_outcome` — the same lookup, but
+    pulling the ``error`` field instead of ``status``. Used by the
+    log-emission path so each row carries the concrete failure message
+    error_triage classifies on.
+    """
+    classe, processo = task.case_key
+    rec = state._cases.get(f"{classe}-{processo}")  # noqa: SLF001
+    if rec is None:
+        return None
+    if task.kind == "fetch_meta":
+        return rec.meta.get("error") if rec.meta else None
+    url = task.payload.get("url", "")
+    if task.kind == "fetch_bytes":
+        entry = rec.bytes.get(url)
+        return entry.get("error") if entry else None
+    if task.kind == "extract_text":
+        entry = rec.text.get(url)
+        return entry.get("error") if entry else None
+    return None
+
+
+def _read_task_extractor(state: PipelineState, task: Task) -> Optional[str]:
+    """Project the per-record ``extractor`` label (extract_text only)."""
+    if task.kind != "extract_text":
+        return None
+    classe, processo = task.case_key
+    rec = state._cases.get(f"{classe}-{processo}")  # noqa: SLF001
+    if rec is None:
+        return None
+    entry = rec.text.get(task.payload.get("url", ""))
+    return entry.get("extractor") if entry else None
 
 
 def _short_identifier(task: Task) -> str:
@@ -229,17 +287,25 @@ async def _run_one(
     runtime: _SchedulerRuntime,
 ) -> None:
     """Run one task under its pool semaphore. Records timing,
-    emits successors, and feeds the per-pool circuit breaker the
-    state-side outcome. Handlers do not raise — they record their
-    own error outcomes to state.
+    emits successors, feeds the per-pool circuit breaker, stamps the
+    CliffDetector regime onto the log row, and appends one JSONL row
+    to ``executar.log.jsonl`` (when configured). Handlers do not raise
+    — they record their own error outcomes to state.
     """
     pool = runtime.pools[task.pool]
     runtime.counters[task.pool].started += 1
-    handler_t0 = time.monotonic()
     try:
         async with pool.semaphore:
+            # Start the clock AFTER the semaphore so wall_s reflects
+            # handler wall, not handler wall + queue-wait. The legacy
+            # error-was a `t0` captured before `async with sem:` — every
+            # task in a backed-up queue then carried its queue-position
+            # as inflated wall, which falsely promoted the CliffDetector
+            # regime and double-counted into busy_seconds.
+            handler_t0 = time.monotonic()
             successors = await asyncio.to_thread(handler, task)
-            runtime.counters[task.pool].busy_seconds += time.monotonic() - handler_t0
+            elapsed = time.monotonic() - handler_t0
+            runtime.counters[task.pool].busy_seconds += elapsed
         runtime.counters[task.pool].finished += 1
 
         # Feed the breaker. ``ok`` if the handler recorded "ok" for
@@ -251,12 +317,22 @@ async def _run_one(
         outcome = _read_task_outcome(runtime.state, task)
         pool.record_outcome(ok=(outcome == "ok"))
 
+        # Feed the per-pool CliffDetector. ``observe`` takes a status
+        # string + wall_s; we use the typed outcome to map onto the
+        # legacy "ok" / non-"ok" axis the detector knows. The reading
+        # is then stamped onto the log row so analisar-regimes can
+        # reconstruct the trajectory post-hoc.
+        regime_reading = None
+        detector = runtime.cliff_detectors.get(task.pool)
+        if detector is not None:
+            detector.observe(outcome or "error", elapsed)
+            regime_reading = detector.regime()
+
         # Per-task tail line. Format mirrors legacy
         # ``judex.utils.log_render.render_target_line``:
         #   HH:MM:SS  ✓ ok        [portal]    HC 187634          ·  3.21s
         # Timestamp first, glyph + status word (padded to 8 chars so
         # most lines align), pool tag, compact identifier, wall.
-        elapsed = time.monotonic() - handler_t0
         from judex.utils.log_render import _style_for, _now_hms
         glyph, _ = _style_for(outcome or "?")
         log.info(
@@ -264,6 +340,32 @@ async def _run_one(
             _now_hms(), glyph, outcome or "?",
             task.pool, _short_identifier(task), elapsed,
         )
+
+        # Append-only log row. Carries everything analisar-regimes,
+        # error_triage, and --retentar-de need. fsynced per row.
+        if runtime.log is not None:
+            error_msg = _read_task_error(runtime.state, task)
+            extractor = _read_task_extractor(runtime.state, task)
+            rkw = regime_kwargs(regime_reading)
+            record = make_log_record(
+                task=task,
+                status=outcome or "error",
+                wall_s=elapsed,
+                error=error_msg,
+                extractor=extractor,
+                regime=rkw["regime"],
+                regime_fail_rate=rkw["regime_fail_rate"],
+                regime_p95_wall_s=rkw["regime_p95_wall_s"],
+                regime_promoted_by=rkw["regime_promoted_by"],
+            )
+            try:
+                await asyncio.to_thread(runtime.log.append, record)
+            except Exception:  # noqa: BLE001
+                # Log-write failures are surfaced but never raised: the
+                # in-memory state still records the outcome, the
+                # snapshotter will flush it, and the next run can pick
+                # up. Losing the log row is a degraded mode, not a fail.
+                log.exception("[%s] log append failed for %s", task.pool, task.id)
 
         for follow in successors:
             runtime.in_flight[follow.pool] += 1
@@ -432,7 +534,24 @@ async def run_scheduler(
     }
     pools = build_pools(config.pools)
     counters: dict[PoolName, Counters] = {p.name: Counters() for p in config.pools}
-    runtime = _SchedulerRuntime(queues=queues, pools=pools, counters=counters, state=state)
+
+    # Materialise the append-only log if a path is configured. The log
+    # writer is constructed once and shared across coroutines via the
+    # runtime — its per-row fsync is what gives us hard-kill durability.
+    log_writer = PipelineLog(config.log_path) if config.log_path is not None else None
+
+    # One CliffDetector per pool. Each pool's WAF/load posture is
+    # independent (portal hits portal.stf.jus.br, sistemas hits
+    # sistemas.stf.jus.br, ocr is local-or-API), so cliff trajectory
+    # has to be tracked per-pool. ``cliff_window=0`` disables stamping.
+    detectors: dict[PoolName, CliffDetector] = {}
+    if config.cliff_window > 0:
+        detectors = {p.name: CliffDetector(window=config.cliff_window) for p in config.pools}
+
+    runtime = _SchedulerRuntime(
+        queues=queues, pools=pools, counters=counters, state=state,
+        log=log_writer, cliff_detectors=detectors,
+    )
 
     shutdown_event = asyncio.Event()
     started_at = time.monotonic()
