@@ -2,10 +2,10 @@
 #
 # Pricing math (anchored against 2026-05-02 invoice — fly/README.md
 # has the bill-derivation steps):
-#   shared-cpu-2x + 2 GB RAM ≈ $0.0259/hr per Machine
-#     (CPU $0.00000242/sec + 1.5 GB additional RAM × $0.00000312/sec)
+#   shared-cpu-2x + 1 GB RAM ≈ $0.0143/hr per Machine
+#     (CPU $0.00000242/sec + 0.5 GB additional RAM × $0.00000312/sec)
 #   For 12,930 ACÓRDÃOs at ~5 sec OCR each, ~30 Machines in parallel:
-#     compute = 64,650 Machine-sec ≈ 18 Machine-hr × $0.0259 = $0.47
+#     compute = 64,650 Machine-sec ≈ 18 Machine-hr × $0.0143 = $0.26
 #     wall    = ~36 min start-to-finish
 #
 # Region: gru (São Paulo) — closest to STF traffic origin and to
