@@ -364,14 +364,17 @@ async def run_scheduler(
     runtime = _SchedulerRuntime(queues=queues, pools=pools, counters=counters, state=state)
 
     shutdown_event = asyncio.Event()
-
-    # Seed.
-    for t in seed_tasks:
-        runtime.in_flight[t.pool] += 1
-        await runtime.queues[t.pool].put(t)
-
     started_at = time.monotonic()
 
+    # Workers first, THEN seed. Seed bulk-puts can exceed queue_maxsize
+    # (a year-corpus sweep can have ~10k+ initial fetch_meta tasks
+    # against the 1024-deep default queue). If the seeding loop ran
+    # before any workers existed, ``await queue.put(t)`` would block on
+    # item ``maxsize+1`` forever — no consumer to drain. Spawning the
+    # workers first makes the seed loop's awaits yield productively to
+    # the worker coroutines that drain the queue. ``in_flight`` is
+    # bumped by the seeder *before* each put, so the drain watcher
+    # never observes a falsely-empty state mid-seed.
     workers = [
         asyncio.create_task(_pool_worker(p, runtime, config.handlers, shutdown_event))
         for p in config.pools
@@ -383,6 +386,12 @@ async def run_scheduler(
     progress = asyncio.create_task(
         _periodic_progress(runtime, config.progress_interval_seconds, shutdown_event, started_at)
     )
+
+    # Seed. Now safe to bulk-put even when seed_count > queue_maxsize:
+    # the awaits yield to the running workers when the queue fills.
+    for t in seed_tasks:
+        runtime.in_flight[t.pool] += 1
+        await runtime.queues[t.pool].put(t)
 
     # External shutdown poller. Lives in this coroutine so it can be
     # cancelled cleanly when the scheduler exits normally.

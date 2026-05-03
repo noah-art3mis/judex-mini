@@ -731,6 +731,42 @@ async def test_breaker_warning_logged_only_once_under_sustained_errors(
 
 
 @pytest.mark.asyncio
+async def test_seed_loop_does_not_deadlock_when_seed_count_exceeds_queue_maxsize(
+    tmp_path: Path,
+) -> None:
+    """When initial seeds outnumber ``queue_maxsize``, the bulk-put
+    loop must yield to the worker coroutines (which drain the queue)
+    rather than block on a queue with no consumer.
+
+    This is what HC 2020's first launch hit: 9,137 seed cases against
+    the 1024-deep default queue. The original code seeded BEFORE
+    spawning workers, so put() blocked at item 1025 forever — no
+    state file ever written, zero CPU. The Layer-1 backpressure test
+    only exercised mid-run fan-out, not seed-time bulk-put.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+    # 200 seeds against queue_maxsize=4 forces bulk-put to yield 196
+    # times. Without workers consuming, this would deadlock.
+    n = 200
+    targets = [("HC", i) for i in range(n)]
+
+    config = SchedulerConfig(
+        pools=_three_pools(),
+        handlers=_mock_handlers(state, peças_per_case=0),  # meta-only, terminal
+        queue_maxsize=4,
+    )
+    seeds = seeds_from_targets(targets, state)
+
+    result = await asyncio.wait_for(
+        run_scheduler(seeds, config, state, shutdown_check=_no_shutdown),
+        timeout=15.0,
+    )
+
+    # All meta seeds completed despite queue holding only 4 at a time.
+    assert result.counters["portal"].finished == n
+
+
+@pytest.mark.asyncio
 async def test_high_concurrency_no_lost_tasks(tmp_path: Path) -> None:
     """No-lost-task contract: when N seed tasks fan out to M total
     tasks, ``sum(finished + failed) == M`` regardless of pool
