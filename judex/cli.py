@@ -1488,6 +1488,114 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
+# `limpar` — close a finished run's residual in one command
+
+
+@app.command(name="limpar")
+def limpar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório de um run finalizado de ``judex executar``. "
+             "Auto-detecta layout: sharded (shard-*/) ou monolítico "
+             "(executar.errors.jsonl no topo).",
+    ),
+    apply: bool = typer.Option(
+        False, "--apply",
+        help="Dispara as recoveries planejadas. Sem este flag, o comando "
+             "imprime o plano (``would-recover: …``) e sai sem efeito "
+             "colateral — dry-run é o default seguro.",
+    ),
+    provedor: str = typer.Option(
+        "auto", "--provedor",
+        help="Provedor passado para os ``judex executar --retentar-de`` "
+             "filhos detached. Padrão `auto` (tier-routing pypdf↔OCR).",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o prompt de confirmação sob ``--apply``. Necessário "
+             "para invocações non-interactive (cron, nohup).",
+    ),
+) -> None:
+    """One-command residual recovery for finished ``judex executar`` runs.
+
+    Walks ``<run_dir>`` (mono ou sharded — auto-detecta), classifica
+    cada linha de ``executar.errors.jsonl`` em buckets via
+    ``judex.pipeline.log.classify_unified_error``, e dispara um
+    ``judex executar --retentar-de`` detached por shard com pelo menos
+    uma linha transiente. Buckets terminais (``unallocated_pid``,
+    ``empty``, ``no_bytes``) são contados e reportados — não
+    auto-dispatchados em v1.
+
+    Default é dry-run (imprime ``would-recover: …`` e sai). Para
+    realmente executar, ``--apply``. Para non-interactive (cron/nohup),
+    combine com ``--nao-perguntar``.
+
+    Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
+    Exit codes:
+
+    - ``0`` — plano computado (e sob ``--apply``, todos os spawns OK).
+    - ``2`` — args inválidos (``run_dir`` não existe).
+    - ``3`` — resíduo vazio (nenhum ``executar.errors.jsonl`` encontrado).
+    """
+    from judex.sweeps.limpar import (
+        classify_residual,
+        discover_run_dirs,
+        execute_recoveries,
+        format_summary,
+        plan_recoveries,
+    )
+
+    if not run_dir.exists():
+        typer.echo(f"ERROR: run_dir {run_dir} não existe.", err=True)
+        raise typer.Exit(code=2)
+
+    dirs = discover_run_dirs(run_dir)
+    if not dirs:
+        typer.echo(
+            f"limpar: nada a recuperar em {run_dir} "
+            f"(nenhum executar.errors.jsonl encontrado)."
+        )
+        raise typer.Exit(code=3)
+
+    buckets = classify_residual(dirs)
+    summary = format_summary(buckets, dry_run=not apply)
+    typer.echo(summary)
+
+    if not apply:
+        plan = plan_recoveries(buckets, provedor=provedor)
+        if plan:
+            typer.echo(f"\nplan: would dispatch {len(plan)} child(ren) under --apply:")
+            for spawn in plan:
+                typer.echo(
+                    f"  {spawn.saida.name}: {spawn.n_replay_rows} replay row(s) → "
+                    f"judex executar --retentar-de {spawn.source_errors_file}"
+                )
+        raise typer.Exit(code=0)
+
+    plan = plan_recoveries(buckets, provedor=provedor)
+    if not plan:
+        typer.echo("limpar: nenhum bucket transiente — nada a despachar.")
+        raise typer.Exit(code=0)
+
+    if not nao_perguntar:
+        if not typer.confirm(
+            f"Confirmar dispatch de {len(plan)} child(ren) detached em "
+            f"{run_dir}?",
+            default=True,
+        ):
+            typer.echo("Abortado pelo usuário.")
+            raise typer.Exit(code=2)
+
+    pids_path = run_dir / "limpar.pids"
+    result = execute_recoveries(plan, pids_path)
+    typer.echo(
+        f"limpar: spawned {len(result.pids)} child(ren); "
+        f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
+    )
+    raise typer.Exit(code=0)
+
+
+# ---------------------------------------------------------------------------
 # `acompanhar` — tail unificado mono + sharded com auto-encerramento
 
 

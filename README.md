@@ -1,5 +1,9 @@
 # judex-mini
 
+`judex-mini` is a Python scraper and parser for Brazilian Supreme Court (STF) process data. It is built HTTP-first. The project is organized as a Typer-based CLI (`judex`) with three pipeline stages — `varrer-processos` (case JSON scrape), `baixar-pecas` (PDF byte download), and `extrair-pecas` (text extraction with pluggable OCR providers) — feeding a DuckDB warehouse rebuilt by `atualizar-warehouse`. It supports highly sharded runs with proxy rotation and a content-addressed cache separates raw bytes from extracted text so re-OCR is decoupled from re-download.
+
+---
+
 Extração automatizada de dados de processos do STF (Supremo Tribunal Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo de números de processo**; o programa acessa o portal do STF, extrai metadados de cada processo (partes, andamentos, relator, decisão, URLs dos PDFs anexados) e grava um arquivo `.json` por processo. Se quiser o texto dos PDFs também, há dois comandos dedicados (`baixar-pecas` + `extrair-pecas`) — descritos na seção 5.
 
 > **Glossário rápido.** *Processo* é cada caso julgado pelo STF — o `judex-mini` grava um JSON por processo com partes, andamentos, relator, decisão e URLs dos PDFs anexados. *Peça* é cada um desses PDFs (decisão monocrática, voto, manifestação da PGR, acórdão, etc.); o cache mantém bytes (`.pdf.gz`) e texto extraído (`.txt.gz`) lado a lado, identificados por `sha1(url)`.

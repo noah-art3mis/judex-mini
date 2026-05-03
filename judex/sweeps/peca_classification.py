@@ -1,20 +1,59 @@
-"""Peça tipo classification — shared between `baixar-pecas` (download-time
-filter) and `judex/warehouse/builder.py` (query-time view).
+"""Peça tipo classification — shared between ``baixar-pecas`` (download-time
+filter) and ``judex/warehouse/builder.py`` (query-time view).
 
-The tier-C list below is the exclusion set used by the default
-``--apenas-substantivas`` filter on ``baixar-pecas``: all are
-procedural boilerplate (certidões, termos, intimações, comunicações,
-decisão-de-julgamento stubs) whose content is either a standard
-template or data already structured in ``cases`` / ``andamentos``.
+Three tiers, ordered by argumentative content per byte:
+
+* **Tier A — substantive (always keep).** Where legal reasoning lives.
+  Three andamento-side tipos (``DECISÃO MONOCRÁTICA`` ~7.9k chars
+  median, ``INTEIRO TEOR DO ACÓRDÃO`` ~11.2k, ``MANIFESTAÇÃO DA PGR``
+  ~10.1k — filter the last to ``n_chars > 1000`` to drop "CIENTE"
+  stamps) plus four session-virtual ``documentos`` tipos (``Voto``,
+  ``Relatório``, ``Voto Vogal``, ``Voto Vista``).
+* **Tier B — mixed (keep at the download layer; filter at query
+  time).** ``DESPACHO`` and ``DECISÃO DE JULGAMENTO``: content varies
+  within the same tipo, so the warehouse view applies a length gate
+  (``n_chars > 1500`` for Despacho) rather than blanket-skipping.
+* **Tier C — boilerplate (skip by default).** Certidões, termos,
+  intimações, comunicações, decisão-de-julgamento stubs. ~131k of the
+  237k HC-corpus PDFs are tier C; skipping them at ``baixar-pecas``
+  saves ~55% of HTTP requests (and proportional WAF exposure). Their
+  content is either a standard template or data already structured in
+  ``cases`` / ``andamentos`` / ``outcome``.
+
+**Redundancy note.** ``INTEIRO TEOR DO ACÓRDÃO`` is the compiled form
+of ``Voto`` + ``Relatório`` + ``Voto Vogal`` + ``Voto Vista`` for the
+same case. When both are present, prefer Inteiro Teor (one PDF,
+complete picture); the individual votes are the fallback when Inteiro
+Teor is missing (still being compiled, or capture gap).
 
 **Matching is case- and accent-insensitive.** Both sides of the
 comparison are folded via Unicode NFKD + combining-mark strip +
 uppercase + strip, so labeling drift like ``"CERTIDAO"`` or
 ``"Certidão"`` still matches the canonical ``"CERTIDÃO"`` entry.
+Empirically the current corpus has zero case/accent variants (verified
+2026-04-23: 17 distinct tipos, all uniformly uppercase + canonically
+accented), so the fold is pure defense — zero current silent misses
+caught, but a future STF rename (e.g. portal migration to lowercase
+labels) won't silently re-enable the filter for the renamed tipo.
 
-See ``docs/peca-tipo-classification.md`` for tier definitions,
-per-tipo content notes, and the validation sampling that backs this
-list.
+**Policy on unseen tipos: fail-open.** Anything outside ``KNOWN_DOC_TYPES``
+passes through ``filter_substantive`` — both ``None`` (pre-download
+ambiguity) and a brand-new STF label. The worst case is wasting some
+HTTP requests on a new stub until ``summarize_tipos`` warns about it
+at sweep launch; there is never silent data loss. If a new tipo turns
+out to be procedural, sample a few PDFs and add it to ``TIER_C_DOC_TYPES``.
+
+**Scope.** HC peça PDFs reached via ``andamentos.link_url`` (served by
+``portal.stf.jus.br/processos/downloadPeca.asp``) and session-virtual
+documents reached via ``cases.sessao_virtual[].documentos[].url``.
+Does *not* cover DJe RTFs under ``decisoes_dje.rtf_url`` — separate
+pipeline; classification is premature until the DJe backfill lands.
+
+See ``docs/peca-tipo-classification.md`` for the warehouse view's
+``pdfs_substantive`` SQL and operator-facing CLI semantics, and
+``docs/reports/2026-04-23-peca-tipo-tier-validation.md`` for the
+empirical row-count / median-char / sampling methodology snapshot
+that backs the tier assignments.
 """
 
 from __future__ import annotations

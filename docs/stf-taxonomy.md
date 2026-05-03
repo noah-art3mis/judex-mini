@@ -12,7 +12,7 @@ generalise across courts.
 See also:
 - [`docs/stf-portal.md`](stf-portal.md) — where on the portal each axis is rendered.
 - [`docs/data-layout.md`](data-layout.md) — where the scraped output lives.
-- [`docs/hc-who-wins-lit-review.md`](hc-who-wins-lit-review.md) — how these axes are used as controls in empirical work.
+- [`docs/hc-who-wins.md § Literature review`](hc-who-wins.md#literature-review) — how these axes are used as controls in empirical work.
 
 Ten independent axes. Most papers cut along only 2–3 of them; confusing
 the axes ("collegiate" vs "HC" vs "plenário") is the single most common
@@ -97,7 +97,7 @@ Each process has typed actors — 10+ distinct roles, most visible in `abaPartes
 - **Recursal**: RCRTE / RCRDO (recorrente / recorrido), EMBTE / EMBDO (embargante / embargado), AGTE / AGDO (agravante / agravado).
 - **Original criminal**: AUTOR, RÉU, DENUNCIANTE (MPF).
 
-Lawyer (ADV) links back to an **OAB** number (90 % coverage in HC per `docs/hc-who-wins-lit-review.md:41`). Captured in `StfItem.partes` list.
+Lawyer (ADV) links back to an **OAB** number (90.5 % coverage in HC per `docs/hc-who-wins.md § 2 Name entity resolution`). Captured in `StfItem.partes` list.
 
 ## 10. `assunto` / `matéria` — what the case is about (substantive subject)
 
@@ -145,7 +145,7 @@ For each case, these travel with the *relator* and (for collegiate) each *voter*
 
 For *recursos* only: STJ / TRF1–6 / TJ(state) / TRE / Others. Lives on `abaInformacoes.asp` in the HTML.
 
-Important case-mix control (CEM stratification variable per `docs/hc-who-wins-lit-review.md:72`). Currently only *partial* — lives as free text inside `StfItem.informacoes`. Gap worth filling before the backfill.
+Important case-mix control (CEM stratification variable per `docs/hc-who-wins.md § 5 Case-mix controls`). Currently only *partial* — lives as free text inside `StfItem.informacoes`. Gap worth filling before the backfill.
 
 ## 15. Temporal regimes — era flags
 

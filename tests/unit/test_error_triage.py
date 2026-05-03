@@ -12,7 +12,11 @@ from __future__ import annotations
 
 import pytest
 
-from judex.sweeps.error_triage import classify_error
+from judex.sweeps.error_triage import (
+    RECOVERY_RECIPES,
+    classify_error,
+    recovery_recipe,
+)
 
 
 # ----- varrer ---------------------------------------------------------------
@@ -139,3 +143,78 @@ def test_invalid_stage_raises() -> None:
     """Stage typo should fail loudly, not silently classify wrong."""
     with pytest.raises(ValueError, match="stage"):
         classify_error("varrar", {"status": "ok"})  # type: ignore[arg-type]
+
+
+# ----- recovery recipes -----------------------------------------------------
+
+
+def test_recovery_table_covers_every_stage_kind_cell() -> None:
+    """Every (stage, kind) the classifier can return must have a recipe.
+
+    Without this, ``recovery_recipe`` would KeyError on a row whose
+    triage outcome the table doesn't cover. The classifier returns
+    one of four kinds for one of three stages; all 12 cells must be
+    populated.
+    """
+    expected_keys = {
+        (stage, kind)
+        for stage in ("varrer", "baixar", "extrair")
+        for kind in ("ok", "transient", "terminal", "cross_stage")
+    }
+    assert set(RECOVERY_RECIPES.keys()) == expected_keys
+
+
+def test_extrair_empty_routes_to_switch_provider() -> None:
+    """The whole point of the override: ``empty`` is kind=terminal in
+    the classifier (re-running the same provider won't help) but the
+    operator action is *not* "drop" — it's switch to chandra/mistral.
+    The status-specific override must fire before the generic
+    (extrair, terminal) → drop_terminal recipe.
+    """
+    recipe = recovery_recipe("extrair", {"status": "empty",
+                                          "error": "pypdf returned 0 chars"})
+    assert recipe.action == "switch_provider"
+    assert "chandra" in (recipe.command_hint or "")
+
+
+def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
+    """Same override pattern: corrupt cache → refetch via baixar, not drop."""
+    recipe = recovery_recipe("extrair",
+                             {"status": "unknown_type",
+                              "error": "extension not in {pdf, rtf}"})
+    assert recipe.action == "refetch_bytes"
+    assert "baixar-pecas" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_routes_transient_to_replay() -> None:
+    """A WAF 403 on varrer is the canonical replay row."""
+    recipe = recovery_recipe("varrer",
+                             {"status": "fail", "error": "403 Forbidden",
+                              "http_status": 403})
+    assert recipe.action == "replay"
+    assert "retentar-de" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_routes_terminal_to_drop() -> None:
+    """A real 404 on baixar is the canonical drop row."""
+    recipe = recovery_recipe("baixar",
+                             {"status": "http_error",
+                              "error": "HTTPError: 404 Not Found",
+                              "http_status": 404})
+    assert recipe.action == "drop_terminal"
+    assert recipe.command_hint is None
+
+
+def test_recovery_recipe_routes_cross_stage_to_refetch_upstream() -> None:
+    """no_bytes on extrair must point at re-baixar, not at retry-extrair."""
+    recipe = recovery_recipe("extrair",
+                             {"status": "no_bytes",
+                              "error": "run baixar-pecas first"})
+    assert recipe.action == "refetch_upstream"
+    assert "baixar-pecas" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_ok_action_is_none() -> None:
+    """An ``ok`` row needs no action; the recipe must say so explicitly."""
+    assert recovery_recipe("baixar", {"status": "ok"}).action == "none"
+    assert recovery_recipe("baixar", {"status": "cached"}).action == "none"

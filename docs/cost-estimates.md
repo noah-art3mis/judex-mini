@@ -4,6 +4,16 @@ How much does a sweep cost in money and wall time? Per-unit anchors,
 year-of-HC projections, and headline numbers for the three sweep
 passes (`varrer-processos`, `baixar-pecas`, `extrair-pecas`).
 
+**Where to look first.** For a one-off forecast on the run you're
+about to launch, run `uv run judex {varrer,baixar,extrair}-pecas
+--prever` — it prints the wall + cost preview anchored on the same
+constants this doc explains. For a post-hoc bill on a finished run,
+read `report.md` in the run directory. This doc is the *interpretation
+layer*: per-unit anchors, year-of-HC projections, OCR-provider
+tradeoffs, and the BRL↔USD policy. The constants and the rate-source
+functions live in [`judex/utils/cost.py`](../judex/utils/cost.py) — its
+module docstring carries the anchor table and the re-anchoring rule.
+
 All numbers below are **data-anchored** (sweep measurements + the
 codebase's canonical walkers, not handrolled scans). The modelled
 estimate path lives in `judex/utils/cost.py` and prints a
@@ -169,22 +179,23 @@ unverified ballpark that doubled all historical forecasts.
 ## Live cost reporting
 
 Both download passes print a one-line cost summary at the end (source:
-`judex/utils/cost.py`, `ProxyCost.summary_line` at line 276,
-`OcrCost.summary_line` at line 298). Numbers are USD because the env-var
-contract is USD.
+`ProxyCost.summary_line` and `OcrCost.summary_line` in
+[`judex/utils/cost.py`](../judex/utils/cost.py)). Numbers are USD
+because the env-var contract is USD.
 
-To make the live numbers match your bill:
+The two rate sources are env-overridable to match your actual bill:
 
-```bash
-PROXY_PRICE_USD_PER_GB=4.00                  uv run judex varrer-processos ...
-PROXY_PRICE_USD_PER_GB=4.00                  uv run judex baixar-pecas ...
-OCR_PRICE_TESSERACT_USD_PER_1K_PAGES=0.00      uv run judex extrair-pecas --provedor tesseract ...
-OCR_PRICE_TESSERACT_MODAL_USD_PER_1K_PAGES=0.14  uv run judex extrair-pecas --provedor tesseract_modal ...
-OCR_PRICE_MISTRAL_USD_PER_1K_PAGES=1.00      uv run judex extrair-pecas --provedor mistral ...
-OCR_PRICE_CHANDRA_USD_PER_1K_PAGES=2.00      uv run judex extrair-pecas --provedor chandra ...
-OCR_PRICE_UNSTRUCTURED_USD_PER_1K_PAGES=10.0 uv run judex extrair-pecas --provedor unstructured ...
-PROCESS_AVG_BYTES=47000                      uv run judex varrer-processos ...
-```
+- `PROXY_PRICE_USD_PER_GB=<float>` — reads via `proxy_usd_per_gb()`;
+  default `_DEFAULT_PROXY_USD_PER_GB = 3.65`.
+- `OCR_PRICE_<PROVIDER>_USD_PER_1K_PAGES=<float>` — reads via
+  `ocr_usd_per_1k_pages(provider)`; default is the cheapest tier from
+  the provider's `SPEC` (batch when supported, sync otherwise). One
+  env var per provider name (uppercased): `OCR_PRICE_TESSERACT_MODAL`,
+  `OCR_PRICE_MISTRAL`, `OCR_PRICE_CHANDRA`, … See the OCR-provider
+  table below for the defaults baked in via SPEC.
+
+`PROCESS_AVG_BYTES=47000` (default in `cost.py`) tunes the
+case-bytes-per-process anchor for `varrer-processos`'s live cost line.
 
 All env vars read at sweep start; mid-run changes don't take effect.
 

@@ -2,6 +2,14 @@
 
 Where things live in judex-mini. New contributors start here.
 
+For the literal directory hierarchy, run `tree -L 2 data/ runs/ state/
+config/ tests/sweep/ docs/`. The diagrams below carry per-line *annotations*
+(format-agnostic peça naming, the four-file `pecas-texto/` quartet, the
+sharded vs. monolithic `runs/` layout, the partial-tracking rule for
+`state/`) that aren't visible from a literal walk — read this doc when
+you need to understand *why* something is laid out the way it is, and
+the code pointer next to each tree for the read/write API.
+
 ## One axis: cost of deletion
 
 Under `data/`, the path encodes "what happens if I `rm -rf` this?". Three
@@ -166,20 +174,23 @@ by explicit rules in `.gitignore`.
 
 ### `docs/` — curated knowledge
 
-**Git-tracked, deliberately.**
+**Git-tracked, deliberately.** Three sub-trees with distinct lifecycles:
 
-```
-docs/
-├── current_progress.md                   ← live lab notebook (active task + strategic state)
-├── data-layout.md                        ← this file
-├── stf-portal.md                         ← how the portal works
-├── rate-limits.md                        ← WAF behavior + cooldowns
-├── process-space.md                      ← HC / ADI / RE ceilings
-├── performance.md                        ← HTTP vs Selenium numbers
-├── progress_archive/<YYYY-MM-DD_HHMM_slug>.md  ← prior lab-notebook snapshots
-├── reports/<date>-<label>.md             ← promoted human-written narratives
-└── superpowers/specs/                    ← design specs for major features
-```
+- `docs/*.md` — living reference docs (this one, `stf-portal.md`,
+  `rate-limits.md`, …). Updated as understanding evolves.
+- `docs/progress_archive/<YYYY-MM-DD_HHMM_slug>.md` — frozen
+  lab-notebook snapshots; `docs/current_progress.md` archives into
+  here when a thread closes.
+- `docs/reports/<date>-<label>.md` — promoted human-written narratives,
+  one per finished sweep or one-off analysis. Frozen on creation.
+- `docs/adr/<NNNN>-<slug>.md` — architecture decision records.
+- `docs/superpowers/specs/` — design specs for major features.
+
+The CLAUDE.md "When to read what" routing table is the SOT for which
+doc to open for which question (and is updated whenever a doc moves).
+Don't maintain a parallel index here — it drifts. (As of 2026-05-03,
+that table has caught two merges this session that a literal listing
+in this file would have missed.)
 
 ## The foreign key — processo → peça text
 
