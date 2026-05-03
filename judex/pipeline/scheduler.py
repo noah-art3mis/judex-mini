@@ -30,7 +30,8 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable, Optional
 
 from judex.pipeline.handlers import HandlerFn
-from judex.pipeline.models import Counters, PoolConfig, PoolName, Task
+from judex.pipeline.models import Counters, PoolConfig, PoolName, Task, TaskStatus
+from judex.pipeline.pools import Pool, build_pools
 from judex.pipeline.state import PipelineState
 
 
@@ -116,9 +117,26 @@ def seeds_from_targets(
 @dataclass
 class _SchedulerRuntime:
     queues: dict[PoolName, asyncio.Queue]
-    semaphores: dict[PoolName, asyncio.Semaphore]
+    pools: dict[PoolName, Pool]
     counters: dict[PoolName, Counters]
+    state: PipelineState  # for breaker readback after each task
     in_flight: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+
+def _read_task_outcome(state: PipelineState, task: Task) -> Optional[TaskStatus]:
+    """Look up the status the handler just recorded for ``task``.
+
+    The handler is expected to record exactly one outcome before
+    returning (every code path in ``handlers.py`` does so). This
+    function is the breaker's view of that record.
+    """
+    if task.kind == "fetch_meta":
+        return state.meta_status(task.case_key)
+    if task.kind == "fetch_bytes":
+        return state.bytes_status(task.case_key, url=task.payload.get("url", ""))
+    if task.kind == "extract_text":
+        return state.text_status(task.case_key, url=task.payload.get("url", ""))
+    return None
 
 
 async def _run_one(
@@ -126,23 +144,35 @@ async def _run_one(
     handler: HandlerFn,
     runtime: _SchedulerRuntime,
 ) -> None:
-    """Run one task under its pool semaphore. Records timing and
-    emits successors. Handlers do not raise — they record their own
-    error outcomes to state.
+    """Run one task under its pool semaphore. Records timing,
+    emits successors, and feeds the per-pool circuit breaker the
+    state-side outcome. Handlers do not raise — they record their
+    own error outcomes to state.
     """
+    pool = runtime.pools[task.pool]
     runtime.counters[task.pool].started += 1
     try:
-        async with runtime.semaphores[task.pool]:
+        async with pool.semaphore:
             handler_t0 = time.monotonic()
             successors = await asyncio.to_thread(handler, task)
             runtime.counters[task.pool].busy_seconds += time.monotonic() - handler_t0
         runtime.counters[task.pool].finished += 1
+
+        # Feed the breaker. ``ok`` if the handler recorded "ok" for
+        # this task; anything else (http_error, no_bytes, empty,
+        # provider_error, unallocated_pid) counts as an error from
+        # the breaker's perspective. None means the handler didn't
+        # record (shouldn't happen given the handlers.py contract);
+        # we treat None as "error" defensively.
+        outcome = _read_task_outcome(runtime.state, task)
+        pool.record_outcome(ok=(outcome == "ok"))
 
         for follow in successors:
             runtime.in_flight[follow.pool] += 1
             await runtime.queues[follow.pool].put(follow)
     except Exception as exc:  # noqa: BLE001 -- defensive; handlers shouldn't raise
         runtime.counters[task.pool].failed += 1
+        pool.record_outcome(ok=False)
         log.exception("[%s] handler raised for %s: %r", task.pool, task.id, exc)
     finally:
         runtime.in_flight[task.pool] -= 1
@@ -271,11 +301,9 @@ async def run_scheduler(
     queues: dict[PoolName, asyncio.Queue] = {
         p.name: asyncio.Queue(maxsize=config.queue_maxsize) for p in config.pools
     }
-    semaphores: dict[PoolName, asyncio.Semaphore] = {
-        p.name: asyncio.Semaphore(p.concurrency) for p in config.pools
-    }
+    pools = build_pools(config.pools)
     counters: dict[PoolName, Counters] = {p.name: Counters() for p in config.pools}
-    runtime = _SchedulerRuntime(queues=queues, semaphores=semaphores, counters=counters)
+    runtime = _SchedulerRuntime(queues=queues, pools=pools, counters=counters, state=state)
 
     shutdown_event = asyncio.Event()
 
