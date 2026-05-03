@@ -20,6 +20,12 @@ primary_region = "gru"
 
 [env]
   PORT = "8080"
+  # Pin OpenMP to 1 thread per tesseract subprocess. Each page is OCRed
+  # in its own subprocess and we parallelize *across* pages via the
+  # server's ThreadPoolExecutor — letting OpenMP also fan out underneath
+  # would oversubscribe the 2 vCPUs (n_workers × OMP_threads). Set here
+  # so the env is in scope before uvicorn imports anything.
+  OMP_NUM_THREADS = "1"
 
 [http_service]
   internal_port = 8080
@@ -40,15 +46,20 @@ primary_region = "gru"
     path = "/healthz"
 
 # Per-Machine resource shape. Memory floor derivation (200 dpi A4):
-#   steady-state: Tesseract LSTM 200 + Python/uvicorn 180 + Pillow 80
-#                 + glibc/kernel 50 = 510 MB
+#   steady-state (in-process tesserocr model):
+#     Python/uvicorn 180 + Pillow 80 + glibc/kernel 50 = 310 MB
+#     per-worker PyTessBaseAPI: 2 workers × 100 MB = 200 MB
+#                                          subtotal = 510 MB
 #   per-chunk raster: 16 pages × 11 MB = 176 MB (capped by chunk size)
-#   per-thread Tesseract: 2 vCPUs × 100 MB = 200 MB
-#   peak working set: ~886 MB
-# 1 GB total = 512 MB included + 512 MB additional billed; ~138 MB
-# headroom over peak (~13%). Outliers > 2 MB compressed are skipped
-# pre-flight via tesseract_fly.OutlierPdfError, so the cluster never
-# sees PDFs that would exceed the chunked memory model.
+#   peak working set: ~686 MB
+# 1 GB total = 512 MB included + 512 MB additional billed; ~338 MB
+# headroom over peak (~33%). Headroom went up vs the pytesseract era:
+# the LSTM model is now resident once-per-worker in our process heap
+# instead of being re-mmap'd by transient tesseract subprocesses, so
+# there's no transient-subprocess RAM stacked on top of the chunk.
+# Outliers > 2 MB compressed are skipped pre-flight via
+# tesseract_fly.OutlierPdfError, so the cluster never sees PDFs that
+# would exceed the chunked memory model.
 #
 # Memory shape evolution on this app:
 #   4 GB (orig) — upfront-rasterize design needed ~2.3 GB for the
