@@ -197,7 +197,11 @@ def _render_human(
     from rich.text import Text
 
     console = Console()
-    kind_label = "case sweep" if kind == "case" else "PDF sweep"
+    kind_label = {
+        "case": "case sweep",
+        "pdf": "PDF sweep",
+        "executar": "unified pipeline",
+    }.get(kind, kind)
     console.print(
         f"\n[bold]Regime trajectory · {run_dir} ({kind_label})[/bold]"
     )

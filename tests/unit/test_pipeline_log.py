@@ -181,6 +181,32 @@ def test_derive_errors_file_writes_only_non_ok(tmp_path: Path) -> None:
     assert by_kind[("fetch_bytes", 1)]["doc_type"] == "DESPACHO"
 
 
+def test_derive_errors_file_excludes_skipped_cached(tmp_path: Path) -> None:
+    """``skipped_cached`` is a terminal-ok outcome, NOT a failure: the
+    sidecar-skip path on extract_text records this status when the
+    cached text already matches the requested provider, so re-OCR
+    was deliberately skipped. Including it in errors.jsonl would
+    re-seed the same already-completed work on the next
+    --retentar-de pass — exactly what sidecar-skip exists to avoid.
+
+    Pinned by a real bug surfaced during end-to-end smoke testing of
+    the v1.5 deepenings: a 5-case re-run produced 9 spurious
+    skipped_cached rows in executar.errors.jsonl.
+    """
+    state = PipelineState(path=tmp_path / "executar.state.json", cases={}, started_at="x")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_bytes(("HC", 1), url="https://stf/x.pdf", status="ok", doc_type="VOTO")
+    state.record_text(
+        ("HC", 1), url="https://stf/x.pdf", status="skipped_cached",
+        extractor="pypdf",
+    )
+    out = derive_errors_file(tmp_path, state, [("HC", 1)])
+    rows = read_errors_file(out)
+    assert rows == [], (
+        f"skipped_cached should not appear in errors.jsonl, got: {rows}"
+    )
+
+
 def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None:
     """If bytes failed, text below it can never have been ok — the bytes
     row alone captures the failure root. Don't emit a redundant text row."""

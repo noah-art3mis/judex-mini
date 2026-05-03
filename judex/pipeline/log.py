@@ -188,6 +188,15 @@ def recover_state_from_log(log_path: Path | str) -> PipelineState:
     return state
 
 
+# Statuses that mean "this target is in the desired terminal state" — not
+# errors, even though they're not literally "ok". ``skipped_cached`` is
+# the sidecar-skip outcome on extract_text: cached text already matches
+# the requested provider, so re-OCR was deliberately skipped. Including
+# either in ``executar.errors.jsonl`` would re-seed completed work on
+# the next ``--retentar-de`` pass.
+_TERMINAL_OK_STATUSES: frozenset[str] = frozenset({"ok", "skipped_cached"})
+
+
 def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
     """Yield ``TaskLogRecord``-shaped dicts for every non-ok target.
 
@@ -199,7 +208,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
     for case_key in targets:
         classe, processo = case_key
         meta_status = state.meta_status(case_key)
-        if meta_status not in (None, "ok"):
+        if meta_status is not None and meta_status not in _TERMINAL_OK_STATUSES:
             yield {
                 "kind": "fetch_meta",
                 "classe": classe,
@@ -213,7 +222,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
         for url in sorted(state.known_bytes_urls(case_key)):
             bytes_status = state.bytes_status(case_key, url=url)
             doc_type = state.bytes_doc_type(case_key, url=url)
-            if bytes_status not in (None, "ok"):
+            if bytes_status is not None and bytes_status not in _TERMINAL_OK_STATUSES:
                 yield {
                     "kind": "fetch_bytes",
                     "classe": classe,
@@ -226,7 +235,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
                 }
                 continue
             text_status = state.text_status(case_key, url=url)
-            if text_status not in (None, "ok"):
+            if text_status is not None and text_status not in _TERMINAL_OK_STATUSES:
                 yield {
                     "kind": "extract_text",
                     "classe": classe,

@@ -158,7 +158,13 @@ def render_report_md(
             f"{c.busy_seconds:.1f} | {util:.0%} |"
         )
 
-    # State-side breakdown by status + cost-relevant counts
+    # State-side breakdown by status + cost-relevant counts.
+    # ``skipped_cached`` is a *terminal-ok* outcome (sidecar already
+    # records the right provider; re-OCR was deliberately skipped) —
+    # it counts toward the bytes_ok / text_ok numerator alongside "ok",
+    # because the desired output exists on disk either way. Counting
+    # it as a failure would mark every successful resume as F-grade.
+    _terminal_ok = ("ok", "skipped_cached")
     meta_status: _Counter = _Counter()
     bytes_status: _Counter = _Counter()
     text_status: _Counter = _Counter()
@@ -172,9 +178,9 @@ def render_report_md(
             ts = state.text_status(case, url=url) or "missing"
             bytes_status[bs] += 1
             text_status[ts] += 1
-            if bs == "ok":
+            if bs in _terminal_ok:
                 bytes_ok += 1
-            if ts == "ok":
+            if ts in _terminal_ok:
                 text_ok += 1
 
     def _fmt_counter(c: _Counter) -> str:
