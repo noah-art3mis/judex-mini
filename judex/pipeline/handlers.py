@@ -142,6 +142,17 @@ def make_handlers(
 
         targets = list(_iter_case_pdf_targets(dict(item)))
         targets = filter_substantive(targets)
+        # Dedup by URL: ``_iter_case_pdf_targets`` does NOT dedupe
+        # within a case (per its docstring), so the same peça URL can
+        # appear via multiple surfaces (e.g., once on an andamento.link
+        # and again as a DJe decisao.rtf for the same document). Without
+        # dedup the scheduler emits redundant fetch_bytes tasks; the
+        # second hits ``peca_cache.has_bytes`` → True → skip, so the
+        # cost is bookkeeping noise (sistemas.started inflated, state
+        # writes wasted), not real WAF spend. The 50-case validation
+        # surfaced 3 dupes / 119 tasks (~2.5%); fixing here keeps
+        # report.md counters honest.
+        targets = list({t.url: t for t in targets}.values())
         return [
             Task(
                 kind="fetch_bytes",
