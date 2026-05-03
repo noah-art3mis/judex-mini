@@ -34,6 +34,14 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+# Imported here at module load — must run on the main thread because
+# tesserocr's first import calls cysignals.init_cysignals(), which
+# registers SIGINT/SIGTERM handlers via signal.signal() (main-thread-only
+# in CPython). Lazy-importing inside _get_api (which runs on worker
+# threads) raises "signal only works in main thread of the main
+# interpreter" and aborts the request.
+from tesserocr import PyTessBaseAPI
+
 
 app = FastAPI(title="judex-tesseract-fly")
 
@@ -72,7 +80,6 @@ _thread_local = threading.local()
 def _get_api():
     api = getattr(_thread_local, "api", None)
     if api is None:
-        from tesserocr import PyTessBaseAPI
         api = PyTessBaseAPI(lang=_OCR_LANG)
         _thread_local.api = api
     return api
