@@ -26,6 +26,11 @@ primary_region = "gru"
   # would oversubscribe the 2 vCPUs (n_workers × OMP_threads). Set here
   # so the env is in scope before uvicorn imports anything.
   OMP_NUM_THREADS = "1"
+  # Where libtesseract finds *.traineddata. Debian Bookworm's
+  # tesseract-ocr-por package installs to /usr/share/tesseract-ocr/5/
+  # tessdata/. Without this, PyTessBaseAPI(lang="por") raises:
+  #   "Failed to init API, possibly an invalid tessdata path: ./"
+  TESSDATA_PREFIX = "/usr/share/tesseract-ocr/5/tessdata/"
 
 [http_service]
   internal_port = 8080
