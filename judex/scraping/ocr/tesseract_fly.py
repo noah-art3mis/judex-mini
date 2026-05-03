@@ -49,7 +49,7 @@ import requests
 from tenacity import (
     retry,
     retry_if_exception,
-    stop_after_attempt,
+    stop_after_delay,
     wait_exponential,
 )
 
@@ -90,10 +90,28 @@ def _is_retryable_http(exc: BaseException) -> bool:
     return False
 
 
+# Retry budget calibrated for "fleet-saturated, queue-draining" rather
+# than "transient cold-start blip". The server-side Semaphore(1) +
+# 503 fast-fail (fly/server.py, deployed 2026-05-03) converts queue
+# contention into instant retryable failures — but every retry needs
+# enough headroom for the queue to actually drain. With ~32 concurrent
+# sharded workers against 9 Machines averaging ~30s per OCR, the
+# steady-state queue takes ~210s to clear (32 - 9 = 23 waiters
+# × 30s / 9 Machines × 2 ≈ 153s, rounded up). The prior config
+# (5 attempts × 30s max backoff = ~31s wall budget) was 7× too short
+# and produced an empirical 88-of-161 503-stampede failure mode at the
+# 30.83s p25 wall, exactly matching the budget exhaustion timing.
+#
+# New shape: ``stop_after_delay(300)`` gives 5 minutes of total wall
+# budget per request, ``max=60`` lets a single backoff stretch to a
+# full minute when the fleet is saturated. Tenacity uses these jointly
+# — it stops at the first of "delay budget exhausted" or "attempt N",
+# and we drop the per-attempt cap so the delay budget is the only
+# stopping condition (effectively unlimited attempts within 300s).
 _retry_fly = retry(
     retry=retry_if_exception(_is_retryable_http),
-    wait=wait_exponential(multiplier=2, min=2, max=30),
-    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=2, max=60),
+    stop=stop_after_delay(300),
     reraise=True,
 )
 
