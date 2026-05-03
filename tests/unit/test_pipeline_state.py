@@ -49,6 +49,28 @@ def test_record_and_query_extract_text(tmp_path: Path) -> None:
     assert state.text_extractor(("HC", 1), url="https://stf/peca-1") == "pypdf"
 
 
+def test_record_text_stores_chars(tmp_path: Path) -> None:
+    """``chars`` lets the per-task tail line surface OCR output size
+    (``pypdf · 18,234ch``) without re-reading the cached text from disk.
+    Optional: only the ok / empty paths fill it in; failures leave None."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    state.record_text(
+        ("HC", 1), url="u-ok", status="ok", extractor="pypdf", chars=18234,
+    )
+    state.record_text(
+        ("HC", 1), url="u-empty", status="empty", extractor="pypdf", chars=0,
+    )
+    state.record_text(
+        ("HC", 1), url="u-fail", status="provider_error", extractor="pypdf",
+    )
+
+    assert state.text_chars(("HC", 1), url="u-ok") == 18234
+    assert state.text_chars(("HC", 1), url="u-empty") == 0
+    assert state.text_chars(("HC", 1), url="u-fail") is None
+    assert state.text_chars(("HC", 1), url="u-missing") is None
+
+
 def test_round_trip(tmp_path: Path) -> None:
     """Snapshot, reload, observe identical contents."""
     path = tmp_path / "s.json"

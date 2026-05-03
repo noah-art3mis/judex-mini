@@ -392,11 +392,15 @@ def make_handlers(
                 return []
             if not rtf_text.strip():
                 state.record_text(
-                    task.case_key, url=url, status="empty", extractor="rtf"
+                    task.case_key, url=url, status="empty",
+                    extractor="rtf", chars=0,
                 )
                 return []
             peca_cache.write(url, rtf_text, extractor="rtf")
-            state.record_text(task.case_key, url=url, status="ok", extractor="rtf")
+            state.record_text(
+                task.case_key, url=url, status="ok",
+                extractor="rtf", chars=len(rtf_text),
+            )
             return []
 
         # Resolve the effective provider for THIS target. Under
@@ -432,6 +436,7 @@ def make_handlers(
                 url=url,
                 status="empty",
                 extractor=effective_provedor,
+                chars=0,
             )
             return []
 
@@ -439,7 +444,8 @@ def make_handlers(
         if result.elements is not None:
             peca_cache.write_elements(url, result.elements)
         state.record_text(
-            task.case_key, url=url, status="ok", extractor=effective_provedor,
+            task.case_key, url=url, status="ok",
+            extractor=effective_provedor, chars=len(result.text),
         )
         return []
 

@@ -91,6 +91,66 @@ def _no_shutdown() -> bool:
 
 
 @pytest.mark.asyncio
+async def test_per_task_tail_line_shows_provider_and_chars_for_extract_text(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The user's explicit ask: ``[ocr     ]  HC 1 …  ·  0.00s · pypdf
+    1,200ch``. Without the suffix, the operator can't tell which
+    provider ran (matters under ``--provedor auto``) or how big the
+    OCR output was. fetch_meta / fetch_bytes rows must NOT carry the
+    suffix — that would be visual noise on a stage that has no
+    provider."""
+
+    state = PipelineState.load(tmp_path / "s.json")
+    targets = [("HC", 1)]
+
+    def handle_meta(task: Task) -> list[Task]:
+        state.record_meta(task.case_key, status="ok")
+        return [Task(
+            kind="fetch_bytes", pool="sistemas",
+            payload={"url": "u-1-0"}, case_key=task.case_key,
+        )]
+
+    def handle_bytes(task: Task) -> list[Task]:
+        state.record_bytes(task.case_key, url=task.payload["url"], status="ok")
+        return [Task(
+            kind="extract_text", pool="ocr",
+            payload={"url": task.payload["url"]}, case_key=task.case_key,
+        )]
+
+    def handle_text(task: Task) -> list[Task]:
+        state.record_text(
+            task.case_key, url=task.payload["url"],
+            status="ok", extractor="pypdf", chars=1200,
+        )
+        return []
+
+    handlers = {
+        "fetch_meta": handle_meta,
+        "fetch_bytes": handle_bytes,
+        "extract_text": handle_text,
+    }
+
+    config = SchedulerConfig(
+        pools=_three_pools(), handlers=handlers,
+        progress_interval_seconds=10.0,
+    )
+    seeds = seeds_from_targets(targets, state)
+    with caplog.at_level("INFO", logger="judex.pipeline.scheduler"):
+        await run_scheduler(seeds, config, state, shutdown_check=_no_shutdown)
+
+    text_lines = [r.getMessage() for r in caplog.records if "[ocr" in r.getMessage()]
+    bytes_lines = [r.getMessage() for r in caplog.records if "[sistemas" in r.getMessage()]
+    meta_lines = [r.getMessage() for r in caplog.records if "[portal" in r.getMessage()]
+
+    # extract_text row: provider + comma-formatted chars in suffix.
+    assert any("pypdf 1,200ch" in line for line in text_lines), text_lines
+    # No bleed-through to other stages.
+    assert not any("ch" in line.split("·", 1)[1] for line in bytes_lines if "·" in line)
+    assert not any("pypdf" in line for line in meta_lines)
+
+
+@pytest.mark.asyncio
 async def test_clean_run_completes_all_tasks(tmp_path: Path) -> None:
     state = PipelineState.load(tmp_path / "s.json")
     targets = [("HC", i) for i in range(5)]

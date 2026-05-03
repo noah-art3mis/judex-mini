@@ -318,6 +318,100 @@ def test_handle_fetch_meta_falls_through_to_scrape_on_malformed_cache(
     assert state.meta_status((classe, processo)) == "ok"
 
 
+def test_handle_extract_text_ok_records_chars_for_tail_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """OCR ok path must stamp ``chars=len(result.text)`` so the per-task
+    tail line can show ``pypdf 18,234ch`` without re-decompressing the
+    cached text. Empty path must record ``chars=0`` (extractor ran,
+    output had no usable content — distinguishable from None which
+    means "we don't know")."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+    monkeypatch.setattr(peca_cache, "write_elements", lambda url, els: None)
+
+    def fake_extract_pdf(pdf_bytes: bytes, config) -> object:
+        from judex.scraping.ocr import ExtractResult
+        return ExtractResult(
+            text="hello world " * 100, elements=None,
+            pages_processed=1, provider=config.provider,
+        )
+
+    monkeypatch.setattr(
+        "judex.scraping.ocr.dispatch.extract_pdf", fake_extract_pdf
+    )
+
+    handlers = make_handlers(state, provedor="pypdf")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/decisao.pdf"},
+    )
+    handlers["extract_text"](task)
+
+    assert state.text_status(task.case_key, url=task.payload["url"]) == "ok"
+    assert state.text_chars(task.case_key, url=task.payload["url"]) == len("hello world " * 100)
+
+
+def test_handle_extract_text_empty_records_chars_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Empty-output path: provider returned whitespace-only text. We
+    record chars=0 (not None) so a downstream "extractor ran but no
+    text" check can tell this apart from "we never tried"."""
+    state = PipelineState.load(tmp_path / "s.json")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: b"%PDF-1.4 dummy")
+
+    def fake_extract_pdf(pdf_bytes: bytes, config) -> object:
+        from judex.scraping.ocr import ExtractResult
+        return ExtractResult(
+            text="   \n  \n", elements=None,  # whitespace-only
+            pages_processed=1, provider=config.provider,
+        )
+
+    monkeypatch.setattr(
+        "judex.scraping.ocr.dispatch.extract_pdf", fake_extract_pdf
+    )
+
+    handlers = make_handlers(state, provedor="pypdf")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": "https://x/blank.pdf"},
+    )
+    handlers["extract_text"](task)
+
+    assert state.text_status(task.case_key, url=task.payload["url"]) == "empty"
+    assert state.text_chars(task.case_key, url=task.payload["url"]) == 0
+
+
+def test_handle_extract_text_rtf_records_chars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RTF bypass also needs to stamp chars — same per-task-line UI
+    needs as OCR. Without this, RTF rows would show ``rtf`` with no
+    chars suffix and the operator would have to guess output size.
+    """
+    state = PipelineState.load(tmp_path / "s.json")
+
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "read_bytes", lambda url: _MINIMAL_RTF)
+    monkeypatch.setattr(peca_cache, "write", lambda url, text, *, extractor=None: None)
+
+    handlers = make_handlers(state, provedor="pypdf")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 250000),
+        payload={"url": "https://stf/decisao.rtf"},
+    )
+    handlers["extract_text"](task)
+
+    chars = state.text_chars(task.case_key, url=task.payload["url"])
+    assert chars is not None and chars > 0
+
+
 def test_handle_extract_text_auto_falls_back_to_pypdf_when_doc_type_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

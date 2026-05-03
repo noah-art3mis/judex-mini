@@ -160,6 +160,13 @@ class PipelineState:
         entry = rec.text.get(url)
         return entry.get("extractor") if entry else None
 
+    def text_chars(self, case_key: tuple[str, int], *, url: str) -> Optional[int]:
+        rec = self._cases.get(_case_key_str(case_key))
+        if rec is None:
+            return None
+        entry = rec.text.get(url)
+        return entry.get("chars") if entry else None
+
     def known_bytes_urls(self, case_key: tuple[str, int]) -> set[str]:
         rec = self._cases.get(_case_key_str(case_key))
         if rec is None:
@@ -257,6 +264,7 @@ class PipelineState:
         status: TaskStatus,
         extractor: Optional[str] = None,
         error: Optional[str] = None,
+        chars: Optional[int] = None,
     ) -> None:
         rec = self._ensure_case(case_key)
         prior_existed = url in rec.text
@@ -268,6 +276,7 @@ class PipelineState:
             "extractor": extractor,
             "error": error,
             "retry_count": retry_count,
+            "chars": chars,
         }
 
     # ---- retry_count getters (used by scheduler.seeds_from_targets) ----

@@ -286,6 +286,24 @@ def _read_task_extractor(state: PipelineState, task: Task) -> Optional[str]:
     return entry.get("extractor") if entry else None
 
 
+def _read_task_chars(state: PipelineState, task: Task) -> Optional[int]:
+    """Project the per-record ``chars`` count (extract_text only).
+
+    Set on ok / empty terminal outcomes by the OCR + RTF handlers; left
+    None on no_bytes / provider_error and on cache-fast skipped_cached
+    (we don't pay to decompress just for the tail line). The tail line
+    renderer treats None as "omit the chars suffix".
+    """
+    if task.kind != "extract_text":
+        return None
+    classe, processo = task.case_key
+    rec = state._cases.get(f"{classe}-{processo}")  # noqa: SLF001
+    if rec is None:
+        return None
+    entry = rec.text.get(task.payload.get("url", ""))
+    return entry.get("chars") if entry else None
+
+
 def _short_identifier(task: Task) -> str:
     """Compact per-task id for the tail log, mirroring legacy
     ``judex.utils.log_render.compact_target_id`` shape:
@@ -359,26 +377,37 @@ async def _run_one(
         #   HH:MM:SS  ✓ ok        [portal]    HC 187634          ·  3.21s
         # Timestamp first, glyph + status word (padded to 8 chars so
         # most lines align), pool tag, compact identifier, wall.
+        # extract_text rows extend with `· {extractor} {chars}ch` so the
+        # operator sees provider routing + OCR output volume in real time
+        # without having to read the JSONL log.
         from judex.utils.log_render import _style_for, _now_hms
         glyph, _ = _style_for(outcome or "?")
+        line_extractor = _read_task_extractor(runtime.state, task)
+        line_chars = _read_task_chars(runtime.state, task)
+        suffix = ""
+        if task.kind == "extract_text" and line_extractor:
+            if line_chars is not None:
+                suffix = f"  ·  {line_extractor} {line_chars:,}ch"
+            else:
+                suffix = f"  ·  {line_extractor}"
         log.info(
-            "%s  %s %-8s  [%-8s]  %-20s  ·  %.2fs",
+            "%s  %s %-8s  [%-8s]  %-20s  ·  %.2fs%s",
             _now_hms(), glyph, outcome or "?",
-            task.pool, _short_identifier(task), elapsed,
+            task.pool, _short_identifier(task), elapsed, suffix,
         )
 
         # Append-only log row. Carries everything analisar-regimes,
         # error_triage, and --retentar-de need. fsynced per row.
         if runtime.log is not None:
             error_msg = _read_task_error(runtime.state, task)
-            extractor = _read_task_extractor(runtime.state, task)
             rkw = regime_kwargs(regime_reading)
             record = make_log_record(
                 task=task,
                 status=outcome or "error",
                 wall_s=elapsed,
                 error=error_msg,
-                extractor=extractor,
+                extractor=line_extractor,
+                chars=line_chars,
                 regime=rkw["regime"],
                 regime_fail_rate=rkw["regime_fail_rate"],
                 regime_p95_wall_s=rkw["regime_p95_wall_s"],

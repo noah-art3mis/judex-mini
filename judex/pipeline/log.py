@@ -68,6 +68,11 @@ class TaskLogRecord:
     url: Optional[str] = None
     doc_type: Optional[str] = None
     extractor: Optional[str] = None
+    # Output size of an extract_text task — surfaced on the per-task tail
+    # line (`pypdf 18234ch`) so the operator sees OCR output volume in
+    # real time without reading cached files. None on non-extract_text
+    # rows and on extract_text failures (no_bytes, provider_error).
+    chars: Optional[int] = None
     error: Optional[str] = None
     http_status: Optional[int] = None
     pool: Optional[str] = None
@@ -91,6 +96,7 @@ class TaskLogRecord:
             "url": self.url,
             "doc_type": self.doc_type,
             "extractor": self.extractor,
+            "chars": self.chars,
             "error": self.error,
             "http_status": self.http_status,
             "pool": self.pool,
@@ -173,6 +179,7 @@ def recover_state_from_log(log_path: Path | str) -> PipelineState:
             url = rec.get("url")
             doc_type = rec.get("doc_type")
             extractor = rec.get("extractor")
+            chars = rec.get("chars")
             if kind == "fetch_meta":
                 state.record_meta(case_key, status=status, error=error)
             elif kind == "fetch_bytes" and url:
@@ -183,7 +190,7 @@ def recover_state_from_log(log_path: Path | str) -> PipelineState:
             elif kind == "extract_text" and url:
                 state.record_text(
                     case_key, url=url, status=status,
-                    extractor=extractor, error=error,
+                    extractor=extractor, error=error, chars=chars,
                 )
     return state
 
@@ -353,6 +360,7 @@ def make_log_record(
     wall_s: float,
     error: Optional[str] = None,
     extractor: Optional[str] = None,
+    chars: Optional[int] = None,
     http_status: Optional[int] = None,
     regime: Optional[str] = None,
     regime_fail_rate: Optional[float] = None,
@@ -376,6 +384,7 @@ def make_log_record(
         url=task.payload.get("url"),
         doc_type=task.payload.get("doc_type"),
         extractor=extractor,
+        chars=chars,
         error=error,
         http_status=http_status,
         pool=task.pool,

@@ -131,6 +131,37 @@ def test_recover_state_from_log_rebuilds_dag(tmp_path: Path) -> None:
     assert state.meta_status(("HC", 2)) == "http_error"
 
 
+def test_log_record_carries_chars_and_recovers_into_state(tmp_path: Path) -> None:
+    """``chars`` is the per-task-line OCR-output-size signal. It must
+    survive the round-trip: ``make_log_record`` accepts it,
+    ``to_json`` writes it, ``recover_state_from_log`` reads it back
+    into ``state.text_chars``. Without this, hard-kill resume drops
+    the chars column for any extract_text row replayed from the log,
+    which silently breaks the next session's tail-line UI for cached
+    rows."""
+    log = PipelineLog(tmp_path / LOG_NAME)
+    log.append(make_log_record(
+        task=_meta_task(("HC", 1)), status="ok", wall_s=1.0,
+    ))
+    log.append(make_log_record(
+        task=_bytes_task("https://stf/a.pdf", ("HC", 1)),
+        status="ok", wall_s=2.0,
+    ))
+    log.append(make_log_record(
+        task=_text_task("https://stf/a.pdf", ("HC", 1)),
+        status="ok", wall_s=0.3, extractor="pypdf", chars=18234,
+    ))
+
+    parsed = [
+        json.loads(line)
+        for line in (tmp_path / LOG_NAME).read_text().splitlines()
+    ]
+    assert parsed[2]["chars"] == 18234
+
+    state = recover_state_from_log(tmp_path / LOG_NAME)
+    assert state.text_chars(("HC", 1), url="https://stf/a.pdf") == 18234
+
+
 def test_recover_skips_truncated_tail_line(tmp_path: Path) -> None:
     """A truncated final line (process killed mid-write) doesn't crash
     recovery — the prior rows are still durable."""
