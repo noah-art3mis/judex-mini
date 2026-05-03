@@ -14,7 +14,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
 | Pricing a sweep in money + wall time (year-of-HC, OCR, direct-IP vs proxy) | [`docs/cost-estimates.md`](docs/cost-estimates.md) — per-unit anchors, per-pass tables, override env vars. |
-| Forecasting a specific sweep before launch (single direct-IP vs 16 shards) | `judex {varrer-processos,baixar-pecas,extrair-pecas} --prever` — exits with a real-anchored cost+wall table; math in [`judex/utils/cost.py`](judex/utils/cost.py). |
+| Forecasting a specific sweep before launch (single direct-IP vs 16 shards) | `judex debug {varrer-processos,baixar-pecas,extrair-pecas} --prever` — exits with a real-anchored cost+wall table; math in [`judex/utils/cost.py`](judex/utils/cost.py). |
 | Checking on a live or completed run (rate, regime, cliff diagnosis) | `judex probe --out-root <dir>` (sharded, live `--watch` mode) / `judex analisar-regimes <run_dir>` (mono+sharded, post-hoc regime trajectory; `--json` for jq). Both in [`judex/cli.py`](judex/cli.py). |
 | Checking per-year HC coverage (cases / peça bytes / text) or picking the next backfill target | [`docs/completion-tracker.md`](docs/completion-tracker.md) — per-year table, cache-integrity caveat, backfill priority queue. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
@@ -102,15 +102,25 @@ installs the `judex` console entry; commands below also work as
 the matching `run_X(**kwargs)` library function in `judex/sweeps/`
 directly — detached invocation is `nohup uv run judex <command> …`.
 
-| Command                | Source                                | What it does                                                                                            |
-|------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `varrer-processos`     | `judex/sweeps/run_sweep.py`           | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE` (round-robin split into N pools at launch). |
-| `baixar-pecas`         | `judex/sweeps/baixar_pecas.py`        | PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.               |
-| `extrair-pecas`        | `judex/sweeps/extrair_pecas.py`       | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract}`.|
-| `atualizar-warehouse`  | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `exportar`             | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
-| `fazer-backup`         | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
-| `validar-gabarito`     | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+The legacy three-command chain (`varrer-processos`, `baixar-pecas`,
+`extrair-pecas`) and its `coletar` orchestrator live under the
+`judex debug` sub-app rather than at top level — they're kept as
+ad-hoc utilities (re-running just one stage of a finished Coleta,
+operator habit) but the canonical primary path is `judex executar`
+([ADR-0005](docs/adr/0005-unified-pipeline.md)).
+
+| Command                       | Source                                | What it does                                                                                            |
+|-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. ADR-0005. |
+| `debug varrer-processos`      | `judex/sweeps/run_sweep.py`           | Legacy: case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE`. |
+| `debug baixar-pecas`          | `judex/sweeps/baixar_pecas.py`        | Legacy: PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.       |
+| `debug extrair-pecas`         | `judex/sweeps/extrair_pecas.py`       | Legacy: PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract\|tesseract_fly\|tesseract_modal\|chandra_runpod}`.|
+| `debug coletar`               | `judex/sweeps/coletar.py`             | Legacy: ADR-0004 orchestrator wrapping the three legacy commands as a six-stage chain.                  |
+| `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
+| `providers`                   | (in-CLI, `judex/scraping/ocr/dispatch.py`) | OCR provider comparison table at a given workload size — sorted by cost, sourced from each provider's `SPEC`. |
+| `exportar`                    | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
+| `fazer-backup`                | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
+| `validar-gabarito`            | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each
@@ -128,11 +138,11 @@ shard.
 
 ```bash
 # Case JSON (WAF-hot)
-uv run judex varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
+uv run judex debug varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
     --shards 8 --proxy-pool config/proxies --retomar
 
 # PDF bytes (sistemas.stf.jus.br)
-uv run judex baixar-pecas --csv X.csv --saida out/ --shards 8 \
+uv run judex debug baixar-pecas --csv X.csv --saida out/ --shards 8 \
     --proxy-pool config/proxies --retomar --nao-perguntar
 ```
 
@@ -197,7 +207,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Recommend `judex acompanhar <run_dir>` as the canonical live sweep monitor** before reaching for anything fancier. Wraps `tail -F` with auto-detection: monolithic runs → top-level `driver.log` / `launcher.log`; sharded runs → all `shard-*/driver.log` interleaved (with `==> shard-X/driver.log <==` headers). All three pipeline stages (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and the unified `executar` write the same per-record `[N/total] ...` + periodic `[progress] ok=… fail=… · X.XX proc/s · eta Y min` shape to that log — liveness, throughput, ETA, and recent errors in one view. Pair with `pgrep -af <run_label>` for liveness. The wrapper exists because before it, mono runs needed `tail -f <run>/launcher.log` and sharded needed `tail -F <run>/shard-*/driver.log` — same job, two incantations; one user pivoted to "make tail work the same way on both" and `acompanhar` is the result. Sharded runs also have a richer alternative for varrer/baixar (`judex probe --out-root <dir> --watch N`), though probe predates `executar`'s nested state shape and only renders 0/X for that pipeline; regime-trajectory analysis (cliffs / SSL-EOF storms) is post-hoc via `judex analisar-regimes <run_dir>`. Don't write bespoke monitor scripts when `judex acompanhar` already carries the live signal.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
-- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex varrer-processos` / `uv run judex baixar-pecas` per shard.
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex debug varrer-processos` / `uv run judex debug baixar-pecas` per shard (the `command_group="debug"` kwarg threads the sub-app prefix in).
 
 ## Agent skills
 

@@ -250,14 +250,14 @@ def test_launch_sharded_varrer_requires_label_prefix(tmp_path: Path) -> None:
 def test_varrer_processos_shards_cli_forwards_flags(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """CLI-level contract: ``judex varrer-processos --shards N
+    """CLI-level contract: ``judex debug varrer-processos --shards N
     --proxy-pool FILE`` partitions the CSV and spawns N children via
-    ``launch_sharded(command="varrer-processos", ...)``. After the CLI
-    cleanup, the per-shard children are spawned as
-    ``uv run judex varrer-processos ...`` — same Typer command, just one
-    subprocess per shard. The Typer wrapper must forward ``--retomar``,
-    ``--diretorio-itens``, and ``--rotulo`` verbatim (no translation step
-    now that the argparse layer is gone).
+    ``launch_sharded(command="varrer-processos", command_group="debug",
+    ...)``. The per-shard children are spawned as
+    ``uv run judex debug varrer-processos ...`` — same Typer command, one
+    subprocess per shard, threaded through the legacy debug sub-app.
+    The Typer wrapper must forward ``--retomar``, ``--diretorio-itens``,
+    and ``--rotulo`` verbatim.
     """
     from typer.testing import CliRunner
 
@@ -284,7 +284,7 @@ def test_varrer_processos_shards_cli_forwards_flags(
     monkeypatch.setattr(shard_launcher, "_real_spawn", fake_spawn)
 
     result = CliRunner().invoke(app, [
-        "varrer-processos",
+        "debug", "varrer-processos",
         "--csv", str(src_csv),
         "--saida", str(saida),
         "--rotulo", "hc_q2",
@@ -299,11 +299,11 @@ def test_varrer_processos_shards_cli_forwards_flags(
     assert len(spawned) == 2
 
     # Per-shard argv carries the same Portuguese Typer flags forwarded
-    # from the parent CLI — no translation step (the argparse layer was
-    # eliminated when run_sweep moved into judex/sweeps/).
+    # from the parent CLI, threaded through the legacy `debug` sub-app
+    # so each child invokes `uv run judex debug varrer-processos ...`.
     for i, argv in enumerate(spawned):
         letter = "ab"[i]
-        assert argv[:4] == ["uv", "run", "judex", "varrer-processos"]
+        assert argv[:5] == ["uv", "run", "judex", "debug", "varrer-processos"]
         assert argv[argv.index("--rotulo") + 1] == f"hc_q2_shard_{letter}"
         assert "--retomar" in argv
         assert argv[argv.index("--diretorio-itens") + 1] == "data/source/processos/HC"
@@ -327,7 +327,7 @@ def test_varrer_processos_shards_requires_proxy_pool(tmp_path: Path) -> None:
         w.writerow(["HC", 1])
 
     result = CliRunner().invoke(app, [
-        "varrer-processos",
+        "debug", "varrer-processos",
         "--csv", str(src_csv),
         "--saida", str(tmp_path / "out"),
         "--rotulo", "hc_test",

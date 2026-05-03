@@ -126,6 +126,7 @@ def launch_sharded(
     extra_args: Optional[list[str]] = None,
     spawn: Optional[SpawnFn] = None,
     strategy: ShardStrategy = "interleave",
+    command_group: Optional[str] = None,
 ) -> Path:
     """Partition CSV, spawn N detached children of ``judex <command>``,
     return the PIDs file.
@@ -193,7 +194,9 @@ def launch_sharded(
         shard_saida.mkdir(parents=True, exist_ok=True)
 
         argv: list[str] = [
-            "uv", "run", "judex", command,
+            "uv", "run", "judex",
+            *(("debug",) if command_group == "debug" else ()),
+            command,
             "--csv", str(shard_csv_path),
         ]
         if needs_rotulo:

@@ -451,7 +451,7 @@ def make_subprocess_runners(
 
     def varrer_forward(out_dir: Path) -> StageMetrics:
         argv = [
-            "uv", "run", "judex", "varrer-processos",
+            "uv", "run", "judex", "debug", "varrer-processos",
             "-c", config.classe,
             "-i", str(config.inicio),
             "-f", str(config.fim),
@@ -464,7 +464,7 @@ def make_subprocess_runners(
 
     def varrer_retry(out_dir: Path, errors_path: Path) -> StageMetrics:
         argv = [
-            "uv", "run", "judex", "varrer-processos",
+            "uv", "run", "judex", "debug", "varrer-processos",
             "--retentar-de", str(errors_path),
             "--saida", str(out_dir),
             "--rotulo", f"{config.rotulo}_retry",
@@ -475,7 +475,7 @@ def make_subprocess_runners(
 
     def baixar_forward(out_dir: Path) -> StageMetrics:
         argv = [
-            "uv", "run", "judex", "baixar-pecas",
+            "uv", "run", "judex", "debug", "baixar-pecas",
             "-c", config.classe,
             "-i", str(config.inicio),
             "-f", str(config.fim),
@@ -487,7 +487,7 @@ def make_subprocess_runners(
 
     def baixar_retry(out_dir: Path, errors_path: Path) -> StageMetrics:
         argv = [
-            "uv", "run", "judex", "baixar-pecas",
+            "uv", "run", "judex", "debug", "baixar-pecas",
             "--retentar-de", str(errors_path),
             "--saida", str(out_dir),
             "--retomar", "--nao-perguntar",
@@ -497,7 +497,7 @@ def make_subprocess_runners(
 
     def extrair_forward(out_dir: Path) -> StageMetrics:
         argv = [
-            "uv", "run", "judex", "extrair-pecas",
+            "uv", "run", "judex", "debug", "extrair-pecas",
             "-c", config.classe,
             "-i", str(config.inicio),
             "-f", str(config.fim),
@@ -515,7 +515,7 @@ def make_subprocess_runners(
         # sidecar match is bypassed (we want the retry to overwrite
         # any prior poisoned-cache `.txt.gz`).
         argv = [
-            "uv", "run", "judex", "extrair-pecas",
+            "uv", "run", "judex", "debug", "extrair-pecas",
             "--retentar-de", str(errors_path),
             "--saida", str(out_dir),
             "--provedor", provedor,

@@ -96,7 +96,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("varrer", "transient"): Recipe(
         "replay",
         "WAF 403 / 5xx / SSL / cookies churn — cookies + IP rotate naturally between runs",
-        "uv run judex varrer-processos --retentar-de <run>/sweep.errors.jsonl --saida <run>/",
+        "uv run judex debug varrer-processos --retentar-de <run>/sweep.errors.jsonl --saida <run>/",
     ),
     ("varrer", "cross_stage"): Recipe(
         "drop_terminal",
@@ -110,7 +110,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("baixar", "transient"): Recipe(
         "replay",
         "empty / non-document / 5xx / SSL / Timeout — usually auth/cookie/Referer churn (abaX.asp triad, see CLAUDE.md)",
-        "uv run judex baixar-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex debug baixar-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
     ),
     ("baixar", "cross_stage"): Recipe(
         "drop_terminal",
@@ -124,12 +124,12 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("extrair", "transient"): Recipe(
         "replay",
         "Fly OCR 502 / network blip / provider error — re-queue",
-        "uv run judex extrair-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex debug extrair-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
     ),
     ("extrair", "cross_stage"): Recipe(
         "refetch_upstream",
         "no_bytes — bytes weren't downloaded; re-baixar first, then re-extrair",
-        "uv run judex baixar-pecas --csv <subset> --saida <run>/  # then extrair-pecas same csv",
+        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/  # then debug extrair-pecas same csv",
     ),
 }
 
@@ -140,12 +140,12 @@ _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     "empty": Recipe(
         "switch_provider",
         "scanned/image-only PDF — pypdf gave up; re-extract with a beefier provider",
-        "uv run judex extrair-pecas --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
+        "uv run judex debug extrair-pecas --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
     ),
     "unknown_type": Recipe(
         "refetch_bytes",
         "magic bytes weren't %PDF / {\\rtf — cache is corrupt; refresh the bytes",
-        "uv run judex baixar-pecas --csv <subset> --saida <run>/",
+        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/",
     ),
 }
 

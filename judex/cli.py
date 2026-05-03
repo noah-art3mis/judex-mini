@@ -14,11 +14,11 @@ funcionam com ``uv run judex ...`` no lugar de
 Exemplos:
 
     uv run judex --help
-    uv run judex varrer-processos -c HC -i 135041 -f 135041    # ad-hoc (range)
-    uv run judex varrer-processos --csv lista.csv --rotulo foo --saida out/
-    uv run judex baixar-pecas -c HC -i 252920 -f 253000        # download bytes
-    uv run judex extrair-pecas -c HC -i 252920 -f 253000 \\
-        --provedor mistral --nao-perguntar                     # OCR a partir do cache
+    uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
+    uv run judex debug varrer-processos -c HC -i 135041 -f 135041    # legacy (ad-hoc range)
+    uv run judex debug baixar-pecas -c HC -i 252920 -f 253000       # legacy (bytes only)
+    uv run judex debug extrair-pecas -c HC -i 252920 -f 253000 \\
+        --provedor mistral --nao-perguntar                          # legacy (OCR-only)
     uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
     uv run judex exportar --apenas hc_famous_lawyers
 """
@@ -67,6 +67,21 @@ app = typer.Typer(
     help="judex-mini — hub do raspador + análise do STF.",
     no_args_is_help=True,
 )
+
+# Legacy three-command chain (varrer → baixar → extrair) plus the
+# `coletar` orchestrator. Superseded by `judex executar` (ADR-0005)
+# but kept reachable here as ad-hoc utilities — re-running just one
+# pool of a finished Coleta, or operator habit. The library code in
+# `judex/sweeps/` stays the canonical home; this sub-app only changes
+# the CLI surface.
+debug_app = typer.Typer(
+    add_completion=False,
+    help="Comandos legados da chain pré-pipeline (varrer/baixar/extrair/"
+         "coletar). Mantidos como utilitários; `judex executar` é o caminho "
+         "primário.",
+    no_args_is_help=True,
+)
+app.add_typer(debug_app, name="debug")
 
 
 # ---------------------------------------------------------------------------
@@ -263,7 +278,7 @@ def fazer_backup(
 # `varrer-processos` — varredura em massa de processos (encaminha para scripts.run_sweep)
 
 
-@app.command(name="varrer-processos")
+@debug_app.command(name="varrer-processos")
 def varrer_processos(
     # Três modos de entrada: range (-c/-i/-f), --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
@@ -564,6 +579,7 @@ def varrer_processos(
         try:
             pids_path = launch_sharded(
                 command="varrer-processos",
+                command_group="debug",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -607,7 +623,7 @@ def varrer_processos(
 # `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
 
 
-@app.command(name="baixar-pecas")
+@debug_app.command(name="baixar-pecas")
 def baixar_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
@@ -765,6 +781,7 @@ def baixar_pecas(
         try:
             pids_path = launch_sharded(
                 command="baixar-pecas",
+                command_group="debug",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -794,7 +811,7 @@ def baixar_pecas(
     ))
 
 
-@app.command(name="extrair-pecas")
+@debug_app.command(name="extrair-pecas")
 def extrair_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
@@ -897,7 +914,7 @@ def extrair_pecas(
 # ``executar``. Veja ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
 
 
-@app.command(name="coletar")
+@debug_app.command(name="coletar")
 def coletar(
     classe: str = typer.Option(
         ..., "-c", "--classe",
