@@ -1443,25 +1443,31 @@ def _print_executar_forecast(
 
 
 # ---------------------------------------------------------------------------
-# `puxar-novos` — varre os processos novos desde o que já está em disco
+# `atualizar` — varre os processos novos até o leading edge atual da STF
 
 
-@app.command(name="puxar-novos")
-def puxar_novos(
-    classe: str = typer.Option(
-        "HC", "-c", "--classe",
-        help="Classe a varrer (HC, ADI, ADPF, RE, …).",
+@app.command(name="atualizar")
+def atualizar_corpus(
+    classe: str = typer.Argument(
+        ...,
+        help="Classe a varrer (HC, ADI, ADPF, RE, …). Obrigatório — "
+             "não há default; cada classe tem um leading edge próprio.",
     ),
-    margem: int = typer.Option(
-        500, "--margem",
-        help="Quantos case-ids além do maior em disco probar. "
-             "STF aloca ~50-100 HC/dia; 500 cobre ~5-10 dias. "
-             "Não-alocados resolvem como terminal e custam só uma "
-             "request de portal cada.",
+    paradas_apos_misses: int = typer.Option(
+        20, "--paradas-apos-misses",
+        help="Quantos case-ids não-alocados consecutivos param a "
+             "sondagem. STF tem buracos legítimos de 1-3 IDs no meio "
+             "de cada classe; 20 IDs vazios contíguos é sinal forte de "
+             "ter passado o leading edge.",
+    ),
+    max_probes: int = typer.Option(
+        2000, "--max-probes",
+        help="Cap de segurança: nunca probar mais que isto. "
+             "2000 IDs = ~25-30 dias de HC.",
     ),
     saida: Optional[Path] = typer.Option(
         None, "--saida",
-        help="Run dir; padrão runs/active/<classe>-puxar-YYYYMMDD/.",
+        help="Run dir; padrão runs/active/<classe>-atualizar-YYYYMMDD/.",
     ),
     provedor_ocr: str = typer.Option(
         "auto", "--provedor-ocr",
@@ -1480,24 +1486,30 @@ def puxar_novos(
         help="Concorrência do pool OCR.",
     ),
 ) -> None:
-    """Puxa processos novos: do maior em disco até max+margem.
+    """Atualiza o corpus de uma classe até o leading edge atual da STF.
 
-    Glob ``data/source/processos/<classe>/`` para descobrir o maior
-    processo_id já scrapeado, então roda ``executar`` no intervalo
-    ``[max+1, max+margem]``. Case-ids não alocados resolvem como
-    terminal ``unallocated_pid`` (zero custo OCR).
+    1. Glob ``data/source/processos/<classe>/`` para o maior processo_id
+       já scrapeado.
+    2. Sonda case-ids acima dele um a um via portal, parando após
+       ``--paradas-apos-misses`` IDs não-alocados consecutivos (sinal
+       de ter passado o leading edge da STF para essa classe).
+    3. Roda o pipeline completo (meta + bytes + text) só nos case-ids
+       descobertos como vivos — pula automaticamente os buracos.
 
     Comando idempotente — re-rodar pula o que já foi puxado via
-    ``skipped_cached``. Para forçar re-scrape, use ``judex executar
-    --forcar`` diretamente.
+    ``skipped_cached``.
 
     Exemplo:
 
-        uv run judex puxar-novos                   # HC, margem 500
-        uv run judex puxar-novos -c ADI --margem 100
+        uv run judex atualizar HC                       # default
+        uv run judex atualizar ADI --paradas-apos-misses 50
     """
     from datetime import datetime
+    from judex.config import ScraperConfig
     from judex.pipeline.runner import run_pipeline
+    from judex.scraping.http_session import new_session
+    from judex.scraping.scraper import resolve_incidente
+    from judex.sweeps.discovery import discover_new_numeros
 
     source_dir = Path(f"data/source/processos/{classe}")
     if not source_dir.exists():
@@ -1523,20 +1535,43 @@ def puxar_novos(
         )
         raise typer.Exit(2)
 
-    inicio = max_id + 1
-    fim = max_id + margem
+    typer.echo(f"max em disco: {classe} {max_id}")
+    typer.echo(
+        f"sondando até hit {paradas_apos_misses} IDs vazios contíguos…"
+    )
+
+    session = new_session()
+    config = ScraperConfig()
+
+    def resolver(c: str, n: int) -> int:
+        return resolve_incidente(session, c, n, config=config)
+
+    discovered = discover_new_numeros(
+        classe,
+        start=max_id,
+        resolver=resolver,
+        stop_after_misses=paradas_apos_misses,
+        max_probes=max_probes,
+    )
+
+    if not discovered:
+        typer.echo(
+            f"nenhum {classe} novo desde {max_id} — corpus está atualizado."
+        )
+        raise typer.Exit(0)
+
+    max_new = discovered[-1].numero
+    typer.echo(
+        f"descobertos: {len(discovered)} novos ({classe} {max_id+1}-{max_new})"
+    )
 
     if saida is None:
         date_str = datetime.now().strftime("%Y%m%d")
-        saida = Path(f"runs/active/{classe.lower()}-puxar-{date_str}")
+        saida = Path(f"runs/active/{classe.lower()}-atualizar-{date_str}")
 
-    typer.echo(
-        f"max em disco: {classe} {max_id}\n"
-        f"vai puxar:    {classe} {inicio}-{fim} ({margem} case-ids)\n"
-        f"saída:        {saida}\n"
-    )
+    typer.echo(f"saída: {saida}\n")
 
-    targets = [(classe, n) for n in range(inicio, fim + 1)]
+    targets = [(classe, d.numero) for d in discovered]
 
     rc = run_pipeline(
         targets=targets,
