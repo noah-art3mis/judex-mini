@@ -1,5 +1,9 @@
 # judex-mini
 
+`judex-mini` is a Python scraper and parser for Brazilian Supreme Court (STF) process data. It is built HTTP-first. The project is organized as a Typer-based CLI (`judex`) with three pipeline stages — `varrer-processos` (case JSON scrape), `baixar-pecas` (PDF byte download), and `extrair-pecas` (text extraction with pluggable OCR providers) — feeding a DuckDB warehouse rebuilt by `atualizar-warehouse`. It supports highly sharded runs with proxy rotation and a content-addressed cache separates raw bytes from extracted text so re-OCR is decoupled from re-download.
+
+---
+
 Extração automatizada de dados de processos do STF (Supremo Tribunal Federal). Você passa uma **classe** (HC, ADI, RE, AI, …) e um **intervalo de números de processo**; o programa acessa o portal do STF, extrai metadados de cada processo (partes, andamentos, relator, decisão, URLs dos PDFs anexados) e grava um arquivo `.json` por processo. Se quiser o texto dos PDFs também, há dois comandos dedicados (`baixar-pecas` + `extrair-pecas`) — descritos na seção 5.
 
 > **Glossário rápido.** *Processo* é cada caso julgado pelo STF — o `judex-mini` grava um JSON por processo com partes, andamentos, relator, decisão e URLs dos PDFs anexados. *Peça* é cada um desses PDFs (decisão monocrática, voto, manifestação da PGR, acórdão, etc.); o cache mantém bytes (`.pdf.gz`) e texto extraído (`.txt.gz`) lado a lado, identificados por `sha1(url)`.
@@ -389,24 +393,31 @@ Para evitar queimar proxy e IP quando o WAF entra em regime de bloqueio total, `
 
 ### 7.5 OCR pago: chaves de API e custo
 
-`extrair-pecas` aceita quatro provedores. O padrão (`pypdf`) é local, grátis e tira proveito só da camada de texto — em PDFs escaneados devolve texto vazio ou sujo. Os três OCR exigem chave de API no ambiente:
+`extrair-pecas` aceita vários provedores. O padrão (`pypdf`) é local, grátis e tira proveito só da camada de texto — em PDFs escaneados devolve texto vazio ou sujo. Para volume em escala, os caminhos de produção são `tesseract_fly` (Fly.io self-hosted, mais barato) e `tesseract_modal` (Modal, contingência) — ver [`docs/setup-fly.md`](docs/setup-fly.md) e [`docs/setup-modal.md`](docs/setup-modal.md). Os provedores comerciais abaixo exigem chave de API no ambiente:
 
-| Provedor       | Variável de ambiente     | Onde obter                         |
-|----------------|--------------------------|------------------------------------|
-| `mistral`      | `MISTRAL_API_KEY`        | https://console.mistral.ai/        |
-| `unstructured` | `UNSTRUCTURED_API_KEY`   | https://platform.unstructured.io/  |
-| `chandra`      | `CHANDRA_API_KEY`        | https://www.datalab.to/            |
+| Provedor         | Variável de ambiente                                   | Onde obter                         |
+|------------------|--------------------------------------------------------|------------------------------------|
+| `mistral`        | `MISTRAL_API_KEY`                                      | https://console.mistral.ai/        |
+| `unstructured`   | `UNSTRUCTURED_API_KEY`                                 | https://platform.unstructured.io/  |
+| `chandra`        | `DATALAB_API_KEY`                                      | https://www.datalab.to/            |
+| `gemini`         | `GEMINI_API_KEY`                                       | https://aistudio.google.com/apikey |
+| `chandra_runpod` | `RUNPOD_API_KEY` + `RUNPOD_CHANDRA_ENDPOINT_ID`        | ver [`docs/setup-runpod.md`](docs/setup-runpod.md) |
 
-**Custo por 1 000 páginas** (fonte: `judex/scraping/ocr/dispatch.py`):
+**Custo por 1 000 páginas** (fonte: módulo SPEC de cada provedor em `judex/scraping/ocr/`):
 
-| Provedor       | Tier              | USD / 1k páginas |
-|----------------|-------------------|------------------|
-| `pypdf`        | local             | $0.00            |
-| `mistral`      | batch             | $1.00            |
-| `mistral`      | sync (padrão)     | $2.00            |
-| `unstructured` | fast              | $1.00            |
-| `unstructured` | hi_res            | $10.00           |
-| `chandra`      | todas             | ~$3.00           |
+| Provedor         | Tier              | USD / 1k páginas |
+|------------------|-------------------|------------------|
+| `pypdf`          | local             | $0.00            |
+| `tesseract_fly`  | Fly.io self-host  | ~$0.005          |
+| `tesseract_modal`| Modal CPU         | ~$0.14           |
+| `chandra_runpod` | RunPod 4090       | ~$0.31           |
+| `gemini`         | batch (~24h SLA)  | $0.66            |
+| `mistral`        | batch             | $1.00            |
+| `unstructured`   | fast              | $1.00            |
+| `gemini`         | sync (padrão)     | $1.32            |
+| `mistral`        | sync (padrão)     | $2.00            |
+| `chandra`        | hosted (Datalab)  | ~$3.00           |
+| `unstructured`   | hi_res            | $10.00           |
 
 Configure a chave no shell **de trabalho** (nunca commite) e rode primeiro com `--dry-run` para ver páginas, custo estimado em USD e tempo estimado:
 

@@ -12,7 +12,11 @@ from __future__ import annotations
 
 import pytest
 
-from judex.sweeps.error_triage import classify_error
+from judex.sweeps.error_triage import (
+    RECOVERY_RECIPES,
+    classify_error,
+    recovery_recipe,
+)
 
 
 # ----- varrer ---------------------------------------------------------------
@@ -52,6 +56,38 @@ def test_classify_varrer(row: dict, expected: str) -> None:
     assert classify_error("varrer", row) == expected
 
 
+@pytest.mark.parametrize("row,expected", [
+    # Unified-pipeline (`executar`) status alias for ADR-0002. Legacy
+    # `varrer-processos` emits `status=unallocated`; `executar` emits
+    # `status=unallocated_pid`. Same fact, different name. Observed in
+    # HC 2021 executar (1,975 rows / 28% of the 7,085-case input — a
+    # gap-sweep, so high unallocated density is expected).
+    ({"status": "unallocated_pid"}, "terminal"),
+    # Unified-pipeline rows surface proxy-pool / chunked-encoding
+    # exceptions under `status=http_error` rather than as fail/error
+    # rows. Both signatures are definitionally transient (proxy auth
+    # churn, mid-stream connection broken). Observed in HC 2021 executar
+    # fetch_meta (26 ProxyError rows on portal.stf.jus.br) — without
+    # this branch the classifier defaulted them to terminal and 26
+    # replayable cases were dropped.
+    ({"status": "http_error",
+      "error": "ProxyError: HTTPSConnectionPool(host='portal.stf.jus.br', port=443): Max retries exceeded"},
+     "transient"),
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: Response ended prematurely"},
+     "transient"),
+    # http_error on varrer that genuinely is a 404 stays terminal.
+    ({"status": "http_error",
+      "error": "HTTPError: 404 Not Found",
+      "http_status": 404}, "terminal"),
+])
+def test_classify_varrer_unified_pipeline(row: dict, expected: str) -> None:
+    """Unified pipeline (`executar`) emits status names the legacy
+    classifier didn't recognise. Pin the parity here so post-patch
+    drift is loud."""
+    assert classify_error("varrer", row) == expected
+
+
 # ----- baixar ---------------------------------------------------------------
 
 
@@ -83,6 +119,39 @@ def test_classify_varrer(row: dict, expected: str) -> None:
     ({"status": "http_error", "error": "SSLEOFError: EOF occurred"}, "transient"),
 ])
 def test_classify_baixar(row: dict, expected: str) -> None:
+    assert classify_error("baixar", row) == expected
+
+
+@pytest.mark.parametrize("row,expected", [
+    # Unified-pipeline `status="empty"` for "200 OK with zero-length
+    # body". The legacy name was `empty_response` and `executar`
+    # renamed it to `empty`. The signature is exact: every row in the
+    # HC 2021 executar run carrying `status=empty` had the same error
+    # `unrecognised peça magic bytes: b''` (the b'' is literally a
+    # zero-byte response, not a real-404). 1,035 such rows — all
+    # transient WAF/LB flakes; re-request usually lands.
+    ({"status": "empty",
+      "error": "unrecognised peça magic bytes: b''; expected one of [b'%PDF', b'{\\rtf']"},
+     "transient"),
+    # ProxyError under http_error — same proxy-pool-churn shape as
+    # varrer. Observed in HC 2021 executar baixar (13 rows).
+    ({"status": "http_error",
+      "error": "ProxyError: HTTPSConnectionPool(host='sistemas.stf.jus.br', port=443): Max retries exceeded"},
+     "transient"),
+    # ChunkedEncodingError under http_error — mid-stream connection
+    # broken. Definitionally transient. Observed in HC 2021 executar
+    # baixar (17 rows; 7 "Response ended prematurely" + 10
+    # "IncompleteRead" variants — both are the same TCP-level event).
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: Response ended prematurely"},
+     "transient"),
+    ({"status": "http_error",
+      "error": "ChunkedEncodingError: ('Connection broken: IncompleteRead(15563 bytes read, 12345 more expected)',)"},
+     "transient"),
+])
+def test_classify_baixar_unified_pipeline(row: dict, expected: str) -> None:
+    """Same unified-pipeline-parity contract as varrer — pin the new
+    status names so they don't silently regress to terminal."""
     assert classify_error("baixar", row) == expected
 
 
@@ -139,3 +208,78 @@ def test_invalid_stage_raises() -> None:
     """Stage typo should fail loudly, not silently classify wrong."""
     with pytest.raises(ValueError, match="stage"):
         classify_error("varrar", {"status": "ok"})  # type: ignore[arg-type]
+
+
+# ----- recovery recipes -----------------------------------------------------
+
+
+def test_recovery_table_covers_every_stage_kind_cell() -> None:
+    """Every (stage, kind) the classifier can return must have a recipe.
+
+    Without this, ``recovery_recipe`` would KeyError on a row whose
+    triage outcome the table doesn't cover. The classifier returns
+    one of four kinds for one of three stages; all 12 cells must be
+    populated.
+    """
+    expected_keys = {
+        (stage, kind)
+        for stage in ("varrer", "baixar", "extrair")
+        for kind in ("ok", "transient", "terminal", "cross_stage")
+    }
+    assert set(RECOVERY_RECIPES.keys()) == expected_keys
+
+
+def test_extrair_empty_routes_to_switch_provider() -> None:
+    """The whole point of the override: ``empty`` is kind=terminal in
+    the classifier (re-running the same provider won't help) but the
+    operator action is *not* "drop" — it's switch to chandra/mistral.
+    The status-specific override must fire before the generic
+    (extrair, terminal) → drop_terminal recipe.
+    """
+    recipe = recovery_recipe("extrair", {"status": "empty",
+                                          "error": "pypdf returned 0 chars"})
+    assert recipe.action == "switch_provider"
+    assert "chandra" in (recipe.command_hint or "")
+
+
+def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
+    """Same override pattern: corrupt cache → refetch via baixar, not drop."""
+    recipe = recovery_recipe("extrair",
+                             {"status": "unknown_type",
+                              "error": "extension not in {pdf, rtf}"})
+    assert recipe.action == "refetch_bytes"
+    assert "baixar-pecas" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_routes_transient_to_replay() -> None:
+    """A WAF 403 on varrer is the canonical replay row."""
+    recipe = recovery_recipe("varrer",
+                             {"status": "fail", "error": "403 Forbidden",
+                              "http_status": 403})
+    assert recipe.action == "replay"
+    assert "retentar-de" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_routes_terminal_to_drop() -> None:
+    """A real 404 on baixar is the canonical drop row."""
+    recipe = recovery_recipe("baixar",
+                             {"status": "http_error",
+                              "error": "HTTPError: 404 Not Found",
+                              "http_status": 404})
+    assert recipe.action == "drop_terminal"
+    assert recipe.command_hint is None
+
+
+def test_recovery_recipe_routes_cross_stage_to_refetch_upstream() -> None:
+    """no_bytes on extrair must point at re-baixar, not at retry-extrair."""
+    recipe = recovery_recipe("extrair",
+                             {"status": "no_bytes",
+                              "error": "run baixar-pecas first"})
+    assert recipe.action == "refetch_upstream"
+    assert "baixar-pecas" in (recipe.command_hint or "")
+
+
+def test_recovery_recipe_ok_action_is_none() -> None:
+    """An ``ok`` row needs no action; the recipe must say so explicitly."""
+    assert recovery_recipe("baixar", {"status": "ok"}).action == "none"
+    assert recovery_recipe("baixar", {"status": "cached"}).action == "none"

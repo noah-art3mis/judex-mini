@@ -14,11 +14,11 @@ funcionam com ``uv run judex ...`` no lugar de
 Exemplos:
 
     uv run judex --help
-    uv run judex varrer-processos -c HC -i 135041 -f 135041    # ad-hoc (range)
-    uv run judex varrer-processos --csv lista.csv --rotulo foo --saida out/
-    uv run judex baixar-pecas -c HC -i 252920 -f 253000        # download bytes
-    uv run judex extrair-pecas -c HC -i 252920 -f 253000 \\
-        --provedor mistral --nao-perguntar                     # OCR a partir do cache
+    uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
+    uv run judex debug varrer-processos -c HC -i 135041 -f 135041    # legacy (ad-hoc range)
+    uv run judex debug baixar-pecas -c HC -i 252920 -f 253000       # legacy (bytes only)
+    uv run judex debug extrair-pecas -c HC -i 252920 -f 253000 \\
+        --provedor mistral --nao-perguntar                          # legacy (OCR-only)
     uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
     uv run judex exportar --apenas hc_famous_lawyers
 """
@@ -68,6 +68,22 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Legacy three-command chain (varrer → baixar → extrair) plus the
+# `coletar` orchestrator. Superseded by `judex executar` (ADR-0005)
+# but kept reachable here as ad-hoc utilities — re-running just one
+# pool of a finished Coleta, or operator habit. The library code in
+# `judex/sweeps/` stays the canonical home; this sub-app only changes
+# the CLI surface.
+debug_app = typer.Typer(
+    add_completion=False,
+    help="Comandos auxiliares: chain legada pré-pipeline "
+         "(varrer/baixar/extrair/coletar) + utilitários de inspeção, "
+         "validação, comparação de provedores, backup e exportação. "
+         "`judex executar` é o caminho primário do dia-a-dia.",
+    no_args_is_help=True,
+)
+app.add_typer(debug_app, name="debug")
+
 
 # ---------------------------------------------------------------------------
 # helpers compartilhados
@@ -105,7 +121,7 @@ def _find_marimo() -> list[str]:
     )
 
 
-@app.command(name="exportar")
+@debug_app.command(name="exportar")
 def exportar(
     diretorio_saida: Path = typer.Option(
         Path("exports/html"), "--diretorio-saida", "-o",
@@ -170,7 +186,7 @@ def exportar(
 # `fazer-backup` — empacota data/source/processos + data/raw/pecas + data/derived/pecas-texto em um único .zip
 
 
-@app.command(name="fazer-backup")
+@debug_app.command(name="fazer-backup")
 def fazer_backup(
     saida: Optional[Path] = typer.Option(
         None, "--saida", "-o",
@@ -263,7 +279,7 @@ def fazer_backup(
 # `varrer-processos` — varredura em massa de processos (encaminha para scripts.run_sweep)
 
 
-@app.command(name="varrer-processos")
+@debug_app.command(name="varrer-processos")
 def varrer_processos(
     # Três modos de entrada: range (-c/-i/-f), --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
@@ -564,6 +580,7 @@ def varrer_processos(
         try:
             pids_path = launch_sharded(
                 command="varrer-processos",
+                command_group="debug",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -607,7 +624,7 @@ def varrer_processos(
 # `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
 
 
-@app.command(name="baixar-pecas")
+@debug_app.command(name="baixar-pecas")
 def baixar_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
@@ -765,6 +782,7 @@ def baixar_pecas(
         try:
             pids_path = launch_sharded(
                 command="baixar-pecas",
+                command_group="debug",
                 csv_path=csv,
                 shards=shards,
                 proxy_pool=proxy_pool,
@@ -794,7 +812,7 @@ def baixar_pecas(
     ))
 
 
-@app.command(name="extrair-pecas")
+@debug_app.command(name="extrair-pecas")
 def extrair_pecas(
     # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
     classe: Optional[str] = typer.Option(
@@ -897,7 +915,7 @@ def extrair_pecas(
 # ``executar``. Veja ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
 
 
-@app.command(name="coletar")
+@debug_app.command(name="coletar")
 def coletar(
     classe: str = typer.Option(
         ..., "-c", "--classe",
@@ -1425,6 +1443,271 @@ def _print_executar_forecast(
 
 
 # ---------------------------------------------------------------------------
+# `atualizar` — varre os processos novos até o leading edge atual da STF
+
+
+@app.command(name="atualizar")
+def atualizar_corpus(
+    classe: str = typer.Argument(
+        ...,
+        help="Classe a varrer (HC, ADI, ADPF, RE, …). Obrigatório — "
+             "não há default; cada classe tem um leading edge próprio.",
+    ),
+    paradas_apos_misses: int = typer.Option(
+        20, "--paradas-apos-misses",
+        help="Quantos case-ids não-alocados consecutivos param a "
+             "sondagem. STF tem buracos legítimos de 1-3 IDs no meio "
+             "de cada classe; 20 IDs vazios contíguos é sinal forte de "
+             "ter passado o leading edge.",
+    ),
+    max_probes: int = typer.Option(
+        2000, "--max-probes",
+        help="Cap de segurança: nunca probar mais que isto. "
+             "2000 IDs = ~25-30 dias de HC.",
+    ),
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Run dir; padrão runs/active/<classe>-atualizar-YYYYMMDD/.",
+    ),
+    provedor_ocr: str = typer.Option(
+        "auto", "--provedor-ocr",
+        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal. Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas. Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR.",
+    ),
+) -> None:
+    """Atualiza o corpus de uma classe até o leading edge atual da STF.
+
+    1. Glob ``data/source/processos/<classe>/`` para o maior processo_id
+       já scrapeado.
+    2. Sonda case-ids acima dele um a um via portal, parando após
+       ``--paradas-apos-misses`` IDs não-alocados consecutivos (sinal
+       de ter passado o leading edge da STF para essa classe).
+    3. Roda o pipeline completo (meta + bytes + text) só nos case-ids
+       descobertos como vivos — pula automaticamente os buracos.
+
+    Comando idempotente — re-rodar pula o que já foi puxado via
+    ``skipped_cached``.
+
+    Exemplo:
+
+        uv run judex atualizar HC                       # default
+        uv run judex atualizar ADI --paradas-apos-misses 50
+    """
+    from datetime import datetime
+    from judex.config import ScraperConfig
+    from judex.pipeline.runner import run_pipeline
+    from judex.scraping.http_session import new_session
+    from judex.scraping.scraper import resolve_incidente
+    from judex.sweeps.discovery import discover_new_numeros
+
+    source_dir = Path(f"data/source/processos/{classe}")
+    if not source_dir.exists():
+        typer.echo(
+            f"erro: nada em {source_dir} — primeira passada precisa de "
+            f"um intervalo manual via ``judex executar -c {classe} -i N -f M``.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    max_id = 0
+    for f in source_dir.glob(f"judex-mini_{classe}_*.json"):
+        try:
+            n = int(f.stem.split("_")[-1].split("-")[-1])
+            if n > max_id:
+                max_id = n
+        except (ValueError, IndexError):
+            continue
+
+    if max_id == 0:
+        typer.echo(
+            f"erro: nenhum {classe} válido em {source_dir}.", err=True,
+        )
+        raise typer.Exit(2)
+
+    typer.echo(f"max em disco: {classe} {max_id}")
+    typer.echo(
+        f"sondando até hit {paradas_apos_misses} IDs vazios contíguos…"
+    )
+
+    session = new_session()
+    config = ScraperConfig()
+
+    def resolver(c: str, n: int) -> int:
+        return resolve_incidente(session, c, n, config=config)
+
+    discovered = discover_new_numeros(
+        classe,
+        start=max_id,
+        resolver=resolver,
+        stop_after_misses=paradas_apos_misses,
+        max_probes=max_probes,
+    )
+
+    if not discovered:
+        typer.echo(
+            f"nenhum {classe} novo desde {max_id} — corpus está atualizado."
+        )
+        raise typer.Exit(0)
+
+    max_new = discovered[-1].numero
+    typer.echo(
+        f"descobertos: {len(discovered)} novos ({classe} {max_id+1}-{max_new})"
+    )
+
+    if saida is None:
+        date_str = datetime.now().strftime("%Y%m%d")
+        saida = Path(f"runs/active/{classe.lower()}-atualizar-{date_str}")
+
+    typer.echo(f"saída: {saida}\n")
+
+    targets = [(classe, d.numero) for d in discovered]
+
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor_ocr,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+    )
+    raise typer.Exit(code=rc)
+
+
+# ---------------------------------------------------------------------------
+# `refrescar` — re-varre processos existentes para pegar andamentos novos
+
+
+@app.command(name="refrescar")
+def refrescar_corpus(
+    classe: str = typer.Argument(
+        ...,
+        help="Classe a refrescar (HC, ADI, ADPF, RE, …).",
+    ),
+    ultimos: int = typer.Option(
+        1000, "--ultimos",
+        help="Refrescar os N case-ids mais recentes em disco. STF "
+             "aloca ~50-100 HC/dia; 1000 cobre ~10-20 dias de atividade. "
+             "Casos mais antigos raramente recebem novos andamentos — "
+             "aumentar isto só se precisar pegar updates em casos "
+             "estáveis há tempo.",
+    ),
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Run dir; padrão runs/active/<classe>-refrescar-YYYYMMDD/.",
+    ),
+    provedor_ocr: str = typer.Option(
+        "auto", "--provedor-ocr",
+        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal. Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas. Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR.",
+    ),
+) -> None:
+    """Re-varre os N case-ids mais recentes em disco para detectar updates.
+
+    O dual de ``atualizar``: aquele descobre case-ids novos, este
+    refresca os que já temos. Útil quando STF adiciona andamentos
+    (votos, decisões, certidões) a casos previamente capturados.
+
+    Estratégia:
+
+    1. Glob ``data/source/processos/<classe>/`` para todos os
+       case-ids em disco, ordena por valor numérico, pega os N
+       maiores (--ultimos N).
+    2. Roda ``executar --forcar`` contra esses case-ids: a flag
+       bypassa o ``handle_fetch_meta`` skip-se-existe, forçando
+       um re-scrape do JSON.
+    3. Pipeline detecta peças novas no JSON refrescado, baixa só
+       essas (peças já em cache pulam via sidecar).
+
+    Custo marginal:
+
+    - ``ultimos`` × 1 portal request (sempre, para refresh meta)
+    - + (peças novas) × full pipeline (raro — só se houve atividade)
+
+    Para HC ~50-100 cases/dia, default 1000 cobre ~10-20 dias de
+    janela ativa. Casos > 30 dias raramente movimentam; aumentar
+    se houver decisões antigas atrasadas chegando.
+
+    Exemplo:
+
+        uv run judex refrescar HC                  # últimos 1000
+        uv run judex refrescar HC --ultimos 5000   # ~50-100 dias
+    """
+    from datetime import datetime
+    from judex.pipeline.runner import run_pipeline
+
+    source_dir = Path(f"data/source/processos/{classe}")
+    if not source_dir.exists():
+        typer.echo(
+            f"erro: nada em {source_dir} — corpus vazio para essa classe.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    case_ids: list[int] = []
+    for f in source_dir.glob(f"judex-mini_{classe}_*.json"):
+        try:
+            n = int(f.stem.split("_")[-1].split("-")[-1])
+            case_ids.append(n)
+        except (ValueError, IndexError):
+            continue
+
+    if not case_ids:
+        typer.echo(
+            f"erro: nenhum {classe} válido em {source_dir}.", err=True,
+        )
+        raise typer.Exit(2)
+
+    case_ids.sort(reverse=True)
+    refresh_set = sorted(case_ids[:ultimos])
+
+    if saida is None:
+        date_str = datetime.now().strftime("%Y%m%d")
+        saida = Path(f"runs/active/{classe.lower()}-refrescar-{date_str}")
+
+    typer.echo(
+        f"corpus: {len(case_ids):,} {classe} em disco\n"
+        f"refresh: top {len(refresh_set):,} (case-ids "
+        f"{refresh_set[0]}-{refresh_set[-1]})\n"
+        f"saída: {saida}\n"
+    )
+
+    targets = [(classe, n) for n in refresh_set]
+
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor_ocr,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+        forcar=True,
+    )
+    raise typer.Exit(code=rc)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
 
 
@@ -1488,7 +1771,156 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
-# `probe` — visão unificada do progresso de uma varredura sharded
+# `providers` — comparison table built from each OCR provider's SPEC
+
+
+@debug_app.command(name="providers")
+def providers_cmd(
+    n_pdfs: int = typer.Option(
+        1, "--pdfs",
+        help="Workload size in PDFs for the wall-time column. "
+             "Defaults to 1 (per-PDF view).",
+    ),
+    n_pages: int = typer.Option(
+        5, "--pages",
+        help="Workload size in pages for the cost column. Defaults "
+             "to 5 (rough average page count per peça).",
+    ),
+    batch: bool = typer.Option(
+        False, "--batch/--no-batch",
+        help="Use batch pricing where the provider supports it "
+             "(Mistral, Gemini). Default off — batch wall reflects "
+             "submission time, not the ~24h turnaround, so default-on "
+             "is misleading. Pass --batch to see batch cost (with the "
+             "wall caveat).",
+    ),
+) -> None:
+    """Print the OCR provider comparison table for a given workload size.
+
+    Reads each provider's ``SPEC: ProviderSpec`` from
+    ``judex/scraping/ocr/<provider>.py``, asks for cost(n_pages) and
+    wall(n_pdfs), prints sorted by cost. Providers whose ``wall``
+    anchor isn't measured yet show ``—`` in the minutes column.
+
+    The numbers come from the same SPECs ``extrair-pecas --prever``
+    consults, so this view and the per-sweep forecast are always
+    consistent.
+    """
+    from judex.scraping.ocr.dispatch import render_provider_table
+    typer.echo(render_provider_table(
+        n_pdfs=n_pdfs, n_pages=n_pages, batch_ok=batch,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `limpar` — close a finished run's residual in one command
+
+
+@app.command(name="limpar")
+def limpar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório de um run finalizado de ``judex executar``. "
+             "Auto-detecta layout: sharded (shard-*/) ou monolítico "
+             "(executar.errors.jsonl no topo).",
+    ),
+    apply: bool = typer.Option(
+        False, "--apply",
+        help="Dispara as recoveries planejadas. Sem este flag, o comando "
+             "imprime o plano (``would-recover: …``) e sai sem efeito "
+             "colateral — dry-run é o default seguro.",
+    ),
+    provedor: str = typer.Option(
+        "auto", "--provedor",
+        help="Provedor passado para os ``judex executar --retentar-de`` "
+             "filhos detached. Padrão `auto` (tier-routing pypdf↔OCR).",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o prompt de confirmação sob ``--apply``. Necessário "
+             "para invocações non-interactive (cron, nohup).",
+    ),
+) -> None:
+    """One-command residual recovery for finished ``judex executar`` runs.
+
+    Walks ``<run_dir>`` (mono ou sharded — auto-detecta), classifica
+    cada linha de ``executar.errors.jsonl`` em buckets via
+    ``judex.pipeline.log.classify_unified_error``, e dispara um
+    ``judex executar --retentar-de`` detached por shard com pelo menos
+    uma linha transiente. Buckets terminais (``unallocated_pid``,
+    ``empty``, ``no_bytes``) são contados e reportados — não
+    auto-dispatchados em v1.
+
+    Default é dry-run (imprime ``would-recover: …`` e sai). Para
+    realmente executar, ``--apply``. Para non-interactive (cron/nohup),
+    combine com ``--nao-perguntar``.
+
+    Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
+    Exit codes:
+
+    - ``0`` — plano computado (e sob ``--apply``, todos os spawns OK).
+    - ``2`` — args inválidos (``run_dir`` não existe).
+    - ``3`` — resíduo vazio (nenhum ``executar.errors.jsonl`` encontrado).
+    """
+    from judex.sweeps.limpar import (
+        classify_residual,
+        discover_run_dirs,
+        execute_recoveries,
+        format_summary,
+        plan_recoveries,
+    )
+
+    if not run_dir.exists():
+        typer.echo(f"ERROR: run_dir {run_dir} não existe.", err=True)
+        raise typer.Exit(code=2)
+
+    dirs = discover_run_dirs(run_dir)
+    if not dirs:
+        typer.echo(
+            f"limpar: nada a recuperar em {run_dir} "
+            f"(nenhum executar.errors.jsonl encontrado)."
+        )
+        raise typer.Exit(code=3)
+
+    buckets = classify_residual(dirs)
+    summary = format_summary(buckets, dry_run=not apply)
+    typer.echo(summary)
+
+    if not apply:
+        plan = plan_recoveries(buckets, provedor=provedor)
+        if plan:
+            total_replay = sum(s.n_replay_rows for s in plan)
+            typer.echo(
+                f"plan: would dispatch {len(plan)} child(ren) "
+                f"({total_replay} replay row(s) total) under --apply."
+            )
+        raise typer.Exit(code=0)
+
+    plan = plan_recoveries(buckets, provedor=provedor)
+    if not plan:
+        typer.echo("limpar: nenhum bucket transiente — nada a despachar.")
+        raise typer.Exit(code=0)
+
+    if not nao_perguntar:
+        if not typer.confirm(
+            f"Confirmar dispatch de {len(plan)} child(ren) detached em "
+            f"{run_dir}?",
+            default=True,
+        ):
+            typer.echo("Abortado pelo usuário.")
+            raise typer.Exit(code=2)
+
+    pids_path = run_dir / "limpar.pids"
+    result = execute_recoveries(plan, pids_path)
+    typer.echo(
+        f"limpar: spawned {len(result.pids)} child(ren); "
+        f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
+    )
+    raise typer.Exit(code=0)
+
+
+# ---------------------------------------------------------------------------
+# `acompanhar` — tail unificado mono + sharded com auto-encerramento
 
 
 @app.command(name="acompanhar")
@@ -1505,42 +1937,85 @@ def acompanhar(
     ),
     agg_interval: float = typer.Option(
         30.0, "--agg-interval",
-        help="Em runs shardeados, intervalo (segundos) entre linhas "
-             "agregadas ``─── … ───`` que rolam up todas as state.json "
-             "dos shards. Ignorado em modo monolítico.",
+        help="Intervalo (segundos) entre as linhas agregadas "
+             "``─── … ───`` (sharded) e entre as checagens de "
+             "fim-de-run (mono e sharded).",
+    ),
+    persistir: bool = typer.Option(
+        False, "--persistir",
+        help="Continua tailando após todos os shards terem registrado "
+             "``executar: done`` (comportamento legado). Padrão é "
+             "encerrar com um ``relatar`` consolidado.",
     ),
 ) -> None:
-    """Tail unificado para runs monolíticos e shardeados.
+    """Tail unificado para runs monolíticos e shardeados, com
+    encerramento automático ao final do run.
 
-    **Mono** (um único log no topo): exec direto em ``tail -F`` —
-    Ctrl-C pertence ao tail, sem stack-trace de Python.
+    Padrão: tail + auto-detect de fim-de-run + ``relatar`` consolidado.
+    A linha-âncora é ``executar: done`` (emitida por
+    ``judex/pipeline/runner.py``). Quando todos os shards (ou o log
+    monolítico) registram pelo menos uma, o ``acompanhar`` para o
+    multitail, imprime o resumo e sai com código 0. Use ``--persistir``
+    para o comportamento legado de tailar indefinidamente.
 
-    **Sharded** (N ``shard-*/driver.log``): multitail Python-side.
-    Compacta a saída de duas formas:
+    **Mono** e **sharded** rodam o mesmo loop Python — sem ``execvp`` —
+    para que a detecção de fim-de-run funcione em ambos os layouts.
+    Ctrl-C também é capturado limpo, sem stack-trace de Python.
 
-      1. Substitui os cabeçalhos ``==> shard-X/driver.log <==`` do
-         tail por um prefixo compacto ``[X]`` em cada linha de dados.
-      2. **Suprime** as linhas de progresso ``─── 571/571 (100%) … ───``
-         de cada shard (16 idênticas a cada intervalo é puro ruído, e
-         o ``100%`` é enganoso — denominador é só meta-stage). Uma
-         thread agregadora lê todas as ``shard-*/executar.state.json``
-         a cada ``--agg-interval`` segundos e emite UMA linha
-         ``─── ... ───`` cluster-wide com counts reais por estágio
-         (incluindo ``provider_error``, ``unallocated_pid`` etc.).
+    Em sharded, a saída é compactada de duas formas:
 
-    Resolução de log priorizando sharded > top-level (``driver.log``
-    > ``launcher.log`` > ``executar.log``). ``tail -F`` (capital) tolera
-    shards cujo ``driver.log`` ainda não existe nos primeiros segundos.
+      1. Cabeçalhos ``==> shard-X/driver.log <==`` viram prefixo
+         compacto ``[X]`` por linha.
+      2. As linhas ``─── 571/571 (100%) … ───`` de cada shard são
+         suprimidas (16 idênticas a cada intervalo é puro ruído).
+         Uma thread agregadora emite UMA linha cluster-wide com
+         counts reais (``provider_error``, ``unallocated_pid``, …).
     """
     from scripts.follow_run import run_follow
-    raise typer.Exit(code=run_follow(run_dir, n=n, agg_interval=agg_interval))
+    raise typer.Exit(code=run_follow(
+        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `relatar` — consolidação pós-run (residuals + próximos passos)
+
+
+@app.command(name="relatar")
+def relatar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run (mono ou sharded). "
+             "Funciona tanto para run em curso quanto para run finalizado.",
+    ),
+) -> None:
+    """Consolida o estado de um run de ``executar`` em um relatório único.
+
+    Caminha por ``shard-*/executar.state.json``,
+    ``shard-*/executar.errors.jsonl`` e ``shard-*/report.md`` (ou seus
+    equivalentes top-level em mono) e renderiza:
+
+    - banner de status (``DONE``/``RUNNING``/``EMPTY``);
+    - mix de status por estágio (processos / pecas / text);
+    - wall-clock (maior shard + soma) e custo de OCR (USD);
+    - residuals classificados por ``(kind, status)``, com label
+      humano e contagem;
+    - próximos passos copy-paste (loops ``--retentar-de`` por shard
+      para classes retryable; classes terminais ficam só listadas).
+
+    Idempotente, somente-leitura, executa em <1 s em runs finalizados.
+    Pareado com ``acompanhar`` (que chama o mesmo renderer ao detectar
+    fim-de-run).
+    """
+    from judex.sweeps.run_summary import render_summary, summarize_run
+    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
 
 
 # ---------------------------------------------------------------------------
 # `probe` — tabela rich de progresso shard-a-shard
 
 
-@app.command(name="probe")
+@debug_app.command(name="probe")
 def probe_cmd(
     out_root: Path = typer.Option(
         ..., "--out-root",
@@ -1571,7 +2046,7 @@ def probe_cmd(
 # `analisar-regimes` — análise post-hoc da trajetória do CliffDetector
 
 
-@app.command(name="analisar-regimes")
+@debug_app.command(name="analisar-regimes")
 def analisar_regimes(
     run_dir: Path = typer.Argument(
         ...,
@@ -1628,7 +2103,7 @@ def analisar_regimes(
 # `validar-gabarito` — diff contra as fixtures de gabarito
 
 
-@app.command(name="validar-gabarito")
+@debug_app.command(name="validar-gabarito")
 def validar_gabarito() -> None:
     """Diff da saída do raspador contra os gabaritos conferidos à mão.
 
@@ -1646,7 +2121,7 @@ def validar_gabarito() -> None:
 # `relatorio-diario` — sondagem de novas distribuições + Markdown
 
 
-@app.command(name="relatorio-diario")
+@debug_app.command(name="relatorio-diario")
 def relatorio_diario(
     classe: str = typer.Option(
         "HC", "--classe",

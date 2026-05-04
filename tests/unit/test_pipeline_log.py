@@ -258,20 +258,27 @@ def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("status,expected", [
-    ("ok", "ok"),
-    ("skipped_cached", "ok"),
-    ("http_error", "transient"),
-    ("provider_error", "transient"),
-    ("no_bytes", "cross_stage"),
-    ("unallocated_pid", "terminal"),
-    ("empty", "terminal"),
+@pytest.mark.parametrize("row,expected", [
+    ({"status": "ok"}, "ok"),
+    ({"status": "skipped_cached"}, "ok"),
+    ({"status": "http_error"}, "transient"),
+    ({"status": "provider_error"}, "transient"),
+    ({"status": "no_bytes"}, "cross_stage"),
+    ({"status": "unallocated_pid"}, "terminal"),
+    # ``empty`` is kind-aware: fetch_bytes/empty is the WAF/LB flake
+    # (200 OK with zero bytes; empirically transient — pinned by
+    # HC 271343 in runs/active/hc-atualizar-20260503). extract_text/empty
+    # is the provider-gave-up case (terminal by replay alone; limpar's
+    # override routes it to PROVIDER_SWITCH).
+    ({"status": "empty", "kind": "fetch_bytes"}, "transient"),
+    ({"status": "empty", "kind": "extract_text"}, "terminal"),
+    ({"status": "empty"}, "terminal"),  # no-kind defaults conservatively
 ])
-def test_classify_unified_error_table(status, expected):
+def test_classify_unified_error_table(row, expected):
     """Every TaskStatus the unified pipeline emits maps to a defined
     triage outcome — pinning the table prevents a future deepening
     from quietly changing the retry policy."""
-    assert classify_unified_error({"status": status}) == expected
+    assert classify_unified_error(row) == expected
 
 
 # ---------------------------------------------------------------------------

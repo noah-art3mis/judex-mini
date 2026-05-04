@@ -1,23 +1,38 @@
 """Locate + tail the live-signal log files for a run, mono or sharded.
 
-Two execution paths under ``judex acompanhar``:
+Single execution path under ``judex acompanhar``: a Python multitail
+that wraps ``tail -F`` for the actual byte stream and adds two run-aware
+behaviours on top.
 
-- **Mono** (one log file): exec straight into ``tail -F``. Ctrl-C
-  belongs to tail; no Python in the loop.
-- **Sharded** (N per-shard ``driver.log`` files): Python-side multitail.
-  Compacts the output by:
-    1. Dropping ``tail -F``'s ``==> shard-X/driver.log <==`` separator
-       headers and instead prefixing each data line with ``[X]``.
-    2. Suppressing the per-shard ``─── 571/571 (100%) · ... ───``
-       progress lines — those are misleading at the shard level
-       (denominator is meta-only, not pipeline-wide) and 16× redundant
-       across a 16-shard run. A single aggregator thread reads every
-       shard's ``executar.state.json`` periodically and emits ONE
-       cluster-wide ``─── ... ───`` line in their place.
+Behaviour 1 — line compaction (sharded only):
+  - Drop ``tail -F``'s ``==> shard-X/driver.log <==`` separator headers
+    and prefix each data line with a compact ``[X]`` instead.
+  - Suppress the per-shard ``─── 571/571 (100%) · ... ───`` progress
+    lines — those are misleading at the shard level (denominator is
+    meta-only, not pipeline-wide) and 16× redundant across a 16-shard
+    run. A single aggregator thread reads every shard's
+    ``executar.state.json`` periodically and emits ONE cluster-wide
+    ``─── ... ───`` line in their place. Same shape, real per-stage
+    status counts, no ``100%`` lie.
 
-The aggregator uses real per-stage status counts from state files,
-which fixes the ``100%`` lie that the per-shard line shows when meta
-finishes while bytes/text are still flowing.
+Behaviour 2 — end-detection + auto-encerramento (default, mono + sharded):
+  - The same aggregator tick (every ``agg_interval`` seconds) checks
+    whether every shard's driver.log contains at least one
+    ``executar: done`` line via :func:`judex.sweeps.run_summary.is_run_done`.
+  - When the run is fully done, the aggregator stops the multitail,
+    waits a short flush window so the last buffered tail lines drain,
+    and then prints the consolidated rollup from ``relatar``. The
+    process exits 0.
+  - ``--persistir`` opts back into the legacy "tail forever" behaviour
+    for operators who want to hold the connection open after a run
+    finishes (e.g. to watch a manual re-launch from another shell
+    against the same dir).
+
+Mono and sharded share one loop. The previous ``execvp`` shortcut for
+mono is dropped — its sole benefit was zero Python overhead, and the
+cost of keeping it would be no end-detection on mono runs (since
+``execvp`` replaces the Python process). The new default's auto-exit
++ summary is worth more than the ~50 ms Ctrl-C teardown delay.
 """
 
 from __future__ import annotations
@@ -28,6 +43,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -231,42 +247,114 @@ def format_aggregate_line(
     )
 
 
-def _run_sharded_multitail(
+# --- end-detection + final-summary plumbing -------------------------------
+
+
+# Time we let the multitail drain after `stop` is signalled. The tail
+# subprocess buffers ~hundreds of lines; if we terminate it immediately
+# the operator loses the last few seconds of activity (the very moment
+# they care most about — that's when each shard's `executar: done`
+# line lands). 0.5 s is enough on every box we've measured.
+_DRAIN_FLUSH_S = 0.5
+
+
+def _print_final_summary(run_dir: Path, *, lock: threading.Lock) -> None:
+    """Render a `relatar`-style summary and print it under the lock so
+    it doesn't interleave with stragglers from the tail subprocess."""
+    from judex.sweeps.run_summary import render_summary, summarize_run
+
+    summary = render_summary(summarize_run(run_dir))
+    with lock:
+        print()  # visual separator from the per-line stream
+        print(summary, end="" if summary.endswith("\n") else "\n", flush=True)
+
+
+def _run_multitail(
     run_dir: Path,
     log_paths: list[Path],
     initial_lines: int,
     agg_interval: float,
+    *,
+    persistir: bool,
 ) -> int:
-    """Multitail driver for sharded runs. See module docstring for shape."""
+    """Multitail driver shared by mono (1 log) and sharded (N logs).
+
+    The aggregator thread does two jobs on each ``agg_interval`` tick:
+
+    1. Sharded only — emit the cluster-wide ``─── ... ───`` line.
+    2. Always — call :func:`is_run_done`. Once it returns True (and
+       ``persistir`` is False), set ``done_detected`` and *terminate
+       the tail subprocess*. Terminating the subprocess is what
+       unblocks the main thread, which is otherwise blocked on its
+       blocking read from the tail's stdout. ``stop.is_set()`` alone
+       isn't enough — the main thread won't observe it until tail
+       gives it a new line, which on a quiet finished run never
+       happens.
+
+    Mono runs skip step 1 (no per-shard noise to compress) but
+    participate in step 2 — that's the whole reason the mono path
+    moved off ``execvp``.
+    """
+    from judex.sweeps.run_summary import is_run_done
+
     print_lock = threading.Lock()
     stop = threading.Event()
+    done_detected = threading.Event()
     n_targets = _count_total_targets(run_dir)
-
-    def aggregator() -> None:
-        # First emission immediately so the user sees current state on
-        # startup; subsequent ones every agg_interval. Sleep is on
-        # ``stop`` so Ctrl-C wakes the thread for clean exit.
-        first = True
-        while True:
-            if not first and stop.wait(agg_interval):
-                return
-            first = False
-            agg = aggregate_state(run_dir)
-            if not agg:
-                continue
-            line = format_aggregate_line(agg, n_targets)
-            with print_lock:
-                print(line, flush=True)
-            if stop.is_set():
-                return
+    is_sharded = len(log_paths) > 1 or (
+        log_paths and log_paths[0].parent.name.startswith("shard-")
+    )
 
     argv = ["tail", "-n", str(initial_lines), "-F", *(str(p) for p in log_paths)]
     proc = subprocess.Popen(
         argv, stdout=subprocess.PIPE, text=True, bufsize=1,
     )
+
+    def aggregator() -> None:
+        # First emission immediately so the operator sees current state
+        # on startup; subsequent ones every agg_interval. Sleep is on
+        # ``stop`` so Ctrl-C / done-detection wakes the thread for
+        # clean exit.
+        first = True
+        while True:
+            if not first and stop.wait(agg_interval):
+                return
+            first = False
+            if is_sharded:
+                agg = aggregate_state(run_dir)
+                if agg:
+                    line = format_aggregate_line(agg, n_targets)
+                    with print_lock:
+                        print(line, flush=True)
+            if not persistir:
+                all_done, _, n_shards = is_run_done(run_dir)
+                if all_done and n_shards > 0:
+                    done_detected.set()
+                    stop.set()
+                    # Closing the tail's stdout pipe is the only way
+                    # to unblock the main thread's read loop — the
+                    # ``stop`` event alone won't reach it until tail
+                    # delivers a new line, which on a quiet finished
+                    # run never happens. ``terminate`` is idempotent
+                    # if the main thread's finally clause already
+                    # called it.
+                    try:
+                        proc.terminate()
+                    except (OSError, ProcessLookupError):
+                        pass
+                    return
+            if stop.is_set():
+                return
+
     agg_thread = threading.Thread(target=aggregator, daemon=True)
     agg_thread.start()
 
+    # Main reader. Two ways out:
+    # 1. Operator hits Ctrl-C → KeyboardInterrupt, normal teardown,
+    #    no summary (we have nothing useful to summarise yet).
+    # 2. Aggregator detected done → stdout pipe closes (tail killed),
+    #    iterator hits EOF, loop exits. ``done_detected`` is True;
+    #    main thread renders the final summary.
     try:
         assert proc.stdout is not None
         for prefixed in transform_lines(proc.stdout):
@@ -275,12 +363,20 @@ def _run_sharded_multitail(
     except KeyboardInterrupt:
         pass
     finally:
+        if done_detected.is_set():
+            time.sleep(_DRAIN_FLUSH_S)
         stop.set()
-        proc.terminate()
+        try:
+            proc.terminate()
+        except (OSError, ProcessLookupError):
+            pass
         try:
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
             proc.kill()
+
+    if done_detected.is_set():
+        _print_final_summary(run_dir, lock=print_lock)
     return 0
 
 
@@ -289,8 +385,15 @@ def run_follow(
     *,
     n: int = 20,
     agg_interval: float = 30.0,
+    persistir: bool = False,
 ) -> int:
-    """Resolve logs and tail them. Mono → execvp; sharded → multitail."""
+    """Resolve logs and tail them with end-detection on by default.
+
+    Mono and sharded share the same Python loop — the legacy
+    ``execvp`` mono shortcut was dropped so end-detection works in
+    both layouts. ``persistir=True`` restores the legacy "tail
+    forever" behaviour by skipping the done-detection check.
+    """
     paths = find_log_paths(run_dir)
     if not paths:
         print(
@@ -298,7 +401,6 @@ def run_follow(
             file=sys.stderr,
         )
         return 1
-    if len(paths) == 1:
-        os.execvp("tail", ["tail", "-n", str(n), "-F", str(paths[0])])
-        return 0  # unreachable; execvp replaces the process
-    return _run_sharded_multitail(run_dir, paths, n, agg_interval)
+    return _run_multitail(
+        run_dir, paths, n, agg_interval, persistir=persistir,
+    )

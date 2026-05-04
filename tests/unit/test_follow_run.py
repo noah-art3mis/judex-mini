@@ -341,3 +341,121 @@ def test_format_aggregate_line_handles_zero_targets() -> None:
 
     assert "processos 0/?" in line
     assert "%" not in line
+
+
+# --- run_follow auto-encerramento (default --until-done) ------------------
+
+
+import pytest
+
+
+def _seed_done_shard(shard_dir: Path, *, wall: float = 100.0) -> None:
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    (shard_dir / "driver.log").write_text(
+        f"executar: done. wall={wall}s · "
+        f"report={shard_dir}/report.md · "
+        f"errors={shard_dir}/executar.errors.jsonl\n"
+    )
+    (shard_dir / "executar.state.json").write_text(
+        json.dumps({
+            "schema_version": 2,
+            "started_at": "2026-05-03T00:00:00+00:00",
+            "snapshot_at": "2026-05-03T01:00:00+00:00",
+            "cases": {},
+        })
+    )
+    (shard_dir / "report.md").write_text(
+        "# Unified pipeline run\n"
+        "| OCR cost (USD, provedor=`auto`) | $0.0000 | $0.0000 |\n"
+    )
+
+
+@pytest.mark.timeout(10)
+def test_run_follow_sharded_exits_when_all_shards_done(tmp_path: Path,
+                                                       capsys: pytest.CaptureFixture[str]) -> None:
+    """Default contract: every shard's driver.log has at least one
+    ``executar: done`` line → run_follow returns 0 within one
+    aggregator tick. Without auto-exit the test would block on tail
+    -F forever and pytest-timeout would kill it after 10 s."""
+    from scripts.follow_run import run_follow
+
+    for letter in ("a", "b"):
+        _seed_done_shard(tmp_path / f"shard-{letter}")
+
+    rc = run_follow(tmp_path, n=5, agg_interval=0.1, persistir=False)
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    # The final summary block lands in stdout after the multitail drains.
+    assert "DONE" in out
+    assert "2/2 shards" in out
+
+
+@pytest.mark.timeout(10)
+def test_run_follow_mono_exits_when_done_line_present(tmp_path: Path,
+                                                      capsys: pytest.CaptureFixture[str]) -> None:
+    """Mono runs get the same auto-encerramento now that ``execvp`` was
+    dropped — single driver.log, single anchor. End-detection works
+    on both layouts so operators don't need to think about which mode
+    a sweep used."""
+    from scripts.follow_run import run_follow
+
+    (tmp_path / "driver.log").write_text(
+        f"executar: done. wall=42.0s · report={tmp_path}/report.md · "
+        f"errors={tmp_path}/executar.errors.jsonl\n"
+    )
+    (tmp_path / "executar.state.json").write_text(
+        json.dumps({
+            "schema_version": 2,
+            "started_at": "2026-05-03T00:00:00+00:00",
+            "snapshot_at": "2026-05-03T01:00:00+00:00",
+            "cases": {},
+        })
+    )
+
+    rc = run_follow(tmp_path, n=5, agg_interval=0.1, persistir=False)
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "DONE" in out
+    assert "1/1 shard" in out  # singular for mono
+
+
+@pytest.mark.timeout(10)
+def test_run_follow_persistir_keeps_loop_alive_past_done(tmp_path: Path) -> None:
+    """``--persistir`` opts out of auto-encerramento. A done-flagged dir
+    should NOT cause an immediate return; the loop should keep tailing
+    until externally interrupted. We start it in a thread, sleep past
+    one aggregator interval, verify it's still running, then send a
+    KeyboardInterrupt-equivalent via terminating the tail subprocess
+    (the cleanest way to break the loop without SIGINT plumbing).
+
+    This pins the contract that ``persistir=True`` makes
+    ``is_run_done`` an unreachable branch — without that, the legacy
+    "watch through to the next manual re-run" workflow would silently
+    break."""
+    import threading
+    import time
+
+    from scripts.follow_run import run_follow
+
+    _seed_done_shard(tmp_path / "shard-a")
+
+    result: list[int] = []
+
+    def runner() -> None:
+        result.append(run_follow(
+            tmp_path, n=5, agg_interval=0.1, persistir=True,
+        ))
+
+    t = threading.Thread(target=runner, daemon=True)
+    t.start()
+    time.sleep(0.5)  # > 4× the agg_interval; if persistir was honoured the
+                    # auto-exit didn't fire.
+
+    # If persistir is being honoured, the thread is still running.
+    assert t.is_alive(), "persistir=True did not prevent auto-exit"
+
+    # Don't wait for natural termination (would block forever) — the
+    # test harness reaps the daemon thread when the test process exits.
+    # If pytest-timeout fires, the assertion above already failed.

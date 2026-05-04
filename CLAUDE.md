@@ -14,14 +14,40 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | **Before launching a sweep from a Claude Code session** | [`docs/agent-sweeps.md`](docs/agent-sweeps.md) — context-window pitfalls + detached-sweep pattern. |
 | Estimating cost / coverage of a backfill | [`docs/process-space.md`](docs/process-space.md) — class sizes + density probes. |
 | Pricing a sweep in money + wall time (year-of-HC, OCR, direct-IP vs proxy) | [`docs/cost-estimates.md`](docs/cost-estimates.md) — per-unit anchors, per-pass tables, override env vars. |
-| Forecasting a specific sweep before launch (single direct-IP vs 16 shards) | `judex {varrer-processos,baixar-pecas,extrair-pecas} --prever` — exits with a real-anchored cost+wall table; math in [`judex/utils/cost.py`](judex/utils/cost.py). |
+| Forecasting a specific sweep before launch (single direct-IP vs 16 shards) | `judex debug {varrer-processos,baixar-pecas,extrair-pecas} --prever` — exits with a real-anchored cost+wall table; math in [`judex/utils/cost.py`](judex/utils/cost.py). |
 | Checking on a live or completed run (rate, regime, cliff diagnosis) | `judex probe --out-root <dir>` (sharded, live `--watch` mode) / `judex analisar-regimes <run_dir>` (mono+sharded, post-hoc regime trajectory; `--json` for jq). Both in [`judex/cli.py`](judex/cli.py). |
 | Checking per-year HC coverage (cases / peça bytes / text) or picking the next backfill target | [`docs/completion-tracker.md`](docs/completion-tracker.md) — per-year table, cache-integrity caveat, backfill priority queue. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
+| A sweep finished with a residual (errored / empty / unallocated / lost rows) | **Per-row recipe** — `from judex.sweeps.error_triage import recovery_recipe` returns `Recipe(action, summary, command_hint)`. **Multi-step scenarios** + the `judex limpar` gap — [`docs/recovery-patterns.md`](docs/recovery-patterns.md). The classifier + `RECOVERY_RECIPES` table are pinned by `tests/unit/test_error_triage.py`; the doc is interpretation, the code is SOT. |
 | Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
-| Writing a PDF sweep | [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md). |
-| You want to see how a prior experiment turned out | [`docs/reports/`](docs/reports/) — promoted narratives from validation sweeps. |
+| Writing a PDF sweep | [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md) — sweep input semantics, output layout. **Tier definitions / fail-open policy**: module docstring of [`judex/sweeps/peca_classification.py`](judex/sweeps/peca_classification.py); the doc surface in [`docs/peca-tipo-classification.md`](docs/peca-tipo-classification.md) is just the warehouse view + CLI semantics. Empirical row counts / median chars: [`docs/reports/2026-04-23-peca-tipo-tier-validation.md`](docs/reports/2026-04-23-peca-tipo-tier-validation.md). |
+| Doing the "who-wins HC" analysis (research question, lit review, validation) | [`docs/hc-who-wins.md`](docs/hc-who-wins.md) — single consolidated doc with §1 Scope and plan / §2 Literature review / §3 Validation. The three pre-2026-05-03 sub-files (`-lit-review`, `-validation`) were merged here; cross-links use intra-doc anchors. |
+| You want to see how a prior experiment turned out OR find the dated empirical snapshot backing a code constant | [`docs/reports/`](docs/reports/) — promoted narratives from validation sweeps **and** date-stamped artefacts that back module constants (e.g. peça-tipo tier counts, HTTP-vs-Selenium bench, OCR bakeoff). |
 | You want to understand how a major feature was designed | [`docs/superpowers/specs/`](docs/superpowers/specs/). |
+| Standing up infra (cloud OCR provider, proxy pool, fresh WSL host) | [`docs/setup-fly.md`](docs/setup-fly.md), [`docs/setup-modal.md`](docs/setup-modal.md), [`docs/setup-runpod.md`](docs/setup-runpod.md), [`docs/setup-proxies.md`](docs/setup-proxies.md), [`docs/setup-wsl.md`](docs/setup-wsl.md) — operational setup; the *why* lives in the linked code SOTs (provider docstrings, `fly/README.md`, `rate-limits.md`). |
+
+**Code-as-SOT pattern.** Several routing rows above point at code first
+and Markdown second. That's deliberate — when a fact lives in *both*
+the doc and a Python constant/function, the Markdown drifts and the
+code stays honest (tests pin it). For these specifically:
+
+- **Per-row recovery recipes** → `recovery_recipe()` /
+  `RECOVERY_RECIPES` in `judex/sweeps/error_triage.py`. Don't read a
+  Markdown table to decide what to do with one errors.jsonl row;
+  import the function.
+- **Peça tier classification + fold/fail-open contract** → module
+  docstring of `judex/sweeps/peca_classification.py`. The empirical
+  row counts that backed the assignments live in `docs/reports/` so
+  they don't pollute the live module.
+- **Cost anchors / re-anchoring rule** → module docstring of
+  `judex/utils/cost.py`. The doc (`cost-estimates.md`) carries the
+  *interpretation* (year-of-HC tables, OCR bakeoff trade-offs, BRL
+  policy) but the constants and rate-source functions are in code.
+- **Lawyer canonicalisation** → `judex.analysis.lawyer_canonical`
+  (already in the gotchas below).
+
+When proposing a new doc, ask first: "could this be a docstring or a
+docstring + a `docs/reports/` snapshot?" If yes, do that instead.
 
 ## Runtime
 
@@ -76,15 +102,28 @@ installs the `judex` console entry; commands below also work as
 the matching `run_X(**kwargs)` library function in `judex/sweeps/`
 directly — detached invocation is `nohup uv run judex <command> …`.
 
-| Command                | Source                                | What it does                                                                                            |
-|------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `varrer-processos`     | `judex/sweeps/run_sweep.py`           | Case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE` (round-robin split into N pools at launch). |
-| `baixar-pecas`         | `judex/sweeps/baixar_pecas.py`        | PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.               |
-| `extrair-pecas`        | `judex/sweeps/extrair_pecas.py`       | PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract}`.|
-| `atualizar-warehouse`  | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `exportar`             | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
-| `fazer-backup`         | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. `--sem-pecas` / `--incluir-warehouse` / `--classe`. |
-| `validar-gabarito`     | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `limpar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — the legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator, plus inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop.
+
+| Command                       | Source                                | What it does                                                                                            |
+|-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. ADR-0005. |
+| `atualizar <classe>`          | (in-CLI, calls `run_pipeline`)        | Manual incremental: find max processo_id on disk, probe forward via `discover_new_numeros` until N consecutive unallocated_pid (default 20), scrape only the live discoveries end-to-end. Required positional `<classe>`. Auto-stops at STF's leading edge — no margin guesswork. Idempotent. |
+| `refrescar <classe>`          | (in-CLI, calls `run_pipeline --forcar`) | Re-scrape the N most-recently-allocated case-ids on disk to pick up new andamentos / peças (default `--ultimos 1000` ≈ 10–20 days for HC). Cached peças skip via sidecar; only new ones flow through bytes + text. Marginal cost = `N portal requests + (new pecas × full pipeline)`. |
+| `acompanhar`                  | (in-CLI)                              | Tail-with-auto-detection live monitor for monolithic + sharded runs.                                    |
+| `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
+| `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
+| `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
+| `debug varrer-processos`      | `judex/sweeps/run_sweep.py`           | Legacy: case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE`. |
+| `debug baixar-pecas`          | `judex/sweeps/baixar_pecas.py`        | Legacy: PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.       |
+| `debug extrair-pecas`         | `judex/sweeps/extrair_pecas.py`       | Legacy: PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract\|tesseract_fly\|tesseract_modal\|chandra_runpod}`.|
+| `debug coletar`               | `judex/sweeps/coletar.py`             | Legacy: ADR-0004 orchestrator wrapping the three legacy commands as a six-stage chain.                  |
+| `debug probe`                 | (in-CLI)                              | Live-progress table for sharded runs (predates `executar`'s nested state).                              |
+| `debug analisar-regimes`      | (in-CLI)                              | Post-hoc regime trajectory reconstruction from a sweep log (cliff / SSL-EOF detection).                  |
+| `debug providers`             | (in-CLI, `judex/scraping/ocr/dispatch.py`) | OCR provider comparison table at a given workload size — sorted by cost, sourced from each provider's `SPEC`. |
+| `debug exportar`              | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
+| `debug fazer-backup`          | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. |
+| `debug validar-gabarito`      | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+| `debug relatorio-diario`      | (in-CLI)                              | Daily report of new STF distributions.                                                                  |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each
@@ -102,11 +141,11 @@ shard.
 
 ```bash
 # Case JSON (WAF-hot)
-uv run judex varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
+uv run judex debug varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
     --shards 8 --proxy-pool config/proxies --retomar
 
 # PDF bytes (sistemas.stf.jus.br)
-uv run judex baixar-pecas --csv X.csv --saida out/ --shards 8 \
+uv run judex debug baixar-pecas --csv X.csv --saida out/ --shards 8 \
     --proxy-pool config/proxies --retomar --nao-perguntar
 ```
 
@@ -127,7 +166,7 @@ re-fetching already-`ok` cases) — the CLI doesn't do that seeding step.
 ## Testing
 
 ```bash
-uv run pytest tests/unit/                               # ~12 s, 475 tests — run before every change
+uv run pytest tests/unit/                               # ~21 s, 893 tests — run before every change
 uv run python scripts/validate_ground_truth.py         # parity vs. hand-verified JSON
 ```
 
@@ -141,7 +180,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **`extract_partes` reads `#todas-partes`**, not `#partes-resumidas` (which collapses multi-lawyer IMPTE entries and drops PROC on HC).
 - **Use `judex.analysis.lawyer_canonical` for any ADV/IMPTE name work; don't roll your own regex in a notebook.** The raw `partes[].nome` column is a minefield: OAB parentheticals (`(12345/SP)`, `(12345/SP) E OUTRO(A/S)`), portal sentinels meaning "same as previous row" (`O MESMO`, `OS MESMOS`, typos like `O MESM0`, `IO MESMO`, ~3k phantom IMPTE rows if not filtered), accent-missing institutional variants (`DEFENSORIA PUBLICA DA UNIAO` — 4.7k rows — slips past any `DEFENSORIA PÚBLICA` prefix check), non-parenthetical OAB forms (`OAB/SP 148022`, `OAB-PE 48215`), law firms / unions / federations that are not individual lawyers, and courts-as-parties. `canonical_lawyer(nome)` returns `(key, oab_codes)` with tail/paren/sentinel handling; `classify(nome)` returns `LawyerEntry(kind, key, oab_codes)` with `kind ∈ {sentinel, placeholder, pro_se, institutional, juridical, court, with_oab, bare}`. Tests in `tests/unit/test_lawyer_canonical.py` pin every real-data edge case surfaced by a full-corpus stress test. Sample callers: `analysis/hc_judge_lawyer_network.py`, `analysis/hc_top_volume.py`.
 - **Use `judex analisar-regimes <run_dir>` to detect cliffs / SSL-EOF storms / saturation tails — don't compute regime buckets by hand from `pdfs.log.jsonl`.** Reads `sweep.log.jsonl` (varrer) or `pdfs.log.jsonl` (baixar/extrair) — auto-detected — and reconstructs the regime trajectory via the same `CliffDetector` the live sweep used. `--apenas-transicoes` shows only state changes (warming → under_utilising → approaching_collapse → collapse); `--json` emits one event per line for jq pipelines. For a live monolithic run, `tail -f .../launcher-stdout.log` + `pgrep -af baixar[-_]pecas` gives liveness; for sharded, `judex probe --out-root <dir> --watch N` is the rich-rendered live table. There's no first-class "live status of a monolithic run" command — composing `tail` + `pgrep` + `analisar-regimes` post-hoc is the documented path. Hand-rolling 5-min throughput buckets from `pdfs.log.jsonl` reinvents `analisar-regimes`'s output and missed a real SSL-EOF tail-storm in at least one Claude session.
-- **Use `judex {varrer,baixar,extrair}-pecas --prever` to forecast cost + wall before launching, not handrolled arithmetic.** Returns a side-by-side table for single direct-IP and 16-shard + proxy modes. Constants live in `judex/utils/cost.py` (which also covers post-hoc cost attribution — pre-launch forecasting and end-of-run `report.md` cost line are the same module): `_AVG_PDF_MB = 0.139` (mean of 79,084 cached `.pdf.gz`), `_AVG_REQ_WALL_S_DIRECT = 3.0` (HC 2024 + 2023 overnight averages incl. saturation tail + SSL fails), `_SHARD_SPEEDUP_X = 12.7` (cost-estimates.md TL;DR ratio, below the 16× theoretical because of per-pool budget tax). Re-anchor when the corpus doubles or after any major scrape change; the rule of thumb (in the module docstring) is "if a recent `report.md` shows `elapsed/reqs` more than 30% off `_AVG_REQ_WALL_S_DIRECT`, refresh from the latest two overnight runs". Tests at `tests/unit/test_cost.py` use bounds, not exact values, so re-anchoring within ±10% doesn't break them. OCR rates flow from each provider's `SPEC` (post the OCR-deepening), so `judex/utils/cost.py` doesn't carry per-provider duplicates.
+- **Use `judex {varrer,baixar,extrair}-pecas --prever` to forecast cost + wall before launching, not handrolled arithmetic.** Returns a side-by-side table for single direct-IP and 16-shard + proxy modes. Constants and the re-anchoring rule of thumb live in the module docstring of `judex/utils/cost.py` (the SOT — values drift over time, so don't quote them here; current anchors as of 2026-05-01 include `_AVG_PDF_MB = 0.1685` re-measured after the `.rtf.gz` separation, `_AVG_REQ_WALL_S_DIRECT = 3.0`, `_SHARD_SPEEDUP_X = 12.7`). The same module covers pre-launch forecasting and end-of-run `report.md` cost attribution. Re-anchor when the corpus doubles or after any major scrape change; tests at `tests/unit/test_cost.py` use bounds, not exact values, so re-anchoring within ±10% doesn't break them. OCR rates flow from each provider's `SPEC` (post the OCR-deepening), so `judex/utils/cost.py` doesn't carry per-provider duplicates. Interpretation layer (year-of-HC volumes, OCR provider trade-offs, BRL/USD policy): `docs/cost-estimates.md`.
 - **Use `judex.sweeps.peca_targets.collect_peca_targets` for any "how many PDFs / which PDFs" question over the corpus; don't walk source JSONs by hand.** As of 2026-05-01 (ADR-0001 accepted, both steps landed) it walks all three peça URL surfaces — `andamentos[].link.url`, `sessao_virtual[].documentos[].url`, and `publicacoes_dje[].decisoes[].rtf.url` — tagging each `PecaTarget` with `surface ∈ {"andamento", "sessao_virtual", "dje"}`. Every surface emits URL-only pointers on disk; canonical extracted text lives in `data/derived/pecas-texto/<sha1(url)>.txt.gz` and is materialised by `baixar-pecas` (bytes) → `extrair-pecas` (text), never by the case-scrape. A one-shot `baixar-pecas` pass scoped to surfaces 2 + 3 is the natural step-3 backfill (warms the bytes side; not yet run — existing text stays valid until a re-extraction is requested). Andamento-tipo filters (`doc_types` / `exclude_doc_types`) apply only to surface 1; surface 2 + 3 fail-open through `filter_substantive` because their discriminators (`Relatório` / `Voto` / `decisao` / `ementa`) are intrinsically substantive — there is no tier-C analogue on those surfaces (resolved in ADR-0001 § Consequences, pinned by `tests/unit/test_peca_classification.py`). Handles the two `andamento.link` shapes (string vs `{url, tipo}` dict via `_andamento_link`), filters all surfaces through `_is_supported_doc_url` (`.pdf` / `.rtf` / `ext=RTF`), skips capture-gap entries (`url=None`) on surfaces 2 / 3, and dedupes by URL across surfaces and cases (4,936 cross-case duplicates exist in the HC corpus via apenso/conexão — same PGR opinion linked from multiple consolidated cases — and the `sha1(url)`-keyed cache only stores one copy). Pair with `judex.sweeps.peca_classification.filter_substantive` to match the runner's `--apenas-substantivas` default — drops ~56% of the andamento URLs as tier-C procedural (CERTIDÃO, INTIMAÇÃO, COMUNICAÇÃO ASSINADA, etc.; full list in `peca_classification.TIER_C_DOC_TYPES`). Empirical chain on full HC corpus (andamento-only baseline; surfaces 2 / 3 add to the numerator): raw andamento refs **280,838** → URL-deduped **275,902** → substantive **120,587** (≈1.33/case). Cross-validates `docs/completion-tracker.md:129` (2024 dry-run "15,482 fresh URLs"). Variants for scoping: `targets_from_range` (CSV-free range mode), `targets_from_csv` (explicit list), `targets_from_errors_jsonl` (replay only failed; rehydrated targets carry `surface=None` since prior errors.jsonl pre-dates the field). Tests at `tests/unit/test_peca_targets.py` and `tests/unit/test_peca_classification.py`. Sample callers: `judex/sweeps/peca_cli.py`, `docs/cost-estimates.md` (year-of-HC budget). Handrolling this walk has bitten at least one Claude session — over- or under-counts depending on which step you skip.
 - **PDF URLs live on `sistemas.stf.jus.br`**, not `portal.stf.jus.br`. Separate origin, separate throttle counter.
 - **The PDF cache is a four-file quartet keyed on `sha1(url)`.** `<sha1>.pdf.gz` = raw bytes (written by `baixar-pecas`), `<sha1>.txt.gz` = extracted text, `<sha1>.elements.json.gz` = provider elements, `<sha1>.extractor` = provider label sidecar (written by `extrair-pecas`). Re-runs are controlled by the sidecar (`--provedor` match → skip; `--forcar` → overwrite). No monotonic-by-length guard: provider is the quality axis.
@@ -171,7 +210,7 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
 - **Recommend `judex acompanhar <run_dir>` as the canonical live sweep monitor** before reaching for anything fancier. Wraps `tail -F` with auto-detection: monolithic runs → top-level `driver.log` / `launcher.log`; sharded runs → all `shard-*/driver.log` interleaved (with `==> shard-X/driver.log <==` headers). All three pipeline stages (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and the unified `executar` write the same per-record `[N/total] ...` + periodic `[progress] ok=… fail=… · X.XX proc/s · eta Y min` shape to that log — liveness, throughput, ETA, and recent errors in one view. Pair with `pgrep -af <run_label>` for liveness. The wrapper exists because before it, mono runs needed `tail -f <run>/launcher.log` and sharded needed `tail -F <run>/shard-*/driver.log` — same job, two incantations; one user pivoted to "make tail work the same way on both" and `acompanhar` is the result. Sharded runs also have a richer alternative for varrer/baixar (`judex probe --out-root <dir> --watch N`), though probe predates `executar`'s nested state shape and only renders 0/X for that pipeline; regime-trajectory analysis (cliffs / SSL-EOF storms) is post-hoc via `judex analisar-regimes <run_dir>`. Don't write bespoke monitor scripts when `judex acompanhar` already carries the live signal.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
-- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex varrer-processos` / `uv run judex baixar-pecas` per shard.
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex debug varrer-processos` / `uv run judex debug baixar-pecas` per shard (the `command_group="debug"` kwarg threads the sub-app prefix in).
 
 ## Agent skills
 

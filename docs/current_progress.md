@@ -23,6 +23,519 @@ user request 20:30-20:33 BRT** while in Stage C (extrair) — see
 commands. Now in flight: a `coletar`-orchestrator smoke test
 (HC 245000-245099, exercises today's ADR-0004 commits).
 
+## Open thread — Fly OCR cascade + queue stampede + remediation (2026-05-03)
+
+**What happened, in order.** Ran into a sweep-load failure mode on
+the Fly cloud-OCR app and worked through a two-stage fix.
+
+**Stage 1 — OOM cascade (morning).** During the HC 2020 sharded sweep
+(16 shards × `--ocr-concurrencia 4` = 64 in-flight POSTs against the
+9-Machine fleet), `tesseract_fly` hit a **50.6% server-side failure
+rate** (728 of 1438 cumulative attempts; 97.9% in the hour before the
+fix). Fly logs revealed the root cause: every Machine OOM-killed at
+`anon-rss=1863 MB` on a 2 GB shape, then hit `max_restart_count=10`
+and stayed permanently stopped. Fleet collapse.
+
+**Diagnosis.** `fly/server.py:160-167` advertised "each Fly Machine
+handles one PDF at a time" in the docstring but **nothing in code
+enforced it**. The `/extract` handler called
+`loop.run_in_executor(None, _ocr_pdf_sync, pdf_bytes)` with `None` =
+asyncio's default executor (`min(32, cpu_count + 4) = 8` workers on
+shared-cpu-4x), so up to 8 concurrent OCR jobs ran on each Machine —
+each holding `pdf_bytes` + a 16-page raster chunk (~176 MB) in RAM.
+Memory math closed exactly: steady ~1058 MB + 5 × 176 MB ≈ 1938 MB →
+OOM trip at observed 1863 MB anon-rss. The `fly.toml` memory model on
+lines 53-78 implicitly assumed "1 in-flight per Machine"; the assumption
+was correct, just unenforced.
+
+**Fix 1 — Semaphore(1) + 5MB body cap.** `fly/server.py` patched to
+add `_REQUEST_SEMAPHORE = asyncio.Semaphore(1)` acquired before
+`await request.body()`, plus `_MAX_PDF_BYTES = 5 MB` server-side cap
+as a wayward-client defence. Committed `be74d08`, deployed via
+`flyctl deploy --strategy rolling` (all 9 Machines on V12). Smoke
+test (real 1-page PDF) → 200 OK in 2.12s. Server-OOM rate dropped
+from 50.6% → 0% in the first ~14 minutes of post-fix traffic.
+
+**Stage 2 — queue-amplification stampede (afternoon).** Re-launched
+the sharded sweep at `--ocr-concurrencia 1` (16 in-flight, 4× less
+pressure). Initial signal looked clean — but log rows kept showing
+`provider_error` clustered at suspicious **30.83s p25 wall time**.
+88 of 161 post-deploy failures hit that exact bucket. Diagnosis: the
+new `Semaphore(1)` enforced "one PDF per Machine" by *queuing* extra
+requests inside the asyncio handler, which the client couldn't see.
+Tenacity (`tesseract_fly.py:93-98`) had `stop_after_attempt(5)` ×
+`wait_exponential(max=30)` = ~31s of total wall budget — exactly
+matching the failure timing. With ~32 in-flight against 9 Machines,
+queue-drain time was ~210s; tenacity gave up at 31s. Every retry hit
+a still-busy fleet, returned a fast 503, exhausted the budget.
+The OOM cascade was fixed; we accidentally created a queue-length
+cascade in its place.
+
+**Fix 2 — 503 fast-fail + 300s tenacity budget.** Two coupled
+changes, committed together as `4cb7b2f`:
+
+1. **`fly/server.py`** — added `if _REQUEST_SEMAPHORE.locked(): raise
+   HTTPException(503)` *before* the `async with`. Converts queue
+   contention into instant retryable failures so Fly's edge proxy
+   load-balances retries to less-busy Machines. Smoke test: 8
+   concurrent requests against the 9-Machine fleet → 7×200 + 1×503,
+   the 503 returning in **240 ms** vs. the prior **300 s queue wait**.
+   Roughly 1000× improvement on the failure case. The `async with`
+   stays as a defence-in-depth race-window guard.
+2. **`judex/scraping/ocr/tesseract_fly.py`** — switched from
+   `stop_after_attempt(5)` + `wait_exponential(max=30)` to
+   `stop_after_delay(300)` + `wait_exponential(max=60)`. Bounded by
+   total wall budget (5 min) rather than attempt count, with single-
+   backoff cap raised to 60 s so transient queue-saturation periods
+   can drain. The `test_extract_gives_up_after_max_attempts_of_persistent_5xx`
+   test was retired (faithful test of the new contract would need
+   mocking `time.monotonic` inside tenacity; not worth the plumbing).
+
+**Active sweeps post-fix (HC 2020 + HC 2021).** Both running at
+`--ocr-concurrencia 1` against the patched server:
+
+| run | dir | shards | targets | status |
+|---|---|---|---|---|
+| HC 2020 (sharded) | `runs/active/hc2020-sharded/` | 16 | 9,137 cases | resumed; ~99.6% text complete; ~620 stuck `provider_error` being chewed through with new tenacity budget |
+| HC 2021 (sharded) | `runs/archive/2026-05-03-hc2021-executar/` | 16 | 7,085 cases (gap) | **done** 2026-05-03 18:32 BRT (launcher wall 5h 36m; per-shard wall 3h 31m–5h 27m). Meta ok=5,084 (71.8%) + unallocated_pid=1,975 (28.0%) + http_error=26. Bytes ok=14,671/15,751 (93.1%); text ok=13,792/14,671 (**94.0%**). 15 of 16 shards graded D individually only because per-shard text denominators include 1,080 `missing` rows that were never-fetched bytes (empty/http_error), not OCR failures — see close-out. |
+
+Total in-flight: 32 OCR POSTs against 9 Machines. The 503 fast-fail
+shape spreads load via Fly's edge proxy; tenacity's 300 s budget
+absorbs queue-drain periods.
+
+**Idempotence story (asked + answered).** The unified pipeline's
+state file is per-stage per-target, the cache is URL-keyed and
+corpus-shared, and re-running with the same `--saida` requeues only
+non-ok work via the seed builder — gated by ADR-0005's 2-retry cap.
+Practical workflow:
+
+1. **First run** — let it go. Meta + bytes complete reliably; most
+   text completes; some hit `provider_error`.
+2. **Re-run same `--saida`** — auto-retries everything within 2-retry
+   budget. Cache wins from parallel runs heal silently across runs.
+3. **Past the cap** — `--retentar-de runs/.../executar.errors.jsonl`
+   resets the budget for those specific targets.
+4. **Last resort** — `extrair-pecas --csv <leftovers> --provedor
+   tesseract --forcar` for genuine outliers (>1 MB or pathological
+   PDFs that need local OCR).
+
+**Outstanding (not blocking).**
+
+- **21 HTTP 500s observed pre-relaunch** weren't fully traced. `flyctl
+  logs --no-tail | grep -i exception` didn't surface a clear
+  traceback, so they may be uncaught FastAPI exceptions, transient
+  pdf2image failures on malformed PDFs, or OOMs during raster (less
+  likely now with Semaphore(1)). Worth a Fly-log dive if they recur
+  in the new run.
+- **`min_machines_running = 0`** in `fly.toml` means Machines
+  auto-stop when idle, contributing to cold-start 502/503 noise. Bump
+  to 2-3 would reduce the tail at ~$2-3/day. Defer until current
+  sweep convergence shows whether the residual matters at scale.
+- **`runs/active/backfill-hc2021-2026-05-02/`** still uses the old
+  three-command chain layout (varrer/baixar/extrair subdirs). Not
+  resumable with `executar`'s state shape, but the cache it produced
+  is corpus-shared, so its contribution survives in the new run via
+  `skipped_cached`.
+
+**Close-out — HC 2021 done (2026-05-03 18:32 BRT).** All 16 shards
+emitted terminal `report.md`; aggregator counters frozen across 7
+consecutive 30 s ticks; no `judex` / `uv run` processes alive.
+Final tallies (sum across `shard-{a..p}/report.md`, matches monitor):
+
+| stage            | total  | ok     | other                                          |
+|------------------|-------:|-------:|------------------------------------------------|
+| meta (portal)    |  7,085 |  5,084 | unallocated_pid=1,975 (28.0%); http_error=26   |
+| bytes (sistemas) | 15,751 | 14,671 | empty=1,035; http_error=45                     |
+| text (ocr)       | 14,671 | 13,792 | provider_error=879                             |
+
+Aggregate text quality = `text_ok / bytes_ok` = 13,792 / 14,671 =
+**94.0%** (C-grade). The per-shard `report.md` D-grades are an
+artefact of the shard-side denominator including 1,080 `missing` rows
+— bytes that were never fetched (empty + http_error) — not OCR
+failures; the OCR pool itself converted 94.0% of fetched bytes.
+
+The Stage 2 fix (`4cb7b2f`: 503 fast-fail + 300 s tenacity budget)
+held end-to-end: OCR pool ran at 100% utilisation for the full
+5h 36m, no SSL-EOF tail-storm, no fleet collapse. Per-shard wall
+variance (3h 31m–5h 27m) is the expected queue-distribution effect
+on a 16-shard / 9-Machine ratio with per-Machine `Semaphore(1)`.
+
+Run dir archived in place: `runs/archive/2026-05-03-hc2021-executar/`.
+
+Open follow-ups (not blocking):
+
+- **1,975 `unallocated_pid` (28.0% of cases)** is high. Likely a mix
+  of segredo-de-justiça / sealed cases (legitimate `pid=null`) and
+  scrape-side parse misses; one pass of `judex.sweeps.error_triage.
+  recovery_recipe` over `executar.errors.jsonl` (concatenated across
+  shards) discriminates which.
+- **879 `provider_error`** (6.0% of fetched bytes) is the residual
+  OCR tail. Re-running the same `--saida` retries them within the
+  ADR-0005 2-retry budget; past that, `--retentar-de` resets the
+  budget for those targets specifically.
+- **1,035 `empty` PDFs** (downloaded but 0-byte after decompress) are
+  most likely STF-side capture gaps; cross-check `error_triage` to
+  distinguish from a `baixar-pecas` write-side bug.
+- **Completion-tracker refresh deferred.** `docs/completion-tracker.md`
+  still shows HC 2021 at `❌ 0.5%` bytes; the table is sourced from a
+  warehouse rebuild, so update it after the next `atualizar-warehouse`
+  pass (the on-disk cache already carries the new bytes/text).
+
+## Open thread — ADR-0006 state journal: rebase landed, FF to `dev` ready (2026-05-03)
+
+**What.** ADR-0006 implementation committed as `817cfef` on
+`worktree-adr-0006-state-journal` and pushed to origin. Replaces the
+snapshot-only `PipelineState` with snapshot+log durability:
+`PipelineState.open(saida=...)` reads the snapshot, then replays every
+log row whose `ts > snapshot_at` directly into in-memory state,
+bypassing the live `record_*` mutators (so `retry_count` is preserved
+from the row rather than re-incremented per replayed row — fixes a
+correctness bug the legacy `recover_state_from_log` carried). `run_id`
+(UUID4) on every snapshot + log row is the staleness defence: a
+co-resident log from a prior aborted run raises `StaleLogError` on
+`open()`. Schema bumped 2→3; pre-bump state files cannot be loaded
+(no backwards-compat shim per CLAUDE.md § Conventions). 848 unit tests
+pass (89 in pipeline subtree, 759 unaffected).
+
+**Diff.** 8 files, +610 / -178: `state.py` (+332 net — `open()`,
+`_apply_log_row`, `StaleLogError`, run_id/snapshot_at properties),
+`test_pipeline_state.py` (+224 — 4 new ADR-0006 contract tests),
+`log.py` (lost `recover_state_from_log`; gained `run_id`/`retry_count`
+row fields), `runner.py` (collapsed log-vs-snapshot mtime dance into
+one `PipelineState.open()` call), `scheduler.py` (threads `run_id`
+through every `make_log_record` call + `_read_task_retry_count`
+helper), plus two test-file migrations and the ADR-0006 doc.
+
+**Rebase landed.** After PR #14 promoted ~65 commits to `main` as
+squash `734c280`, the worktree branch (originally based on `772491e`)
+sat 4 commits behind the new dev tip. Used
+`git rebase --onto origin/dev 772491e` to transplant just the
+ADR-0006 commit onto current `dev`. New commit: `f850170` on
+`worktree-adr-0006-state-journal` (force-pushed to origin).
+
+**Conflicts resolved (4 files):**
+
+- `state.py` — trivial: kept both `import uuid` (mine) and
+  `from collections import Counter` (dev, used by the multi-stage
+  progress aggregator at lines 377-411).
+- `log.py` — kept the retire-comment for `recover_state_from_log`;
+  updated the module docstring to reference `PipelineState.open()`'s
+  native reconciliation instead of the now-deleted standalone replay
+  function.
+- `scheduler.py` — kept both helpers (`_read_task_chars` from dev for
+  the per-task tail line, `_read_task_retry_count` from mine for the
+  log-row projection). Merged the `make_log_record` call site by
+  dropping my redundant `extractor = _read_task_extractor(...)` line
+  (dev pre-computes `line_extractor` and `line_chars` upstream for
+  the tail line) and keeping `retry_count` threading.
+- `test_pipeline_log.py` — dropped the two retired
+  `recover_state_from_log` tests (their concern is now in
+  `test_pipeline_state.py`); ported dev's
+  `test_log_record_carries_chars_and_recovers_into_state` from
+  `recover_state_from_log` to `PipelineState.open()`'s replay API.
+
+**Bonus fidelity fixes surfaced by the rebase.** `_apply_log_row` in
+`state.py` was dropping two fields on replay:
+
+- `chars` (dev added to `TaskLogRecord` for the tail-line UI; my
+  replay didn't project it back into `state.text_chars`).
+- `n_pecas` (dev added to in-memory state; my replay overwrote
+  `rec.meta` wholesale, clobbering the snapshot's value because
+  `n_pecas` isn't carried in log rows).
+
+Both fixed in the rebase commit. Pattern for any future log-row-vs-
+in-memory-state field mismatch: replay should preserve prior fields
+not represented in the row.
+
+**Test result.** 889 unit tests pass (~40 s; +41 net since the
+pre-rebase 848 passed — dev's tail-line/n_pecas tests, my 4 ADR-0006
+contract tests, minus the 2 retired recover tests).
+
+**Next step.** Single FF of `dev` to `f850170` lands ADR-0006 on the
+trunk. The branch is exactly 1 commit ahead of `dev` (now at
+`4cb7b2f` after the 503-fast-fail + tenacity-budget commit).
+
+## Open thread — Unified pipeline v1 landed (2026-05-02 late evening)
+
+**What.** Replaced the three-command chain (`varrer-processos` →
+`baixar-pecas` → `extrair-pecas`) and `coletar`'s six-substage
+orchestrator with a single fire-and-forget `judex executar` command
+backed by a three-pool asyncio DAG scheduler. **Spec-complete v1 is
+on `explore/unified-pipeline` (origin)**, fast-forwarded from
+`worktree-unified-pipeline-impl`. Both refs at `4af9eaa` after slice
+5 (real-STF validation) passed.
+
+**Why.** `coletar` collapsed three commands into one chain but the
+operator still saw six substages, six per-substage logs, six
+per-substage state files, and a launcher process tree. The unified
+pipeline collapses all of that to **one process, one log, one PID,
+one state file, one resume point**. The win is *operational*, not
+primarily throughput — the spec was reframed mid-session from a
+0.60 throughput-gate (mathematically unreachable for this workload)
+to a six-point ergonomic checklist (one submission, one log, one
+state file, one PID, resume across pool failures, output identical
+to today). See `docs/superpowers/specs/2026-05-02-unified-pipeline.md`.
+
+**Branch state (origin).**
+
+```
+4af9eaa feat(pipeline): comparison metrics + concurrency-aware utilisation
+218f8f2 fix(pipeline): persist case JSON in handle_fetch_meta
+48b2c5e feat(pipeline): per-pool circuit breaker (slice 3)
+cf8d0be feat(pipeline): runner + judex executar CLI (slice 4)
+fe62cd4 feat(pipeline): scheduler + handlers (slice 2)
+c538d07 feat(pipeline): models + atomic state store (slice 1)
+67e0fc6 feat(pipeline): scheduler prototype with mock-mode smoke test
+e12f91d docs(spec): reframe from throughput gate to ergonomic checklist
+ccc01c3 docs(spec): unified pipeline — DAG scheduler successor to coletar
+```
+
+`origin/explore/unified-pipeline` and `origin/worktree-unified-pipeline-impl`
+both at `4af9eaa`. `dev` still at `62a1101` — unified pipeline is
+NOT yet promoted to trunk.
+
+**What's in `judex/pipeline/`.**
+
+| File | Lines | Purpose |
+|---|---|---|
+| `__init__.py`     | 32  | Public re-exports |
+| `models.py`       | 100 | `Task`, `PoolName`, `TaskKind`, `TaskStatus`, `PoolConfig`, `Counters` |
+| `state.py`        | 200 | `PipelineState` with atomic snapshot, resume predicates, per-URL granularity |
+| `pools.py`        | 110 | `Pool` runtime with `CircuitBreaker` + optional `ProxyPool`/`AdaptiveThrottle` scaffolding |
+| `scheduler.py`    | 300 | Three-pool asyncio core, signal-driven graceful shutdown, periodic snapshotter |
+| `handlers.py`     | 195 | Real handlers wired to scraper / `_http_get_with_retry` / `peca_cache` / `ocr.dispatch` |
+| `runner.py`       | 230 | `run_pipeline(targets, saida, ...)` + `read_targets_csv` + comparison-metrics report |
+
+Plus `scratch/pipeline_prototype.py` (kept as the throwaway prototype
+that surfaced the pipelining-ceiling math), and 34 unit tests across
+`tests/unit/test_pipeline_{state,scheduler,runner,pools}.py`. **Full
+unit suite: 716 passed (34 new + 682 pre-existing).**
+
+**Slice 5 receipts (real STF, direct-IP, `pypdf`).**
+
+5-case (HC 250000-250004), wall **3.3 s**:
+
+| pool      | started | finished | failed | utilisation |
+|-----------|---------|----------|--------|-------------|
+| portal    | 5       | 5        | 0      | 58%         |
+| sistemas  | 10      | 10       | 0      | 63%         |
+| ocr       | 10      | 9        | 1      | 30% (concurrency-aware) |
+
+50-case (HC 250000-250049), wall **25.9 s**:
+
+| pool      | started | finished | failed | utilisation |
+|-----------|---------|----------|--------|-------------|
+| portal    | 50      | 50       | 0      | 54%         |
+| sistemas  | 119     | 119      | 0      | 88%         |
+| ocr       | 119     | 119      | 0      | 34%         |
+
+State-side: `meta=ok×50`, `bytes=ok×116`, `text=ok×100,
+provider_error×16` (RTF-passed-to-pypdf — same outcome as legacy
+`extrair-pecas --provedor pypdf`; `--provedor auto` would route those
+to tesseract). Spot-checked `.txt.gz` outputs: real Portuguese
+("HABEAS CORPUS 250.000 DISTRITO FEDERAL / RELATOR : MIN. FLÁVIO DINO
+/ ..."), no mojibake.
+
+**Comparison vs. legacy chain (50-case slice).**
+
+| metric                                | this run | legacy (≈ sum-of-busy) |
+|---------------------------------------|----------|------------------------|
+| wall (s)                              | **25.9** | 71.8                   |
+| cases                                 | 50       | 50                     |
+| peças bytes ok                        | 116      | 116                    |
+| peças text ok                         | 100      | 100                    |
+| OCR cost (USD, `--provedor pypdf`)    | $0.0000  | $0.0000                |
+| pipelining ratio                      | **0.36** | n/a                    |
+| **wall savings vs sequential**        | **64%**  | n/a                    |
+
+The 64% is higher than the analytical projection (15-25%) because
+much of the work is cache-hits — HTML cache for meta, `peca_cache`
+for already-fetched bytes — which makes the bottleneck pool's wall
+shrink dramatically while pipelining still amortizes the fresh-fetch
+tail. **Cache-aware resume gets the bigger win**; a fully-fresh
+50-case run from cold cache would land closer to the 15-25% band.
+
+**Six-point fire-and-forget checklist.**
+
+| Invariant | Status |
+|---|---|
+| 1. One submission                 | ✅ `judex executar --csv …` |
+| 2. One log                        | ✅ Single stderr stream |
+| 3. One state file                 | ✅ `executar.state.json` (atomic snapshot) |
+| 4. One PID                        | ✅ Single asyncio process |
+| 5. Resume across pool failures    | ✅ Unit tests cover; integration via re-run pending |
+| 6. Output identical to today      | ✅ Case JSON + four-file quartet land in `data/`; texts spot-check is real Portuguese |
+
+**One mid-session bug, one small follow-up.**
+
+* **Bug found and fixed (`218f8f2`).** First slice-5 run produced
+  `meta=ok×10, bytes=none, text=none` because (i) the slice
+  (HC 271130-271134 + 271140-271144) was unintentionally trivial —
+  all 10 cases are stub filings with zero peça links — and (ii) my
+  `handle_fetch_meta` was scraping into memory but never persisting
+  the case JSON to `data/source/processos/<classe>/`. Legacy
+  `varrer-processos` does this via `run_sweep._write_item_json`;
+  the unified pipeline was missing the equivalent step. Without the
+  fix, invariant #6 would silently break: `executar.state.json`
+  shows `ok` but no JSON on disk for downstream consumers
+  (warehouse rebuild, `validar-gabarito`, ad-hoc analysis) to find.
+  Lift-and-replicated the legacy atomic-write logic into
+  `handlers.py`. Same on-disk format, same atomicity contract.
+
+* **Follow-up (non-blocking): intra-case URL dedup.** 50-case run
+  showed `sistemas.started=119` but only 116 unique URLs in state
+  → 3 intra-case dupes (same peça URL emitted from two surfaces of
+  the same case, e.g. once via andamento, once via DJe).
+  `_iter_case_pdf_targets` does not dedupe per case (CLAUDE.md
+  documents this); my handler should dedupe before emitting bytes
+  tasks. Cost: the dupes hit `peca_cache.has_bytes` → True → skip
+  fetch, so the only cost is bookkeeping noise. ~3 lines to fix.
+
+**Open follow-ups (priority order).**
+
+1. **Promote `explore/unified-pipeline` → `dev`.** Currently `dev` is
+   at `62a1101` (no unified pipeline). The work passes slice 5; can
+   ship via `gh pr create --base dev --head explore/unified-pipeline`
+   and squash-merge per CLAUDE.md § Conventions.
+2. **Slice 6: removal of legacy CLI commands.** Spec says delete
+   `varrer-processos` / `baixar-pecas` / `extrair-pecas` / `coletar`
+   from `judex/cli.py` once slice 5 passes. Slice 5 has passed;
+   removal is now unblocked. Per CLAUDE.md § Conventions, no
+   backcompat shims — remove outright.
+3. **Intra-case URL dedup in `handle_fetch_meta`** (above).
+4. **`--provedor auto` integration** so RTF-as-PDF routes correctly.
+   Same legacy parity as `extrair-pecas --provedor auto`.
+5. **Real-resume integration test.** Unit tests cover; want a real
+   "kill mid-run via SIGTERM, resume, verify finished" cycle as
+   slice 5b receipt before promoting to `dev`.
+
+## Open thread — HC 2020 `executar` smoke test + warehouse rebuild blocker (2026-05-03 ~02:10 BRT)
+
+**Run in flight.** Detached `judex executar --csv runs/active/hc2020-executar/cases.csv
+--saida runs/active/hc2020-executar/ --provedor auto --nao-perguntar` (env:
+`FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract`,
+`JUDEX_AUTO_TESSERACT_PROVIDER=tesseract_fly`). PIDs `952184`/`952189`. Started
+03:50:41 UTC (snapshot view at 05:06:58 UTC). 9,137 HC 2020 cases queued.
+
+**Spot-check verdict at ~5.6 % through: healthy.** Snapshot from `executar.state.json`:
+
+| stage      | ok    | fail | fail %  | dominant failure |
+|-----------:|------:|-----:|--------:|---------------------------------------------------|
+| meta       | 769   | 123  | 13.8 %  | `unallocated_pid` (terminal-normal STF state)     |
+| bytes      | 3373  | 20   | 0.59 %  | `empty` (0-byte STF response, magic-byte guard)   |
+| text       | 2178  | 38   | 1.71 %  | 34× Fly Tesseract HTTP 404 + 1× `OutlierPdfError` (>1 MB cloud-OCR refusal) + 3× misc |
+
+Fully-through-all-stages: **512 / 9137 cases**. Throughput drift 0.21 → 0.17
+cases/s (heavy-tail OCR jobs at 430 s / 275 s / 171 s pulling the average).
+Auto-routing mix: rtf=1016, pypdf=1080, tesseract_fly=78, tesseract=8 — exactly
+what HC 2020 should look like.
+
+**Artifact-layout parity confirmed.** `executar` writes the same on-disk
+quartet as the legacy chain: case JSON in `data/source/processos/HC/`, peça
+bytes in `data/raw/pecas/<sha1>.{pdf,rtf}.gz`, text in
+`data/derived/pecas-texto/<sha1>.txt.gz` + `.extractor` sidecar. Run-dir
+holds `executar.state.json` (atomic, periodic snapshot) +
+`executar.log.jsonl` (append-only, per-URL events).
+`executar.errors.jsonl` and `report.md` write at clean exit only —
+`judex/pipeline/runner.py:405-411`. Spot-checked 8 `.txt.gz` files across
+all four extractors: real Portuguese, no mojibake, plausible sizes.
+
+**Two non-blocking signals to track:**
+
+1. **34× Fly Tesseract 404s (1.5 % of text jobs).** Error-reported URL is the
+   bare host (`https://judex-ocr-tesseract-arcos.fly.dev/`, no `/extract`),
+   suggesting the worker is responding 404 to certain payloads or the
+   redirected response URL is being captured. Easily re-tried from
+   `executar.errors.jsonl` once the run is done. Watch for the rate
+   climbing past ~3 %.
+2. **OCR wall-time spikes** (430 s, 275 s, 171 s) push avg to 4.8 s and ETA
+   to ~14 h. All complete `ok` — Fly cold-start / queue tail, not failure.
+
+### Warehouse rebuild blocker — 13,747 stray case JSONs at the wrong path
+
+**Triggered by the user's "rebuild the warehouse" follow-up.** `uv run judex
+atualizar-warehouse` crashed in `_bulk_insert` at
+`judex/warehouse/builder.py:877`:
+
+```
+ConstraintException: Constraint Error: Duplicate key
+"classe: HC, processo_id: 253283" violates primary key constraint.
+```
+
+Root cause: **13,747 case JSONs are duplicated at `data/source/processos/*.json`
+(parent dir) AND at `data/source/processos/HC/*.json` (canonical)**. The
+builder's traversal is `cases_root.rglob("judex-mini_*.json")`
+(`builder.py:812`) — recursive, so both copies enter the `cases` insert and
+collide on `(classe, processo_id)` PK.
+
+Stray range: HC 198000-267137 (2021-2025). Mtime window: 2026-05-02
+**14:12 → 15:22 BRT** (≈70 min, hour-bucket distribution: 14h = 4811 files,
+15h = 8936 files). **Confirmed not the active run** — newest mtime in parent
+dir is 15:22 BRT yesterday; nothing modified in the last 60 min as of
+2026-05-03 02:18 BRT (`find … -mmin -60` returns empty), and the live HC
+2020 `executar` sweep's recent JSONs land correctly under
+`data/source/processos/HC/`. Sample of 25 strays vs `HC/` twins:
+
+- 25/25 same byte size
+- 25/25 sha1-different
+- single field-level diff: **`_meta.extraido` only** — strays' timestamp
+  is ~18 h newer than `HC/` twins' (parent ≈ `2026-05-02T14:50:36`,
+  `HC/` ≈ `2026-04-21T18:49:28` on the spot-checked file)
+
+Interpretation: a sweep yesterday afternoon re-scraped this range and wrote
+the JSONs to `data/source/processos/<f>.json` instead of
+`data/source/processos/HC/<f>.json`. Case content is identical to the
+existing `HC/` copy — only the `_meta.extraido` timestamp moved. **No data
+was lost.** The strays are functionally redundant; the canonical `HC/` copy
+is intact (just with an older scrape-timestamp).
+
+**The active HC 2020 `executar` run is writing to the correct path** —
+files at 02:06 BRT today land under `data/source/processos/HC/`. So the
+mis-pathed-write bug isn't firing on this run, but the strays at the parent
+level are blocking the warehouse rebuild and stand as evidence of a
+historical regression worth tracing (most likely candidates: yesterday's
+`coletar` smoke test or the `executar` sweep that wrote at 14:22 BRT).
+Whichever pipeline emitted these had a missing `<classe>/` segment in its
+case-store write path.
+
+**Side artefact.** `data/derived/warehouse/judex.duckdb.tmp` (522 MB) is the
+half-built rebuild from this attempt. Safe to delete; the canonical
+`judex.duckdb` (1.85 GB, 2026-05-02 12:43 BRT) is untouched.
+
+**Resolution (02:21 → 02:28 BRT).** Moved all 13,747 strays into `HC/` with
+overwrite via `find … -maxdepth 1 -name 'judex-mini_*.json' -exec mv -f -t
+.../HC/ {} +`. Atomic per-file rename within the same filesystem; race-free
+against the active sweep (no path overlap, HC 187xxx vs 198000+). Spot-check
+post-move: `_meta.extraido = 2026-05-02T14:50:36.579461` on
+`HC_255555-255555.json` (the newer timestamp won, as intended). Parent-dir
+JSON count: 0. `judex.duckdb.tmp` deleted. Re-ran `uv run judex
+atualizar-warehouse` → **clean build in 414.8 s, atomic swap to 3.05 GB
+warehouse**, all five quality thresholds passed:
+
+```
+  cases                 90,835
+  partes               317,860
+  andamentos         1,242,860
+  documentos            36,405
+  pautas                15,459
+  publicacoes_dje       85,803
+  decisoes_dje          13,311
+  pdfs                 115,056
+  unallocated_pids      24,568
+```
+
+**Carried-over investigation.** Whichever sweep wrote into the parent dir
+during the **2026-05-02 14:12 → 15:22 BRT** window (4811 files in 14h, 8936
+in 15h, range HC 198000-267137) had a missing `<classe>/` segment in its
+case-store write path. Worth grepping launcher logs from that window to
+identify the offending command before the next big sweep. Verifier guard
+for after the fix:
+
+```bash
+ls data/source/processos/*.json 2>/dev/null | wc -l   # must be 0
+find data/source/processos/ -maxdepth 1 -type d       # must be only HC/
+```
+
 ## Open thread — Fly OCR cluster cost shape (2026-05-02 late evening)
 
 **Why.** The first real Fly invoice landed (May 1+2 = $8.70 over
@@ -136,11 +649,11 @@ further cuts are diminishing returns.
 
 **Cost-shape comparison (gru rates, all at 1 GB total RAM).**
 
-| Shape               | Workers | $/hr (gru) | Pages/sec (est) | $/page-slot/hr        |
-|---------------------|---------|------------|-----------------|-----------------------|
-| shared-cpu-2x @ 1gb | 2       | $0.0143    | ~2.0            | $0.00715              |
+| Shape               | Workers | $/hr (gru) | Pages/sec (est) | $/page-slot/hr      |
+|---------------------|---------|------------|-----------------|---------------------|
+| shared-cpu-2x @ 1gb | 2       | $0.0143    | ~2.0            | $0.00715            |
 | shared-cpu-4x @ 1gb | 4       | $0.0174    | ~4.0            | $0.00435 ← sweet spot |
-| shared-cpu-8x @ 2gb | 8       | ~$0.0349   | ~7.0            | $0.00499              |
+| shared-cpu-8x @ 2gb | 8       | ~$0.0349   | ~7.0            | $0.00499            |
 
 Pages/sec figures are estimates from per-page OCR ~1 s × worker
 count, with sub-linear scaling assumed at 8 workers (process-
@@ -156,10 +669,212 @@ headroom over the 1 GB ceiling. Tighter than the prior 2x shape
 
 **Experiment to run post-deploy.**
 
-1. Smoke-test 5-10 PDFs spanning page counts on the new 4x
-   cluster. Watch `flyctl logs` for OOM kills or healthcheck
-   flaps. The 14% memory headroom is calculated, not measured.
-2. Sample wall_seconds vs the prior 2x baseline for matched
+1. ~~Smoke-test 5-10 PDFs spanning page counts on the new 4x
+   cluster.~~ **Run on the 1 GB live cluster 2026-05-03 ~02:57 BRT
+   ahead of the 2 GB scale-up** (artifacts at
+   `analysis/fly-1gb-smoke-2026-05-03/`). Test set spanned 10 → 295
+   pages; only the 10-page PDF (single-chunk, 5.7 s wall) returned
+   200 + clean Portuguese text. Every PDF >16 pages — i.e. every
+   request that needed a *second* raster chunk — returned 502 +
+   empty body, with five corresponding `oom-killed` events in
+   `flyctl logs`:
+
+   | pages | wall (s) | result | anon-rss at kill |
+   |------:|---------:|:------:|-----------------:|
+   | 10    |  5.7     | ok     | (no kill)        |
+   | 31    |  5.8     | 502    | 847 MB           |
+   | 51    | 22.7     | 502    | 862 MB           |
+   | 63    | 35.3     | 502    | 863 MB           |
+   | 143   | 28.3     | 502    | 855 MB           |
+   | 295   | 124.7    | 502    | 842 MB           |
+
+   Mean kill-RSS 854 MB on a 1024 MB ceiling — matches the prior
+   session's 861 MB datapoint cited in commit `308426e` to within
+   1%, so the OOM ceiling is reproducible. The boundary is now
+   pinned at **17-pages-or-more** (one full chunk + any second-
+   chunk overlap), tighter than the 123-page bound speculated
+   before. Smoking gun: the 295-page case OCR'd ~16 pages
+   successfully (~5 s/chunk × 1 chunk = ~5 s) before the kernel
+   killed it during chunk-2 raster — partial-OCR walls (5.8/22.7/
+   35.3/28.3 s) confirm work-then-die, not proxy-immediate 502.
+   Confirms the calculated 1234 MB peak doesn't fit on the 1 GB
+   ceiling by ≥210 MB; 2 GB needed.
+
+   **2 GB re-run after `flyctl scale memory 2048` (2026-05-03 ~03:13
+   BRT, artifacts at `analysis/fly-2gb-smoke-2026-05-03/`).** Same 6
+   PDFs, same image (`deployment-01KQNVP194VNVC5TXPJ1MQZXBK`), only
+   the memory ceiling changed:
+
+   | pages | pdf MB | 1 GB outcome   | 2 GB outcome              | 2 GB s/page |
+   |------:|-------:|:--------------:|:-------------------------:|------------:|
+   | 10    | 2.08   | ✓ ok           | ✓ ok (5.9 s)              | 0.53        |
+   | 31    | 1.24   | OOM 847 MB     | ✓ ok (18.7 s)             | 0.59        |
+   | 51    | 1.62   | OOM 862 MB     | ✓ ok (28.5 s)             | 0.53        |
+   | 63    | 1.39   | OOM 863 MB     | ✓ ok (**213.8 s**)        | **3.38**    |
+   | 143   | 2.27   | OOM 855 MB     | ✗ ReadTimeout (900 s)     | n/a         |
+   | 295   | 5.67   | OOM 842 MB     | ✗ ReadTimeout (900 s)     | n/a         |
+
+   **Crucial receipt: zero `Out of memory` lines in `fly.log` over
+   the entire 2 GB run** (`grep -c 'Out of memory' fly.log → 0`,
+   over 191 log lines). The two `Main child exited normally`
+   entries at 03:04 are from the `flyctl scale memory 2048` rolling
+   restart (graceful uvicorn shutdown before VM resize), not from
+   the smoke test. So the 143/295-page failures are *server-stalled*,
+   not OOM-killed — `/healthz` continued returning 200 every 30 s
+   throughout, meaning the asyncio loop stayed alive and the OCR
+   worker was just running very, very slowly. This is the
+   degradation-without-death signature, distinct from the 1 GB
+   crash-kill signature.
+
+   **Smoke-test cases were *picked from the largest 0.01% of the
+   corpus* (the 5383 KB / 295-page outlier is the single biggest PDF
+   in 103,952 cached files), so the n=4 percentile distribution
+   above is meaningless as a percentile claim — the test inputs were
+   selected to stress the cluster, not sampled uniformly. The
+   right percentile question is over the *corpus*, not the test set:**
+
+   **Corpus-wide PDF distribution** (`data/raw/pecas/`, n=103,952
+   `.pdf.gz` files, computed 2026-05-03):
+
+   | Stat        |   Compressed |  Est. pages | Implication on 4x @ 2gb |
+   |:-----------:|-------------:|------------:|-------------------------|
+   | Total       | 14.92 GB     | —           | manageable on disk      |
+   | p50 (median)|   123.5 KB   |   3 pages   | single-chunk, ~2 s wall (fast path) |
+   | mean        |   150.5 KB   |   ~4 pages  | tail-skewed; mean > median by 22% |
+   | p95         |   411.1 KB   |   12 pages  | single-chunk, ~7 s wall (still fast) |
+   | p99         |   507.4 KB   |   13 pages  | single-chunk, ~7 s wall |
+   | p99.5       |   517.9 KB   |   13 pages  | single-chunk, ~7 s wall |
+   | p99.9       |   628.4 KB   |   14 pages  | single-chunk, ~8 s wall |
+   | p99.99      |  1284.6 KB   |   67 pages  | **slowdown zone** (~3 s/page, ~200 s wall) |
+   | max         |  5382.9 KB   |  295 pages  | **stall zone** (≥900 s, the test outlier) |
+
+   Page counts at percentiles ≤p99.9 are direct page-counts of the
+   PDF at that exact size-rank; max is empirical (the smoke-test's
+   295-page case). The mid-percentile values are *page counts*
+   (not estimated from a regression — those would underestimate
+   the tail since text-heavy PDFs compress 5× better than scans).
+
+   **Punch line: corpus-fraction projection of the smoke-test boundaries.**
+
+   | Boundary on 2 GB cluster      | Corpus fraction       | Count   |
+   |-------------------------------|-----------------------|---------|
+   | ≤16 pages (single-chunk fast) | **99.51%**            | 103,442 |
+   | 17-63 pages (multi-chunk fast)| **0.48%**             | 502     |
+   | 64-143 pages (slowdown zone)  | **0.007%**            | 7       |
+   | >143 pages (stall zone)       | **0.001%**            | 1       |
+
+   So the literal "40% headroom holds" claim resolves favorably for
+   real production traffic: **99.99% of corpus PDFs are inside the
+   smoke-test's confirmed-clean-zone** (≤63 pages, no OOM, no
+   stall, ≤30 s wall on the 2 GB cluster). The chunk-overlap
+   slowdown affects ~7 PDFs across the entire corpus; the stall
+   affects exactly 1 (the 5382 KB / 295-page outlier we deliberately
+   used as a stress test). Chunk-overlap fix is nice-to-have, not
+   a launch blocker for the year-ladder backfills against the
+   existing 99.99% short-PDF traffic.
+
+   **Bigger reframe (2026-05-03 close-out): every PDF in the
+   smoke-test set is *already excluded* from the production Fly
+   path.** `tesseract_fly.py:67` has a `OUTLIER_BYTES = 1 MB`
+   threshold; `extract()` raises `OutlierPdfError` for any
+   `.pdf.gz > 1 MB compressed`, which the sweep runner records as
+   `status='outlier_skipped'` and surfaces in `report.md` with a
+   copy-pasteable local-OCR command. All 6 smoke-test PDFs (10p,
+   31p, 51p, 63p, 143p, 295p) are 1.24-5.67 MB — every one
+   exceeds the threshold and would never reach Fly in a real
+   sweep. Across the 103,952-PDF corpus, only 17 files (0.016%)
+   are above 1 MB.
+
+   **What this means for the open follow-ups (priority list above
+   superseded):**
+   - **Chunk-overlap patch**: tested empirically against the
+     unpatched 2 GB run by deploying the `del chunk_imgs;
+     gc.collect()` form and re-running the same 6 PDFs. Result:
+     **patch added 10-18% wall on every PDF and did not move the
+     63-page cliff** (10p 5.9→7.0 s; 31p 18.7→21.2 s; 51p
+     28.5→31.3 s; 63p 213.8→247.5 s; 143p still timed out). The
+     cliff is therefore *not* memory-overlap — most plausible
+     remaining cause is **shared-cpu CPU-credit exhaustion**
+     (4 workers burst-running for ~30-60 s deplete Fly's
+     shared-cpu credit pool, then throttle to baseline). Reverted
+     the patch (`git checkout fly/server.py` + `flyctl deploy`,
+     2026-05-03 ~04:10 BRT). Cluster is back on the un-patched
+     image at 2 GB.
+   - **CPU-credit hypothesis**: only worth chasing if we ever
+     loosen the 1 MB outlier threshold. Right now it's an
+     unreachable failure mode behind a guard. Park.
+   - **Production status**: 4x @ 2gb is **production-ready as-is**
+     for the 99.984% of corpus that flows through Fly; the 0.016%
+     outliers go to local Tesseract via the existing
+     `outlier_skipped` flow. Restore Machine count + resume HC
+     backfills whenever convenient.
+
+   **Cost re-anchor (2026-05-03).** `tesseract_fly.py:cost()`
+   currently returns `n_pages * 0.005 / 1000` (anchored to the old
+   shared-cpu-2x @ 4gb shape's $0.0479/Machine-hr). Re-derived
+   against the current 4x @ 2gb shape ($0.0286/Machine-hr) and
+   the empirical 0.55 s/page mean on 4 workers (smoke-test
+   fast-path): **~$0.0011 / 1k pages** = **128× cheaper than
+   Modal's $0.140 / 1k**. Year-ladder backfill (~46k OCR pages):
+   $0.05 on Fly vs $6.50 on Modal. Re-anchor `cost.py` next time
+   the file is touched; cost-test bounds in `tests/unit/test_cost.py`
+   tolerate ±10%, so the change is non-breaking.
+
+   **What the 2 GB pass actually proved.**
+   1. **OOM at the small/mid end is fixed.** 31/51-page PDFs that
+      OOM-killed on 1 GB at anon-rss ~847-862 MB now complete cleanly
+      with intact Portuguese text (54,514 / 88,002 chars); the
+      40%-headroom math holds for the bottleneck case the design
+      was built for.
+   2. **A new degradation mode appeared at 63+ pages.** No OOM in
+      `flyctl logs` (zero `Out of memory` lines during the 2 GB run),
+      but per-page OCR jumped ~6× between 51 and 63 pages — the
+      63-page case took 213.8 s where the trend predicts ~35 s.
+      The 143-page case never returned within the script's 900 s
+      client read-timeout despite Fly's `/healthz` pings continuing
+      to succeed every 30 s (asyncio loop alive, server still
+      running). Most plausible cause: memory pressure short of OOM
+      causing GC churn / page-cache thrash as the 4-worker tesserocr
+      pool's resident model + chunk-overlap PIL rasters approach
+      the 2 GB ceiling on long PDFs. Empirically, the *operational*
+      ceiling for the 4x @ 2gb shape on this workload is ≤63 pages
+      with acceptable wall, not the 295+ that fly.toml's static
+      memory math suggests.
+   3. **Calculated 40% headroom is misleading at the long tail.**
+      Toml comment: peak 1234 MB on 2048 MB = 40%. But the kernel
+      OOM-killer (we saw on 1 GB) fired at ~83% of the configured
+      ceiling, suggesting the *effective* OOM threshold is ~1700 MB
+      on 2 GB, and the 1234 MB calc only accounts for *steady-state
+      first-chunk* — chunk-2 overlap before GC adds another 176 MB
+      transient, putting peak closer to 1410 MB and effective
+      headroom at ~17%.
+
+   **Open follow-ups (priority order, post-2-GB-receipt).**
+
+   1. **Diagnose the 63+ page slowdown.** Two cheap experiments:
+      (a) add `del chunk_imgs; gc.collect()` between chunks in
+      `_ocr_pdf_sync` (forces release of chunk-1 PIL images before
+      chunk-2 allocs), redeploy, re-run the same 6-PDF smoke test
+      and look for the 63-page wall returning to the 35-s trendline;
+      (b) drop `_RASTER_CHUNK_PAGES` from 16 to 8 — halves peak
+      raster spike from 176 MB to 88 MB at the cost of 2× the
+      pdftoppm parse cost, but trades fixed overhead for an ironclad
+      no-pressure ceiling.
+   2. **Larger N for real percentiles.** Sample 50-100 random ACÓRDÃO
+      PDFs from `data/raw/pecas/` spanning page-count buckets,
+      re-run, then claim p50/p90/p99 with statistical force. Without
+      this, current "p95/p99 ≡ max" caveat is the honest read.
+   3. **Restore cluster to production count** (whatever the next
+      sweep needs — currently 10 Machines, was 100 pre-test in the
+      2 GB-streaming-refactor cycle).
+   4. **Decide whether 2 GB at $0.0347/hr is the right shape vs
+      shared-cpu-8x @ 2gb.** If the 63-page slowdown is the chunk-
+      overlap effect (mitigation #1 above), 4x @ 2gb still wins on
+      $/page-slot. If it's hard libtesseract concurrency contention,
+      8x @ 2gb might not help and a different chunk strategy is
+      needed.
+
+2. ~~Sample wall_seconds vs the prior 2x baseline for matched~~
    PDFs. Expected: ~50% reduction in per-PDF wall (4 workers
    vs 2). If actual <40% reduction, suspect contention in
    libtesseract's process-global state and consider whether
@@ -179,69 +894,6 @@ The math says no — cross-page parallelism dominates per-page OMP
 parallelism whenever the page pool is saturated, which it almost
 always is given chunk_size=16. But worth one A/B run if 8x
 becomes a serious candidate.
-
-### Correction 2026-05-03 — empirical OOM invalidates the 1 GB shape
-
-**What happened.** A separate session deployed the post-tesserocr
-image at `shared-cpu-2x @ 1gb` and ran a 123-page PDF through it.
-Kernel OOM-killed uvicorn at `anon-rss=861 MB` on a 1024 MB Machine
-(per `flyctl logs`):
-
-```
-[ 250.736913] Out of memory: Killed process 644 (uvicorn) anon-rss:861508kB
-```
-
-**Memory model re-anchor.** My static estimate was 100 MB per
-tesserocr worker (back-of-envelope from the size of
-`por.traineddata`). Empirical back-derivation from the 861 MB
-peak: 861 - 310 baseline - 176 raster ≈ 374 MB / 2 workers ≈
-**~187 MB per worker** — almost 2× my estimate. The delta is
-libtesseract's working memory during active recognition (line/
-word bounding-box pyramids, confidence accumulators, recogniser
-state), which scales with image complexity, not just static model
-size. The original 100 MB number was the *resident model size*,
-not the *peak working-set*.
-
-**Re-derived shape table (gru rates, with empirical 187 MB/worker).**
-
-| Shape               | Peak  | Headroom | $/hr (gru) | Workers | $/slot/hr  |
-|---------------------|-------|----------|------------|---------|------------|
-| 2x @ 1gb (DOA)      | 860 MB| -        | $0.0143    | 2       | OOMs       |
-| 2x @ 1.5gb (live-fix)| 860 MB| 44%     | $0.026     | 2       | $0.013     |
-| 2x @ 2gb (validated)| 860 MB| 58%      | $0.0312    | 2       | $0.0156    |
-| **4x @ 2gb (revised)**| 1234 MB| 40%   | $0.0347    | 4       | **$0.00868** ← cheapest safe |
-| 4x @ 1.5gb          | 1234 MB| 20%     | $0.0261    | 4       | $0.00652 (tight) |
-| 8x @ 3gb            | 1982 MB| 35%     | $0.0522    | 8       | $0.00653   |
-
-**Landed shape revision.** `[[vm]] memory: "1gb" → "2gb"`. The
-4x sweet-spot concept holds — 4 workers at $0.00868/slot/hr is
-still 33% cheaper per slot than 2x @ 1.5gb at $0.013/slot/hr.
-What changed: the cost advantage now lives in *slot count*, not
-in *dodging the additional-RAM line item* (4x @ 2gb DOES pay
-$0.0173/hr for the 1 GB above the included tier).
-
-**Live cluster fix (separate from this commit).** The deployed
-`shared-cpu-2x @ 1gb` cluster needs a runtime memory bump or it
-will keep OOM-looping on multi-page PDFs. Two options on the table:
-- `flyctl scale memory 1536 -a judex-ocr-tesseract-arcos` — 2x @
-  1.5gb, 44% headroom, $0.026/hr, instant
-- `flyctl scale memory 2048 -a judex-ocr-tesseract-arcos` — 2x @
-  2gb, validated regime, $0.0312/hr, instant
-
-Either gets the live cluster operational while a deploy of the
-new 4x @ 2gb image is built. Recommended sequencing: (a) live-fix
-to 1.5gb or 2gb to unblock production, (b) `flyctl deploy` the
-revised commit, (c) run smoke test on 4x @ 2gb cluster, (d) if
-clean, lock 4x @ 2gb in as the default and remove the live-fix
-override.
-
-**Lesson recorded.** The original recommendation explicitly said
-"deploy current state first, measure peak RSS, THEN decide if we
-can go to 768 MB." That advice was abandoned in the 4x @ 1gb
-commit, which projected memory from a static model without
-measurement. The OOM is the receipt. Going forward: any RAM
-shape change goes through one measured sweep on the validated
-shape before commit.
 
 ## Active task — HC year-ladder backfill via 3-stage chain
 
@@ -586,3 +1238,21 @@ warehouse: `uv run judex atualizar-warehouse --classe HC`.
 - **Archive convention**: when the active task closes out or this file
   grows past ~500 lines, move it (or the cycle-specific portion) to
   `docs/progress_archive/YYYY-MM-DD_HHMM_<slug>.md`.
+- **Per-thread status convention** (added 2026-05-03 because the file
+  hit 1196 lines with implicit-status threads). Every top-level
+  section uses one of three prefixes:
+  - `## Open thread — <slug> (<date>)` — active, still load-bearing
+    for the current session. Default for new sections.
+  - `## Resolved — <slug> (<date>)` — closed but kept in the file as
+    short-term context (e.g. resume commands the next session might
+    still want). Archive at the *next* session boundary, not the
+    moment of resolution.
+  - `## Active task — <slug>` / `## In-flight side-quest — <slug>` —
+    multi-cycle work, distinct from a single-thread "open"/"resolved"
+    pair. Stays at the top.
+
+  When all `## Open thread` and `## Resolved` sections drain (or the
+  file passes ~500 lines), apply the archive convention above. The
+  flip from `Open thread` → `Resolved` is the load-bearing signal —
+  it makes "what's still alive in this notebook" greppable without
+  reading every section.

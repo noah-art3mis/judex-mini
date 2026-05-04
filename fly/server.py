@@ -187,6 +187,34 @@ def _ocr_pdf_sync(pdf_bytes: bytes) -> dict:
 
 @app.post("/extract")
 async def extract(request: Request) -> JSONResponse:
+    # Fast-fail 503 on contention. If the per-Machine semaphore is
+    # already held by another in-flight OCR, refuse this request
+    # immediately so Fly's edge load-balancer can route the retry to
+    # a less-busy Machine. The ``tesseract_fly`` provider's tenacity
+    # config (``_is_retryable_http``) already treats 503 as retryable,
+    # so the client transparently re-routes; the difference is that
+    # the retry lands on a *different* Machine instead of blocking
+    # silently inside this Machine's semaphore queue.
+    #
+    # Without this: queued requests block inside ``await Semaphore``
+    # while the client (300s read_timeout) eventually gives up and
+    # retries — but the retry hits the same back-pressure shape and
+    # the cycle compounds. Empirically this produced 1261s and 452s
+    # client-side wall times on 2026-05-03 (5-attempt tenacity loop
+    # × ~250s per attempt) for jobs the fleet could have served if
+    # the load-balancer knew to route around busy Machines.
+    #
+    # The ``async with`` below stays as a defence in depth — Fly's
+    # request-accounting can be off by one in failure modes (e.g.
+    # right after a Machine restart). If the fast-fail check above
+    # races a release, the ``async with`` will acquire immediately
+    # without queueing, since by definition another coroutine just
+    # released. The race window is microseconds; correctness is fine.
+    if _REQUEST_SEMAPHORE.locked():
+        raise HTTPException(
+            status_code=503,
+            detail="Machine busy: another /extract in flight",
+        )
     async with _REQUEST_SEMAPHORE:
         pdf_bytes = await request.body()
         if not pdf_bytes or not pdf_bytes.startswith(b"%PDF"):
