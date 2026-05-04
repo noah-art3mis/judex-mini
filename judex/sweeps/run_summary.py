@@ -149,7 +149,7 @@ class RunSummary:
 # --- layout + log helpers -------------------------------------------------
 
 
-_LOG_NAMES = ("driver.log", "launcher.log", "executar.log")
+_LOG_NAMES = ("driver.log", "launcher.log", "executar.log", "executar.log.jsonl")
 
 
 def _list_shard_dirs(run_dir: Path) -> list[Path]:
@@ -186,6 +186,24 @@ def _has_done_line(log_path: Optional[Path]) -> bool:
     except OSError:
         return False
     return False
+
+
+def _is_dir_done(d: Path) -> bool:
+    """A run directory marks itself done via either:
+
+    1. A ``report.md`` (the unified pipeline writes this on successful
+       ``run_pipeline`` return — matches monolithic ``judex executar``
+       and ``judex atualizar`` runs whose JSONL log carries no
+       ``"executar: done"`` text marker), or
+    2. A ``"executar: done"`` line in any driver/launcher log file
+       (legacy chain + sharded children).
+
+    Either signal is sufficient. The order matters only for cost —
+    a stat is cheaper than a full log scan.
+    """
+    if (d / "report.md").is_file():
+        return True
+    return _has_done_line(_shard_log(d))
 
 
 _WALL_RE = re.compile(r"executar: done\. wall=([\d.]+)s")
@@ -354,7 +372,7 @@ def is_run_done(run_dir: Path) -> tuple[bool, int, int]:
     layout, dirs = _detect_layout(run_dir)
     if layout == "empty":
         return (False, 0, 0)
-    n_done = sum(1 for d in dirs if _has_done_line(_shard_log(d)))
+    n_done = sum(1 for d in dirs if _is_dir_done(d))
     return (n_done == len(dirs), n_done, len(dirs))
 
 
@@ -369,7 +387,7 @@ def summarize_run(run_dir: Path) -> RunSummary:
             ocr_cost_usd=0.0, residuals=[],
         )
 
-    n_done = sum(1 for d in dirs if _has_done_line(_shard_log(d)))
+    n_done = sum(1 for d in dirs if _is_dir_done(d))
     state = RunState.DONE if n_done == len(dirs) else RunState.RUNNING
 
     breakdown, cases_total = _aggregate_state_breakdown(
