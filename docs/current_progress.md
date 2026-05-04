@@ -23,6 +23,82 @@ user request 20:30-20:33 BRT** while in Stage C (extrair) — see
 commands. Now in flight: a `coletar`-orchestrator smoke test
 (HC 245000-245099, exercises today's ADR-0004 commits).
 
+## Open thread — HC 2025 fill-in + pending-outcome recheck (2026-05-03)
+
+**What's running.** `judex executar -c HC -i 250920 -f 267137 --saida
+runs/active/hc2025-fillin-<date>/` — verification pass over the full
+HC 2025 case-id range. Foreground, direct-IP. Launched 2026-05-03
+late evening BRT.
+
+**Expected shape.** HC 2025 is at 82% of its case-id width
+(13,365/16,218 cases scraped on disk) — at or above the empirical
+70-75% allocation ceiling once `unallocated_pid` is netted out. So
+this is primarily a *verification* pass:
+
+| Population            | Count       | Per-case                         |
+|-----------------------|-------------|----------------------------------|
+| Cached on disk        | 13,365      | filesystem stat → skip → free    |
+| Unallocated_pid slots | ~2,500      | one portal request → terminal    |
+| Genuinely missed      | likely 0-100 | full pipeline (rare)            |
+
+Wall: ~2-3h direct-IP. Validates the corpus is complete; genuine
+new-case finds will be sparse and originate from prior-sweep WAF
+blocks where a handful of case-ids slipped through.
+
+**Next step (after fill-in completes — capture before this drops out
+of operator memory).** Run a `--forcar` pass over the **HC 2025
+pending CSV** to detect outcome flips since the last scrape:
+
+```bash
+# 1. Rebuild pending CSV from on-disk JSONs (post-fill-in)
+uv run python -c "
+from pathlib import Path; import json, csv
+out = open('/tmp/hc2025_pending.csv', 'w', newline='')
+w = csv.writer(out); w.writerow(['classe', 'processo'])
+for f in Path('data/source/processos/HC').glob('*.json'):
+    case = json.loads(f.read_text())
+    dp = (case.get('data_protocolo') or '')
+    outcome = case.get('outcome')
+    is_pending = outcome is None or (
+        isinstance(outcome, dict) and outcome.get('verdict') is None
+    )
+    if dp.startswith('2025-') and is_pending:
+        w.writerow([case['classe'], case['processo_id']])
+"
+
+# 2. Re-scrape pending with --forcar (bypasses meta cache)
+uv run judex executar --csv /tmp/hc2025_pending.csv --forcar \
+    --saida runs/active/hc2025-pending-recheck-$(date +%Y%m%d)/
+
+# 3. Rebuild warehouse to reflect the new outcomes
+uv run judex atualizar-warehouse --classe HC
+```
+
+**Anchored numbers (pre-recheck baseline, 2026-05-03 evening).** From
+on-disk JSONs at the moment of the launch:
+
+| Year  | scraped | pending (outcome=None) | pending % |
+|-------|--------:|----------------------:|----------:|
+| 2026  |   3,359 |                  477  |     14.2% |
+| 2025  |  13,365 |                  744  |      5.6% |
+| 2024  |  12,014 |                  297  |      2.5% |
+| 2023  |  11,129 |                  268  |      2.4% |
+| 2022  |  10,824 |                  410  |      3.8% |
+| 2021  |  12,646 |                  508  |      4.0% |
+
+The 2025 pending ratio (5.6%) sits above the 2-3 year-old steady-state
+(~2.5-4%) — suggests a real population of cases STF has decided
+since our last 2025 sweep, not noise.
+
+**Success criteria for closing this thread.** A clean before/after:
+*"X of 744 HC 2025 pending cases moved to a terminal verdict over
+the window <last-scrape-date> → 2026-05-03"*. That number is the
+empirical answer to "how stale is our 2025 outcome data?" — a
+single observation but a meaningful one for snapshot-drift
+calibration (per [CONTEXT.md § Flagged ambiguities](../CONTEXT.md)).
+
+---
+
 ## Open thread — Fly OCR cascade + queue stampede + remediation (2026-05-03)
 
 **What happened, in order.** Ran into a sweep-load failure mode on
