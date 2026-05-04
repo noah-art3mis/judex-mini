@@ -111,7 +111,6 @@ directly — detached invocation is `nohup uv run judex <command> …`.
 | `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
 | `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
 | `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `relatorio-diario`            | (in-CLI)                              | Daily report of new STF distributions.                                                                  |
 | `debug varrer-processos`      | `judex/sweeps/run_sweep.py`           | Legacy: case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE`. |
 | `debug baixar-pecas`          | `judex/sweeps/baixar_pecas.py`        | Legacy: PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.       |
 | `debug extrair-pecas`         | `judex/sweeps/extrair_pecas.py`       | Legacy: PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract\|tesseract_fly\|tesseract_modal\|chandra_runpod}`.|
@@ -122,6 +121,7 @@ directly — detached invocation is `nohup uv run judex <command> …`.
 | `debug exportar`              | (in-CLI)                              | Export the five HC Marimo notebooks to standalone interactive HTML.                                     |
 | `debug fazer-backup`          | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. |
 | `debug validar-gabarito`      | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
+| `debug relatorio-diario`      | (in-CLI)                              | Daily report of new STF distributions.                                                                  |
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each

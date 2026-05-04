@@ -1856,7 +1856,7 @@ def validar_gabarito() -> None:
 # `relatorio-diario` — sondagem de novas distribuições + Markdown
 
 
-@app.command(name="relatorio-diario")
+@debug_app.command(name="relatorio-diario")
 def relatorio_diario(
     classe: str = typer.Option(
         "HC", "--classe",
