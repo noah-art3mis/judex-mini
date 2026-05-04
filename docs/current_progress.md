@@ -51,7 +51,7 @@ pending CSV** to detect outcome flips since the last scrape:
 
 ```bash
 # 1. Rebuild pending CSV from on-disk JSONs (post-fill-in)
-uv run python -c "
+uv run python s-c "
 from pathlib import Path; import json, csv
 out = open('/tmp/hc2025_pending.csv', 'w', newline='')
 w = csv.writer(out); w.writerow(['classe', 'processo'])
@@ -96,6 +96,103 @@ the window <last-scrape-date> → 2026-05-03"*. That number is the
 empirical answer to "how stale is our 2025 outcome data?" — a
 single observation but a meaningful one for snapshot-drift
 calibration (per [CONTEXT.md § Flagged ambiguities](../CONTEXT.md)).
+
+**Run done — close-out (2026-05-04 00:07 BRT).** `runs/active/hc2025-fillin-20260503/`.
+Wall **1,373.6 s** (≈23 min, vs. the 2-3 h forecast — cache-heavy
+verification pass closed an order of magnitude faster). Grade **A**
+(text_ok 28,362/28,368 = 100.0%). Per-pool: portal 95% utilisation
+(WAF-bound as expected), sistemas 36%, ocr 40%. Pipelining ratio
+0.34 = 66% wall savings vs. sequential. Per-stage state-side:
+meta ok=13,365 + unallocated_pid=2,853; bytes ok=28,362 + http_error=6;
+text ok=7,721 + skipped_cached=20,641 + missing=6. The 6 misses are
+all **HTTP 404 on `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/{id}/conteudo.pdf`**
+across 3 cases (HC 252164, 264813, 266879) — symmetric `Voto` +
+`Relatório` pairs, almost certainly permanently withdrawn / never-published
+PDFs, not transient. Verdict: corpus is effectively complete; defer
+the recheck step (next-step block above) until pending CSV is
+regenerated post-run.
+
+**Future improvements (deferred — not blocking the recheck).** Two
+log-shape issues surfaced while reading the run output:
+
+1. **`executar.errors.jsonl` is polluted with `unallocated_pid` rows**
+   — file has **2,859** lines but only **6** are real `fetch_bytes`
+   errors; the other 2,853 are `fetch_meta status=unallocated_pid`
+   (benign terminal status: STF case-id slots that don't exist). This
+   breaks the `--retentar-de` workflow (would re-probe 2,853 known-empty
+   slots on every retry) and inflates any operator scan of "what went
+   wrong". Fix shape: stop writing benign terminal statuses to
+   `executar.errors.jsonl` — only retryable failures belong there. The
+   classifier likely lives in `judex/pipeline/log.py:classify_unif…`
+   (truncated in `--help` output; trace from the `--retentar-de` code
+   path). Pin with a unit test on `tests/unit/` that asserts an
+   `unallocated_pid` record never lands in errors.jsonl.
+
+2. **`bytes` stage doesn't distinguish cached vs. freshly downloaded.**
+   `report.md` shows `bytes: ok=28,362` as a single bucket while `text`
+   stage has the proper split (`ok=7,721, skipped_cached=20,641`). Direct
+   schema check: `fetch_bytes` log records carry no `cached`/`from_cache`
+   field at all (verified via `jq '.|keys' executar.log.jsonl`). Asymmetry
+   with text stage. Real cost: an operator reading the report can't tell
+   whether 28k PDFs were re-fetched (~28k requests against STF, ~14 hr
+   on direct IP) or whether 20.6k were already on disk and only ~7.7k
+   really moved through `sistemas.stf.jus.br` — same `ok=28362` row, two
+   wildly different stories. The 36% sistemas pool utilisation is the
+   honest signal but easy to miss. Fix shape: add `cached: bool` to
+   `fetch_bytes` log emission, then split `ok` → `ok_fresh` + `skipped_cached`
+   in `report.md` to match `text` stage. Unit-pin the report-rendering
+   contract.
+
+3. **404s on voto PDFs deserve a distinct error class.** The 6 misses
+   above are permanent (the resource doesn't exist server-side), not
+   transient WAF noise. Today they live as generic `http_error` and
+   would be retried by `--retentar-de`. A `permanent_404` (or
+   `not_found`) terminal status — emitted to errors.jsonl but skipped
+   by the retry classifier — would make the residual story honest.
+   Tiny scope; pairs naturally with improvement #1.
+
+**Next-year fill-in queue (2025 → 2021).** Same shape as the run that
+just closed: range mode, direct IP, foreground. All five years already
+have 69-99% peça coverage on disk per
+[`docs/completion-tracker.md:38`](completion-tracker.md), so each is a
+verification / fill-in pass dominated by `skipped_cached` — expect
+~20-30 min wall each, portal-pool-bound (~95% utilisation), not the
+5+ hr full-sweep shape. **Run serially**: last night's portal hit 95%
+single-threaded, which is the WAF saturation signal; stacking two
+`executar` against direct IP would split the per-IP reputation
+budget and almost certainly trip the 403 cliff. Ranges from the
+warehouse (well-populated years are exact min/max; year-boundary
+overlap of a few IDs between adjacent years is real population
+overlap, not a sweep gap):
+
+```bash
+# ok HC 2025 (16,218 IDs — already verified 2026-05-04, ~23 min cache-hit)
+uv run judex executar -c HC -i 250920 -f 267137 \
+    --saida runs/active/hc2025-fillin-$(date +%Y%m%d)/
+
+# ok HC 2024 (14,389 IDs)
+uv run judex executar -c HC -i 236530 -f 250918 \
+    --saida runs/active/hc2024-fillin-$(date +%Y%m%d)/
+
+# ok HC 2023 (12,948 IDs)
+uv run judex executar -c HC -i 223886 -f 236833 \
+    --saida runs/active/hc2023-fillin-$(date +%Y%m%d)/
+
+# HC 2022 (12,922 IDs)
+uv run judex executar -c HC -i 210964 -f 223885 \
+    --saida runs/active/hc2022-fillin-$(date +%Y%m%d)/
+
+# HC 2021 (14,682 IDs — already done 2026-05-03 sharded; rerun is verification-only)
+uv run judex executar -c HC -i 196282 -f 210963 \
+    --saida runs/active/hc2021-fillin-$(date +%Y%m%d)/
+```
+
+After each: `judex acompanhar <run_dir>` for live tail; `judex limpar
+<run_dir>` for any errors.jsonl residual; `judex atualizar-warehouse
+--classe HC` once the year completes. The pre-2021 queue (2020 in
+flight, then 2019 / 2018 / 2017 fresh) is outside this thread — see
+`docs/completion-tracker.md:131` priority queue for the next layer
+down.
 
 ---
 

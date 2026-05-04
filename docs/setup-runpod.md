@@ -40,7 +40,7 @@ export RUNPOD_CHANDRA_ENDPOINT_ID="<endpoint id>"
 ## Smoke test + sweep
 
 ```bash
-uv run judex extrair-pecas --csv runs/active/<sweep>/cases.csv \
+uv run judex executar --csv runs/active/<sweep>/cases.csv \
     --provedor chandra_runpod --paralelo 5 \
     --saida runs/active/<sweep>/ --retomar
 ```

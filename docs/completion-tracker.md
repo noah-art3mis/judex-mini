@@ -121,12 +121,12 @@ IP with **0 failures and 234 fresh fetches landed**. A 33× over-count.
 For sweep planning, the canonical "real fetch tail" estimate is:
 
 ```bash
-uv run judex baixar-pecas --csv <year-cases.csv> --apenas-substantivas \
-    --retomar --dry-run --nao-perguntar 2>&1 | grep -E "targets|disco|baixar"
+uv run judex executar --csv <year-cases.csv> --retomar --prever
 ```
 
-Look at the "**a baixar:**" line — that's the deduped, cache-aware
-URL count the runner would actually issue.
+`--prever` exits before any HTTP and prints a deduped, cache-aware
+forecast (PDFs to fetch, OCR cost, wall-time estimate) — the runner's
+actual workload, not the warehouse's URL count.
 
 ## Backfill priority queue
 

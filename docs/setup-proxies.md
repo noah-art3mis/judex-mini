@@ -60,19 +60,18 @@ Expected: all 200s. 403 = IP already hot (skip / rotate batch).
 
 ```bash
 # Monolithic
-uv run judex varrer-processos --csv targets.csv \
+uv run judex executar --csv targets.csv \
     --saida runs/active/sweep --rotulo s1 \
     --proxy-pool config/proxies --retomar
 
 # Sharded (launcher splits round-robin)
-uv run judex varrer-processos --csv targets.csv \
+uv run judex executar --csv targets.csv \
     --saida runs/active/sweep --rotulo s1 \
     --shards 16 --proxy-pool config/proxies --retomar
 ```
 
-Launcher refuses to start if pool < `--shards`. Same flag works on
-`baixar-pecas`. Sharded mode writes per-shard slices to
-`<saida>/proxies/proxies.{a..p}.txt` at launch.
+Launcher refuses to start if pool < `--shards`. Sharded mode writes
+per-shard slices to `<saida>/proxies/proxies.{a..p}.txt` at launch.
 
 ## Diagnosing a bad pool
 

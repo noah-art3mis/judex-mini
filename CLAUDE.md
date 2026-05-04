@@ -71,7 +71,7 @@ work with no env var.
 
 ```bash
 uv run python scripts/validate_ground_truth.py
-uv run judex varrer-processos ...
+uv run judex executar -c HC -i 250920 -f 267137 --saida runs/active/<label>/
 ```
 
 **Local-OCR system deps (only if using `--provedor tesseract`):**
@@ -102,20 +102,16 @@ installs the `judex` console entry; commands below also work as
 the matching `run_X(**kwargs)` library function in `judex/sweeps/`
 directly — detached invocation is `nohup uv run judex <command> …`.
 
-**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `limpar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — the legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator, plus inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop.
+**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `limpar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop. The pre-`executar` legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator were removed from the CLI surface; the library code remains in `judex/sweeps/` for `pick_provider` and shared helpers used by the unified pipeline. Recoverable on the `archive/iteration-2-three-command-chain` branch (local + `origin`) if needed.
 
 | Command                       | Source                                | What it does                                                                                            |
 |-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. ADR-0005. |
+| `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. Sharded mode via `--shards N --proxy-pool FILE`. ADR-0005. |
 | `atualizar <classe>`          | (in-CLI, calls `run_pipeline`)        | Manual incremental: find max processo_id on disk, probe forward via `discover_new_numeros` until N consecutive unallocated_pid (default 20), scrape only the live discoveries end-to-end. Required positional `<classe>`. Auto-stops at STF's leading edge — no margin guesswork. Idempotent. |
 | `acompanhar`                  | (in-CLI)                              | Tail-with-auto-detection live monitor for monolithic + sharded runs.                                    |
 | `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
 | `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
 | `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
-| `debug varrer-processos`      | `judex/sweeps/run_sweep.py`           | Legacy: case JSON scrape (the WAF-hot half). Range / CSV / retry modes; `--proxy-pool FILE`; `--diretorio-itens`; sharded mode via `--shards N --proxy-pool FILE`. |
-| `debug baixar-pecas`          | `judex/sweeps/baixar_pecas.py`        | Legacy: PDF bytes download. `--proxy-pool FILE`; sharded mode via `--shards N --proxy-pool FILE`.       |
-| `debug extrair-pecas`         | `judex/sweeps/extrair_pecas.py`       | Legacy: PDF text extraction from cached bytes (zero HTTP). `--provedor {pypdf\|mistral\|chandra\|unstructured\|gemini\|paddle\|surya\|tesseract\|tesseract_fly\|tesseract_modal\|chandra_runpod}`.|
-| `debug coletar`               | `judex/sweeps/coletar.py`             | Legacy: ADR-0004 orchestrator wrapping the three legacy commands as a six-stage chain.                  |
 | `debug probe`                 | (in-CLI)                              | Live-progress table for sharded runs (predates `executar`'s nested state).                              |
 | `debug analisar-regimes`      | (in-CLI)                              | Post-hoc regime trajectory reconstruction from a sweep log (cliff / SSL-EOF detection).                  |
 | `debug providers`             | (in-CLI, `judex/scraping/ocr/dispatch.py`) | OCR provider comparison table at a given workload size — sorted by cost, sourced from each provider's `SPEC`. |
@@ -131,36 +127,26 @@ command calls directly. There is no longer an argparse shim —
 detached sweeps invoke `uv run judex <command>` and the sharded
 launcher's child subprocesses do the same.
 
-**Sharded sweeps.** For >1000-target sweeps with proxy rotation, both
-scrape layers support `--shards N --proxy-pool FILE` — one flat file
+**Sharded sweeps.** For >1000-target sweeps with proxy rotation,
+`executar` supports `--shards N --proxy-pool FILE` — one flat file
 of proxy URLs (one per line, `#`-comments + blank lines ignored).
 The launcher round-robin-splits the file into N per-shard pools at
 `<saida>/proxies/proxies.{a..p}.txt` and detaches one child per
 shard.
 
 ```bash
-# Case JSON (WAF-hot)
-uv run judex debug varrer-processos --csv X.csv --saida out/ --rotulo hc_q2 \
-    --shards 8 --proxy-pool config/proxies --retomar
-
-# PDF bytes (sistemas.stf.jus.br)
-uv run judex debug baixar-pecas --csv X.csv --saida out/ --shards 8 \
-    --proxy-pool config/proxies --retomar --nao-perguntar
+uv run judex executar --csv X.csv --saida runs/active/<label>/ \
+    --rotulo hc_q2 --shards 8 --proxy-pool config/proxies
 ```
 
 Partitions the CSV (interleave by default), splits the proxy file,
-spawns N children (per-shard label `<rotulo>_shard_<letter>` for
-`varrer-processos`; per-shard dir only for `baixar-pecas`), writes
-`out/shards.pids`. Monitor with `uv run judex probe --out-root out/`
-or `pgrep -af <rotulo>_shard_` (varrer) / `pgrep -af baixar_pecas`
-(baixar), or read each `out/shard-<letter>/sweep.state.json` /
-`.../pdfs.state.json`. `xargs -a out/shards.pids kill -TERM` stops
-cleanly. Both launchers live in `judex/sweeps/shard_launcher.py`
-(`launch_sharded(command=...)`). The CLI path is
-preferred for new sharded sweeps; `scripts/launch_hc_backfill_sharded.sh`
-is still valid when you need to **pre-seed each shard's
-`sweep.state.json` from an archived monolithic sweep** (to avoid
-re-fetching already-`ok` cases) — the CLI doesn't do that seeding step.
+spawns N children (per-shard label `<rotulo>_shard_<letter>`), writes
+`<saida>/shards.pids`. Each child runs `uv run judex executar` against
+its own per-shard subdir. Monitor with `uv run judex acompanhar
+<saida>/` (auto-detects sharded layout) or `pgrep -af <rotulo>_shard_`,
+or read each `<saida>/shard-<letter>/executar.state.json`.
+`xargs -a <saida>/shards.pids kill -TERM` stops cleanly. The launcher
+lives in `judex/sweeps/shard_launcher.py` (`launch_sharded(command="executar", ...)`).
 
 ## Testing
 
@@ -207,9 +193,9 @@ These prevent a cold agent from taking the wrong action. Everything else is find
 - **Keep files focused.** `scraper.py` past ~600 lines → split by concern.
 - **Extractor tests diff against captured fixtures**, not hand-built dicts. Pattern: `tests/fixtures/<feature>/<case>.json`.
 - **Sweeps write a directory**, not a single file. `<out>/report.md`, `<out>/sweep.log.jsonl`, etc.
-- **Recommend `judex acompanhar <run_dir>` as the canonical live sweep monitor** before reaching for anything fancier. Wraps `tail -F` with auto-detection: monolithic runs → top-level `driver.log` / `launcher.log`; sharded runs → all `shard-*/driver.log` interleaved (with `==> shard-X/driver.log <==` headers). All three pipeline stages (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and the unified `executar` write the same per-record `[N/total] ...` + periodic `[progress] ok=… fail=… · X.XX proc/s · eta Y min` shape to that log — liveness, throughput, ETA, and recent errors in one view. Pair with `pgrep -af <run_label>` for liveness. The wrapper exists because before it, mono runs needed `tail -f <run>/launcher.log` and sharded needed `tail -F <run>/shard-*/driver.log` — same job, two incantations; one user pivoted to "make tail work the same way on both" and `acompanhar` is the result. Sharded runs also have a richer alternative for varrer/baixar (`judex probe --out-root <dir> --watch N`), though probe predates `executar`'s nested state shape and only renders 0/X for that pipeline; regime-trajectory analysis (cliffs / SSL-EOF storms) is post-hoc via `judex analisar-regimes <run_dir>`. Don't write bespoke monitor scripts when `judex acompanhar` already carries the live signal.
+- **Recommend `judex acompanhar <run_dir>` as the canonical live sweep monitor** before reaching for anything fancier. Wraps `tail -F` with auto-detection: monolithic runs → top-level `driver.log` / `launcher.log`; sharded runs → all `shard-*/driver.log` interleaved (with `==> shard-X/driver.log <==` headers). The unified `executar` writes per-record `[N/total] ...` + periodic `[progress] ok=… fail=… · X.XX proc/s · eta Y min` to that log — liveness, throughput, ETA, and recent errors in one view. Pair with `pgrep -af <run_label>` for liveness. Sharded runs also have a richer (`judex debug probe --out-root <dir> --watch N`), though probe predates `executar`'s nested state shape and only renders 0/X for that pipeline; regime-trajectory analysis (cliffs / SSL-EOF storms) is post-hoc via `judex debug analisar-regimes <run_dir>`. Don't write bespoke monitor scripts when `judex acompanhar` already carries the live signal.
 - **Measure before optimising.** Cold perf numbers don't extrapolate to sweep scale (WAF ceiling dominates).
-- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `varrer-processos` calling `judex.sweeps.run_sweep.run_process_sweep`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` survives in `judex/cli.py` in one role: building argv for child subprocesses spawned by `launch_sharded(command=...)`, which spawns `uv run judex debug varrer-processos` / `uv run judex debug baixar-pecas` per shard (the `command_group="debug"` kwarg threads the sub-app prefix in).
+- **CLI: Typer-wins, pure-function library modules.** New commands go in `judex/cli.py` as Typer subcommands and call a `run_X(**kwargs)` library function directly with typed kwargs — see `fazer-backup` calling `judex.backup.make_backup`, or `executar` calling `judex.pipeline.runner.run_pipeline`. There is no argparse shim layer; detached sweeps invoke `nohup uv run judex <command> …` (the Typer command works via subprocess as well as in-process). `_push` in `judex/cli.py` builds argv for child subprocesses spawned by `launch_sharded(command="executar", ...)` — one `uv run judex executar` per shard.
 
 ## Agent skills
 

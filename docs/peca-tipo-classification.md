@@ -46,12 +46,12 @@ Downstream notebooks and skills (e.g. `relatorio-advogado`,
 `analysis/hc_*`) should reach for this view instead of rolling
 their own `andamentos` + `pdfs` join with tipo logic.
 
-## 2. Sweep filter — `--apenas-substantivas` on `baixar-pecas` (default ON)
+## 2. Sweep filter — `--apenas-substantivas` on `executar` (default ON)
 
-`baixar-pecas` applies the tier-C filter at target-build time — before
+`executar` applies the tier-C filter at target-build time — before
 any HTTP request is emitted. The flag **defaults to ON**, so every
 new sweep skips procedural stubs by default. `--todos-tipos` opts back
-in to the full set; see `uv run judex baixar-pecas --help` for the
+in to the full set; see `uv run judex executar --help` for the
 flag surface.
 
 On every run the launcher prints two diagnostic lines before any HTTP:
