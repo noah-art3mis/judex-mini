@@ -187,11 +187,13 @@ def test_classify_residual_partitions_by_kind_and_classifier_output(
 
     buckets = classify_residual([tmp_path])
 
-    assert len(buckets[Bucket.REPLAY]) == 3
+    # HC-7 (fetch_bytes/empty) is now REPLAY (the WAF flake widening —
+    # was TERMINAL_DROPPED prior to the kind-aware classify_unified_error).
+    assert len(buckets[Bucket.REPLAY]) == 4
     assert len(buckets[Bucket.PROVIDER_SWITCH]) == 1
     assert len(buckets[Bucket.REFETCH_UPSTREAM]) == 1
     assert len(buckets[Bucket.CONFIRMED_UNALLOCATED]) == 1
-    assert len(buckets[Bucket.TERMINAL_DROPPED]) == 1
+    assert len(buckets[Bucket.TERMINAL_DROPPED]) == 0
     assert len(buckets[Bucket.CAP_BURNT]) == 2
 
 
@@ -389,12 +391,14 @@ _HC2020_SHARDED = Path("runs/active/hc2020-sharded")
 )
 def test_pinned_residual_hc2020_sharded() -> None:
     """As of post-first-limpar-pass on 2026-05-03, the hc2020-sharded run
-    carries (per state.json):
+    carries (per state.json), under the kind-aware classifier:
 
-    - 0 REPLAY (everything that could retry, did)
-    - 231 CAP_BURNT (extract_text/provider_error at retry_count >= 2)
+    - 739 REPLAY (mostly fetch_bytes/empty at retry_count < 2 — the
+      WAF flake widening; previously TERMINAL_DROPPED)
+    - 318 CAP_BURNT (extract_text/provider_error at retry_count >= 2,
+      plus fetch_bytes/empty at retry_count >= 2)
     - 1036 CONFIRMED_UNALLOCATED (fetch_meta/unallocated_pid)
-    - 826 TERMINAL_DROPPED (fetch_bytes/empty)
+    - 0 TERMINAL_DROPPED (the empty-as-terminal path is gone)
 
     Total non-ok = 2093. If this fails, either the residual changed
     (someone re-ran) or the classifier drifted.
@@ -403,9 +407,12 @@ def test_pinned_residual_hc2020_sharded() -> None:
     assert len(dirs) == 16
 
     buckets = classify_residual(dirs)
-    assert len(buckets[Bucket.REPLAY]) == 0
-    assert len(buckets[Bucket.CAP_BURNT]) == 231
+    assert len(buckets[Bucket.REPLAY]) == 739
+    assert len(buckets[Bucket.CAP_BURNT]) == 318
     assert len(buckets[Bucket.CONFIRMED_UNALLOCATED]) == 1036
-    assert len(buckets[Bucket.TERMINAL_DROPPED]) == 826
+    assert len(buckets[Bucket.TERMINAL_DROPPED]) == 0
     assert len(buckets[Bucket.PROVIDER_SWITCH]) == 0
     assert len(buckets[Bucket.REFETCH_UPSTREAM]) == 0
+    # Total preserved across the policy change
+    total = sum(len(buckets[b]) for b in Bucket)
+    assert total == 2093

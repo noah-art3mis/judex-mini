@@ -270,7 +270,10 @@ def test_summarize_run_terminal_residuals_marked_no_recovery(tmp_path: Path) -> 
     by_kind_status = {(r.kind, r.status): r for r in s.residuals}
     assert by_kind_status[("fetch_meta", "unallocated_pid")].suggested_command is None
     assert by_kind_status[("fetch_meta", "unallocated_pid")].is_terminal is True
-    assert by_kind_status[("fetch_bytes", "empty")].is_terminal is True
+    # ``fetch_bytes`` + ``empty`` is the WAF flake (200 OK with zero bytes).
+    # Empirically transient — see HC 271343 in hc-atualizar-20260503.
+    assert by_kind_status[("fetch_bytes", "empty")].is_terminal is False
+    assert by_kind_status[("fetch_bytes", "empty")].suggested_command is not None
 
 
 def test_summarize_run_retryable_residuals_get_retentar_command(tmp_path: Path) -> None:

@@ -216,7 +216,7 @@ def _bucket_for(row: ErrorRow) -> Optional[Bucket]:
     with the override table for actionable terminals + the CAP_BURNT
     gate for transient rows.
     """
-    raw = {"status": row.status}
+    raw = {"status": row.status, "kind": row.kind}
     classified = classify_unified_error(raw)
 
     if classified == "ok":

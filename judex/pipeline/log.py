@@ -324,10 +324,24 @@ def classify_unified_error(row: dict[str, Any]) -> str:
         return "cross_stage"
     if status in ("http_error", "provider_error"):
         return "transient"
-    # ``unallocated_pid`` and ``empty`` are terminal: the case genuinely
-    # doesn't exist (404-equivalent) or the document genuinely contains
-    # no text (real empty PDF, or unsupported magic bytes). Re-running
-    # would just re-discover the same outcome.
+    if status == "empty":
+        # ``empty`` means different things in different stages:
+        #   - fetch_bytes: STF returned 200 OK with zero-length body
+        #     (WAF/LB flake). Empirically transient — same URL serves
+        #     valid bytes on a single retry. Pinned by HC 271343 in
+        #     hc-atualizar-20260503.
+        #   - extract_text: provider returned 0 chars after running.
+        #     Same provider would give same result; not transient by
+        #     replay alone. The actionable recovery is a provider
+        #     switch, which limpar.py's ``_bucket_for`` handles via
+        #     a (kind="extract_text", status="empty") override on top
+        #     of the ``terminal`` classification.
+        if row.get("kind") == "fetch_bytes":
+            return "transient"
+        return "terminal"
+    # ``unallocated_pid`` is genuinely terminal: STF's portal never
+    # bound an incidente for this case-id (ADR-0002). Re-running would
+    # just re-discover the same outcome.
     return "terminal"
 
 

@@ -93,7 +93,8 @@ STATUS_TO_RECOVERY: dict[tuple[str, str], RecoveryAction] = {
         label="transient HTTP", is_terminal=False, template=_RETENTAR_TEMPLATE,
     ),
     ("fetch_bytes", "empty"): RecoveryAction(
-        label="0-byte STF response (terminal)", is_terminal=True, template=None,
+        label="0-byte STF response (WAF flake — retryable)",
+        is_terminal=False, template=_RETENTAR_TEMPLATE,
     ),
     ("fetch_bytes", "http_error"): RecoveryAction(
         label="transient HTTP", is_terminal=False, template=_RETENTAR_TEMPLATE,
