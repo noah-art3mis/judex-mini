@@ -1443,6 +1443,113 @@ def _print_executar_forecast(
 
 
 # ---------------------------------------------------------------------------
+# `puxar-novos` — varre os processos novos desde o que já está em disco
+
+
+@app.command(name="puxar-novos")
+def puxar_novos(
+    classe: str = typer.Option(
+        "HC", "-c", "--classe",
+        help="Classe a varrer (HC, ADI, ADPF, RE, …).",
+    ),
+    margem: int = typer.Option(
+        500, "--margem",
+        help="Quantos case-ids além do maior em disco probar. "
+             "STF aloca ~50-100 HC/dia; 500 cobre ~5-10 dias. "
+             "Não-alocados resolvem como terminal e custam só uma "
+             "request de portal cada.",
+    ),
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Run dir; padrão runs/active/<classe>-puxar-YYYYMMDD/.",
+    ),
+    provedor_ocr: str = typer.Option(
+        "auto", "--provedor-ocr",
+        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal. Direct-IP: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas. Direct-IP: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR.",
+    ),
+) -> None:
+    """Puxa processos novos: do maior em disco até max+margem.
+
+    Glob ``data/source/processos/<classe>/`` para descobrir o maior
+    processo_id já scrapeado, então roda ``executar`` no intervalo
+    ``[max+1, max+margem]``. Case-ids não alocados resolvem como
+    terminal ``unallocated_pid`` (zero custo OCR).
+
+    Comando idempotente — re-rodar pula o que já foi puxado via
+    ``skipped_cached``. Para forçar re-scrape, use ``judex executar
+    --forcar`` diretamente.
+
+    Exemplo:
+
+        uv run judex puxar-novos                   # HC, margem 500
+        uv run judex puxar-novos -c ADI --margem 100
+    """
+    from datetime import datetime
+    from judex.pipeline.runner import run_pipeline
+
+    source_dir = Path(f"data/source/processos/{classe}")
+    if not source_dir.exists():
+        typer.echo(
+            f"erro: nada em {source_dir} — primeira passada precisa de "
+            f"um intervalo manual via ``judex executar -c {classe} -i N -f M``.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    max_id = 0
+    for f in source_dir.glob(f"judex-mini_{classe}_*.json"):
+        try:
+            n = int(f.stem.split("_")[-1].split("-")[-1])
+            if n > max_id:
+                max_id = n
+        except (ValueError, IndexError):
+            continue
+
+    if max_id == 0:
+        typer.echo(
+            f"erro: nenhum {classe} válido em {source_dir}.", err=True,
+        )
+        raise typer.Exit(2)
+
+    inicio = max_id + 1
+    fim = max_id + margem
+
+    if saida is None:
+        date_str = datetime.now().strftime("%Y%m%d")
+        saida = Path(f"runs/active/{classe.lower()}-puxar-{date_str}")
+
+    typer.echo(
+        f"max em disco: {classe} {max_id}\n"
+        f"vai puxar:    {classe} {inicio}-{fim} ({margem} case-ids)\n"
+        f"saída:        {saida}\n"
+    )
+
+    targets = [(classe, n) for n in range(inicio, fim + 1)]
+
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor_ocr,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+    )
+    raise typer.Exit(code=rc)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
 
 

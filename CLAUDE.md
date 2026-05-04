@@ -107,6 +107,7 @@ directly — detached invocation is `nohup uv run judex <command> …`.
 | Command                       | Source                                | What it does                                                                                            |
 |-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. ADR-0005. |
+| `puxar-novos`                 | (in-CLI, calls `run_pipeline`)        | Manual incremental: find max processo_id on disk, scrape `[max+1, max+margem]` end-to-end. Default margem=500 (~5–10 days for HC). Idempotent re-runs via skipped_cached. |
 | `acompanhar`                  | (in-CLI)                              | Tail-with-auto-detection live monitor for monolithic + sharded runs.                                    |
 | `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
 | `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
