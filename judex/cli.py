@@ -366,16 +366,17 @@ def executar(
              "Necessário para uso não-interativo (cron, nohup).",
     ),
 ) -> None:
-    """Raspa um intervalo (ou CSV) de processos: metadados + PDFs + texto.
+    """Raspa um intervalo (ou CSV) de processos: metadados + peças + texto.
 
-    Modos de entrada (escolha um):
+    Cada execução é uma Coleta — produz um diretório de run com log,
+    estado e relatório consolidado. Três modos de entrada (escolha um):
 
       - intervalo:  ``-c HC -i 250000 -f 250100``
       - CSV:        ``--csv alvos.csv``
       - retomada:   ``--retentar-de runs/.../executar.errors.jsonl``
 
-    Resume é automático — re-rodar com o mesmo ``--saida`` cache-hits
-    o trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
+    Retomada é automática — re-rodar com o mesmo ``--saida`` pula o
+    trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
     encerram de forma limpa, deixando o estado retomável em disco.
     """
     # ----- Mode resolution -----
@@ -932,13 +933,13 @@ def limpar(
              "para invocações non-interactive (cron, nohup).",
     ),
 ) -> None:
-    """Recupera os erros que sobraram depois de um sweep do ``executar``.
+    """Recupera os erros que sobraram depois de uma Coleta (``executar``).
 
-    Classifica os erros do diretório do sweep em buckets (transientes,
-    cap-burnt, troca de provedor, refetch, terminais) e dispara as
-    recuperações cabíveis: ``executar --retentar-de`` para transientes,
-    ``extrair-urls`` para troca de provedor, ``executar --csv`` para
-    refetch de bytes faltantes.
+    Classifica os erros da Coleta em buckets (transientes, cap-burnt,
+    troca de provedor, refetch, terminais) e dispara as recuperações
+    cabíveis: ``executar --retentar-de`` para transientes, ``re-extrair``
+    para troca de provedor, ``executar --csv`` para refetch de bytes
+    faltantes.
 
     Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
     Use ``--apply`` para executar de fato.
@@ -1032,13 +1033,13 @@ def acompanhar(
              "encerrar com um ``relatar`` consolidado.",
     ),
 ) -> None:
-    """Acompanha um sweep ao vivo e mostra o relatório final quando termina.
+    """Acompanha uma Coleta ao vivo e mostra o relatório final quando termina.
 
-    Detecta automaticamente o fim do sweep e imprime um resumo
-    consolidado (mesmo formato de ``judex relatar``). Em sweeps com
-    shards, agrega o progresso dos vários shards em uma linha por
-    intervalo — sem 16 logs idênticos disputando a tela. Use
-    ``--persistir`` para continuar acompanhando em vez de encerrar.
+    Detecta automaticamente o fim da Coleta e imprime um resumo
+    consolidado (mesmo formato de ``judex relatar``). Em Coletas
+    paralelizadas (shards), agrega o progresso dos vários shards em
+    uma linha por intervalo — sem 16 logs idênticos disputando a tela.
+    Use ``--persistir`` para continuar acompanhando em vez de encerrar.
     """
     from scripts.follow_run import run_follow
     raise typer.Exit(code=run_follow(
@@ -1058,12 +1059,12 @@ def relatar(
              "Funciona tanto para run em curso quanto para run finalizado.",
     ),
 ) -> None:
-    """Resume o estado de um sweep num relatório consolidado.
+    """Resume o estado de uma Coleta num relatório consolidado.
 
-    Mostra status, mix por estágio (processos / peças / texto),
+    Mostra status, mix por Pool (processos / peças / texto),
     wall-clock, custo de OCR, lista de erros agrupados por causa, e
     próximos passos copy-paste para recuperar o que ainda dá. Funciona
-    em sweep em curso ou já finalizado — somente leitura, idempotente,
+    em Coleta em curso ou já finalizada — somente leitura, idempotente,
     roda em menos de 1 s.
     """
     from judex.sweeps.run_summary import render_summary, summarize_run
@@ -1085,10 +1086,10 @@ def probe_cmd(
         help="Intervalo de atualização em segundos (0 = mostra uma vez e sai).",
     ),
 ) -> None:
-    """Mostra ao vivo o progresso de um sweep com shards.
+    """Mostra ao vivo o progresso de uma Coleta paralelizada (shards).
 
     Renderiza uma tabela com done/target, throughput por shard, regime
-    de WAF (colorido) e ETA agregada. Com ``--watch N`` redesenha a
+    da WAF (colorido) e ETA agregada. Com ``--watch N`` redesenha a
     cada N segundos (Ctrl-C sai).
     """
     from scripts.probe_sharded import run_probe
@@ -1126,18 +1127,18 @@ def analisar_regimes(
              "para obter só as mudanças.",
     ),
 ) -> None:
-    """Diagnostica o histórico de throughput de um sweep terminado.
+    """Diagnostica o histórico de throughput de uma Coleta terminada.
 
     Reconstrói as transições de regime (``warming`` →
-    ``approaching_collapse`` → ``collapse``) a partir do log do sweep
+    ``approaching_collapse`` → ``collapse``) a partir do log da Coleta
     e responde:
 
     1. **Quando o regime mudou?** Lista cada transição com ``fail_rate``
        e ``p95``, mostrando qual métrica disparou.
-    2. **Onde a queda começou?** Primeiro registro a atingir cada banda
-       severa.
+    2. **Onde a queda (cliff) começou?** Primeiro registro a atingir
+       cada banda severa.
 
-    Use ``--apenas-transicoes`` para sweeps grandes (só as mudanças).
+    Use ``--apenas-transicoes`` para Coletas grandes (só as mudanças).
     """
     from scripts.analyze_regimes import run_analyze_regimes
 
