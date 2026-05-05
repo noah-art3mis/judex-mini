@@ -240,9 +240,10 @@ def test_extrair_empty_routes_to_switch_provider() -> None:
                                           "error": "pypdf returned 0 chars"})
     assert recipe.action == "switch_provider"
     assert "chandra" in (recipe.command_hint or "")
-    # Recipe must point at the live unified-pipeline command, not the
-    # removed legacy `extrair-pecas`.
-    assert "judex executar" in (recipe.command_hint or "")
+    # Use the URL-scoped extractor — switching providers is a text-stage
+    # operation, no need to re-walk the case-walker (which would also
+    # re-fetch meta + bytes that already succeeded).
+    assert "extrair-urls" in (recipe.command_hint or "")
     assert "extrair-pecas" not in (recipe.command_hint or "")
 
 

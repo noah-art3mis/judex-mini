@@ -171,7 +171,7 @@ _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     "empty": Recipe(
         "switch_provider",
         "scanned/image-only PDF — pypdf gave up; re-extract with a beefier provider",
-        "uv run judex executar --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
+        "uv run judex extrair-urls <urls.txt> --provedor chandra --forcar",
     ),
     "unknown_type": Recipe(
         "refetch_bytes",

@@ -330,6 +330,180 @@ def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
     assert "--nao-perguntar" in argv
 
 
+# ----- plan_recoveries: non-REPLAY buckets (limpar v2) ---------------------
+
+
+def test_classify_residual_routes_outlier_skipped_to_provider_switch(
+    tmp_path: Path,
+) -> None:
+    """``outlier_skipped`` is a kind=terminal extract_text status emitted
+    when a PDF exceeds the cloud-OCR body cap. Recovery is local
+    Tesseract (no body cap), which limpar dispatches via PROVIDER_SWITCH
+    — same bucket as ``empty`` but with a different destination provider.
+    Sub-issue 02 routing through limpar's classifier.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("outlier_skipped")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    assert len(buckets[Bucket.PROVIDER_SWITCH]) == 1
+    assert buckets[Bucket.PROVIDER_SWITCH][0].status == "outlier_skipped"
+
+
+def test_plan_dispatches_provider_switch_empty_via_extrair_urls_chandra(
+    tmp_path: Path,
+) -> None:
+    """A PROVIDER_SWITCH row with status=empty must dispatch
+    ``judex extrair-urls`` against a materialised URL list, with
+    ``--provedor chandra --forcar``. URL-scoped (no over-extraction)
+    and skips the meta + bytes stages that already succeeded.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    spawn = plan[0]
+    argv_str = " ".join(spawn.argv)
+    assert "extrair-urls" in argv_str
+    assert "--provedor chandra" in argv_str
+    assert "--forcar" in argv_str
+    # The materialised URL file path appears in argv and exists on disk.
+    assert spawn.source_errors_file is not None
+    assert spawn.source_errors_file.exists()
+    assert "u1" in spawn.source_errors_file.read_text()
+
+
+def test_plan_dispatches_provider_switch_outlier_via_extrair_urls_tesseract(
+    tmp_path: Path,
+) -> None:
+    """A PROVIDER_SWITCH row with status=outlier_skipped must dispatch
+    against local tesseract (the only provider without the body cap)."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("outlier_skipped")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    argv_str = " ".join(plan[0].argv)
+    assert "extrair-urls" in argv_str
+    assert "--provedor tesseract" in argv_str
+    assert "--forcar" in argv_str
+    # Must NOT route to a cloud provider — defeats the purpose.
+    for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
+        assert f"--provedor {cloud}" not in argv_str
+
+
+def test_plan_splits_provider_switch_by_status_one_spawn_each(
+    tmp_path: Path,
+) -> None:
+    """A dir with both empty and outlier_skipped rows yields TWO spawns
+    — different destination providers can't share an extrair-urls call."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("empty")},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("outlier_skipped")},
+            },
+        },
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    # Two PROVIDER_SWITCH spawns — one for each provider.
+    argv_strs = [" ".join(s.argv) for s in plan]
+    has_chandra = any("--provedor chandra" in s for s in argv_strs)
+    has_tesseract = any("--provedor tesseract" in s for s in argv_strs)
+    assert has_chandra
+    assert has_tesseract
+
+
+def test_plan_dispatches_refetch_upstream_via_executar_csv(tmp_path: Path) -> None:
+    """A REFETCH_UPSTREAM row (no_bytes on extract_text) must dispatch
+    ``judex executar --csv`` against a CSV of (classe, processo) pairs.
+    The bytes that are present in cache are skipped automatically by
+    the runner; only the missing bytes are refetched + their text
+    re-extracted. No --forcar (caches honoured)."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("no_bytes")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    argv_str = " ".join(plan[0].argv)
+    assert "executar" in argv_str
+    assert "--csv" in argv_str
+    assert "--forcar" not in argv_str
+    # Materialised CSV exists with the case row.
+    assert plan[0].source_errors_file is not None
+    assert plan[0].source_errors_file.exists()
+    csv_text = plan[0].source_errors_file.read_text()
+    assert "HC,1" in csv_text or "HC,1\r" in csv_text  # CSV writer line
+
+
+def test_plan_combines_replay_and_provider_switch_in_same_dir(
+    tmp_path: Path,
+) -> None:
+    """A dir with a REPLAY row AND a PROVIDER_SWITCH row gets BOTH
+    spawns. The buckets are independent — recovery isn't a single-
+    bucket affair anymore."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("empty")},
+            },
+        },
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 2
+    argv_strs = [" ".join(s.argv) for s in plan]
+    has_replay = any("--retentar-de" in s for s in argv_strs)
+    has_switch = any("extrair-urls" in s for s in argv_strs)
+    assert has_replay
+    assert has_switch
+
+
 # ----- format_summary -------------------------------------------------------
 
 
