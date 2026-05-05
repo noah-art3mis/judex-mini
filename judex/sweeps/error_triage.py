@@ -171,7 +171,7 @@ _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     "empty": Recipe(
         "switch_provider",
         "scanned/image-only PDF — pypdf gave up; re-extract with a beefier provider",
-        "uv run judex extrair-urls <urls.txt> --provedor chandra --forcar",
+        "uv run judex re-extrair <urls.txt> --provedor chandra --forcar",
     ),
     "unknown_type": Recipe(
         "refetch_bytes",
@@ -184,12 +184,12 @@ _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     # recovery is **local** Tesseract, which has no body-size limit.
     # Action shape matches ``empty`` (provider switch) but the destination
     # provider is specifically the local one. URL-scoped via ``judex
-    # extrair-urls`` so we don't over-extract the rest of the case's
+    # re-extrair`` so we don't over-extract the rest of the case's
     # peças (which already have clean pypdf text).
     "outlier_skipped": Recipe(
         "switch_provider",
         "PDF exceeds cloud-OCR body cap — re-extract with local tesseract (no cap)",
-        "uv run judex extrair-urls <urls.txt> --provedor tesseract --forcar",
+        "uv run judex re-extrair <urls.txt> --provedor tesseract --forcar",
     ),
 }
 

@@ -353,11 +353,11 @@ def _plan_replay_spawns(
 
 
 def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
-    """PROVIDER_SWITCH → one ``extrair-urls`` per (source_dir, status).
+    """PROVIDER_SWITCH → one ``re-extrair`` per (source_dir, status).
 
     Different statuses route to different providers (empty→chandra,
     outlier_skipped→tesseract), so a single dispatch can't cover both;
-    we split per status. URL-scoped via extrair-urls so meta + bytes
+    we split per status. URL-scoped via re-extrair so meta + bytes
     cache-skips are honoured (only the text stage runs). The URL-list
     file contents are computed here as ``materialized_content``; the
     actual write happens in :func:`execute_recoveries` so dry-run stays
@@ -377,7 +377,7 @@ def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
         urls_file = _urls_file_path(source_dir, status)
         content = _build_urls_content(group)
         argv = [
-            "uv", "run", "judex", "extrair-urls", str(urls_file),
+            "uv", "run", "judex", "re-extrair", str(urls_file),
             "--provedor", provider,
             "--forcar",
         ]
@@ -436,7 +436,7 @@ def plan_recoveries(
 
     - ``REPLAY`` → ``executar --retentar-de errors.jsonl`` (the
       original v1 path; ``provedor`` argument is plumbed here).
-    - ``PROVIDER_SWITCH`` → ``extrair-urls --provedor <X> --forcar``
+    - ``PROVIDER_SWITCH`` → ``re-extrair --provedor <X> --forcar``
       where X depends on status (chandra for empty, tesseract for
       outlier_skipped). Split per (dir, status) since different
       statuses can't share a provider.

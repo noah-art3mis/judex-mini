@@ -1,4 +1,4 @@
-"""Tests for ``judex.sweeps.extrair_urls`` — URL-scoped re-extraction.
+"""Tests for ``judex.sweeps.re_extrair`` — URL-scoped re-extraction.
 
 Pins the contract from .scratch/per-url-extract/PRD.md:
 
@@ -29,7 +29,7 @@ def stub_cache(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     ``writes`` (list of (url, text, extractor)),
     ``extract_calls`` (list of pdf_bytes, kwargs).
     """
-    from judex.sweeps import extrair_urls
+    from judex.sweeps import re_extrair
     from judex.utils import peca_cache
 
     state: dict[str, Any] = {
@@ -61,7 +61,7 @@ def stub_cache(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
             provider=config.provider,
         )
 
-    monkeypatch.setattr(extrair_urls, "extract_pdf", fake_extract)
+    monkeypatch.setattr(re_extrair, "extract_pdf", fake_extract)
     return state
 
 
@@ -71,15 +71,15 @@ def _write_urls(tmp_path: Path, *urls: str) -> Path:
     return p
 
 
-def test_extrair_urls_happy_path(tmp_path: Path, stub_cache: dict[str, Any]) -> None:
+def test_re_extrair_happy_path(tmp_path: Path, stub_cache: dict[str, Any]) -> None:
     """Two URLs both have cached bytes → both get OCR'd and written."""
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
     stub_cache["bytes"]["https://stf/b.pdf"] = b"%PDF-1.4 b body"
 
     urls = _write_urls(tmp_path, "https://stf/a.pdf", "https://stf/b.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     assert result.n_ok == 2
     assert result.n_skipped == 0
@@ -92,20 +92,20 @@ def test_extrair_urls_happy_path(tmp_path: Path, stub_cache: dict[str, Any]) -> 
     assert all(w[2] == "tesseract" for w in stub_cache["writes"])
 
 
-def test_extrair_urls_skips_when_extractor_sidecar_matches(
+def test_re_extrair_skips_when_extractor_sidecar_matches(
     tmp_path: Path, stub_cache: dict[str, Any]
 ) -> None:
     """If the URL's extractor sidecar already says the requested provedor,
     skip — peça was already extracted with this provider. ``--forcar``
     is the explicit override (next test).
     """
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
     stub_cache["extractor"]["https://stf/a.pdf"] = "tesseract"
 
     urls = _write_urls(tmp_path, "https://stf/a.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     assert result.n_skipped == 1
     assert result.n_ok == 0
@@ -113,56 +113,56 @@ def test_extrair_urls_skips_when_extractor_sidecar_matches(
     assert stub_cache["writes"] == []
 
 
-def test_extrair_urls_forcar_bypasses_sidecar(
+def test_re_extrair_forcar_bypasses_sidecar(
     tmp_path: Path, stub_cache: dict[str, Any]
 ) -> None:
     """``--forcar`` re-extracts even when the sidecar matches — operator
     explicitly wants the work done (e.g. provider quality regression
     suspected, or the sidecar is stale).
     """
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
     stub_cache["extractor"]["https://stf/a.pdf"] = "tesseract"
 
     urls = _write_urls(tmp_path, "https://stf/a.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=True)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=True)
 
     assert result.n_ok == 1
     assert result.n_skipped == 0
     assert len(stub_cache["extract_calls"]) == 1
 
 
-def test_extrair_urls_different_provedor_does_not_skip(
+def test_re_extrair_different_provedor_does_not_skip(
     tmp_path: Path, stub_cache: dict[str, Any]
 ) -> None:
     """Sidecar match is *exact* on provedor name — switching providers
     must always re-extract (the whole point of the command)."""
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
     stub_cache["extractor"]["https://stf/a.pdf"] = "pypdf"
 
     urls = _write_urls(tmp_path, "https://stf/a.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     assert result.n_ok == 1
     assert len(stub_cache["extract_calls"]) == 1
     assert stub_cache["extract_calls"][0]["provider"] == "tesseract"
 
 
-def test_extrair_urls_missing_bytes_counts_as_missing_not_fail(
+def test_re_extrair_missing_bytes_counts_as_missing_not_fail(
     tmp_path: Path, stub_cache: dict[str, Any]
 ) -> None:
     """A URL with no cached bytes errors gracefully — the command can't
     fetch (that's the unified pipeline's job). Distinct from a failure
     inside the OCR provider so operators can route each separately.
     """
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     # No bytes for either URL.
     urls = _write_urls(tmp_path, "https://stf/missing.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     assert result.n_missing_bytes == 1
     assert result.n_ok == 0
@@ -170,14 +170,14 @@ def test_extrair_urls_missing_bytes_counts_as_missing_not_fail(
     assert stub_cache["extract_calls"] == []
 
 
-def test_extrair_urls_provider_exception_counts_as_fail(
+def test_re_extrair_provider_exception_counts_as_fail(
     tmp_path: Path, stub_cache: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An exception inside the provider counts toward ``n_fail`` — the
     rest of the URL list keeps processing (don't abort on first error).
     """
-    from judex.sweeps import extrair_urls as mod
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps import re_extrair as mod
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
     stub_cache["bytes"]["https://stf/b.pdf"] = b"%PDF-1.4 b"
@@ -193,7 +193,7 @@ def test_extrair_urls_provider_exception_counts_as_fail(
     monkeypatch.setattr(mod, "extract_pdf", crashing_extract)
 
     urls = _write_urls(tmp_path, "https://stf/a.pdf", "https://stf/b.pdf")
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     assert result.n_ok == 1   # b succeeded
     assert result.n_fail == 1  # a crashed
@@ -201,13 +201,13 @@ def test_extrair_urls_provider_exception_counts_as_fail(
     assert any(w[0] == "https://stf/b.pdf" for w in stub_cache["writes"])
 
 
-def test_extrair_urls_ignores_blanks_and_comments(
+def test_re_extrair_ignores_blanks_and_comments(
     tmp_path: Path, stub_cache: dict[str, Any]
 ) -> None:
     """The URL file may carry blank lines and ``#``-comments for human
     annotation. Both are silently skipped — only URLs are processed.
     """
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
     stub_cache["bytes"]["https://stf/a.pdf"] = b"%PDF-1.4 a"
 
@@ -220,20 +220,20 @@ def test_extrair_urls_ignores_blanks_and_comments(
         "# more comments\n",
         encoding="utf-8",
     )
-    result = run_extrair_urls(p, provedor="tesseract", forcar=False)
+    result = run_re_extrair(p, provedor="tesseract", forcar=False)
 
     assert result.n_ok == 1
     assert len(stub_cache["extract_calls"]) == 1
 
 
-def test_extrair_urls_counts_sum_to_total(
+def test_re_extrair_counts_sum_to_total(
     tmp_path: Path, stub_cache: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``ok + skipped + missing_bytes + fail`` must equal len(urls).
     No row can be silently dropped from the accounting.
     """
-    from judex.sweeps import extrair_urls as mod
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps import re_extrair as mod
+    from judex.sweeps.re_extrair import run_re_extrair
 
     # 1 ok, 1 skipped, 1 missing, 1 fail = 4 total.
     stub_cache["bytes"]["https://stf/ok.pdf"] = b"%PDF-1.4 a"
@@ -255,7 +255,7 @@ def test_extrair_urls_counts_sum_to_total(
         "https://stf/missing.pdf",
         "https://stf/fail.pdf",
     )
-    result = run_extrair_urls(urls, provedor="tesseract", forcar=False)
+    result = run_re_extrair(urls, provedor="tesseract", forcar=False)
 
     total = result.n_ok + result.n_skipped + result.n_missing_bytes + result.n_fail
     assert total == 4

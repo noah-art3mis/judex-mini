@@ -824,11 +824,11 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
-# `extrair-urls` — URL-scoped re-extraction (no fetch, no case-walker)
+# `re-extrair` — URL-scoped re-extraction (no fetch, no case-walker)
 
 
-@app.command(name="extrair-urls")
-def extrair_urls_cmd(
+@app.command(name="re-extrair")
+def re_extrair_cmd(
     arquivo_urls: Path = typer.Argument(
         ..., exists=True, dir_okay=False, readable=True,
         help="Arquivo simples com uma URL por linha. Linhas em branco e "
@@ -845,21 +845,23 @@ def extrair_urls_cmd(
              "(ignora a verificação de cache).",
     ),
 ) -> None:
-    """Re-extrai texto para URLs específicas usando um provedor escolhido.
+    """Re-extrai o texto de peças específicas com o provedor escolhido.
 
-    Recovery escopada por URL — bypassa o case-walker. Os bytes precisam
-    estar no cache de peças (escreva-os com ``judex executar`` antes);
-    URLs sem bytes em cache contam para ``missing_bytes`` no relatório.
+    O alvo é uma lista de URLs (uma por linha). Para cada URL, lê os
+    bytes do cache de peças, roda o provedor de novo, e regrava o texto.
+    Não fala com a STF — os bytes precisam já estar em cache (rode
+    ``judex executar`` antes); URLs sem bytes em cache contam para
+    ``missing_bytes`` no relatório.
 
-    Caso de uso típico: re-OCR pontual de outliers (PDFs que estouraram o
-    cap de body do OCR em cloud) com ``--provedor tesseract`` local, sem
-    re-extrair as outras peças do caso.
+    Caso de uso típico: re-OCR pontual de peças que estouraram o cap de
+    body do OCR em cloud, com ``--provedor tesseract`` local — sem
+    re-extrair as outras peças do mesmo processo.
     """
-    from judex.sweeps.extrair_urls import run_extrair_urls
+    from judex.sweeps.re_extrair import run_re_extrair
 
-    result = run_extrair_urls(arquivo_urls, provedor=provedor, forcar=forcar)
+    result = run_re_extrair(arquivo_urls, provedor=provedor, forcar=forcar)
     typer.echo(
-        f"extrair-urls: ok={result.n_ok} · skipped={result.n_skipped} · "
+        f"re-extrair: ok={result.n_ok} · skipped={result.n_skipped} · "
         f"missing_bytes={result.n_missing_bytes} · fail={result.n_fail} · "
         f"wall={result.wall_s:.1f}s"
     )

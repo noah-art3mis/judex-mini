@@ -355,11 +355,11 @@ def test_classify_residual_routes_outlier_skipped_to_provider_switch(
     assert buckets[Bucket.PROVIDER_SWITCH][0].status == "outlier_skipped"
 
 
-def test_plan_dispatches_provider_switch_empty_via_extrair_urls_chandra(
+def test_plan_dispatches_provider_switch_empty_via_re_extrair_chandra(
     tmp_path: Path,
 ) -> None:
     """A PROVIDER_SWITCH row with status=empty must dispatch
-    ``judex extrair-urls`` against a materialised URL list, with
+    ``judex re-extrair`` against a materialised URL list, with
     ``--provedor chandra --forcar``. URL-scoped (no over-extraction)
     and skips the meta + bytes stages that already succeeded.
     """
@@ -377,7 +377,7 @@ def test_plan_dispatches_provider_switch_empty_via_extrair_urls_chandra(
     assert len(plan) == 1
     spawn = plan[0]
     argv_str = " ".join(spawn.argv)
-    assert "extrair-urls" in argv_str
+    assert "re-extrair" in argv_str
     assert "--provedor chandra" in argv_str
     assert "--forcar" in argv_str
     # File is *not* materialised by plan_recoveries (dry-run must stay
@@ -392,7 +392,7 @@ def test_plan_dispatches_provider_switch_empty_via_extrair_urls_chandra(
     assert "u1" in spawn.materialized_content
 
 
-def test_plan_dispatches_provider_switch_outlier_via_extrair_urls_tesseract(
+def test_plan_dispatches_provider_switch_outlier_via_re_extrair_tesseract(
     tmp_path: Path,
 ) -> None:
     """A PROVIDER_SWITCH row with status=outlier_skipped must dispatch
@@ -410,7 +410,7 @@ def test_plan_dispatches_provider_switch_outlier_via_extrair_urls_tesseract(
 
     assert len(plan) == 1
     argv_str = " ".join(plan[0].argv)
-    assert "extrair-urls" in argv_str
+    assert "re-extrair" in argv_str
     assert "--provedor tesseract" in argv_str
     assert "--forcar" in argv_str
     # Must NOT route to a cloud provider — defeats the purpose.
@@ -422,7 +422,7 @@ def test_plan_splits_provider_switch_by_status_one_spawn_each(
     tmp_path: Path,
 ) -> None:
     """A dir with both empty and outlier_skipped rows yields TWO spawns
-    — different destination providers can't share an extrair-urls call."""
+    — different destination providers can't share an re-extrair call."""
     _write_state(
         tmp_path / STATE_FILENAME,
         {
@@ -550,7 +550,7 @@ def test_execute_recoveries_materialises_content_files(
     assert "u1" in urls_file.read_text()
     # And Popen was called with the planned argv.
     assert len(captured_argvs) == 1
-    assert any("extrair-urls" in a for a in captured_argvs[0])
+    assert any("re-extrair" in a for a in captured_argvs[0])
 
 
 def test_plan_combines_replay_and_provider_switch_in_same_dir(
@@ -580,7 +580,7 @@ def test_plan_combines_replay_and_provider_switch_in_same_dir(
     assert len(plan) == 2
     argv_strs = [" ".join(s.argv) for s in plan]
     has_replay = any("--retentar-de" in s for s in argv_strs)
-    has_switch = any("extrair-urls" in s for s in argv_strs)
+    has_switch = any("re-extrair" in s for s in argv_strs)
     assert has_replay
     assert has_switch
 

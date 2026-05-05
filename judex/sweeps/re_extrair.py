@@ -27,7 +27,7 @@ from judex.utils import peca_cache
 
 @dataclass(frozen=True)
 class UrlExtractResult:
-    """Counts from a single ``run_extrair_urls`` invocation.
+    """Counts from a single ``run_re_extrair`` invocation.
 
     The four counts partition the URL list — every URL falls into
     exactly one bucket. Operators can sanity-check ``ok + skipped +
@@ -52,7 +52,7 @@ def parse_urls_file(path: Path) -> list[str]:
     return out
 
 
-def run_extrair_urls(
+def run_re_extrair(
     urls_path: Path,
     *,
     provedor: str,

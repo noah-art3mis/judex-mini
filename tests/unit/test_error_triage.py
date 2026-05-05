@@ -243,7 +243,7 @@ def test_extrair_empty_routes_to_switch_provider() -> None:
     # Use the URL-scoped extractor — switching providers is a text-stage
     # operation, no need to re-walk the case-walker (which would also
     # re-fetch meta + bytes that already succeeded).
-    assert "extrair-urls" in (recipe.command_hint or "")
+    assert "re-extrair" in (recipe.command_hint or "")
     assert "extrair-pecas" not in (recipe.command_hint or "")
 
 
@@ -279,9 +279,9 @@ def test_extrair_outlier_skipped_routes_to_switch_provider_local() -> None:
     assert recipe.action == "switch_provider"
     hint = recipe.command_hint or ""
     assert "tesseract" in hint, hint
-    # URL-scoped (no over-extraction): must point at extrair-urls, not
+    # URL-scoped (no over-extraction): must point at re-extrair, not
     # the case-scoped executar --csv path that re-OCRs whole cases.
-    assert "extrair-urls" in hint, hint
+    assert "re-extrair" in hint, hint
     # Must not point at a cloud provider — defeats the purpose.
     for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
         assert cloud not in hint, (
