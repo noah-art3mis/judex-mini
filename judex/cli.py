@@ -1109,6 +1109,25 @@ def limpar(
         help="Pula o prompt de confirmação sob ``--apply``. Necessário "
              "para invocações non-interactive (cron, nohup).",
     ),
+    loop: bool = typer.Option(
+        False, "--loop",
+        help="Repete o ciclo (apply → wait → reclassificar) até os "
+             "resíduos pararem de encolher ou ``--max-passes`` ser "
+             "atingido. Bloqueia até cada pass completar — diferente "
+             "do ``--apply`` simples, que despacha detached e sai.",
+    ),
+    max_passes: int = typer.Option(
+        3, "--max-passes",
+        help="Teto de passes em ``--loop`` (default 3). Cap de "
+             "segurança para o caso patológico em que cada pass "
+             "encolhe o resíduo mas a convergência demora demais.",
+    ),
+    poll_interval: float = typer.Option(
+        5.0, "--poll-interval",
+        help="Frequência (s) com que o loop verifica se os filhos "
+             "detached terminaram. 5 s é razoável para Coletas de "
+             "minutos; baixe para sub-segundo só em testes.",
+    ),
 ) -> None:
     """Recupera os erros que sobraram depois de uma Coleta (``executar``).
 
@@ -1119,7 +1138,8 @@ def limpar(
     faltantes.
 
     Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
-    Use ``--apply`` para executar de fato.
+    ``--apply`` despacha um pass detached. ``--loop`` repete até
+    convergir (resíduo zera) ou estagnar (não encolhe entre passes).
 
     Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
     recuperar.
@@ -1130,6 +1150,7 @@ def limpar(
         execute_recoveries,
         format_summary,
         plan_recoveries,
+        run_until_stable,
     )
 
     if not run_dir.exists():
@@ -1145,10 +1166,10 @@ def limpar(
         raise typer.Exit(code=3)
 
     buckets = classify_residual(dirs)
-    summary = format_summary(buckets, dry_run=not apply)
+    summary = format_summary(buckets, dry_run=not (apply or loop))
     typer.echo(summary)
 
-    if not apply:
+    if not apply and not loop:
         plan = plan_recoveries(buckets, provedor=provedor)
         if plan:
             total_replay = sum(s.n_replay_rows for s in plan)
@@ -1164,13 +1185,50 @@ def limpar(
         raise typer.Exit(code=0)
 
     if not nao_perguntar:
+        prompt_label = "loop" if loop else "dispatch"
         if not typer.confirm(
-            f"Confirmar dispatch de {len(plan)} child(ren) detached em "
+            f"Confirmar {prompt_label} de {len(plan)} child(ren) detached em "
             f"{run_dir}?",
             default=True,
         ):
             typer.echo("Abortado pelo usuário.")
             raise typer.Exit(code=2)
+
+    if loop:
+        def _on_pass_start(n: int, actionable: int) -> None:
+            typer.echo(f"limpar pass {n}: {actionable} actionable rows")
+
+        def _on_pass_end(n: int, n_dispatched: int, pids: list[int]) -> None:
+            typer.echo(
+                f"limpar pass {n}: dispatched {n_dispatched} child(ren) "
+                f"(PIDs: {pids}); waiting for completion…"
+            )
+
+        result = run_until_stable(
+            run_dir,
+            provedor=provedor,
+            max_passes=max_passes,
+            poll_interval=poll_interval,
+            on_pass_start=_on_pass_start,
+            on_pass_end=_on_pass_end,
+        )
+        final_summary = format_summary(result.final_buckets, dry_run=False)
+        typer.echo(final_summary)
+        if result.converged:
+            typer.echo(
+                f"limpar: converged in {result.passes_run} pass(es)"
+            )
+        elif result.stopped_for_no_progress:
+            typer.echo(
+                f"limpar: stopped after {result.passes_run} pass(es) — "
+                f"residual stopped shrinking"
+            )
+        else:
+            typer.echo(
+                f"limpar: stopped at --max-passes={max_passes} — "
+                f"residual still actionable"
+            )
+        raise typer.Exit(code=0)
 
     pids_path = run_dir / "limpar.pids"
     result = execute_recoveries(plan, pids_path)
