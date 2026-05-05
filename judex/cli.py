@@ -726,12 +726,21 @@ def _run_warehouse(
     ano: Optional[int],
     progresso_cada: int,
     estrito: bool,
+    runs_root: Optional[Path] = None,
 ) -> int:
     """Shared body for the canonical ``warehouse`` command and its
     deprecated ``atualizar-warehouse`` alias. Returns the exit code from
-    :func:`judex.sweeps.build_warehouse.run_build_warehouse`."""
+    :func:`judex.sweeps.build_warehouse.run_build_warehouse`.
+
+    When ``runs_root`` is non-None and exists, the build also populates
+    the ``peca_issues`` cross-run registry. Default ``None`` keeps the
+    deprecated alias (and tests) on the lighter pre-registry build path.
+    """
     from judex.sweeps.build_warehouse import run_build_warehouse
 
+    effective_runs_root = (
+        runs_root if (runs_root is not None and runs_root.exists()) else None
+    )
     return run_build_warehouse(
         cases_root=diretorio_processos,
         pecas_texto_root=diretorio_pecas_texto,
@@ -740,6 +749,7 @@ def _run_warehouse(
         year=ano,
         progress_every=progresso_cada,
         strict=estrito,
+        runs_root=effective_runs_root,
     )
 
 
@@ -777,6 +787,17 @@ def warehouse(
              "regressões silenciosas do scraper. O arquivo .duckdb ainda "
              "é gravado para inspeção manual; só o exit code muda.",
     ),
+    com_peca_issues: bool = typer.Option(
+        False, "--com-peca-issues",
+        help="Constrói também a tabela ``peca_issues`` — registro per-URL "
+             "agregado dos run dirs em ``runs/active/`` (status, tentativas, "
+             "dispensa, suspeita-curta). Default off porque adiciona "
+             "alguns segundos ao build e nem todo operador precisa.",
+    ),
+    runs_root: Path = typer.Option(
+        Path("runs/active"), "--runs-root",
+        help="Raiz dos run dirs. Usada apenas com --com-peca-issues.",
+    ),
 ) -> None:
     """Reconstrói o banco DuckDB a partir dos dados raspados.
 
@@ -790,6 +811,7 @@ def warehouse(
     raise typer.Exit(code=_run_warehouse(
         diretorio_processos, diretorio_pecas_texto, saida,
         classe, ano, progresso_cada, estrito,
+        runs_root=runs_root if com_peca_issues else None,
     ))
 
 

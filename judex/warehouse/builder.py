@@ -191,6 +191,33 @@ CREATE TABLE pdfs (
     cache_path    VARCHAR NOT NULL
 );
 
+-- Cross-run per-URL registry: latest status, attempt count, dismissal
+-- flag, suspicious-short heuristic. Sourced from walking every
+-- ``executar.state.json`` (and legacy ``pdfs.state.json``) under
+-- ``runs/active/`` plus the dismissal + extractor sidecars under
+-- ``data/derived/pecas-texto/``. The peça's doc_type is joined in
+-- from the warehouse's andamentos / documentos tables. Operators
+-- query this to answer "what's the latest state of URL X across all
+-- runs and time?" without grepping run dirs.
+-- See .scratch/peca-registry/PRD.md.
+CREATE TABLE peca_issues (
+    url                  VARCHAR PRIMARY KEY,
+    sha1                 VARCHAR NOT NULL,
+    classe               VARCHAR,
+    processo_id          INTEGER,
+    doc_type             VARCHAR,
+    latest_status        VARCHAR,
+    latest_extractor     VARCHAR,
+    n_chars              INTEGER,
+    is_suspicious_short  BOOLEAN,
+    n_attempts_seen      INTEGER NOT NULL,
+    first_seen_at        VARCHAR,
+    last_seen_at         VARCHAR,
+    last_run_dir         VARCHAR,
+    dismissed_at         VARCHAR,
+    dismissed_reason     VARCHAR
+);
+
 -- processo_ids that STF's portal never bound to an incidente.
 -- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`.
 -- See ADR-0002.
@@ -930,6 +957,7 @@ def build(
     progress_every: int = 10_000,
     strict: bool = False,
     unallocated_pids_root: Optional[Path] = None,
+    runs_root: Optional[Path] = None,
 ) -> BuildSummary:
     """Build the warehouse. When ``strict=True``, a population-rate
     threshold miss (see ``MIN_POPULATION_RATES``) raises
@@ -1081,6 +1109,27 @@ def build(
                     _load_unallocated_pids(unallocated_pids_root, classe)
                 )
         n_unallocated = _bulk_insert_iter(con, "unallocated_pids", iter(unallocated_rows))
+
+        # peca_issues: cross-run per-URL registry (PRD: peca-registry).
+        # Wrapped: a bug here must not break the rest of the build.
+        # Existing tables ship even if this pass fails. ``runs_root=None``
+        # skips the pass — used by tests + cold checkouts where there's
+        # no runs/ directory to walk.
+        if runs_root is not None:
+            try:
+                from judex.warehouse.peca_issues import build_peca_issues
+                n_peca_issues = build_peca_issues(
+                    con,
+                    runs_root=runs_root,
+                    pecas_texto_root=pecas_texto_root,
+                )
+                print(f"  peca_issues: {n_peca_issues:,} rows", flush=True)
+            except Exception as e:  # noqa: BLE001
+                print(
+                    f"  ⚠ peca_issues build failed ({type(e).__name__}: {e}) — "
+                    f"table left empty; warehouse otherwise OK",
+                    flush=True,
+                )
 
         wall = time.monotonic() - t0
         con.execute(
