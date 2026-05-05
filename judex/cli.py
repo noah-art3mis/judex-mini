@@ -75,9 +75,7 @@ app = typer.Typer(
 # Recoverable on the `archive/iteration-2-three-command-chain` branch.
 debug_app = typer.Typer(
     add_completion=False,
-    help="Utilitários auxiliares: inspeção, validação, comparação de "
-         "provedores, backup e exportação. `judex executar` é o "
-         "caminho primário do dia-a-dia.",
+    help="Utilitários auxiliares (inspeção, backup, exportação, validação).",
     no_args_is_help=True,
 )
 app.add_typer(debug_app, name="debug")
@@ -135,7 +133,7 @@ def exportar(
              "Repita para selecionar vários. Omita para exportar todos.",
     ),
 ) -> None:
-    """Exporta os cinco notebooks Marimo de HC como HTML interativo autônomo."""
+    """Exporta os notebooks de análise como HTML interativo."""
     diretorio_saida.mkdir(parents=True, exist_ok=True)
 
     selecionados = tuple(apenas) if apenas else DEFAULT_NOTEBOOKS
@@ -229,18 +227,14 @@ def fazer_backup(
         help="Frequência (em arquivos) das linhas de progresso. 0 desliga.",
     ),
 ) -> None:
-    """Empacota processos + peças num único .zip aberto pelo Windows.
+    """Empacota o corpus num .zip que abre direto no Windows.
 
-    Saída atômica: grava em <saida>.tmp e renomeia ao final. Compressão é
-    por entrada — JSON deflaciona, .gz/.pdf/.rtf vão como ZIP_STORED.
+    Saída atômica (grava em ``.tmp`` e renomeia ao final).
 
-    Para um backup completo (processos + peças + warehouse):
+    Exemplos:
 
-        uv run judex fazer-backup --incluir-warehouse
-
-    Para só metadados de HC (sem peças, sem warehouse):
-
-        uv run judex fazer-backup --classe HC --sem-pecas
+        uv run judex debug fazer-backup --incluir-warehouse
+        uv run judex debug fazer-backup --classe HC --sem-pecas
     """
     from judex.backup import make_backup
 
@@ -372,26 +366,17 @@ def executar(
              "Necessário para uso não-interativo (cron, nohup).",
     ),
 ) -> None:
-    """Pipeline unificado: varrer + baixar + extrair num único processo.
+    """Raspa um intervalo (ou CSV) de processos: metadados + PDFs + texto.
 
-    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
-    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
-    invocação fire-and-forget. Três asyncio.Queues alimentam três
-    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
-    tarefa emite suas sucessoras ao terminar.
+    Modos de entrada (escolha um):
 
-    **Modos de entrada (escolha um):**
-      - range: ``-c HC -i 250000 -f 250100``
-      - CSV:   ``--csv alvos.csv``
-      - retry: ``--retentar-de runs/.../executar.errors.jsonl``
+      - intervalo:  ``-c HC -i 250000 -f 250100``
+      - CSV:        ``--csv alvos.csv``
+      - retomada:   ``--retentar-de runs/.../executar.errors.jsonl``
 
-    Estado persistido em ``<saida>/executar.state.json`` (snapshot
-    atômico, periódico) + ``<saida>/executar.log.jsonl`` (append-only,
-    fsynced por linha — durável contra SIGKILL / OOM / VM suspend).
-    Resume é automático: re-rodar com a mesma ``--saida`` requeue só
-    o trabalho não-ok. SIGTERM/SIGINT acionam shutdown gracioso.
-
-    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    Resume é automático — re-rodar com o mesmo ``--saida`` cache-hits
+    o trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
+    encerram de forma limpa, deixando o estado retomável em disco.
     """
     # ----- Mode resolution -----
     range_flags = [
@@ -636,22 +621,15 @@ def atualizar_corpus(
         help="Concorrência do pool OCR.",
     ),
 ) -> None:
-    """Atualiza o corpus de uma classe até o leading edge atual da STF.
+    """Adiciona ao corpus os processos novos publicados pela STF para uma classe.
 
-    1. Glob ``data/source/processos/<classe>/`` para o maior processo_id
-       já scrapeado.
-    2. Sonda case-ids acima dele um a um via portal, parando após
-       ``--paradas-apos-misses`` IDs não-alocados consecutivos (sinal
-       de ter passado o leading edge da STF para essa classe).
-    3. Roda o pipeline completo (meta + bytes + text) só nos case-ids
-       descobertos como vivos — pula automaticamente os buracos.
+    Pega o último processo_id já raspado em ``data/source/processos/<classe>/``,
+    sonda processos mais recentes pelo portal, e raspa só os que aparecerem
+    como vivos. Comando idempotente — re-rodar pula o que já está em disco.
 
-    Comando idempotente — re-rodar pula o que já foi puxado via
-    ``skipped_cached``.
+    Exemplos:
 
-    Exemplo:
-
-        uv run judex atualizar HC                       # default
+        uv run judex atualizar HC
         uv run judex atualizar ADI --paradas-apos-misses 50
     """
     from datetime import datetime
@@ -799,16 +777,14 @@ def warehouse(
              "é gravado para inspeção manual; só o exit code muda.",
     ),
 ) -> None:
-    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de texto.
+    """Reconstrói o banco DuckDB a partir dos dados raspados.
 
-    Full-rebuild com swap atômico — não há modo incremental. Os JSONs
-    em ``data/source/processos/`` continuam sendo a fonte de verdade;
-    o warehouse é um artefato derivado, regenerável. Custo típico:
-    ~2–3 min para ~55k processos, ~15–20 min para 350k.
+    Usado para análise em SQL ou nos notebooks em ``analysis/``. Rebuild
+    completo com swap atômico — não há modo incremental. Não fala com a
+    rede; é puro scan local. Custo típico: ~2-3 min para 55 k processos,
+    ~15-20 min para 350 k.
 
-    O comando não fala com a rede — é puro scan local de JSON + gzip.
-    Rode depois de ``executar`` sempre que quiser ver os dados novos nos
-    notebooks / em SQL.
+    Rode depois de ``executar`` para refletir os dados novos.
     """
     raise typer.Exit(code=_run_warehouse(
         diretorio_processos, diretorio_pecas_texto, saida,
@@ -915,16 +891,11 @@ def providers_cmd(
              "wall caveat).",
     ),
 ) -> None:
-    """Print the OCR provider comparison table for a given workload size.
+    """Compara custo e velocidade dos provedores de OCR para um volume.
 
-    Reads each provider's ``SPEC: ProviderSpec`` from
-    ``judex/scraping/ocr/<provider>.py``, asks for cost(n_pages) and
-    wall(n_pdfs), prints sorted by cost. Providers whose ``wall``
-    anchor isn't measured yet show ``—`` in the minutes column.
-
-    The numbers come from the same SPECs ``extrair-pecas --prever``
-    consults, so this view and the per-sweep forecast are always
-    consistent.
+    Mostra uma tabela ordenada por custo, com USD por mil páginas e
+    wall estimado para o volume informado. Provedores sem âncora de
+    wall medida exibem ``—``.
     """
     from judex.scraping.ocr.dispatch import render_provider_table
     typer.echo(render_provider_table(
@@ -961,26 +932,19 @@ def limpar(
              "para invocações non-interactive (cron, nohup).",
     ),
 ) -> None:
-    """One-command residual recovery for finished ``judex executar`` runs.
+    """Recupera os erros que sobraram depois de um sweep do ``executar``.
 
-    Walks ``<run_dir>`` (mono ou sharded — auto-detecta), classifica
-    cada linha de ``executar.errors.jsonl`` em buckets via
-    ``judex.pipeline.log.classify_unified_error``, e dispara um
-    ``judex executar --retentar-de`` detached por shard com pelo menos
-    uma linha transiente. Buckets terminais (``unallocated_pid``,
-    ``empty``, ``no_bytes``) são contados e reportados — não
-    auto-dispatchados em v1.
+    Classifica os erros do diretório do sweep em buckets (transientes,
+    cap-burnt, troca de provedor, refetch, terminais) e dispara as
+    recuperações cabíveis: ``executar --retentar-de`` para transientes,
+    ``extrair-urls`` para troca de provedor, ``executar --csv`` para
+    refetch de bytes faltantes.
 
-    Default é dry-run (imprime ``would-recover: …`` e sai). Para
-    realmente executar, ``--apply``. Para non-interactive (cron/nohup),
-    combine com ``--nao-perguntar``.
+    Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
+    Use ``--apply`` para executar de fato.
 
-    Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
-    Exit codes:
-
-    - ``0`` — plano computado (e sob ``--apply``, todos os spawns OK).
-    - ``2`` — args inválidos (``run_dir`` não existe).
-    - ``3`` — resíduo vazio (nenhum ``executar.errors.jsonl`` encontrado).
+    Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
+    recuperar.
     """
     from judex.sweeps.limpar import (
         classify_residual,
@@ -1068,28 +1032,13 @@ def acompanhar(
              "encerrar com um ``relatar`` consolidado.",
     ),
 ) -> None:
-    """Tail unificado para runs monolíticos e shardeados, com
-    encerramento automático ao final do run.
+    """Acompanha um sweep ao vivo e mostra o relatório final quando termina.
 
-    Padrão: tail + auto-detect de fim-de-run + ``relatar`` consolidado.
-    A linha-âncora é ``executar: done`` (emitida por
-    ``judex/pipeline/runner.py``). Quando todos os shards (ou o log
-    monolítico) registram pelo menos uma, o ``acompanhar`` para o
-    multitail, imprime o resumo e sai com código 0. Use ``--persistir``
-    para o comportamento legado de tailar indefinidamente.
-
-    **Mono** e **sharded** rodam o mesmo loop Python — sem ``execvp`` —
-    para que a detecção de fim-de-run funcione em ambos os layouts.
-    Ctrl-C também é capturado limpo, sem stack-trace de Python.
-
-    Em sharded, a saída é compactada de duas formas:
-
-      1. Cabeçalhos ``==> shard-X/driver.log <==`` viram prefixo
-         compacto ``[X]`` por linha.
-      2. As linhas ``─── 571/571 (100%) … ───`` de cada shard são
-         suprimidas (16 idênticas a cada intervalo é puro ruído).
-         Uma thread agregadora emite UMA linha cluster-wide com
-         counts reais (``provider_error``, ``unallocated_pid``, …).
+    Detecta automaticamente o fim do sweep e imprime um resumo
+    consolidado (mesmo formato de ``judex relatar``). Em sweeps com
+    shards, agrega o progresso dos vários shards em uma linha por
+    intervalo — sem 16 logs idênticos disputando a tela. Use
+    ``--persistir`` para continuar acompanhando em vez de encerrar.
     """
     from scripts.follow_run import run_follow
     raise typer.Exit(code=run_follow(
@@ -1109,23 +1058,13 @@ def relatar(
              "Funciona tanto para run em curso quanto para run finalizado.",
     ),
 ) -> None:
-    """Consolida o estado de um run de ``executar`` em um relatório único.
+    """Resume o estado de um sweep num relatório consolidado.
 
-    Caminha por ``shard-*/executar.state.json``,
-    ``shard-*/executar.errors.jsonl`` e ``shard-*/report.md`` (ou seus
-    equivalentes top-level em mono) e renderiza:
-
-    - banner de status (``DONE``/``RUNNING``/``EMPTY``);
-    - mix de status por estágio (processos / pecas / text);
-    - wall-clock (maior shard + soma) e custo de OCR (USD);
-    - residuals classificados por ``(kind, status)``, com label
-      humano e contagem;
-    - próximos passos copy-paste (loops ``--retentar-de`` por shard
-      para classes retryable; classes terminais ficam só listadas).
-
-    Idempotente, somente-leitura, executa em <1 s em runs finalizados.
-    Pareado com ``acompanhar`` (que chama o mesmo renderer ao detectar
-    fim-de-run).
+    Mostra status, mix por estágio (processos / peças / texto),
+    wall-clock, custo de OCR, lista de erros agrupados por causa, e
+    próximos passos copy-paste para recuperar o que ainda dá. Funciona
+    em sweep em curso ou já finalizado — somente leitura, idempotente,
+    roda em menos de 1 s.
     """
     from judex.sweeps.run_summary import render_summary, summarize_run
     typer.echo(render_summary(summarize_run(run_dir)), nl=False)
@@ -1146,16 +1085,11 @@ def probe_cmd(
         help="Intervalo de atualização em segundos (0 = mostra uma vez e sai).",
     ),
 ) -> None:
-    """Mostra o progresso de uma varredura sharded em tempo real.
+    """Mostra ao vivo o progresso de um sweep com shards.
 
-    Lê `shard-*/sweep.state.json` sob `--out-root` e renderiza uma
-    tabela rich com done/target, throughput por shard, regime de WAF
-    (colorido) e ETA agregada. Com `--watch N` redesenha a tela a cada
-    N segundos (Ctrl-C para sair).
-
-    A fonte de verdade de `target` é `<out-root>/shards/*.shard.N.csv`
-    — gerado automaticamente pelo launcher de `varrer-processos
-    --shards`.
+    Renderiza uma tabela com done/target, throughput por shard, regime
+    de WAF (colorido) e ETA agregada. Com ``--watch N`` redesenha a
+    cada N segundos (Ctrl-C sai).
     """
     from scripts.probe_sharded import run_probe
 
@@ -1192,21 +1126,18 @@ def analisar_regimes(
              "para obter só as mudanças.",
     ),
 ) -> None:
-    """Reconstrói a trajetória de regime de um sweep a partir de seu log.
+    """Diagnostica o histórico de throughput de um sweep terminado.
 
-    Lê ``sweep.log.jsonl`` (varrer-processos) ou ``pdfs.log.jsonl``
-    (baixar-pecas) — auto-detectado — e responde duas perguntas
-    operacionais sem ``jq``:
+    Reconstrói as transições de regime (``warming`` →
+    ``approaching_collapse`` → ``collapse``) a partir do log do sweep
+    e responde:
 
-    1. **Quando o regime mudou?** Lista as transições com ``fail_rate``,
-       ``p95`` e qual eixo (A=fail-rate / B=p95) promoveu cada banda.
-    2. **Onde a queda começou?** Para cada banda severa
-       (``l2_engaged`` / ``approaching_collapse`` / ``collapse``),
-       o primeiro registro que a atingiu.
+    1. **Quando o regime mudou?** Lista cada transição com ``fail_rate``
+       e ``p95``, mostrando qual métrica disparou.
+    2. **Onde a queda começou?** Primeiro registro a atingir cada banda
+       severa.
 
-    Distingue-se de ``probe`` (que lê o snapshot ``*.state.json`` para
-    monitoramento ao vivo) por ler o log append-only e responder
-    perguntas históricas.
+    Use ``--apenas-transicoes`` para sweeps grandes (só as mudanças).
     """
     from scripts.analyze_regimes import run_analyze_regimes
 
@@ -1225,12 +1156,11 @@ def analisar_regimes(
 
 @debug_app.command(name="validar-gabarito")
 def validar_gabarito() -> None:
-    """Diff da saída do raspador contra os gabaritos conferidos à mão.
+    """Compara o raspador com os gabaritos conferidos à mão.
 
-    Lê cada fixture em ``tests/ground_truth/*.json``, raspa o processo
-    correspondente pelo backend HTTP e imprime os diffs por fixture e
-    o resumo final. Atinge o portal do STF na primeira execução; o
-    cache HTML absorve as chamadas seguintes.
+    Lê ``tests/ground_truth/*.json``, raspa cada processo via HTTP e
+    imprime os diffs por fixture mais o resumo. Atinge o portal STF
+    apenas na primeira execução; o cache HTML absorve o resto.
     """
     from scripts.validate_ground_truth import run_validate_ground_truth
 
