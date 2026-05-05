@@ -305,6 +305,50 @@ def test_recovery_recipe_routes_terminal_to_drop() -> None:
     assert recipe.command_hint is None
 
 
+def test_recovery_recipe_routes_votos_404_to_permanent_404() -> None:
+    """The ``digital.stf.jus.br/.../votos/{id}/conteudo.pdf`` endpoint
+    serves PDFs that were withdrawn / never published. A 404 there is
+    deterministic and permanent — re-running just confirms the same
+    absence. Distinct recipe so operators (and limpar) can see these as
+    a separate accounting bucket without lumping them with WAF 404s
+    that *would* be transient on a different IP.
+
+    Sub-issue 05 of .scratch/run-cleanup-loop/. Concrete cases that
+    triggered this: HC 252164, 264813, 266879 (each with a
+    Voto + Relatório symmetric pair).
+    """
+    row = {
+        "status": "http_error",
+        "error": "HTTPError: 404",
+        "http_status": 404,
+        "url": "https://digital.stf.jus.br/decisoes-monocraticas/api/public/votos/12345/conteudo.pdf",
+    }
+    recipe = recovery_recipe("baixar", row)
+    assert recipe.action == "drop_terminal"
+    # Must surface the permanent-404 reason in the summary so the
+    # operator (or a future limpar count) can distinguish.
+    summary_lower = (recipe.summary or "").lower()
+    assert "permanent" in summary_lower or "withdrawn" in summary_lower, (
+        f"summary must flag the permanent-404 nature, got: {recipe.summary!r}"
+    )
+
+
+def test_recovery_recipe_non_votos_404_keeps_generic_drop() -> None:
+    """A 404 on a non-votos URL must keep the generic terminal recipe —
+    the permanent-404 override is keyed on the votos endpoint specifically.
+    """
+    row = {
+        "status": "http_error",
+        "error": "HTTPError: 404",
+        "http_status": 404,
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=999&ext=.pdf",
+    }
+    recipe = recovery_recipe("baixar", row)
+    assert recipe.action == "drop_terminal"
+    summary_lower = (recipe.summary or "").lower()
+    assert "permanent" not in summary_lower
+
+
 def test_recovery_recipe_routes_cross_stage_to_refetch_upstream() -> None:
     """no_bytes on extrair must point at the unified pipeline rerun, not
     at the removed legacy baixar-pecas/extrair-pecas commands."""

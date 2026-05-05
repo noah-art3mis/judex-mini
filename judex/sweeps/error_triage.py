@@ -133,6 +133,37 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ),
 }
 
+# URL substring patterns on which an HTTP 404 is *deterministic and
+# permanent*, not a WAF/transient flake. The
+# ``digital.stf.jus.br/decisoes-monocraticas/api/public/votos/{id}/conteudo.pdf``
+# endpoint serves Voto/Relatório PDFs that may have been withdrawn or
+# never finalised — re-running on a fresh IP returns the same 404.
+# Recovery: drop quietly, distinct from a generic terminal so operators
+# can account for these without thinking they're missed retries.
+_PERMANENT_404_URL_SUBSTRINGS: tuple[str, ...] = (
+    "digital.stf.jus.br/decisoes-monocraticas/api/public/votos/",
+)
+
+
+_PERMANENT_404_RECIPE = Recipe(
+    "drop_terminal",
+    "permanent 404 on a known-withdrawn endpoint (votos/conteudo.pdf) — PDF was never published or has been removed; retry returns the same 404 on any IP",
+)
+
+
+def _is_permanent_404(row: dict) -> bool:
+    """True if a row is an HTTP 404 against a known-permanent endpoint.
+
+    Distinct from generic terminal 404s (which the ``(stage, terminal)``
+    recipe catches) because the *reason* is provable: the upstream
+    endpoint serves these as deterministic 404s rather than WAF blocks.
+    """
+    if row.get("http_status") != 404:
+        return False
+    url = row.get("url") or ""
+    return any(p in url for p in _PERMANENT_404_URL_SUBSTRINGS)
+
+
 # Status-specific overrides on extrair: classifier returns ``terminal``
 # for these statuses, but the operator action is *not* "drop"; it's a
 # different tool. Looked up before the generic ``(stage, kind)`` table.
@@ -314,6 +345,13 @@ def recovery_recipe(stage: Stage, row: dict) -> Recipe:
     different tool (provider switch / byte refetch), so the recipe
     points at that tool rather than at ``drop_terminal``.
     """
+    # Permanent-404 override fires across every stage: the same
+    # known-deterministic 404 endpoints would emit identical signals
+    # regardless of which stage observed them. Checked before the
+    # extrair-status overrides because a permanent 404 is more
+    # specific than a generic empty/unknown_type/outlier classification.
+    if _is_permanent_404(row):
+        return _PERMANENT_404_RECIPE
     if stage == "extrair":
         status = row.get("status")
         if status in _EXTRAIR_STATUS_OVERRIDES:
