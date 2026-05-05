@@ -96,7 +96,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("varrer", "transient"): Recipe(
         "replay",
         "WAF 403 / 5xx / SSL / cookies churn — cookies + IP rotate naturally between runs",
-        "uv run judex debug varrer-processos --retentar-de <run>/sweep.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("varrer", "cross_stage"): Recipe(
         "drop_terminal",
@@ -110,7 +110,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("baixar", "transient"): Recipe(
         "replay",
         "empty / non-document / 5xx / SSL / Timeout — usually auth/cookie/Referer churn (abaX.asp triad, see CLAUDE.md)",
-        "uv run judex debug baixar-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("baixar", "cross_stage"): Recipe(
         "drop_terminal",
@@ -124,28 +124,42 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("extrair", "transient"): Recipe(
         "replay",
         "Fly OCR 502 / network blip / provider error — re-queue",
-        "uv run judex debug extrair-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("extrair", "cross_stage"): Recipe(
         "refetch_upstream",
-        "no_bytes — bytes weren't downloaded; re-baixar first, then re-extrair",
-        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/  # then debug extrair-pecas same csv",
+        "no_bytes — bytes weren't downloaded; re-run executar against the same range/CSV (cache-skips the bytes that did succeed, refetches the missing)",
+        "uv run judex executar --csv <subset> --saida <run>/",
     ),
 }
 
 # Status-specific overrides on extrair: classifier returns ``terminal``
-# for both, but the operator action is *not* "drop"; it's a different
-# tool. Looked up before the generic ``(stage, kind)`` table.
+# for these statuses, but the operator action is *not* "drop"; it's a
+# different tool. Looked up before the generic ``(stage, kind)`` table.
 _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     "empty": Recipe(
         "switch_provider",
         "scanned/image-only PDF — pypdf gave up; re-extract with a beefier provider",
-        "uv run judex debug extrair-pecas --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
+        "uv run judex executar --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
     ),
     "unknown_type": Recipe(
         "refetch_bytes",
-        "magic bytes weren't %PDF / {\\rtf — cache is corrupt; refresh the bytes",
-        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/",
+        "magic bytes weren't %PDF / {\\rtf — cache is corrupt; refresh the bytes via a fresh executar pass",
+        "uv run judex executar --csv <subset> --saida <run>/  # cache-skip on bytes drops, fresh fetch refills",
+    ),
+    # ``outlier_skipped``: emitted by the runner when a cached PDF exceeds
+    # the cloud-OCR body cap (>1 MB by default — Modal/Fly response-size
+    # limit). Re-running the same sweep would skip again. The actionable
+    # recovery is **local** Tesseract, which has no body-size limit.
+    # Action shape matches ``empty`` (provider switch) but the destination
+    # provider is specifically the local one. The single-PDF re-OCR is
+    # ideally URL-scoped via ``judex extrair-urls`` (.scratch/per-url-extract/);
+    # current best-effort points at ``executar --csv`` which does the work
+    # but over-extracts whole cases.
+    "outlier_skipped": Recipe(
+        "switch_provider",
+        "PDF exceeds cloud-OCR body cap — re-extract with local tesseract (no cap)",
+        "uv run judex executar --csv <subset> --provedor tesseract --forcar --saida <run>-outlier-recover/",
     ),
 }
 

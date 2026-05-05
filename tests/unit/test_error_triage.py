@@ -240,6 +240,10 @@ def test_extrair_empty_routes_to_switch_provider() -> None:
                                           "error": "pypdf returned 0 chars"})
     assert recipe.action == "switch_provider"
     assert "chandra" in (recipe.command_hint or "")
+    # Recipe must point at the live unified-pipeline command, not the
+    # removed legacy `extrair-pecas`.
+    assert "judex executar" in (recipe.command_hint or "")
+    assert "extrair-pecas" not in (recipe.command_hint or "")
 
 
 def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
@@ -248,7 +252,38 @@ def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
                              {"status": "unknown_type",
                               "error": "extension not in {pdf, rtf}"})
     assert recipe.action == "refetch_bytes"
-    assert "baixar-pecas" in (recipe.command_hint or "")
+    # Refetch-then-re-extract is two steps in the unified pipeline,
+    # both via `judex executar` (no separate baixar-pecas command exists
+    # since the 0e874b3 cleanup).
+    assert "judex executar" in (recipe.command_hint or "")
+    assert "baixar-pecas" not in (recipe.command_hint or "")
+
+
+def test_extrair_outlier_skipped_routes_to_switch_provider_local() -> None:
+    """``outlier_skipped`` is emitted by the runner when a PDF exceeds the
+    cloud-OCR size cap (>1 MB by default — Modal/Fly response-body limit).
+    Re-running with the *same* provider would skip again. The actionable
+    recovery is local Tesseract (no body cap).
+
+    Distinct command-hint shape from ``empty`` (which routes to chandra
+    /mistral): outliers specifically require a local provider, not just
+    any beefier one. Sub-issue 02 of .scratch/run-cleanup-loop/.
+    """
+    recipe = recovery_recipe(
+        "extrair",
+        {"status": "outlier_skipped",
+         "error_type": "OutlierPdf",
+         "error": "PDF size 1.19 MB exceeds 1 MB cloud-OCR threshold"},
+    )
+    assert recipe.action == "switch_provider"
+    hint = recipe.command_hint or ""
+    assert "tesseract" in hint, hint
+    assert "judex executar" in hint, hint
+    # Must not point at a cloud provider — defeats the purpose.
+    for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
+        assert cloud not in hint, (
+            f"outlier recipe should target *local* tesseract, not {cloud}: {hint}"
+        )
 
 
 def test_recovery_recipe_routes_transient_to_replay() -> None:
@@ -271,12 +306,14 @@ def test_recovery_recipe_routes_terminal_to_drop() -> None:
 
 
 def test_recovery_recipe_routes_cross_stage_to_refetch_upstream() -> None:
-    """no_bytes on extrair must point at re-baixar, not at retry-extrair."""
+    """no_bytes on extrair must point at the unified pipeline rerun, not
+    at the removed legacy baixar-pecas/extrair-pecas commands."""
     recipe = recovery_recipe("extrair",
                              {"status": "no_bytes",
-                              "error": "run baixar-pecas first"})
+                              "error": "bytes missing from cache"})
     assert recipe.action == "refetch_upstream"
-    assert "baixar-pecas" in (recipe.command_hint or "")
+    assert "judex executar" in (recipe.command_hint or "")
+    assert "baixar-pecas" not in (recipe.command_hint or "")
 
 
 def test_recovery_recipe_ok_action_is_none() -> None:
