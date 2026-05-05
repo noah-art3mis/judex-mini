@@ -283,122 +283,93 @@ def executar(
     # Modos de entrada (mutuamente exclusivos): range, --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
         None, "-c", "--classe",
-        help="[modo range] Classe processual (HC, RE, AI, ADI etc.). "
+        help="[modo intervalo] Classe processual (HC, RE, AI, ADI etc.). "
              "Combine com -i e -f para rodar um intervalo contíguo sem CSV.",
     ),
     inicio: Optional[int] = typer.Option(
         None, "-i", "--inicio",
-        help="[modo range] Primeiro processo do intervalo (inclusivo).",
+        help="[modo intervalo] Primeiro processo do intervalo (inclusivo).",
     ),
     fim: Optional[int] = typer.Option(
         None, "-f", "--fim",
-        help="[modo range] Último processo do intervalo (inclusivo).",
+        help="[modo intervalo] Último processo do intervalo (inclusivo).",
     ),
     csv: Optional[Path] = typer.Option(
         None, "--csv",
         help="[modo CSV] Arquivo com colunas 'classe,processo' (ou 'processo_id'). "
-             "Cada linha é um alvo do pipeline.",
+             "Cada linha é um alvo a processar.",
     ),
     retentar_de: Optional[Path] = typer.Option(
         None, "--retentar-de",
-        help="[modo retry] Caminho para um executar.errors.jsonl existente; "
-             "reroda só os (classe, processo) com falha transiente "
-             "(judex.pipeline.log.classify_unified_error).",
+        help="[modo nova tentativa] Caminho para um executar.errors.jsonl "
+             "existente; executa novamente apenas os pares (classe, processo) "
+             "com falha transitória.",
     ),
     rotulo: Optional[str] = typer.Option(
         None, "--rotulo",
-        help="Rótulo curto identificando esta execução. Em modo range, "
-             "infere `{CLASSE}_{i}-{f}` se omitido. Quando setado sem "
-             "--saida, --saida defaulta para `runs/coletas/{ts}-{rotulo}/`.",
+        help="Rótulo curto identificando esta execução. Em modo intervalo, "
+             "assume `{CLASSE}_{i}-{f}` quando omitido. Quando definido sem "
+             "--saida, --saida assume `runs/coletas/{ts}-{rotulo}/`.",
     ),
     saida: Optional[Path] = typer.Option(
         None, "--saida",
-        help="Diretório do run. Recebe executar.state.json, executar.log.jsonl, "
-             "executar.errors.jsonl, report.md. Auto-default em modo range "
-             "(ou com --rotulo): runs/coletas/{ts}-{rotulo}/.",
+        help="Diretório da execução. Recebe executar.state.json, "
+             "executar.log.jsonl, executar.errors.jsonl, report.md. "
+             "Padrão automático em modo intervalo (ou com --rotulo): "
+             "runs/coletas/{ts}-{rotulo}/.",
     ),
     provedor: str = typer.Option(
         "pypdf", "--provedor",
         help="Extrator de texto: pypdf | tesseract | tesseract_modal | "
              "tesseract_fly | mistral | chandra | unstructured | auto. "
-             "Padrão: pypdf (local, grátis).",
+             "Padrão: pypdf (local, gratuito).",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
-        help="Re-extrai mesmo se o sidecar já for igual a --provedor "
-             "(bypass do skip-on-cache-match em handle_extract_text).",
+        help="Re-extrai o texto mesmo quando o sidecar já indica o mesmo "
+             "provedor (ignora a verificação de cache).",
     ),
     portal_concurrencia: int = typer.Option(
         1, "--portal-concurrencia",
-        help="Concorrência do pool portal (case JSON). Direct-IP: 1.",
+        help="Concorrência do pool portal (JSON do processo). IP direto: 1.",
     ),
     sistemas_concurrencia: int = typer.Option(
         1, "--sistemas-concurrencia",
-        help="Concorrência do pool sistemas (PDF bytes). Direct-IP: 1.",
+        help="Concorrência do pool sistemas (bytes do PDF). IP direto: 1.",
     ),
     ocr_concurrencia: int = typer.Option(
         4, "--ocr-concurrencia",
-        help="Concorrência do pool OCR. CPU-bound providers: 4. "
-             "API-bound providers (mistral/chandra/tesseract_fly): 8+.",
-    ),
-    sem_dje: bool = typer.Option(
-        False, "--sem-dje",
-        help="Não buscar publicações DJe durante fetch_meta.",
+        help="Concorrência do pool OCR. Provedores limitados por CPU: 4. "
+             "Provedores limitados por API (mistral/chandra/tesseract_fly): 8+.",
     ),
     proxy_pool: Optional[Path] = typer.Option(
         None, "--proxy-pool",
-        help="Arquivo flat de URLs de proxy (uma por linha). Cada handler HTTP "
-             "rota proxies independentemente. Sem este flag: direct-IP. "
-             "Obrigatório em modo sharded (--shards > 1).",
+        help="Arquivo simples com URLs de proxy (uma por linha). Cada "
+             "handler HTTP roteia proxies de forma independente. Sem esta "
+             "opção: IP direto. Obrigatório em modo fragmentado "
+             "(--shards > 1).",
     ),
     shards: int = typer.Option(
         0, "--shards",
-        help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard). Cada shard recebe sua fatia "
-             "round-robin do --proxy-pool. Exige --csv (ou range), "
-             "--rotulo, --proxy-pool. Mesma forma que varrer-processos / "
-             "baixar-pecas --shards.",
+        help="Se > 1, particiona o CSV em N fragmentos e dispara N "
+             "processos paralelos (um por fragmento). Cada fragmento "
+             "recebe sua fatia round-robin do --proxy-pool. Exige --csv "
+             "(ou intervalo), --rotulo e --proxy-pool.",
     ),
     estrategia_shard: str = typer.Option(
         "interleave", "--estrategia-shard",
-        help="Particionamento de CSV em modo sharded. 'interleave' "
+        help="Particionamento do CSV em modo fragmentado. 'interleave' "
              "(padrão) ou 'range'.",
-    ),
-    # Filter knobs — applied case-by-case inside handle_fetch_meta.
-    impte_contem: str = typer.Option(
-        "", "--impte-contem",
-        help="Filtra cases cujo nome do impetrante contenha qualquer dos "
-             "substrings (separados por '|'). Comparação case- e "
-             "accent-insensitive.",
-    ),
-    relator_contem: str = typer.Option(
-        "", "--relator-contem",
-        help="Filtra cases cujo relator contenha qualquer dos substrings "
-             "(separados por '|').",
-    ),
-    tipos_doc: str = typer.Option(
-        "", "--tipos-doc",
-        help="Limita peças aos doc_types listados (separados por '|').",
-    ),
-    excluir_tipos_doc: str = typer.Option(
-        "", "--excluir-tipos-doc",
-        help="Exclui peças cujo doc_type contenha qualquer dos substrings.",
-    ),
-    limite: int = typer.Option(
-        0, "--limite",
-        help="Cap no número total de cases. 0 = sem cap. Aplicado após "
-             "todos os outros filtros, antes do scheduler ver o seed.",
     ),
     prever: bool = typer.Option(
         False, "--prever",
-        help="Mostra previsão de custo + tempo (varrer + baixar + extrair) "
-             "e sai. Atalho para --dry-run que valida o tamanho do alvo "
-             "sem materializar nada além do CSV temporário.",
+        help="Mostra previsão de custo e tempo (varrer + baixar + extrair) "
+             "e encerra, sem materializar nada além do CSV temporário.",
     ),
     nao_perguntar: bool = typer.Option(
         False, "--nao-perguntar",
-        help="Pula o prompt de confirmação após o banner de custo. "
-             "Necessário para uso non-interactive (cron, nohup).",
+        help="Pula o prompt de confirmação após o painel de custo. "
+             "Necessário para uso não-interativo (cron, nohup).",
     ),
 ) -> None:
     """Pipeline unificado: varrer + baixar + extrair num único processo.
@@ -471,9 +442,6 @@ def executar(
         typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
         raise typer.Exit(code=2)
 
-    if limite > 0:
-        targets = targets[:limite]
-
     # ----- Auto-default --saida from --rotulo when omitted -----
     if saida is None:
         if rotulo is None:
@@ -538,13 +506,7 @@ def executar(
         _push(extra, "--portal-concurrencia", portal_concurrencia)
         _push(extra, "--sistemas-concurrencia", sistemas_concurrencia)
         _push(extra, "--ocr-concurrencia", ocr_concurrencia)
-        _push(extra, "--sem-dje", sem_dje)
         _push(extra, "--forcar", forcar)
-        _push(extra, "--impte-contem", impte_contem)
-        _push(extra, "--relator-contem", relator_contem)
-        _push(extra, "--tipos-doc", tipos_doc)
-        _push(extra, "--excluir-tipos-doc", excluir_tipos_doc)
-        _push(extra, "--limite", limite)
 
         if estrategia_shard not in ("interleave", "range"):
             raise typer.BadParameter(
@@ -579,13 +541,8 @@ def executar(
         portal_concurrencia=portal_concurrencia,
         sistemas_concurrencia=sistemas_concurrencia,
         ocr_concurrencia=ocr_concurrencia,
-        fetch_dje=not sem_dje,
         proxy_pool=proxy_pool,
         forcar=forcar,
-        impte_contains=tuple(s for s in impte_contem.split("|") if s),
-        doc_types=tuple(s for s in tipos_doc.split("|") if s),
-        exclude_doc_types=tuple(s for s in excluir_tipos_doc.split("|") if s),
-        relator_contains=tuple(s for s in relator_contem.split("|") if s),
     )
     raise typer.Exit(code=rc)
 
