@@ -636,6 +636,248 @@ def test_plan_combines_replay_and_provider_switch_in_same_dir(
     assert has_switch
 
 
+# ----- recovery short-circuit (loop-until-stable convergence) --------------
+
+
+def test_provider_switch_already_recovered_drops_from_buckets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After a re-extrair pass writes new text via the destination
+    provider, ``<sha1>.extractor`` carries that provider name. The
+    state.json still records the original ``empty``/``outlier_skipped``
+    status (re-extrair doesn't touch it). The classifier must read the
+    sidecar and skip the row — otherwise the convergence loop would
+    re-dispatch the same recovery forever.
+    """
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+
+    # Simulate the post-recovery state: u1's sidecar already says chandra
+    # (the destination for empty), even though state.json still says empty.
+    sha1 = peca_cache._hash("u1")
+    pecas_root = tmp_path / "pecas-texto"
+    pecas_root.mkdir(parents=True)
+    (pecas_root / f"{sha1}.extractor").write_text("chandra", encoding="utf-8")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    # Drop count-by-count: the row that would have been PROVIDER_SWITCH is
+    # now silently filtered.
+    assert len(buckets[Bucket.PROVIDER_SWITCH]) == 0
+
+
+def test_outlier_already_recovered_drops_from_buckets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same short-circuit for outlier_skipped — sidecar=tesseract means done."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+
+    sha1 = peca_cache._hash("u1")
+    pecas_root = tmp_path / "pecas-texto"
+    pecas_root.mkdir(parents=True)
+    (pecas_root / f"{sha1}.extractor").write_text("tesseract", encoding="utf-8")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("outlier_skipped")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    assert len(buckets[Bucket.PROVIDER_SWITCH]) == 0
+
+
+def test_provider_switch_wrong_extractor_still_dispatches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the sidecar says pypdf (the original failing extractor), the
+    row still routes to PROVIDER_SWITCH — recovery hasn't happened yet."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+
+    sha1 = peca_cache._hash("u1")
+    pecas_root = tmp_path / "pecas-texto"
+    pecas_root.mkdir(parents=True)
+    (pecas_root / f"{sha1}.extractor").write_text("pypdf", encoding="utf-8")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    assert len(buckets[Bucket.PROVIDER_SWITCH]) == 1
+
+
+# ----- run_until_stable -----------------------------------------------------
+
+
+def test_wait_for_pids_returns_when_all_dead(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``wait_for_pids`` polls os.kill(pid, 0); a dead pid raises
+    ProcessLookupError, which the loop treats as 'this one is done'."""
+    from judex.sweeps import limpar as mod
+
+    alive = {1001}  # only one pid 'alive' on first poll, dies on second
+    poll_count = [0]
+
+    def fake_sleep(_secs: float) -> None:
+        poll_count[0] += 1
+        if poll_count[0] >= 2:
+            alive.clear()
+
+    def fake_kill(pid: int, sig: int) -> None:
+        if pid not in alive:
+            raise ProcessLookupError()
+
+    monkeypatch.setattr(mod, "wait_for_pids", mod.wait_for_pids)  # noqa  (sanity)
+    monkeypatch.setattr("time.sleep", fake_sleep)
+    monkeypatch.setattr("os.kill", fake_kill)
+
+    mod.wait_for_pids([1001], poll_interval=0.001)
+    assert poll_count[0] >= 2  # at least one poll where pid was alive
+
+
+def test_wait_for_pids_empty_list_is_noop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Empty pids list returns immediately — no sleeps, no kill calls."""
+    from judex.sweeps import limpar as mod
+
+    sleep_calls = [0]
+    monkeypatch.setattr("time.sleep", lambda _s: sleep_calls.__setitem__(0, sleep_calls[0] + 1))
+    mod.wait_for_pids([], poll_interval=0.001)
+    assert sleep_calls[0] == 0
+
+
+def test_run_until_stable_converges_when_residual_drains(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pass 1 sees 1 actionable, dispatches, waits, then re-classifies →
+    0 actionable → converged."""
+    from judex.sweeps import limpar as mod
+
+    # Initial state: 1 REPLAY row.
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+
+    # Stub out the dispatch + wait so the test doesn't actually spawn.
+    # After the dispatch, simulate "children fixed it" by overwriting
+    # state.json with all rows ok.
+    def fake_execute(plan, pids_path):
+        pids_path.write_text("12345  shard-a\n", encoding="utf-8")
+        # Simulate child writing back: u1 now ok.
+        _write_state(
+            tmp_path / STATE_FILENAME,
+            {"HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("ok")},
+            }},
+        )
+        return mod.ExecuteResult(pids_path=pids_path, pids=[12345])
+
+    monkeypatch.setattr(mod, "execute_recoveries", fake_execute)
+    monkeypatch.setattr(mod, "wait_for_pids", lambda pids, **kw: None)
+
+    result = mod.run_until_stable(tmp_path, max_passes=3)
+    assert result.converged is True
+    assert result.passes_run == 2  # pass 1 dispatched; pass 2 saw 0 actionable
+    assert result.stopped_for_max_passes is False
+
+
+def test_run_until_stable_stops_for_no_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When dispatching does NOT shrink the actionable count, the loop
+    stops early — no point in burning more passes."""
+    from judex.sweeps import limpar as mod
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+
+    def fake_execute(plan, pids_path):
+        pids_path.write_text("12345  shard-a\n", encoding="utf-8")
+        # State unchanged — recovery had no effect.
+        return mod.ExecuteResult(pids_path=pids_path, pids=[12345])
+
+    monkeypatch.setattr(mod, "execute_recoveries", fake_execute)
+    monkeypatch.setattr(mod, "wait_for_pids", lambda pids, **kw: None)
+
+    result = mod.run_until_stable(tmp_path, max_passes=5)
+    assert result.converged is False
+    assert result.stopped_for_no_progress is True
+    # Pass 1 dispatched (1 actionable). Pass 2 saw same 1 actionable
+    # (no progress) and stopped — total 2 passes.
+    assert result.passes_run == 2
+
+
+def test_run_until_stable_caps_at_max_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pathological case: residual shrinks 3→2→1 but the cap fires
+    before zero. Must surface ``stopped_for_max_passes`` so operator
+    knows it's a cap, not a converge."""
+    from judex.sweeps import limpar as mod
+
+    # Always have N actionable, decreasing 1 each pass.
+    state = {"n": 3}
+
+    def write_state_with_n_errors(n: int) -> None:
+        cases = {}
+        for i in range(n):
+            cases[f"HC-{i+1}"] = {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {f"u{i}": _bytes_entry("ok")},
+                "extract_text": {
+                    f"u{i}": _text_entry("provider_error", retry_count=0),
+                },
+            }
+        _write_state(tmp_path / STATE_FILENAME, cases)
+
+    write_state_with_n_errors(state["n"])
+
+    def fake_execute(plan, pids_path):
+        pids_path.write_text("12345  shard-a\n", encoding="utf-8")
+        state["n"] -= 1
+        write_state_with_n_errors(state["n"])
+        return mod.ExecuteResult(pids_path=pids_path, pids=[12345])
+
+    monkeypatch.setattr(mod, "execute_recoveries", fake_execute)
+    monkeypatch.setattr(mod, "wait_for_pids", lambda pids, **kw: None)
+
+    result = mod.run_until_stable(tmp_path, max_passes=2)
+    assert result.stopped_for_max_passes is True
+    assert result.converged is False
+    assert result.passes_run == 2
+
+
 # ----- format_summary -------------------------------------------------------
 
 

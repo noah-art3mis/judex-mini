@@ -253,6 +253,20 @@ def _bucket_for(row: ErrorRow) -> Optional[Bucket]:
         if peca_cache.is_dismissed(row.url):
             return Bucket.DISMISSED
 
+        # Recovery short-circuit: if a previous PROVIDER_SWITCH dispatch
+        # already wrote new text via re-extrair, the extractor sidecar
+        # carries the destination provider for this status. The
+        # state.json still records the old ``empty`` / ``outlier_skipped``
+        # status (re-extrair doesn't touch state.json — it writes to
+        # peca_cache directly), but the work is done. Drop the row so
+        # the convergence loop in ``run_until_stable`` sees the bucket
+        # shrink between passes.
+        if (row.kind == "extract_text"
+                and row.status in _PROVIDER_SWITCH_STATUSES):
+            dest = _PROVIDER_SWITCH_DESTINATIONS.get(row.status)
+            if dest and peca_cache.read_extractor(row.url) == dest:
+                return None
+
     raw = {"status": row.status, "kind": row.kind}
     classified = classify_unified_error(raw)
 
@@ -555,3 +569,135 @@ def execute_recoveries(
 
     pids_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     return result
+
+
+# ---------------------------------------------------------------------------
+# Loop-until-stable: dispatch + wait + re-classify until convergence
+# ---------------------------------------------------------------------------
+
+
+def wait_for_pids(pids: list[int], *, poll_interval: float = 5.0) -> None:
+    """Block until none of ``pids`` are running. Polls with ``os.kill(pid, 0)``
+    which returns silently if the process is alive and raises
+    ``ProcessLookupError`` once it exits. No-op on an empty list.
+
+    The poll-vs-wait choice is intentional: ``os.waitpid`` only works on
+    direct children, but the ``execute_recoveries`` spawns are detached
+    via ``start_new_session=True`` — the limpar parent isn't their
+    parent any more, so ``waitpid`` would return immediately with
+    ECHILD. ``kill -0`` works regardless of process tree.
+    """
+    import os
+    import time
+
+    remaining = set(pids)
+    while remaining:
+        time.sleep(poll_interval)
+        for pid in list(remaining):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                remaining.discard(pid)
+
+
+# Buckets that contribute to "actionable residual" — these are what the
+# convergence loop tries to shrink. Terminal/dismissed/cap-burnt are
+# excluded: they're stable-by-design, not work to do.
+_ACTIONABLE_BUCKETS: tuple[Bucket, ...] = (
+    Bucket.REPLAY,
+    Bucket.REFETCH_UPSTREAM,
+    Bucket.PROVIDER_SWITCH,
+)
+
+
+def _count_actionable(buckets: dict[Bucket, list[ErrorRow]]) -> int:
+    return sum(len(buckets[b]) for b in _ACTIONABLE_BUCKETS)
+
+
+@dataclass
+class LoopResult:
+    """Final state after :func:`run_until_stable` exits."""
+
+    final_buckets: dict[Bucket, list[ErrorRow]]
+    passes_run: int
+    converged: bool        # True if final actionable count == 0
+    stopped_for_no_progress: bool
+    stopped_for_max_passes: bool
+
+
+def run_until_stable(
+    run_dir: Path,
+    *,
+    provedor: str = "auto",
+    max_passes: int = 3,
+    poll_interval: float = 5.0,
+    on_pass_start=None,        # optional: callable(pass_n, actionable_count)
+    on_pass_end=None,          # optional: callable(pass_n, n_dispatched, pids)
+) -> LoopResult:
+    """Run ``limpar --apply`` in a loop until residuals stop shrinking
+    or ``max_passes`` is hit.
+
+    Each pass: classify → plan → spawn detached children → wait for
+    them → re-classify. Convergence is "non-empty actionable residual
+    that didn't shrink between this pass and the previous." That stop
+    condition catches both the success case (residual went to 0) and
+    the stuck case (recovery dispatched but produced the same residual,
+    so further passes won't help).
+
+    ``provedor`` is forwarded to REPLAY's ``--retentar-de`` dispatches
+    only — PROVIDER_SWITCH and REFETCH_UPSTREAM dispatches use their
+    recipe-prescribed providers regardless.
+    """
+    last_actionable: Optional[int] = None
+    last_buckets: Optional[dict[Bucket, list[ErrorRow]]] = None
+
+    for pass_n in range(1, max_passes + 1):
+        dirs = discover_run_dirs(run_dir)
+        buckets = classify_residual(dirs)
+        actionable = _count_actionable(buckets)
+        last_buckets = buckets
+
+        if on_pass_start is not None:
+            on_pass_start(pass_n, actionable)
+
+        if actionable == 0:
+            return LoopResult(
+                final_buckets=buckets, passes_run=pass_n,
+                converged=True,
+                stopped_for_no_progress=False,
+                stopped_for_max_passes=False,
+            )
+
+        if last_actionable is not None and actionable >= last_actionable:
+            return LoopResult(
+                final_buckets=buckets, passes_run=pass_n,
+                converged=False,
+                stopped_for_no_progress=True,
+                stopped_for_max_passes=False,
+            )
+
+        plan = plan_recoveries(buckets, provedor=provedor)
+        if not plan:
+            return LoopResult(
+                final_buckets=buckets, passes_run=pass_n,
+                converged=False,
+                stopped_for_no_progress=True,
+                stopped_for_max_passes=False,
+            )
+
+        pids_path = run_dir / f"limpar-pass-{pass_n}.pids"
+        result = execute_recoveries(plan, pids_path)
+
+        if on_pass_end is not None:
+            on_pass_end(pass_n, len(result.pids), result.pids)
+
+        wait_for_pids(result.pids, poll_interval=poll_interval)
+        last_actionable = actionable
+
+    return LoopResult(
+        final_buckets=last_buckets or {b: [] for b in _BUCKET_ORDER},
+        passes_run=max_passes,
+        converged=False,
+        stopped_for_no_progress=False,
+        stopped_for_max_passes=True,
+    )
