@@ -63,3 +63,14 @@ def test_zero_chars_is_suspicious_too() -> None:
     assert is_suspicious_short(0, "DECISÃO MONOCRÁTICA") is True
     # Procedural still false — empty CERTIDÃO is also fine.
     assert is_suspicious_short(0, "CERTIDÃO") is False
+
+
+def test_chars_none_is_not_suspicious() -> None:
+    """When ``chars`` is None (peça never extracted — LEFT JOIN miss
+    on the warehouse), the detector returns False. That's a separate
+    problem (no_bytes / missing-extraction) the runner's status
+    surface owns; we must not conflate it with the silent-success
+    short-text pattern this detector targets."""
+    assert is_suspicious_short(None, "DECISÃO MONOCRÁTICA") is False
+    assert is_suspicious_short(None, "DESPACHO") is False
+    assert is_suspicious_short(None, None) is False

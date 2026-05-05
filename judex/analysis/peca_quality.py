@@ -44,16 +44,18 @@ _SUSPICIOUS_DOC_TYPES: frozenset[str] = frozenset({
 SUSPICIOUS_THRESHOLD_CHARS: int = 200
 
 
-def is_suspicious_short(chars: int, doc_type: Optional[str]) -> bool:
+def is_suspicious_short(chars: Optional[int], doc_type: Optional[str]) -> bool:
     """True if a peça's extracted text is suspiciously short.
 
     Heuristic for the pypdf silent-failure pattern (chars > 0 but the
     text is just header metadata, missing the document body). Returns
     False for procedural doc_types (CERTIDÃO, INTIMAÇÃO, etc.) where
-    short text is expected, and for unknown / ``None`` doc_types where
-    no threshold applies.
+    short text is expected, for unknown / ``None`` doc_types where no
+    threshold applies, and for ``chars=None`` (peça was never extracted
+    — different problem than "extracted but too short", surfaced by the
+    runner's ``no_bytes`` / missing status, not by this detector).
     """
-    if doc_type is None:
+    if doc_type is None or chars is None:
         return False
     upper = doc_type.upper().strip()
     if upper not in _SUSPICIOUS_DOC_TYPES:

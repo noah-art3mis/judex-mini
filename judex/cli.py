@@ -78,7 +78,7 @@ debug_app = typer.Typer(
     help="Utilitários auxiliares (inspeção, backup, exportação, validação).",
     no_args_is_help=True,
 )
-app.add_typer(debug_app, name="debug")
+app.add_typer(debug_app, name="debug", rich_help_panel="Utilitários")
 
 
 # ---------------------------------------------------------------------------
@@ -272,7 +272,7 @@ def fazer_backup(
 #              num único processo asyncio com três pools concorrentes)
 
 
-@app.command(name="executar")
+@app.command(name="executar", rich_help_panel="Coleta")
 def executar(
     # Modos de entrada (mutuamente exclusivos): range, --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
@@ -582,7 +582,7 @@ def _print_executar_forecast(
 # `atualizar` — varre os processos novos até o leading edge atual da STF
 
 
-@app.command(name="atualizar")
+@app.command(name="atualizar", rich_help_panel="Manutenção do corpus")
 def atualizar_corpus(
     classe: str = typer.Argument(
         ...,
@@ -743,7 +743,7 @@ def _run_warehouse(
     )
 
 
-@app.command(name="warehouse")
+@app.command(name="warehouse", rich_help_panel="Manutenção do corpus")
 def warehouse(
     diretorio_processos: Path = typer.Option(
         Path("data/source/processos"), "--diretorio-processos",
@@ -793,7 +793,7 @@ def warehouse(
     ))
 
 
-@app.command(name="atualizar-warehouse", hidden=True)
+@app.command(name="atualizar-warehouse", hidden=True, rich_help_panel="Manutenção do corpus")
 def atualizar_warehouse(
     diretorio_processos: Path = typer.Option(
         Path("data/source/processos"), "--diretorio-processos",
@@ -827,7 +827,7 @@ def atualizar_warehouse(
 # `re-extrair` — URL-scoped re-extraction (no fetch, no case-walker)
 
 
-@app.command(name="re-extrair")
+@app.command(name="re-extrair", rich_help_panel="Peças individuais")
 def re_extrair_cmd(
     arquivo_urls: Path = typer.Argument(
         ..., exists=True, dir_okay=False, readable=True,
@@ -870,10 +870,57 @@ def re_extrair_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `peca-spot-check` — sample peças from the warehouse for quality inspection
+
+
+@app.command(name="peca-spot-check", rich_help_panel="Peças individuais")
+def peca_spot_check_cmd(
+    classe: Optional[str] = typer.Option(
+        None, "--classe",
+        help="Filtra para uma classe processual (HC, ADI, RE, …).",
+    ),
+    ano: Optional[int] = typer.Option(
+        None, "--ano",
+        help="Filtra para um ano de protocolo do processo.",
+    ),
+    doc_type: Optional[str] = typer.Option(
+        None, "--doc-type",
+        help='Filtra por tipo de peça (ex.: "DECISÃO MONOCRÁTICA", "VOTO").',
+    ),
+    n: int = typer.Option(
+        10, "-n", "--n",
+        help="Quantas peças amostrar (default 10).",
+    ),
+    seed: Optional[int] = typer.Option(
+        None, "--seed",
+        help="Fixa a aleatoriedade — mesma seed re-produz a mesma amostra.",
+    ),
+) -> None:
+    """Amostra N peças do warehouse e mostra o texto extraído.
+
+    Usado para auditar qualidade da extração — cada amostra exibe
+    classe, processo, tipo, contagem de chars e um preview. Peças
+    suspeitas-curtas (provavelmente falha silenciosa do pypdf — chars
+    > 0 mas só com cabeçalho) são marcadas com ⚠.
+
+    Pré-requisito: o warehouse precisa estar construído (``judex
+    warehouse``).
+    """
+    from judex.analysis.peca_spot_check import render_samples, sample_pecas
+    from judex.warehouse.query import open_readonly
+
+    con = open_readonly()
+    samples = sample_pecas(
+        con, classe=classe, year=ano, doc_type=doc_type, n=n, seed=seed,
+    )
+    typer.echo(render_samples(samples), nl=False)
+
+
+# ---------------------------------------------------------------------------
 # `peca-dismiss` / `peca-undismiss` — operator-set "stop retrying this URL"
 
 
-@app.command(name="peca-dismiss")
+@app.command(name="peca-dismiss", rich_help_panel="Peças individuais")
 def peca_dismiss_cmd(
     url: str = typer.Argument(..., help="URL da peça a dispensar."),
     motivo: str = typer.Option(
@@ -895,7 +942,7 @@ def peca_dismiss_cmd(
     typer.echo(f"  motivo: {motivo}")
 
 
-@app.command(name="peca-undismiss")
+@app.command(name="peca-undismiss", rich_help_panel="Peças individuais")
 def peca_undismiss_cmd(
     url: str = typer.Argument(..., help="URL da peça a re-habilitar."),
 ) -> None:
@@ -946,10 +993,77 @@ def providers_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `acompanhar` — tail unificado mono + sharded com auto-encerramento
+
+
+@app.command(name="acompanhar", rich_help_panel="Coleta")
+def acompanhar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run. Auto-detecta layout: sharded "
+             "(shard-*/driver.log) ou monolítico (driver.log / "
+             "launcher.log no topo).",
+    ),
+    n: int = typer.Option(
+        20, "-n",
+        help="Linhas iniciais antes do follow.",
+    ),
+    agg_interval: float = typer.Option(
+        30.0, "--agg-interval",
+        help="Intervalo (segundos) entre as linhas agregadas "
+             "``─── … ───`` (sharded) e entre as checagens de "
+             "fim-de-run (mono e sharded).",
+    ),
+    persistir: bool = typer.Option(
+        False, "--persistir",
+        help="Continua tailando após todos os shards terem registrado "
+             "``executar: done`` (comportamento legado). Padrão é "
+             "encerrar com um ``relatar`` consolidado.",
+    ),
+) -> None:
+    """Acompanha uma Coleta ao vivo e mostra o relatório final quando termina.
+
+    Detecta automaticamente o fim da Coleta e imprime um resumo
+    consolidado (mesmo formato de ``judex relatar``). Em Coletas
+    paralelizadas (shards), agrega o progresso dos vários shards em
+    uma linha por intervalo — sem 16 logs idênticos disputando a tela.
+    Use ``--persistir`` para continuar acompanhando em vez de encerrar.
+    """
+    from scripts.follow_run import run_follow
+    raise typer.Exit(code=run_follow(
+        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `relatar` — consolidação pós-run (residuals + próximos passos)
+
+
+@app.command(name="relatar", rich_help_panel="Coleta")
+def relatar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run (mono ou sharded). "
+             "Funciona tanto para run em curso quanto para run finalizado.",
+    ),
+) -> None:
+    """Resume o estado de uma Coleta num relatório consolidado.
+
+    Mostra status, mix por Pool (processos / peças / texto),
+    wall-clock, custo de OCR, lista de erros agrupados por causa, e
+    próximos passos copy-paste para recuperar o que ainda dá. Funciona
+    em Coleta em curso ou já finalizada — somente leitura, idempotente,
+    roda em menos de 1 s.
+    """
+    from judex.sweeps.run_summary import render_summary, summarize_run
+    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
+
+
+# ---------------------------------------------------------------------------
 # `limpar` — close a finished run's residual in one command
 
 
-@app.command(name="limpar")
+@app.command(name="limpar", rich_help_panel="Coleta")
 def limpar(
     run_dir: Path = typer.Argument(
         ...,
@@ -1043,73 +1157,6 @@ def limpar(
         f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
     )
     raise typer.Exit(code=0)
-
-
-# ---------------------------------------------------------------------------
-# `acompanhar` — tail unificado mono + sharded com auto-encerramento
-
-
-@app.command(name="acompanhar")
-def acompanhar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run. Auto-detecta layout: sharded "
-             "(shard-*/driver.log) ou monolítico (driver.log / "
-             "launcher.log no topo).",
-    ),
-    n: int = typer.Option(
-        20, "-n",
-        help="Linhas iniciais antes do follow.",
-    ),
-    agg_interval: float = typer.Option(
-        30.0, "--agg-interval",
-        help="Intervalo (segundos) entre as linhas agregadas "
-             "``─── … ───`` (sharded) e entre as checagens de "
-             "fim-de-run (mono e sharded).",
-    ),
-    persistir: bool = typer.Option(
-        False, "--persistir",
-        help="Continua tailando após todos os shards terem registrado "
-             "``executar: done`` (comportamento legado). Padrão é "
-             "encerrar com um ``relatar`` consolidado.",
-    ),
-) -> None:
-    """Acompanha uma Coleta ao vivo e mostra o relatório final quando termina.
-
-    Detecta automaticamente o fim da Coleta e imprime um resumo
-    consolidado (mesmo formato de ``judex relatar``). Em Coletas
-    paralelizadas (shards), agrega o progresso dos vários shards em
-    uma linha por intervalo — sem 16 logs idênticos disputando a tela.
-    Use ``--persistir`` para continuar acompanhando em vez de encerrar.
-    """
-    from scripts.follow_run import run_follow
-    raise typer.Exit(code=run_follow(
-        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
-    ))
-
-
-# ---------------------------------------------------------------------------
-# `relatar` — consolidação pós-run (residuals + próximos passos)
-
-
-@app.command(name="relatar")
-def relatar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run (mono ou sharded). "
-             "Funciona tanto para run em curso quanto para run finalizado.",
-    ),
-) -> None:
-    """Resume o estado de uma Coleta num relatório consolidado.
-
-    Mostra status, mix por Pool (processos / peças / texto),
-    wall-clock, custo de OCR, lista de erros agrupados por causa, e
-    próximos passos copy-paste para recuperar o que ainda dá. Funciona
-    em Coleta em curso ou já finalizada — somente leitura, idempotente,
-    roda em menos de 1 s.
-    """
-    from judex.sweeps.run_summary import render_summary, summarize_run
-    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
 
 
 # ---------------------------------------------------------------------------
