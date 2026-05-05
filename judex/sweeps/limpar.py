@@ -86,14 +86,23 @@ class Spawn:
 
     ``argv`` is what :func:`execute_recoveries` passes to
     ``subprocess.Popen``. ``saida`` is the per-shard run dir.
-    ``source_errors_file`` is the input the child consumes via
-    ``--retentar-de``.
+    ``source_errors_file`` is the input the child consumes (the
+    pre-existing ``executar.errors.jsonl`` for REPLAY spawns; a
+    materialised URL-list or CSV for PROVIDER_SWITCH / REFETCH_UPSTREAM
+    spawns).
+
+    ``materialized_content`` carries the *intended* file content for
+    spawns that need to write a fresh input file before launch. When
+    non-None, :func:`execute_recoveries` writes it to
+    ``source_errors_file`` just before spawning. ``plan_recoveries``
+    keeps this field as data only — no disk side effects under dry-run.
     """
 
     argv: list[str]
     saida: Path
     source_errors_file: Path
     n_replay_rows: int
+    materialized_content: Optional[str] = None
 
 
 # Bucket order for summary line — matches enum declaration order.
@@ -282,28 +291,29 @@ def classify_residual(dirs: list[Path]) -> dict[Bucket, list[ErrorRow]]:
 # ---------------------------------------------------------------------------
 
 
-def _materialize_urls_file(
-    source_dir: Path, status: str, rows: list[ErrorRow],
-) -> Path:
-    """Write a URL-list file under source_dir, one URL per line.
+def _urls_file_path(source_dir: Path, status: str) -> Path:
+    """Where the URL-list file *will* land for a (source_dir, status)."""
+    return source_dir / f"limpar-{status}.urls.txt"
 
-    Filename includes the status so concurrent dispatches for different
-    statuses don't clobber each other's input files.
-    """
-    out = source_dir / f"limpar-{status}.urls.txt"
+
+def _refetch_csv_path(source_dir: Path) -> Path:
+    """Where the refetch CSV *will* land for a source_dir."""
+    return source_dir / "limpar-refetch.csv"
+
+
+def _build_urls_content(rows: list[ErrorRow]) -> str:
+    """Render a URL-list payload: one URL per line, deduped, trailing newline."""
     seen: set[str] = set()
     lines: list[str] = []
     for row in rows:
         if row.url and row.url not in seen:
             seen.add(row.url)
             lines.append(row.url)
-    out.write_text(("\n".join(lines) + "\n") if lines else "", encoding="utf-8")
-    return out
+    return ("\n".join(lines) + "\n") if lines else ""
 
 
-def _materialize_cases_csv(source_dir: Path, name: str, rows: list[ErrorRow]) -> Path:
-    """Write a (classe,processo) CSV under source_dir, deduped on the pair."""
-    out = source_dir / f"limpar-{name}.csv"
+def _build_cases_csv_content(rows: list[ErrorRow]) -> str:
+    """Render a (classe,processo) CSV payload, deduped on the pair."""
     seen: set[tuple[str, int]] = set()
     lines = ["classe,processo"]
     for row in rows:
@@ -311,8 +321,7 @@ def _materialize_cases_csv(source_dir: Path, name: str, rows: list[ErrorRow]) ->
         if pair not in seen:
             seen.add(pair)
             lines.append(f"{row.classe},{row.processo}")
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return out
+    return "\n".join(lines) + "\n"
 
 
 def _plan_replay_spawns(
@@ -349,7 +358,10 @@ def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
     Different statuses route to different providers (empty→chandra,
     outlier_skipped→tesseract), so a single dispatch can't cover both;
     we split per status. URL-scoped via extrair-urls so meta + bytes
-    cache-skips are honoured (only the text stage runs).
+    cache-skips are honoured (only the text stage runs). The URL-list
+    file contents are computed here as ``materialized_content``; the
+    actual write happens in :func:`execute_recoveries` so dry-run stays
+    side-effect-free.
     """
     grouped: dict[tuple[Path, str], list[ErrorRow]] = {}
     for row in rows:
@@ -362,7 +374,8 @@ def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
         provider = _PROVIDER_SWITCH_DESTINATIONS.get(status)
         if provider is None:
             continue  # status not in the dispatch table — skip safely
-        urls_file = _materialize_urls_file(source_dir, status, group)
+        urls_file = _urls_file_path(source_dir, status)
+        content = _build_urls_content(group)
         argv = [
             "uv", "run", "judex", "extrair-urls", str(urls_file),
             "--provedor", provider,
@@ -373,6 +386,7 @@ def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
             saida=source_dir,
             source_errors_file=urls_file,
             n_replay_rows=len(group),
+            materialized_content=content,
         ))
     return plans
 
@@ -383,7 +397,8 @@ def _plan_refetch_upstream_spawns(rows: list[ErrorRow]) -> list[Spawn]:
     no_bytes means the bytes never landed; rerunning ``executar`` over
     the affected (classe, processo) cases lets the runner cache-skip
     meta + the bytes that *did* succeed and refetch only the missing
-    ones. No --forcar (caches honoured)."""
+    ones. No --forcar (caches honoured). CSV contents computed as
+    ``materialized_content``; written by :func:`execute_recoveries`."""
     rows_per_dir: dict[Path, list[ErrorRow]] = {}
     for row in rows:
         rows_per_dir.setdefault(row.source_dir, []).append(row)
@@ -391,7 +406,8 @@ def _plan_refetch_upstream_spawns(rows: list[ErrorRow]) -> list[Spawn]:
     plans: list[Spawn] = []
     for source_dir in sorted(rows_per_dir.keys()):
         group = rows_per_dir[source_dir]
-        csv_file = _materialize_cases_csv(source_dir, "refetch", group)
+        csv_file = _refetch_csv_path(source_dir)
+        content = _build_cases_csv_content(group)
         argv = [
             "uv", "run", "judex", "executar",
             "--csv", str(csv_file),
@@ -403,6 +419,7 @@ def _plan_refetch_upstream_spawns(rows: list[ErrorRow]) -> list[Spawn]:
             saida=source_dir,
             source_errors_file=csv_file,
             n_replay_rows=len(group),
+            materialized_content=content,
         ))
     return plans
 
@@ -501,6 +518,15 @@ def execute_recoveries(
     lines: list[str] = []
 
     for spawn in plan:
+        # Materialise the input file (URL list / CSV) for dispatches
+        # that need a fresh one. REPLAY spawns leave this as None and
+        # consume the pre-existing executar.errors.jsonl.
+        if spawn.materialized_content is not None:
+            spawn.source_errors_file.parent.mkdir(parents=True, exist_ok=True)
+            spawn.source_errors_file.write_text(
+                spawn.materialized_content, encoding="utf-8"
+            )
+
         log_path = spawn.saida / "driver.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_fh = log_path.open("ab")

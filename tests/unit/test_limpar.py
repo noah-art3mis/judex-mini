@@ -380,10 +380,16 @@ def test_plan_dispatches_provider_switch_empty_via_extrair_urls_chandra(
     assert "extrair-urls" in argv_str
     assert "--provedor chandra" in argv_str
     assert "--forcar" in argv_str
-    # The materialised URL file path appears in argv and exists on disk.
+    # File is *not* materialised by plan_recoveries (dry-run must stay
+    # side-effect-free) — only the intended path + content are carried
+    # on the Spawn for execute_recoveries to write later.
     assert spawn.source_errors_file is not None
-    assert spawn.source_errors_file.exists()
-    assert "u1" in spawn.source_errors_file.read_text()
+    assert not spawn.source_errors_file.exists(), (
+        "plan_recoveries must not write the materialised file (would "
+        "make dry-run side-effecting)"
+    )
+    assert spawn.materialized_content is not None
+    assert "u1" in spawn.materialized_content
 
 
 def test_plan_dispatches_provider_switch_outlier_via_extrair_urls_tesseract(
@@ -465,11 +471,86 @@ def test_plan_dispatches_refetch_upstream_via_executar_csv(tmp_path: Path) -> No
     assert "executar" in argv_str
     assert "--csv" in argv_str
     assert "--forcar" not in argv_str
-    # Materialised CSV exists with the case row.
+    # CSV not written under plan_recoveries; carried as content only.
     assert plan[0].source_errors_file is not None
-    assert plan[0].source_errors_file.exists()
-    csv_text = plan[0].source_errors_file.read_text()
-    assert "HC,1" in csv_text or "HC,1\r" in csv_text  # CSV writer line
+    assert not plan[0].source_errors_file.exists()
+    assert plan[0].materialized_content is not None
+    assert "HC,1" in plan[0].materialized_content
+
+
+def test_plan_recoveries_does_not_write_to_disk(tmp_path: Path) -> None:
+    """plan_recoveries is a *pure* planner — it must not touch disk.
+    The materialised input files (URL lists / CSVs) are only written
+    by execute_recoveries under --apply. Otherwise dry-run leaves
+    stray files like ``limpar-empty.urls.txt`` in every run dir
+    inspected.
+
+    Caught by an end-to-end limpar dry-run on 2026-05-04 that produced
+    side-effect files in /tmp/. Pinned here so the regression bites a
+    test, not an operator.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("empty")},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("no_bytes")},
+            },
+        },
+    )
+    files_before = sorted(p.name for p in tmp_path.iterdir())
+    buckets = classify_residual([tmp_path])
+    plan_recoveries(buckets, provedor="auto")
+    files_after = sorted(p.name for p in tmp_path.iterdir())
+    assert files_before == files_after, (
+        f"plan_recoveries leaked side-effect files: "
+        f"{set(files_after) - set(files_before)}"
+    )
+
+
+def test_execute_recoveries_materialises_content_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """execute_recoveries is where the materialisation actually happens.
+    Stub Popen so the test doesn't spawn anything, but verify the
+    URL-list / CSV file lands on disk before the (would-be) spawn."""
+    from judex.sweeps import limpar as mod
+
+    captured_argvs: list[list[str]] = []
+
+    class _FakePopen:
+        def __init__(self, argv: list[str], **_kw: object) -> None:
+            captured_argvs.append(argv)
+            self.pid = 12345
+
+    monkeypatch.setattr(mod.subprocess, "Popen", _FakePopen)
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+    pids_path = tmp_path / "limpar.pids"
+    mod.execute_recoveries(plan, pids_path)
+
+    # The URL-list file now exists on disk with the expected content.
+    urls_file = tmp_path / "limpar-empty.urls.txt"
+    assert urls_file.exists()
+    assert "u1" in urls_file.read_text()
+    # And Popen was called with the planned argv.
+    assert len(captured_argvs) == 1
+    assert any("extrair-urls" in a for a in captured_argvs[0])
 
 
 def test_plan_combines_replay_and_provider_switch_in_same_dir(
