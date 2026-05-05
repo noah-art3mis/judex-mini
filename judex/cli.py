@@ -17,7 +17,7 @@ Exemplos:
     uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
     uv run judex executar -c HC -i 250920 -f 267137            # range mode
     uv run judex limpar runs/active/<label>/ --apply           # residual recovery
-    uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
+    uv run judex warehouse --classe HC                          # rebuild DuckDB
     uv run judex debug exportar --apenas hc_famous_lawyers     # marimo HTML export
 """
 
@@ -68,7 +68,7 @@ app = typer.Typer(
 
 # Sub-app for inspection / validation / export utilities that aren't
 # part of the everyday operator loop (`executar` → `acompanhar` →
-# `relatar` + `limpar` + `atualizar-warehouse`). The legacy three-
+# `relatar` + `limpar` + `warehouse`). The legacy three-
 # command chain (varrer / baixar / extrair / coletar) was removed
 # from the CLI surface; the library code in `judex/sweeps/` stays for
 # `pick_provider` and shared helpers used by the unified pipeline.
@@ -201,7 +201,7 @@ def fazer_backup(
         False, "--incluir-warehouse",
         help="Inclui data/derived/warehouse/judex.duckdb. Por padrão fica "
              "de fora — é artefato derivado, regenerável via "
-             "`atualizar-warehouse`.",
+             "`warehouse`.",
     ),
     classe: Optional[list[str]] = typer.Option(
         None, "--classe",
@@ -735,11 +735,37 @@ def atualizar_corpus(
 
 
 # ---------------------------------------------------------------------------
-# `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
+# `warehouse` — reconstrói o DuckDB derivado dos JSONs + cache de texto.
+# (anteriormente ``atualizar-warehouse``; ver alias deprecado abaixo).
 
 
-@app.command(name="atualizar-warehouse")
-def atualizar_warehouse(
+def _run_warehouse(
+    diretorio_processos: Path,
+    diretorio_pecas_texto: Path,
+    saida: Path,
+    classe: Optional[list[str]],
+    ano: Optional[int],
+    progresso_cada: int,
+    estrito: bool,
+) -> int:
+    """Shared body for the canonical ``warehouse`` command and its
+    deprecated ``atualizar-warehouse`` alias. Returns the exit code from
+    :func:`judex.sweeps.build_warehouse.run_build_warehouse`."""
+    from judex.sweeps.build_warehouse import run_build_warehouse
+
+    return run_build_warehouse(
+        cases_root=diretorio_processos,
+        pecas_texto_root=diretorio_pecas_texto,
+        output=saida,
+        classe=classe,
+        year=ano,
+        progress_every=progresso_cada,
+        strict=estrito,
+    )
+
+
+@app.command(name="warehouse")
+def warehouse(
     diretorio_processos: Path = typer.Option(
         Path("data/source/processos"), "--diretorio-processos",
         help="Raiz dos JSONs de processo (particionados por classe).",
@@ -781,19 +807,42 @@ def atualizar_warehouse(
     ~2–3 min para ~55k processos, ~15–20 min para 350k.
 
     O comando não fala com a rede — é puro scan local de JSON + gzip.
-    Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
-    quiser ver os dados novos nos notebooks / em SQL.
+    Rode depois de ``executar`` sempre que quiser ver os dados novos nos
+    notebooks / em SQL.
     """
-    from judex.sweeps.build_warehouse import run_build_warehouse
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
+    ))
 
-    raise typer.Exit(code=run_build_warehouse(
-        cases_root=diretorio_processos,
-        pecas_texto_root=diretorio_pecas_texto,
-        output=saida,
-        classe=classe,
-        year=ano,
-        progress_every=progresso_cada,
-        strict=estrito,
+
+@app.command(name="atualizar-warehouse", hidden=True)
+def atualizar_warehouse(
+    diretorio_processos: Path = typer.Option(
+        Path("data/source/processos"), "--diretorio-processos",
+    ),
+    diretorio_pecas_texto: Path = typer.Option(
+        Path("data/derived/pecas-texto"), "--diretorio-pecas-texto",
+    ),
+    saida: Path = typer.Option(
+        Path("data/derived/warehouse/judex.duckdb"), "--saida",
+    ),
+    classe: Optional[list[str]] = typer.Option(None, "--classe"),
+    ano: Optional[int] = typer.Option(None, "--ano"),
+    progresso_cada: int = typer.Option(10_000, "--progresso-cada"),
+    estrito: bool = typer.Option(False, "--estrito"),
+) -> None:
+    """[DEPRECADO] Use ``judex warehouse``. Mantido como alias enquanto
+    scripts antigos (chains, jobs) usam o nome anterior."""
+    import sys
+    print(
+        "[deprecation] use `judex warehouse` — `atualizar-warehouse` "
+        "is a transition alias and will be removed",
+        file=sys.stderr,
+    )
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
     ))
 
 

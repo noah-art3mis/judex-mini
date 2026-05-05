@@ -306,7 +306,7 @@ class BuildSummary:
 class BuildValidationError(RuntimeError):
     """Raised when `build(strict=True)` hits a population-rate threshold miss.
 
-    Caught by the CLI so `judex atualizar-warehouse --strict` exits non-zero
+    Caught by the CLI so `judex warehouse --strict` exits non-zero
     on regressions. Ad-hoc `build(strict=False)` calls log the same
     information to stdout but do not raise — the warehouse file is still
     produced so manual inspection is possible.

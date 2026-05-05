@@ -4,12 +4,13 @@ Rebuilds the DuckDB warehouse at ``data/derived/warehouse/judex.duckdb``
 from the current ``data/source/processos/`` + ``data/derived/pecas-texto/``
 stores. Full rebuild, atomic swap, no incremental logic.
 
-Surfaced via Typer at ``judex atualizar-warehouse``; library entry point
-is :func:`run_build_warehouse`. Examples:
+Surfaced via Typer at ``judex warehouse`` (with deprecated alias
+``judex atualizar-warehouse``); library entry point is
+:func:`run_build_warehouse`. Examples:
 
-    uv run judex atualizar-warehouse
-    uv run judex atualizar-warehouse --classe HC
-    uv run judex atualizar-warehouse --year 2026 --classe HC \\
+    uv run judex warehouse
+    uv run judex warehouse --classe HC
+    uv run judex warehouse --year 2026 --classe HC \\
         --output data/derived/warehouse/judex-2026.duckdb
 """
 
