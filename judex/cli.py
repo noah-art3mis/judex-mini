@@ -870,6 +870,45 @@ def re_extrair_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `peca-dismiss` / `peca-undismiss` — operator-set "stop retrying this URL"
+
+
+@app.command(name="peca-dismiss")
+def peca_dismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a dispensar."),
+    motivo: str = typer.Option(
+        ..., "--motivo",
+        help="Razão legível para a dispensa (ex.: 'PDF retirado da STF', "
+             "'OCR pesado pra valer a pena', 'duplicata de <X>').",
+    ),
+) -> None:
+    """Marca uma URL como conhecida-quebrada para parar de tentar.
+
+    URLs dispensadas são silenciosamente puladas pelo ``judex limpar``
+    e não consomem orçamento de retry. Persiste em
+    ``data/derived/pecas-texto/<sha1>.dismissed.json`` (atravessa
+    rebuilds do warehouse).
+    """
+    from judex.utils import peca_cache
+    peca_cache.write_dismissal(url, reason=motivo)
+    typer.echo(f"dispensada: {url}")
+    typer.echo(f"  motivo: {motivo}")
+
+
+@app.command(name="peca-undismiss")
+def peca_undismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a re-habilitar."),
+) -> None:
+    """Remove a marca de dispensa de uma URL — volta a entrar no retry."""
+    from judex.utils import peca_cache
+    cleared = peca_cache.clear_dismissal(url)
+    if cleared:
+        typer.echo(f"re-habilitada: {url}")
+    else:
+        typer.echo(f"nada a fazer (não estava dispensada): {url}")
+
+
+# ---------------------------------------------------------------------------
 # `providers` — comparison table built from each OCR provider's SPEC
 
 

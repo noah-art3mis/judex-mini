@@ -330,6 +330,57 @@ def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
     assert "--nao-perguntar" in argv
 
 
+# ----- DISMISSED bucket (peca-registry sub-issue 04) -----------------------
+
+
+def test_dismissed_url_routes_to_dismissed_bucket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A URL marked dismissed via ``peca-dismiss`` short-circuits the
+    classifier — route to DISMISSED regardless of underlying status."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+
+    # Pre-dismiss the URL u1 lives at.
+    peca_cache.write_dismissal("u1", reason="known broken")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    # Would have been REPLAY (transient provider_error) — but dismissal wins.
+    assert len(buckets[Bucket.REPLAY]) == 0
+    assert len(buckets[Bucket.DISMISSED]) == 1
+    assert buckets[Bucket.DISMISSED][0].url == "u1"
+
+
+def test_dismissed_does_not_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """plan_recoveries must produce *zero* spawns for DISMISSED rows —
+    that's the whole point of dismissal."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+    peca_cache.write_dismissal("u1", reason="known broken")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+    assert plan == []
+
+
 # ----- plan_recoveries: non-REPLAY buckets (limpar v2) ---------------------
 
 
@@ -608,13 +659,15 @@ def test_format_summary_apply_format() -> None:
         Bucket.CAP_BURNT: [_row("extract_text", "provider_error")] * 231,
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
+        Bucket.DISMISSED: [],
         Bucket.CONFIRMED_UNALLOCATED: [_row("fetch_meta", "unallocated_pid")] * 1036,
         Bucket.TERMINAL_DROPPED: [_row("fetch_bytes", "empty")] * 826,
     }
     line = format_summary(buckets, dry_run=False)
     assert line == (
         "recovered: 301 transient · 231 cap_burnt · 0 cross_stage · "
-        "0 provider_switched · 1036 confirmed_unallocated · 826 terminal_dropped"
+        "0 provider_switched · 0 dismissed · 1036 confirmed_unallocated · "
+        "826 terminal_dropped"
     )
 
 
@@ -627,6 +680,7 @@ def test_format_summary_dry_run_prefix() -> None:
         Bucket.CAP_BURNT: [],
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
+        Bucket.DISMISSED: [],
         Bucket.CONFIRMED_UNALLOCATED: [],
         Bucket.TERMINAL_DROPPED: [],
     }

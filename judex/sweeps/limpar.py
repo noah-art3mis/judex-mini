@@ -58,6 +58,7 @@ class Bucket(str, enum.Enum):
     CAP_BURNT = "cap_burnt"
     REFETCH_UPSTREAM = "cross_stage"
     PROVIDER_SWITCH = "provider_switched"
+    DISMISSED = "dismissed"
     CONFIRMED_UNALLOCATED = "confirmed_unallocated"
     TERMINAL_DROPPED = "terminal_dropped"
 
@@ -111,6 +112,7 @@ _BUCKET_ORDER: tuple[Bucket, ...] = (
     Bucket.CAP_BURNT,
     Bucket.REFETCH_UPSTREAM,
     Bucket.PROVIDER_SWITCH,
+    Bucket.DISMISSED,
     Bucket.CONFIRMED_UNALLOCATED,
     Bucket.TERMINAL_DROPPED,
 )
@@ -240,8 +242,17 @@ def _bucket_for(row: ErrorRow) -> Optional[Bucket]:
     Composes :func:`classify_unified_error` (a row-shape adapter is
     used since classify_unified_error reads a dict, not an ErrorRow)
     with the override table for actionable terminals + the CAP_BURNT
-    gate for transient rows.
+    gate for transient rows + the DISMISSED short-circuit for URLs an
+    operator marked as known-broken via ``judex peca-dismiss``.
     """
+    # Dismissal short-circuit: if an operator marked this URL as
+    # known-broken, route to DISMISSED regardless of underlying status.
+    # Meta-stage rows have ``url=None`` and can't be dismissed.
+    if row.url is not None:
+        from judex.utils import peca_cache
+        if peca_cache.is_dismissed(row.url):
+            return Bucket.DISMISSED
+
     raw = {"status": row.status, "kind": row.kind}
     classified = classify_unified_error(raw)
 
