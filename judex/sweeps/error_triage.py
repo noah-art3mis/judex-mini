@@ -183,14 +183,13 @@ _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     # limit). Re-running the same sweep would skip again. The actionable
     # recovery is **local** Tesseract, which has no body-size limit.
     # Action shape matches ``empty`` (provider switch) but the destination
-    # provider is specifically the local one. The single-PDF re-OCR is
-    # ideally URL-scoped via ``judex extrair-urls`` (.scratch/per-url-extract/);
-    # current best-effort points at ``executar --csv`` which does the work
-    # but over-extracts whole cases.
+    # provider is specifically the local one. URL-scoped via ``judex
+    # extrair-urls`` so we don't over-extract the rest of the case's
+    # peças (which already have clean pypdf text).
     "outlier_skipped": Recipe(
         "switch_provider",
         "PDF exceeds cloud-OCR body cap — re-extract with local tesseract (no cap)",
-        "uv run judex executar --csv <subset> --provedor tesseract --forcar --saida <run>-outlier-recover/",
+        "uv run judex extrair-urls <urls.txt> --provedor tesseract --forcar",
     ),
 }
 

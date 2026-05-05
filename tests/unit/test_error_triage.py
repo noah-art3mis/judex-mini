@@ -278,7 +278,9 @@ def test_extrair_outlier_skipped_routes_to_switch_provider_local() -> None:
     assert recipe.action == "switch_provider"
     hint = recipe.command_hint or ""
     assert "tesseract" in hint, hint
-    assert "judex executar" in hint, hint
+    # URL-scoped (no over-extraction): must point at extrair-urls, not
+    # the case-scoped executar --csv path that re-OCRs whole cases.
+    assert "extrair-urls" in hint, hint
     # Must not point at a cloud provider — defeats the purpose.
     for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
         assert cloud not in hint, (

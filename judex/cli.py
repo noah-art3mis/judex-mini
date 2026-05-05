@@ -798,6 +798,50 @@ def atualizar_warehouse(
 
 
 # ---------------------------------------------------------------------------
+# `extrair-urls` — URL-scoped re-extraction (no fetch, no case-walker)
+
+
+@app.command(name="extrair-urls")
+def extrair_urls_cmd(
+    arquivo_urls: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, readable=True,
+        help="Arquivo simples com uma URL por linha. Linhas em branco e "
+             "comentários (#) são ignoradas.",
+    ),
+    provedor: str = typer.Option(
+        "tesseract", "--provedor",
+        help="Provedor de OCR: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Re-extrai mesmo quando o sidecar já indica o mesmo provedor "
+             "(ignora a verificação de cache).",
+    ),
+) -> None:
+    """Re-extrai texto para URLs específicas usando um provedor escolhido.
+
+    Recovery escopada por URL — bypassa o case-walker. Os bytes precisam
+    estar no cache de peças (escreva-os com ``judex executar`` antes);
+    URLs sem bytes em cache contam para ``missing_bytes`` no relatório.
+
+    Caso de uso típico: re-OCR pontual de outliers (PDFs que estouraram o
+    cap de body do OCR em cloud) com ``--provedor tesseract`` local, sem
+    re-extrair as outras peças do caso.
+    """
+    from judex.sweeps.extrair_urls import run_extrair_urls
+
+    result = run_extrair_urls(arquivo_urls, provedor=provedor, forcar=forcar)
+    typer.echo(
+        f"extrair-urls: ok={result.n_ok} · skipped={result.n_skipped} · "
+        f"missing_bytes={result.n_missing_bytes} · fail={result.n_fail} · "
+        f"wall={result.wall_s:.1f}s"
+    )
+    if result.n_fail > 0:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
 # `providers` — comparison table built from each OCR provider's SPEC
 
 
