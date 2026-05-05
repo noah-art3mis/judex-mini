@@ -6,12 +6,101 @@ Branch: `dev`. Prior cycle archived at
 v1 + Fly OCR promotes, executar CLI cleanup, plus the post-mortem on the
 parallel-launch overnight failure that motivated the chain v2 below.
 
-**Status as of 2026-05-04 22:05 BRT.** Live: chain v2 detached, mid step 3
-(HC 2020 outliers via direct local Tesseract). Step 2 (HC 2024 fill-in
-resume) confirmed complete in 2 sec — `nothing to do (state already
-complete for every target)`; the "1,772 substantive cases remaining"
-figure from this morning's pause was stale. Steps 4-7 (HC 2025 pending
-recheck, HC 2022, HC 2021, warehouse rebuild) queued.
+**Status as of 2026-05-05 00:40 BRT.** Chain v2 is in **step 6 (HC 2021)**
+at PID ~202806 of 210963 (~45% through). Steps 2-5 closed cleanly; step 7
+(warehouse rebuild via the deprecated `atualizar-warehouse` alias) is
+still queued. Two PRs landed on `dev` mid-flight: PR #16 (run-cleanup
+loop + peça registry, 14 commits, +65 tests) and PR #17 (limpar `--loop`
+convergence, +8 tests). Tests at **998 passing** end-of-session.
+
+---
+
+## Resolved this session — PR #16 + PR #17 landed (2026-05-04 → 05)
+
+**PR #16 (`41fbcec`)** — *Run-cleanup loop + peça registry: limpar v2,
+extrair-urls→re-extrair, dismissals, spot-check.* Closes the
+`run-cleanup-loop` and `per-url-extract` PRDs (`.scratch/` operator-local
+notes). 14 commits squash-merged. Headlines:
+
+- **`executar.errors.jsonl` now actionable-only** — `unallocated_pid`
+  rows filtered at write-time. 132× line-count reduction on real HC
+  2024 state (2,103 → 16).
+- **`limpar --apply` dispatches all actionable buckets** — REPLAY +
+  PROVIDER_SWITCH (chandra for `empty`, tesseract for `outlier_skipped`,
+  via the new URL-scoped `re-extrair` command) + REFETCH_UPSTREAM. v1
+  was REPLAY-only.
+- **New CLIs**: `re-extrair URL_FILE` (replaces buggy `extrair-urls`
+  name), `peca-dismiss URL --motivo`, `peca-undismiss URL`,
+  `peca-spot-check`, plus `peca_issues` warehouse table behind
+  `judex warehouse --com-peca-issues` (default off).
+- **`--forcar`-style fix in `recovery_recipe`** — outlier_skipped now
+  routes to switch_provider with a tesseract command_hint;
+  permanent-404 (votos endpoint) gets a distinct recipe so retries
+  don't burn budget on known-withdrawn URLs.
+- **CLI rename**: `atualizar-warehouse` → `warehouse` (alias kept for
+  in-flight chain step 7).
+- **Help-text rewrite** across all commands using CONTEXT.md vocabulary
+  (Coleta vs Sweep vs Pool, peça not PDF).
+- **Dry-run side-effect-free** — limpar `plan_recoveries` no longer
+  materialises files at plan time; `execute_recoveries` writes them
+  just before spawning. Pinned by a regression test.
+
+**PR #17 (`e8fa565`)** — *limpar `--loop` until stable: closes the
+convergence loop.* The two-line operator path that the session was
+chasing:
+
+```bash
+judex executar -c HC -i 250000 -f 250100 --saida runs/active/<label>/
+judex limpar runs/active/<label>/ --loop --nao-perguntar
+```
+
+Loop semantics: dispatch → `wait_for_pids` (poll `os.kill(pid, 0)` since
+detached children break `os.waitpid`) → reclassify → repeat until
+residuals stop shrinking or `--max-passes` (default 3). Three exit
+states the operator gets cleanly: **converged** / **stopped for no
+progress** / **stopped at max-passes**. The `_bucket_for` recovery
+short-circuit (PROVIDER_SWITCH rows whose `<sha1>.extractor` sidecar
+already matches the destination provider get dropped from the bucket)
+is what makes the loop terminate — without it, re-extrair writes new
+text but state.json still says `empty`, and the loop would re-dispatch
+forever.
+
+**What's still NOT one command**: multi-year backfill (still bash —
+`_hc-fillin-chain-full-v2.sh`), and `judex arquivar` (the run-dir
+archival lifecycle). Both noted as future work.
+
+---
+
+## Resolved this session — runs/active housekeeping (2026-05-05 00:40 BRT)
+
+**Active-dir population** dropped 74 → 40 by archiving 34 finished
+April-mtime run dirs (`mtime > 5 days`). Ratio inverted from 91:29
+active:archive at session start to 40:65 — the archive is now the
+larger pool, which is what the convention was always supposed to look
+like (per `docs/data-layout.md § runs/`).
+
+**Hard-skipped from the move:**
+
+- `runs/active/hc2020-sharded/` — pinned by `tests/unit/test_limpar.py:936`
+  (`_HC2020_SHARDED`); moving it would silently skip the smoke test.
+- `runs/active/2026-04-30-ocr-bakeoff/` — referenced by
+  `scripts/ocr_tesseract_sweep.py` as input data.
+- All May-mtime dirs (chain v2 inputs + recent work).
+
+**Move command** (recorded for future archival passes):
+
+```bash
+cd runs/active
+for d in $(find . -maxdepth 1 -type d -mtime +5 -printf '%f\n' \
+        | grep -vE '^(\.|hc2020-sharded|2026-04-30-ocr-bakeoff)$'); do
+    mv "$d" ../archive/
+done
+```
+
+The chain v2 stayed alive across the moves (its `--saida` paths point at
+`hc2021-fillin-20260504-v2/` etc., not at any archived dir). No tests
+broke. Future operator follow-up: ship `judex arquivar <run_dir>` so
+the lifecycle isn't a manual `mv`.
 
 ---
 
