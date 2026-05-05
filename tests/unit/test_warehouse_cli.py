@@ -1,4 +1,4 @@
-"""Typer wrapper `judex atualizar-warehouse`.
+"""Typer wrapper `judex warehouse`.
 
 Behavior-level coverage — the heavy lifting is already pinned by
 `test_build_warehouse.py` against `judex.warehouse.builder.build`. Here
@@ -48,7 +48,7 @@ def _write_case(root: Path, *, classe: str, processo_id: int) -> None:
     (d / f"judex-mini_{classe}_{processo_id}.json").write_text(json.dumps([item]))
 
 
-def test_atualizar_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
+def test_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
     """The wrapper must actually produce a queryable .duckdb at --saida."""
     cases = tmp_path / "cases"
     pdfs = tmp_path / "pdf"
@@ -57,7 +57,7 @@ def test_atualizar_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
     out = tmp_path / "judex.duckdb"
 
     result = CliRunner().invoke(app, [
-        "atualizar-warehouse",
+        "warehouse",
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
@@ -70,7 +70,7 @@ def test_atualizar_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
     assert n == 1
 
 
-def test_atualizar_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> None:
+def test_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> None:
     """`--classe HC` must reach the builder and filter the ingest."""
     cases = tmp_path / "cases"
     pdfs = tmp_path / "pdf"
@@ -80,7 +80,7 @@ def test_atualizar_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> N
     out = tmp_path / "judex.duckdb"
 
     result = CliRunner().invoke(app, [
-        "atualizar-warehouse",
+        "warehouse",
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
@@ -93,7 +93,7 @@ def test_atualizar_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> N
     assert rows == [("HC",)]
 
 
-def test_atualizar_warehouse_year_requires_classe_hc(tmp_path: Path) -> None:
+def test_warehouse_year_requires_classe_hc(tmp_path: Path) -> None:
     """`--ano` without `--classe HC` must error out (from build_warehouse.py)."""
     cases = tmp_path / "cases"
     cases.mkdir()
@@ -102,7 +102,7 @@ def test_atualizar_warehouse_year_requires_classe_hc(tmp_path: Path) -> None:
     out = tmp_path / "judex.duckdb"
 
     result = CliRunner().invoke(app, [
-        "atualizar-warehouse",
+        "warehouse",
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),

@@ -6,16 +6,91 @@ Branch: `dev`. Prior cycle archived at
 v1 + Fly OCR promotes, executar CLI cleanup, plus the post-mortem on the
 parallel-launch overnight failure that motivated the chain v2 below.
 
-**Status as of 2026-05-04 08:50 BRT.** Corpus: **90,763** HC cases on disk.
-Live work: a single detached chain re-running HC 2024 / 2022 / 2021 fill-in
-verifications serially under one direct-IP WAF budget, then a warehouse
-rebuild. HC 2024 is at ~PID 240237 of 250918 (~73%) at 44–46 cases/s with
-~84% OCR-stage cache-hits — should close in a few minutes. All 924 unit
-tests green; `judex/cli.py` carries an uncommitted CLI-narrowing edit.
+**Status as of 2026-05-04 22:05 BRT.** Live: chain v2 detached, mid step 3
+(HC 2020 outliers via direct local Tesseract). Step 2 (HC 2024 fill-in
+resume) confirmed complete in 2 sec — `nothing to do (state already
+complete for every target)`; the "1,772 substantive cases remaining"
+figure from this morning's pause was stale. Steps 4-7 (HC 2025 pending
+recheck, HC 2022, HC 2021, warehouse rebuild) queued.
 
 ---
 
-## Open thread — HC fill-in chain v2 paused (2026-05-04 10:02 BRT)
+## Open thread — HC fill-in chain v2 in flight (2026-05-04 22:05 BRT)
+
+**Launched.** `runs/active/_hc-fillin-chain-full-v2.sh` detached at
+22:03:09 BRT. Master log at `runs/active/hc-fillin-chain-v2-20260504-2203.log`.
+
+**v1 abandoned.** First chain (`_hc-fillin-chain-full.sh`, launched 21:14
+BRT) had step 3 implemented as `executar --csv 8-cases.csv --provedor
+tesseract --forcar`. Two structural problems surfaced ~12 min in:
+
+1. `executar --csv` is case-scoped, not URL-scoped — `--forcar` re-OCR'd
+   every peça in the 8 outlier cases (~140 PDFs) instead of just the 8
+   outlier URLs. ETA ballooned from ~5-10 min to ~3-4 hr; non-outlier
+   peças would have suffered a quality regression (Tesseract on
+   text-layer PDFs is strictly worse than pypdf reading the embedded
+   stream).
+2. `executar --retentar-de pdfs.errors.jsonl` would have been
+   URL-scoped, but `targets_from_errors_jsonl` filters non-transient
+   rows (`peca_targets.py:399`) and outlier_skipped is terminal —
+   silently emits zero targets.
+
+**v2 fix.** Step 3 replaced with a 30-line direct-Tesseract script
+(`runs/active/_extract-hc2020-outliers-direct.py`) that reads the 8
+outlier URLs from the cap-recovery-v2 errors.jsonl, pulls cached bytes
+via `peca_cache.read_bytes`, runs the project's local Tesseract
+provider (`judex.scraping.ocr.tesseract.extract`), writes back via
+`peca_cache.write(... extractor='tesseract')`. Idempotent (skips URLs
+whose sidecar already says "tesseract"). 1 of 8 was already done
+during the v1 abort; 7 remaining.
+
+**Architectural follow-ups filed.** The two structural problems above
+are real gaps, not just this-task issues. Filed as PRDs:
+
+- [`.scratch/run-cleanup-loop/PRD.md`](../.scratch/run-cleanup-loop/PRD.md)
+  — extend `judex limpar` to plan + dispatch all 8 residual classes
+  (today it dispatches 1, reports 2, doesn't see 5). Plus 6 sub-issues
+  for the missing recipes.
+- [`.scratch/per-url-extract/PRD.md`](../.scratch/per-url-extract/PRD.md)
+  — new `judex extrair-urls FILE --provedor X` command (~50 LOC) for
+  URL-scoped recovery without case-walker over-extraction.
+
+If both land, the post-run path collapses to `judex executar … && judex
+limpar … --apply` — operator stops reading errors.jsonl because the
+cleanup loop converges on its own.
+
+**Chain v2 step list:**
+
+```
+2. HC 2024 fill-in resume      [✅ done — cache fully drained, 2 sec]
+3. HC 2020 outliers direct OCR [🟢 in flight — 7 PDFs ~30-35 min]
+4. HC 2025 pending-outcome     [⏳ ~30 min direct-IP, 744 cases]
+5. HC 2022 fill-in             [⏳ ~3-4 hr direct-IP, 12,922 IDs]
+6. HC 2021 fill-in             [⏳ ~4 hr direct-IP, 14,682 IDs]
+7. atualizar-warehouse --classe HC  [⏳ ~5 min, local]
+```
+
+**Stop cleanly.** `kill -TERM $(pgrep -f _hc-fillin-chain-full-v2.sh)`
+followed by `pkill -TERM -f 'judex executar'` (the chain children are
+session-detached via `setsid`, so the chain SIGTERM doesn't propagate).
+Resume by re-running the chain script — `--saida`-cache-driven.
+
+**Monitor.**
+
+```bash
+tail -f runs/active/hc-fillin-chain-v2-20260504-2203.log     # step transitions
+uv run judex acompanhar runs/active/hc2025-pending-recheck-20260504/    # once step 4 starts
+pgrep -af '_hc-fillin-chain-full-v2|judex executar'           # liveness
+```
+
+**Today's commits on `dev` (pushed to origin/dev):**
+`d8149fd` refactor(cli): narrow executar flag surface;
+`eb0d11a` docs(readme): add §4.5 unified pipeline;
+`be4e9b2` docs(progress): rotate to archive 2026-05-04_0842.
+
+---
+
+## Resolved — chain v1 paused (2026-05-04 10:02 BRT)
 
 **Status.** Chain stopped cleanly at operator request via SIGTERM. State
 files written atomically; resume is `--saida`-cache-driven (no

@@ -58,6 +58,7 @@ class Bucket(str, enum.Enum):
     CAP_BURNT = "cap_burnt"
     REFETCH_UPSTREAM = "cross_stage"
     PROVIDER_SWITCH = "provider_switched"
+    DISMISSED = "dismissed"
     CONFIRMED_UNALLOCATED = "confirmed_unallocated"
     TERMINAL_DROPPED = "terminal_dropped"
 
@@ -86,14 +87,23 @@ class Spawn:
 
     ``argv`` is what :func:`execute_recoveries` passes to
     ``subprocess.Popen``. ``saida`` is the per-shard run dir.
-    ``source_errors_file`` is the input the child consumes via
-    ``--retentar-de``.
+    ``source_errors_file`` is the input the child consumes (the
+    pre-existing ``executar.errors.jsonl`` for REPLAY spawns; a
+    materialised URL-list or CSV for PROVIDER_SWITCH / REFETCH_UPSTREAM
+    spawns).
+
+    ``materialized_content`` carries the *intended* file content for
+    spawns that need to write a fresh input file before launch. When
+    non-None, :func:`execute_recoveries` writes it to
+    ``source_errors_file`` just before spawning. ``plan_recoveries``
+    keeps this field as data only — no disk side effects under dry-run.
     """
 
     argv: list[str]
     saida: Path
     source_errors_file: Path
     n_replay_rows: int
+    materialized_content: Optional[str] = None
 
 
 # Bucket order for summary line — matches enum declaration order.
@@ -102,6 +112,7 @@ _BUCKET_ORDER: tuple[Bucket, ...] = (
     Bucket.CAP_BURNT,
     Bucket.REFETCH_UPSTREAM,
     Bucket.PROVIDER_SWITCH,
+    Bucket.DISMISSED,
     Bucket.CONFIRMED_UNALLOCATED,
     Bucket.TERMINAL_DROPPED,
 )
@@ -142,6 +153,23 @@ def discover_run_dirs(run_dir: Path) -> list[Path]:
 
 
 _TERMINAL_OK_STATUSES: frozenset[str] = frozenset({"ok", "skipped_cached"})
+
+
+# extract_text statuses that route to PROVIDER_SWITCH (kind=terminal in
+# the classifier, but actionable via a different OCR provider). The
+# destination provider depends on which status: ``empty`` → chandra
+# (beefier OCR for scanned PDFs); ``outlier_skipped`` → tesseract local
+# (the only provider without the cloud body cap).
+_PROVIDER_SWITCH_STATUSES: frozenset[str] = frozenset({"empty", "outlier_skipped"})
+
+# Status → destination provider for PROVIDER_SWITCH dispatch. Mirrors
+# the recipe table in ``error_triage._EXTRAIR_STATUS_OVERRIDES`` but
+# typed for direct lookup; keeping both in sync is pinned by the
+# limpar dispatch tests + the error_triage recipe tests.
+_PROVIDER_SWITCH_DESTINATIONS: dict[str, str] = {
+    "empty": "chandra",
+    "outlier_skipped": "tesseract",
+}
 
 
 def _iter_non_ok_records(
@@ -214,8 +242,17 @@ def _bucket_for(row: ErrorRow) -> Optional[Bucket]:
     Composes :func:`classify_unified_error` (a row-shape adapter is
     used since classify_unified_error reads a dict, not an ErrorRow)
     with the override table for actionable terminals + the CAP_BURNT
-    gate for transient rows.
+    gate for transient rows + the DISMISSED short-circuit for URLs an
+    operator marked as known-broken via ``judex peca-dismiss``.
     """
+    # Dismissal short-circuit: if an operator marked this URL as
+    # known-broken, route to DISMISSED regardless of underlying status.
+    # Meta-stage rows have ``url=None`` and can't be dismissed.
+    if row.url is not None:
+        from judex.utils import peca_cache
+        if peca_cache.is_dismissed(row.url):
+            return Bucket.DISMISSED
+
     raw = {"status": row.status, "kind": row.kind}
     classified = classify_unified_error(raw)
 
@@ -231,7 +268,7 @@ def _bucket_for(row: ErrorRow) -> Optional[Bucket]:
         return Bucket.REFETCH_UPSTREAM
 
     # classified == "terminal" — actionable overrides
-    if row.kind == "extract_text" and row.status == "empty":
+    if row.kind == "extract_text" and row.status in _PROVIDER_SWITCH_STATUSES:
         return Bucket.PROVIDER_SWITCH
     if row.kind == "fetch_meta" and row.status == "unallocated_pid":
         return Bucket.CONFIRMED_UNALLOCATED
@@ -265,29 +302,50 @@ def classify_residual(dirs: list[Path]) -> dict[Bucket, list[ErrorRow]]:
 # ---------------------------------------------------------------------------
 
 
-def plan_recoveries(
-    buckets: dict[Bucket, list[ErrorRow]],
-    *,
-    provedor: str,
+def _urls_file_path(source_dir: Path, status: str) -> Path:
+    """Where the URL-list file *will* land for a (source_dir, status)."""
+    return source_dir / f"limpar-{status}.urls.txt"
+
+
+def _refetch_csv_path(source_dir: Path) -> Path:
+    """Where the refetch CSV *will* land for a source_dir."""
+    return source_dir / "limpar-refetch.csv"
+
+
+def _build_urls_content(rows: list[ErrorRow]) -> str:
+    """Render a URL-list payload: one URL per line, deduped, trailing newline."""
+    seen: set[str] = set()
+    lines: list[str] = []
+    for row in rows:
+        if row.url and row.url not in seen:
+            seen.add(row.url)
+            lines.append(row.url)
+    return ("\n".join(lines) + "\n") if lines else ""
+
+
+def _build_cases_csv_content(rows: list[ErrorRow]) -> str:
+    """Render a (classe,processo) CSV payload, deduped on the pair."""
+    seen: set[tuple[str, int]] = set()
+    lines = ["classe,processo"]
+    for row in rows:
+        pair = (row.classe, row.processo)
+        if pair not in seen:
+            seen.add(pair)
+            lines.append(f"{row.classe},{row.processo}")
+    return "\n".join(lines) + "\n"
+
+
+def _plan_replay_spawns(
+    rows: list[ErrorRow], *, provedor: str,
 ) -> list[Spawn]:
-    """Return one :class:`Spawn` per source dir with at least one REPLAY row.
-
-    CAP_BURNT rows do **not** trigger a spawn — re-seeding them would
-    burn portal/sistemas/ocr-pool wall on tasks the seed builder will
-    immediately filter out (``_is_retryable_status`` enforces
-    ``retry_count < RETRY_CAP``). They need explicit cap-bypass via
-    the legacy ``extrair-pecas --forcar`` path or manual state surgery.
-
-    Other terminal/cross_stage buckets are surfaced in the summary but
-    not auto-dispatched in v1.
-    """
+    """REPLAY → one ``executar --retentar-de`` per source dir."""
     rows_per_dir: dict[Path, list[ErrorRow]] = {}
-    for row in buckets[Bucket.REPLAY]:
+    for row in rows:
         rows_per_dir.setdefault(row.source_dir, []).append(row)
 
     plans: list[Spawn] = []
     for source_dir in sorted(rows_per_dir.keys()):
-        rows = rows_per_dir[source_dir]
+        bucket_rows = rows_per_dir[source_dir]
         errors_file = source_dir / ERRORS_FILENAME
         argv = [
             "uv", "run", "judex", "executar",
@@ -300,8 +358,114 @@ def plan_recoveries(
             argv=argv,
             saida=source_dir,
             source_errors_file=errors_file,
-            n_replay_rows=len(rows),
+            n_replay_rows=len(bucket_rows),
         ))
+    return plans
+
+
+def _plan_provider_switch_spawns(rows: list[ErrorRow]) -> list[Spawn]:
+    """PROVIDER_SWITCH → one ``re-extrair`` per (source_dir, status).
+
+    Different statuses route to different providers (empty→chandra,
+    outlier_skipped→tesseract), so a single dispatch can't cover both;
+    we split per status. URL-scoped via re-extrair so meta + bytes
+    cache-skips are honoured (only the text stage runs). The URL-list
+    file contents are computed here as ``materialized_content``; the
+    actual write happens in :func:`execute_recoveries` so dry-run stays
+    side-effect-free.
+    """
+    grouped: dict[tuple[Path, str], list[ErrorRow]] = {}
+    for row in rows:
+        grouped.setdefault((row.source_dir, row.status), []).append(row)
+
+    plans: list[Spawn] = []
+    for (source_dir, status), group in sorted(
+        grouped.items(), key=lambda kv: (kv[0][0], kv[0][1]),
+    ):
+        provider = _PROVIDER_SWITCH_DESTINATIONS.get(status)
+        if provider is None:
+            continue  # status not in the dispatch table — skip safely
+        urls_file = _urls_file_path(source_dir, status)
+        content = _build_urls_content(group)
+        argv = [
+            "uv", "run", "judex", "re-extrair", str(urls_file),
+            "--provedor", provider,
+            "--forcar",
+        ]
+        plans.append(Spawn(
+            argv=argv,
+            saida=source_dir,
+            source_errors_file=urls_file,
+            n_replay_rows=len(group),
+            materialized_content=content,
+        ))
+    return plans
+
+
+def _plan_refetch_upstream_spawns(rows: list[ErrorRow]) -> list[Spawn]:
+    """REFETCH_UPSTREAM → one ``executar --csv`` per source dir.
+
+    no_bytes means the bytes never landed; rerunning ``executar`` over
+    the affected (classe, processo) cases lets the runner cache-skip
+    meta + the bytes that *did* succeed and refetch only the missing
+    ones. No --forcar (caches honoured). CSV contents computed as
+    ``materialized_content``; written by :func:`execute_recoveries`."""
+    rows_per_dir: dict[Path, list[ErrorRow]] = {}
+    for row in rows:
+        rows_per_dir.setdefault(row.source_dir, []).append(row)
+
+    plans: list[Spawn] = []
+    for source_dir in sorted(rows_per_dir.keys()):
+        group = rows_per_dir[source_dir]
+        csv_file = _refetch_csv_path(source_dir)
+        content = _build_cases_csv_content(group)
+        argv = [
+            "uv", "run", "judex", "executar",
+            "--csv", str(csv_file),
+            "--saida", str(source_dir),
+            "--nao-perguntar",
+        ]
+        plans.append(Spawn(
+            argv=argv,
+            saida=source_dir,
+            source_errors_file=csv_file,
+            n_replay_rows=len(group),
+            materialized_content=content,
+        ))
+    return plans
+
+
+def plan_recoveries(
+    buckets: dict[Bucket, list[ErrorRow]],
+    *,
+    provedor: str,
+) -> list[Spawn]:
+    """Return one :class:`Spawn` per actionable bucket per source dir.
+
+    Dispatched buckets (each materialises its own input file in the
+    source dir before the spawn argv is constructed):
+
+    - ``REPLAY`` → ``executar --retentar-de errors.jsonl`` (the
+      original v1 path; ``provedor`` argument is plumbed here).
+    - ``PROVIDER_SWITCH`` → ``re-extrair --provedor <X> --forcar``
+      where X depends on status (chandra for empty, tesseract for
+      outlier_skipped). Split per (dir, status) since different
+      statuses can't share a provider.
+    - ``REFETCH_UPSTREAM`` → ``executar --csv <built-from-rows>``
+      (no --forcar; cache-skips honour the bytes that did land).
+
+    Skipped buckets:
+
+    - ``CAP_BURNT`` — re-seeding burns wall on tasks the seed builder
+      filters out (``_is_retryable_status`` enforces
+      ``retry_count < RETRY_CAP``); needs explicit cap-bypass.
+    - ``CONFIRMED_UNALLOCATED`` / ``TERMINAL_DROPPED`` — terminal-
+      confirmed; retry returns the same outcome.
+    """
+    plans: list[Spawn] = []
+    plans.extend(_plan_replay_spawns(buckets[Bucket.REPLAY], provedor=provedor))
+    plans.extend(_plan_provider_switch_spawns(buckets[Bucket.PROVIDER_SWITCH]))
+    plans.extend(_plan_refetch_upstream_spawns(buckets[Bucket.REFETCH_UPSTREAM]))
     return plans
 
 
@@ -365,6 +529,15 @@ def execute_recoveries(
     lines: list[str] = []
 
     for spawn in plan:
+        # Materialise the input file (URL list / CSV) for dispatches
+        # that need a fresh one. REPLAY spawns leave this as None and
+        # consume the pre-existing executar.errors.jsonl.
+        if spawn.materialized_content is not None:
+            spawn.source_errors_file.parent.mkdir(parents=True, exist_ok=True)
+            spawn.source_errors_file.write_text(
+                spawn.materialized_content, encoding="utf-8"
+            )
+
         log_path = spawn.saida / "driver.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_fh = log_path.open("ab")

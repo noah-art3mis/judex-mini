@@ -17,7 +17,7 @@ Exemplos:
     uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
     uv run judex executar -c HC -i 250920 -f 267137            # range mode
     uv run judex limpar runs/active/<label>/ --apply           # residual recovery
-    uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
+    uv run judex warehouse --classe HC                          # rebuild DuckDB
     uv run judex debug exportar --apenas hc_famous_lawyers     # marimo HTML export
 """
 
@@ -68,19 +68,17 @@ app = typer.Typer(
 
 # Sub-app for inspection / validation / export utilities that aren't
 # part of the everyday operator loop (`executar` → `acompanhar` →
-# `relatar` + `limpar` + `atualizar-warehouse`). The legacy three-
+# `relatar` + `limpar` + `warehouse`). The legacy three-
 # command chain (varrer / baixar / extrair / coletar) was removed
 # from the CLI surface; the library code in `judex/sweeps/` stays for
 # `pick_provider` and shared helpers used by the unified pipeline.
 # Recoverable on the `archive/iteration-2-three-command-chain` branch.
 debug_app = typer.Typer(
     add_completion=False,
-    help="Utilitários auxiliares: inspeção, validação, comparação de "
-         "provedores, backup e exportação. `judex executar` é o "
-         "caminho primário do dia-a-dia.",
+    help="Utilitários auxiliares (inspeção, backup, exportação, validação).",
     no_args_is_help=True,
 )
-app.add_typer(debug_app, name="debug")
+app.add_typer(debug_app, name="debug", rich_help_panel="Utilitários")
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +133,7 @@ def exportar(
              "Repita para selecionar vários. Omita para exportar todos.",
     ),
 ) -> None:
-    """Exporta os cinco notebooks Marimo de HC como HTML interativo autônomo."""
+    """Exporta os notebooks de análise como HTML interativo."""
     diretorio_saida.mkdir(parents=True, exist_ok=True)
 
     selecionados = tuple(apenas) if apenas else DEFAULT_NOTEBOOKS
@@ -201,7 +199,7 @@ def fazer_backup(
         False, "--incluir-warehouse",
         help="Inclui data/derived/warehouse/judex.duckdb. Por padrão fica "
              "de fora — é artefato derivado, regenerável via "
-             "`atualizar-warehouse`.",
+             "`warehouse`.",
     ),
     classe: Optional[list[str]] = typer.Option(
         None, "--classe",
@@ -229,18 +227,14 @@ def fazer_backup(
         help="Frequência (em arquivos) das linhas de progresso. 0 desliga.",
     ),
 ) -> None:
-    """Empacota processos + peças num único .zip aberto pelo Windows.
+    """Empacota o corpus num .zip que abre direto no Windows.
 
-    Saída atômica: grava em <saida>.tmp e renomeia ao final. Compressão é
-    por entrada — JSON deflaciona, .gz/.pdf/.rtf vão como ZIP_STORED.
+    Saída atômica (grava em ``.tmp`` e renomeia ao final).
 
-    Para um backup completo (processos + peças + warehouse):
+    Exemplos:
 
-        uv run judex fazer-backup --incluir-warehouse
-
-    Para só metadados de HC (sem peças, sem warehouse):
-
-        uv run judex fazer-backup --classe HC --sem-pecas
+        uv run judex debug fazer-backup --incluir-warehouse
+        uv run judex debug fazer-backup --classe HC --sem-pecas
     """
     from judex.backup import make_backup
 
@@ -278,7 +272,7 @@ def fazer_backup(
 #              num único processo asyncio com três pools concorrentes)
 
 
-@app.command(name="executar")
+@app.command(name="executar", rich_help_panel="Coleta")
 def executar(
     # Modos de entrada (mutuamente exclusivos): range, --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
@@ -372,26 +366,18 @@ def executar(
              "Necessário para uso não-interativo (cron, nohup).",
     ),
 ) -> None:
-    """Pipeline unificado: varrer + baixar + extrair num único processo.
+    """Raspa um intervalo (ou CSV) de processos: metadados + peças + texto.
 
-    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
-    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
-    invocação fire-and-forget. Três asyncio.Queues alimentam três
-    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
-    tarefa emite suas sucessoras ao terminar.
+    Cada execução é uma Coleta — produz um diretório de run com log,
+    estado e relatório consolidado. Três modos de entrada (escolha um):
 
-    **Modos de entrada (escolha um):**
-      - range: ``-c HC -i 250000 -f 250100``
-      - CSV:   ``--csv alvos.csv``
-      - retry: ``--retentar-de runs/.../executar.errors.jsonl``
+      - intervalo:  ``-c HC -i 250000 -f 250100``
+      - CSV:        ``--csv alvos.csv``
+      - retomada:   ``--retentar-de runs/.../executar.errors.jsonl``
 
-    Estado persistido em ``<saida>/executar.state.json`` (snapshot
-    atômico, periódico) + ``<saida>/executar.log.jsonl`` (append-only,
-    fsynced por linha — durável contra SIGKILL / OOM / VM suspend).
-    Resume é automático: re-rodar com a mesma ``--saida`` requeue só
-    o trabalho não-ok. SIGTERM/SIGINT acionam shutdown gracioso.
-
-    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    Retomada é automática — re-rodar com o mesmo ``--saida`` pula o
+    trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
+    encerram de forma limpa, deixando o estado retomável em disco.
     """
     # ----- Mode resolution -----
     range_flags = [
@@ -596,7 +582,7 @@ def _print_executar_forecast(
 # `atualizar` — varre os processos novos até o leading edge atual da STF
 
 
-@app.command(name="atualizar")
+@app.command(name="atualizar", rich_help_panel="Manutenção do corpus")
 def atualizar_corpus(
     classe: str = typer.Argument(
         ...,
@@ -636,22 +622,15 @@ def atualizar_corpus(
         help="Concorrência do pool OCR.",
     ),
 ) -> None:
-    """Atualiza o corpus de uma classe até o leading edge atual da STF.
+    """Adiciona ao corpus os processos novos publicados pela STF para uma classe.
 
-    1. Glob ``data/source/processos/<classe>/`` para o maior processo_id
-       já scrapeado.
-    2. Sonda case-ids acima dele um a um via portal, parando após
-       ``--paradas-apos-misses`` IDs não-alocados consecutivos (sinal
-       de ter passado o leading edge da STF para essa classe).
-    3. Roda o pipeline completo (meta + bytes + text) só nos case-ids
-       descobertos como vivos — pula automaticamente os buracos.
+    Pega o último processo_id já raspado em ``data/source/processos/<classe>/``,
+    sonda processos mais recentes pelo portal, e raspa só os que aparecerem
+    como vivos. Comando idempotente — re-rodar pula o que já está em disco.
 
-    Comando idempotente — re-rodar pula o que já foi puxado via
-    ``skipped_cached``.
+    Exemplos:
 
-    Exemplo:
-
-        uv run judex atualizar HC                       # default
+        uv run judex atualizar HC
         uv run judex atualizar ADI --paradas-apos-misses 50
     """
     from datetime import datetime
@@ -735,11 +714,47 @@ def atualizar_corpus(
 
 
 # ---------------------------------------------------------------------------
-# `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
+# `warehouse` — reconstrói o DuckDB derivado dos JSONs + cache de texto.
+# (anteriormente ``atualizar-warehouse``; ver alias deprecado abaixo).
 
 
-@app.command(name="atualizar-warehouse")
-def atualizar_warehouse(
+def _run_warehouse(
+    diretorio_processos: Path,
+    diretorio_pecas_texto: Path,
+    saida: Path,
+    classe: Optional[list[str]],
+    ano: Optional[int],
+    progresso_cada: int,
+    estrito: bool,
+    runs_root: Optional[Path] = None,
+) -> int:
+    """Shared body for the canonical ``warehouse`` command and its
+    deprecated ``atualizar-warehouse`` alias. Returns the exit code from
+    :func:`judex.sweeps.build_warehouse.run_build_warehouse`.
+
+    When ``runs_root`` is non-None and exists, the build also populates
+    the ``peca_issues`` cross-run registry. Default ``None`` keeps the
+    deprecated alias (and tests) on the lighter pre-registry build path.
+    """
+    from judex.sweeps.build_warehouse import run_build_warehouse
+
+    effective_runs_root = (
+        runs_root if (runs_root is not None and runs_root.exists()) else None
+    )
+    return run_build_warehouse(
+        cases_root=diretorio_processos,
+        pecas_texto_root=diretorio_pecas_texto,
+        output=saida,
+        classe=classe,
+        year=ano,
+        progress_every=progresso_cada,
+        strict=estrito,
+        runs_root=effective_runs_root,
+    )
+
+
+@app.command(name="warehouse", rich_help_panel="Manutenção do corpus")
+def warehouse(
     diretorio_processos: Path = typer.Option(
         Path("data/source/processos"), "--diretorio-processos",
         help="Raiz dos JSONs de processo (particionados por classe).",
@@ -772,29 +787,194 @@ def atualizar_warehouse(
              "regressões silenciosas do scraper. O arquivo .duckdb ainda "
              "é gravado para inspeção manual; só o exit code muda.",
     ),
+    com_peca_issues: bool = typer.Option(
+        False, "--com-peca-issues",
+        help="Constrói também a tabela ``peca_issues`` — registro per-URL "
+             "agregado dos run dirs em ``runs/active/`` (status, tentativas, "
+             "dispensa, suspeita-curta). Default off porque adiciona "
+             "alguns segundos ao build e nem todo operador precisa.",
+    ),
+    runs_root: Path = typer.Option(
+        Path("runs/active"), "--runs-root",
+        help="Raiz dos run dirs. Usada apenas com --com-peca-issues.",
+    ),
 ) -> None:
-    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de texto.
+    """Reconstrói o banco DuckDB a partir dos dados raspados.
 
-    Full-rebuild com swap atômico — não há modo incremental. Os JSONs
-    em ``data/source/processos/`` continuam sendo a fonte de verdade;
-    o warehouse é um artefato derivado, regenerável. Custo típico:
-    ~2–3 min para ~55k processos, ~15–20 min para 350k.
+    Usado para análise em SQL ou nos notebooks em ``analysis/``. Rebuild
+    completo com swap atômico — não há modo incremental. Não fala com a
+    rede; é puro scan local. Custo típico: ~2-3 min para 55 k processos,
+    ~15-20 min para 350 k.
 
-    O comando não fala com a rede — é puro scan local de JSON + gzip.
-    Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
-    quiser ver os dados novos nos notebooks / em SQL.
+    Rode depois de ``executar`` para refletir os dados novos.
     """
-    from judex.sweeps.build_warehouse import run_build_warehouse
-
-    raise typer.Exit(code=run_build_warehouse(
-        cases_root=diretorio_processos,
-        pecas_texto_root=diretorio_pecas_texto,
-        output=saida,
-        classe=classe,
-        year=ano,
-        progress_every=progresso_cada,
-        strict=estrito,
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
+        runs_root=runs_root if com_peca_issues else None,
     ))
+
+
+@app.command(name="atualizar-warehouse", hidden=True, rich_help_panel="Manutenção do corpus")
+def atualizar_warehouse(
+    diretorio_processos: Path = typer.Option(
+        Path("data/source/processos"), "--diretorio-processos",
+    ),
+    diretorio_pecas_texto: Path = typer.Option(
+        Path("data/derived/pecas-texto"), "--diretorio-pecas-texto",
+    ),
+    saida: Path = typer.Option(
+        Path("data/derived/warehouse/judex.duckdb"), "--saida",
+    ),
+    classe: Optional[list[str]] = typer.Option(None, "--classe"),
+    ano: Optional[int] = typer.Option(None, "--ano"),
+    progresso_cada: int = typer.Option(10_000, "--progresso-cada"),
+    estrito: bool = typer.Option(False, "--estrito"),
+) -> None:
+    """[DEPRECADO] Use ``judex warehouse``. Mantido como alias enquanto
+    scripts antigos (chains, jobs) usam o nome anterior."""
+    import sys
+    print(
+        "[deprecation] use `judex warehouse` — `atualizar-warehouse` "
+        "is a transition alias and will be removed",
+        file=sys.stderr,
+    )
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `re-extrair` — URL-scoped re-extraction (no fetch, no case-walker)
+
+
+@app.command(name="re-extrair", rich_help_panel="Peças individuais")
+def re_extrair_cmd(
+    arquivo_urls: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, readable=True,
+        help="Arquivo simples com uma URL por linha. Linhas em branco e "
+             "comentários (#) são ignoradas.",
+    ),
+    provedor: str = typer.Option(
+        "tesseract", "--provedor",
+        help="Provedor de OCR: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Re-extrai mesmo quando o sidecar já indica o mesmo provedor "
+             "(ignora a verificação de cache).",
+    ),
+) -> None:
+    """Re-extrai o texto de peças específicas com o provedor escolhido.
+
+    O alvo é uma lista de URLs (uma por linha). Para cada URL, lê os
+    bytes do cache de peças, roda o provedor de novo, e regrava o texto.
+    Não fala com a STF — os bytes precisam já estar em cache (rode
+    ``judex executar`` antes); URLs sem bytes em cache contam para
+    ``missing_bytes`` no relatório.
+
+    Caso de uso típico: re-OCR pontual de peças que estouraram o cap de
+    body do OCR em cloud, com ``--provedor tesseract`` local — sem
+    re-extrair as outras peças do mesmo processo.
+    """
+    from judex.sweeps.re_extrair import run_re_extrair
+
+    result = run_re_extrair(arquivo_urls, provedor=provedor, forcar=forcar)
+    typer.echo(
+        f"re-extrair: ok={result.n_ok} · skipped={result.n_skipped} · "
+        f"missing_bytes={result.n_missing_bytes} · fail={result.n_fail} · "
+        f"wall={result.wall_s:.1f}s"
+    )
+    if result.n_fail > 0:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# `peca-spot-check` — sample peças from the warehouse for quality inspection
+
+
+@app.command(name="peca-spot-check", rich_help_panel="Peças individuais")
+def peca_spot_check_cmd(
+    classe: Optional[str] = typer.Option(
+        None, "--classe",
+        help="Filtra para uma classe processual (HC, ADI, RE, …).",
+    ),
+    ano: Optional[int] = typer.Option(
+        None, "--ano",
+        help="Filtra para um ano de protocolo do processo.",
+    ),
+    doc_type: Optional[str] = typer.Option(
+        None, "--doc-type",
+        help='Filtra por tipo de peça (ex.: "DECISÃO MONOCRÁTICA", "VOTO").',
+    ),
+    n: int = typer.Option(
+        10, "-n", "--n",
+        help="Quantas peças amostrar (default 10).",
+    ),
+    seed: Optional[int] = typer.Option(
+        None, "--seed",
+        help="Fixa a aleatoriedade — mesma seed re-produz a mesma amostra.",
+    ),
+) -> None:
+    """Amostra N peças do warehouse e mostra o texto extraído.
+
+    Usado para auditar qualidade da extração — cada amostra exibe
+    classe, processo, tipo, contagem de chars e um preview. Peças
+    suspeitas-curtas (provavelmente falha silenciosa do pypdf — chars
+    > 0 mas só com cabeçalho) são marcadas com ⚠.
+
+    Pré-requisito: o warehouse precisa estar construído (``judex
+    warehouse``).
+    """
+    from judex.analysis.peca_spot_check import render_samples, sample_pecas
+    from judex.warehouse.query import open_readonly
+
+    con = open_readonly()
+    samples = sample_pecas(
+        con, classe=classe, year=ano, doc_type=doc_type, n=n, seed=seed,
+    )
+    typer.echo(render_samples(samples), nl=False)
+
+
+# ---------------------------------------------------------------------------
+# `peca-dismiss` / `peca-undismiss` — operator-set "stop retrying this URL"
+
+
+@app.command(name="peca-dismiss", rich_help_panel="Peças individuais")
+def peca_dismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a dispensar."),
+    motivo: str = typer.Option(
+        ..., "--motivo",
+        help="Razão legível para a dispensa (ex.: 'PDF retirado da STF', "
+             "'OCR pesado pra valer a pena', 'duplicata de <X>').",
+    ),
+) -> None:
+    """Marca uma URL como conhecida-quebrada para parar de tentar.
+
+    URLs dispensadas são silenciosamente puladas pelo ``judex limpar``
+    e não consomem orçamento de retry. Persiste em
+    ``data/derived/pecas-texto/<sha1>.dismissed.json`` (atravessa
+    rebuilds do warehouse).
+    """
+    from judex.utils import peca_cache
+    peca_cache.write_dismissal(url, reason=motivo)
+    typer.echo(f"dispensada: {url}")
+    typer.echo(f"  motivo: {motivo}")
+
+
+@app.command(name="peca-undismiss", rich_help_panel="Peças individuais")
+def peca_undismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a re-habilitar."),
+) -> None:
+    """Remove a marca de dispensa de uma URL — volta a entrar no retry."""
+    from judex.utils import peca_cache
+    cleared = peca_cache.clear_dismissal(url)
+    if cleared:
+        typer.echo(f"re-habilitada: {url}")
+    else:
+        typer.echo(f"nada a fazer (não estava dispensada): {url}")
 
 
 # ---------------------------------------------------------------------------
@@ -822,16 +1002,11 @@ def providers_cmd(
              "wall caveat).",
     ),
 ) -> None:
-    """Print the OCR provider comparison table for a given workload size.
+    """Compara custo e velocidade dos provedores de OCR para um volume.
 
-    Reads each provider's ``SPEC: ProviderSpec`` from
-    ``judex/scraping/ocr/<provider>.py``, asks for cost(n_pages) and
-    wall(n_pdfs), prints sorted by cost. Providers whose ``wall``
-    anchor isn't measured yet show ``—`` in the minutes column.
-
-    The numbers come from the same SPECs ``extrair-pecas --prever``
-    consults, so this view and the per-sweep forecast are always
-    consistent.
+    Mostra uma tabela ordenada por custo, com USD por mil páginas e
+    wall estimado para o volume informado. Provedores sem âncora de
+    wall medida exibem ``—``.
     """
     from judex.scraping.ocr.dispatch import render_provider_table
     typer.echo(render_provider_table(
@@ -840,10 +1015,77 @@ def providers_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `acompanhar` — tail unificado mono + sharded com auto-encerramento
+
+
+@app.command(name="acompanhar", rich_help_panel="Coleta")
+def acompanhar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run. Auto-detecta layout: sharded "
+             "(shard-*/driver.log) ou monolítico (driver.log / "
+             "launcher.log no topo).",
+    ),
+    n: int = typer.Option(
+        20, "-n",
+        help="Linhas iniciais antes do follow.",
+    ),
+    agg_interval: float = typer.Option(
+        30.0, "--agg-interval",
+        help="Intervalo (segundos) entre as linhas agregadas "
+             "``─── … ───`` (sharded) e entre as checagens de "
+             "fim-de-run (mono e sharded).",
+    ),
+    persistir: bool = typer.Option(
+        False, "--persistir",
+        help="Continua tailando após todos os shards terem registrado "
+             "``executar: done`` (comportamento legado). Padrão é "
+             "encerrar com um ``relatar`` consolidado.",
+    ),
+) -> None:
+    """Acompanha uma Coleta ao vivo e mostra o relatório final quando termina.
+
+    Detecta automaticamente o fim da Coleta e imprime um resumo
+    consolidado (mesmo formato de ``judex relatar``). Em Coletas
+    paralelizadas (shards), agrega o progresso dos vários shards em
+    uma linha por intervalo — sem 16 logs idênticos disputando a tela.
+    Use ``--persistir`` para continuar acompanhando em vez de encerrar.
+    """
+    from scripts.follow_run import run_follow
+    raise typer.Exit(code=run_follow(
+        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `relatar` — consolidação pós-run (residuals + próximos passos)
+
+
+@app.command(name="relatar", rich_help_panel="Coleta")
+def relatar(
+    run_dir: Path = typer.Argument(
+        ...,
+        help="Diretório do run (mono ou sharded). "
+             "Funciona tanto para run em curso quanto para run finalizado.",
+    ),
+) -> None:
+    """Resume o estado de uma Coleta num relatório consolidado.
+
+    Mostra status, mix por Pool (processos / peças / texto),
+    wall-clock, custo de OCR, lista de erros agrupados por causa, e
+    próximos passos copy-paste para recuperar o que ainda dá. Funciona
+    em Coleta em curso ou já finalizada — somente leitura, idempotente,
+    roda em menos de 1 s.
+    """
+    from judex.sweeps.run_summary import render_summary, summarize_run
+    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
+
+
+# ---------------------------------------------------------------------------
 # `limpar` — close a finished run's residual in one command
 
 
-@app.command(name="limpar")
+@app.command(name="limpar", rich_help_panel="Coleta")
 def limpar(
     run_dir: Path = typer.Argument(
         ...,
@@ -868,26 +1110,19 @@ def limpar(
              "para invocações non-interactive (cron, nohup).",
     ),
 ) -> None:
-    """One-command residual recovery for finished ``judex executar`` runs.
+    """Recupera os erros que sobraram depois de uma Coleta (``executar``).
 
-    Walks ``<run_dir>`` (mono ou sharded — auto-detecta), classifica
-    cada linha de ``executar.errors.jsonl`` em buckets via
-    ``judex.pipeline.log.classify_unified_error``, e dispara um
-    ``judex executar --retentar-de`` detached por shard com pelo menos
-    uma linha transiente. Buckets terminais (``unallocated_pid``,
-    ``empty``, ``no_bytes``) são contados e reportados — não
-    auto-dispatchados em v1.
+    Classifica os erros da Coleta em buckets (transientes, cap-burnt,
+    troca de provedor, refetch, terminais) e dispara as recuperações
+    cabíveis: ``executar --retentar-de`` para transientes, ``re-extrair``
+    para troca de provedor, ``executar --csv`` para refetch de bytes
+    faltantes.
 
-    Default é dry-run (imprime ``would-recover: …`` e sai). Para
-    realmente executar, ``--apply``. Para non-interactive (cron/nohup),
-    combine com ``--nao-perguntar``.
+    Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
+    Use ``--apply`` para executar de fato.
 
-    Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
-    Exit codes:
-
-    - ``0`` — plano computado (e sob ``--apply``, todos os spawns OK).
-    - ``2`` — args inválidos (``run_dir`` não existe).
-    - ``3`` — resíduo vazio (nenhum ``executar.errors.jsonl`` encontrado).
+    Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
+    recuperar.
     """
     from judex.sweeps.limpar import (
         classify_residual,
@@ -947,98 +1182,6 @@ def limpar(
 
 
 # ---------------------------------------------------------------------------
-# `acompanhar` — tail unificado mono + sharded com auto-encerramento
-
-
-@app.command(name="acompanhar")
-def acompanhar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run. Auto-detecta layout: sharded "
-             "(shard-*/driver.log) ou monolítico (driver.log / "
-             "launcher.log no topo).",
-    ),
-    n: int = typer.Option(
-        20, "-n",
-        help="Linhas iniciais antes do follow.",
-    ),
-    agg_interval: float = typer.Option(
-        30.0, "--agg-interval",
-        help="Intervalo (segundos) entre as linhas agregadas "
-             "``─── … ───`` (sharded) e entre as checagens de "
-             "fim-de-run (mono e sharded).",
-    ),
-    persistir: bool = typer.Option(
-        False, "--persistir",
-        help="Continua tailando após todos os shards terem registrado "
-             "``executar: done`` (comportamento legado). Padrão é "
-             "encerrar com um ``relatar`` consolidado.",
-    ),
-) -> None:
-    """Tail unificado para runs monolíticos e shardeados, com
-    encerramento automático ao final do run.
-
-    Padrão: tail + auto-detect de fim-de-run + ``relatar`` consolidado.
-    A linha-âncora é ``executar: done`` (emitida por
-    ``judex/pipeline/runner.py``). Quando todos os shards (ou o log
-    monolítico) registram pelo menos uma, o ``acompanhar`` para o
-    multitail, imprime o resumo e sai com código 0. Use ``--persistir``
-    para o comportamento legado de tailar indefinidamente.
-
-    **Mono** e **sharded** rodam o mesmo loop Python — sem ``execvp`` —
-    para que a detecção de fim-de-run funcione em ambos os layouts.
-    Ctrl-C também é capturado limpo, sem stack-trace de Python.
-
-    Em sharded, a saída é compactada de duas formas:
-
-      1. Cabeçalhos ``==> shard-X/driver.log <==`` viram prefixo
-         compacto ``[X]`` por linha.
-      2. As linhas ``─── 571/571 (100%) … ───`` de cada shard são
-         suprimidas (16 idênticas a cada intervalo é puro ruído).
-         Uma thread agregadora emite UMA linha cluster-wide com
-         counts reais (``provider_error``, ``unallocated_pid``, …).
-    """
-    from scripts.follow_run import run_follow
-    raise typer.Exit(code=run_follow(
-        run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
-    ))
-
-
-# ---------------------------------------------------------------------------
-# `relatar` — consolidação pós-run (residuals + próximos passos)
-
-
-@app.command(name="relatar")
-def relatar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run (mono ou sharded). "
-             "Funciona tanto para run em curso quanto para run finalizado.",
-    ),
-) -> None:
-    """Consolida o estado de um run de ``executar`` em um relatório único.
-
-    Caminha por ``shard-*/executar.state.json``,
-    ``shard-*/executar.errors.jsonl`` e ``shard-*/report.md`` (ou seus
-    equivalentes top-level em mono) e renderiza:
-
-    - banner de status (``DONE``/``RUNNING``/``EMPTY``);
-    - mix de status por estágio (processos / pecas / text);
-    - wall-clock (maior shard + soma) e custo de OCR (USD);
-    - residuals classificados por ``(kind, status)``, com label
-      humano e contagem;
-    - próximos passos copy-paste (loops ``--retentar-de`` por shard
-      para classes retryable; classes terminais ficam só listadas).
-
-    Idempotente, somente-leitura, executa em <1 s em runs finalizados.
-    Pareado com ``acompanhar`` (que chama o mesmo renderer ao detectar
-    fim-de-run).
-    """
-    from judex.sweeps.run_summary import render_summary, summarize_run
-    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
-
-
-# ---------------------------------------------------------------------------
 # `probe` — tabela rich de progresso shard-a-shard
 
 
@@ -1053,16 +1196,11 @@ def probe_cmd(
         help="Intervalo de atualização em segundos (0 = mostra uma vez e sai).",
     ),
 ) -> None:
-    """Mostra o progresso de uma varredura sharded em tempo real.
+    """Mostra ao vivo o progresso de uma Coleta paralelizada (shards).
 
-    Lê `shard-*/sweep.state.json` sob `--out-root` e renderiza uma
-    tabela rich com done/target, throughput por shard, regime de WAF
-    (colorido) e ETA agregada. Com `--watch N` redesenha a tela a cada
-    N segundos (Ctrl-C para sair).
-
-    A fonte de verdade de `target` é `<out-root>/shards/*.shard.N.csv`
-    — gerado automaticamente pelo launcher de `varrer-processos
-    --shards`.
+    Renderiza uma tabela com done/target, throughput por shard, regime
+    da WAF (colorido) e ETA agregada. Com ``--watch N`` redesenha a
+    cada N segundos (Ctrl-C sai).
     """
     from scripts.probe_sharded import run_probe
 
@@ -1099,21 +1237,18 @@ def analisar_regimes(
              "para obter só as mudanças.",
     ),
 ) -> None:
-    """Reconstrói a trajetória de regime de um sweep a partir de seu log.
+    """Diagnostica o histórico de throughput de uma Coleta terminada.
 
-    Lê ``sweep.log.jsonl`` (varrer-processos) ou ``pdfs.log.jsonl``
-    (baixar-pecas) — auto-detectado — e responde duas perguntas
-    operacionais sem ``jq``:
+    Reconstrói as transições de regime (``warming`` →
+    ``approaching_collapse`` → ``collapse``) a partir do log da Coleta
+    e responde:
 
-    1. **Quando o regime mudou?** Lista as transições com ``fail_rate``,
-       ``p95`` e qual eixo (A=fail-rate / B=p95) promoveu cada banda.
-    2. **Onde a queda começou?** Para cada banda severa
-       (``l2_engaged`` / ``approaching_collapse`` / ``collapse``),
-       o primeiro registro que a atingiu.
+    1. **Quando o regime mudou?** Lista cada transição com ``fail_rate``
+       e ``p95``, mostrando qual métrica disparou.
+    2. **Onde a queda (cliff) começou?** Primeiro registro a atingir
+       cada banda severa.
 
-    Distingue-se de ``probe`` (que lê o snapshot ``*.state.json`` para
-    monitoramento ao vivo) por ler o log append-only e responder
-    perguntas históricas.
+    Use ``--apenas-transicoes`` para Coletas grandes (só as mudanças).
     """
     from scripts.analyze_regimes import run_analyze_regimes
 
@@ -1132,12 +1267,11 @@ def analisar_regimes(
 
 @debug_app.command(name="validar-gabarito")
 def validar_gabarito() -> None:
-    """Diff da saída do raspador contra os gabaritos conferidos à mão.
+    """Compara o raspador com os gabaritos conferidos à mão.
 
-    Lê cada fixture em ``tests/ground_truth/*.json``, raspa o processo
-    correspondente pelo backend HTTP e imprime os diffs por fixture e
-    o resumo final. Atinge o portal do STF na primeira execução; o
-    cache HTML absorve as chamadas seguintes.
+    Lê ``tests/ground_truth/*.json``, raspa cada processo via HTTP e
+    imprime os diffs por fixture mais o resumo. Atinge o portal STF
+    apenas na primeira execução; o cache HTML absorve o resto.
     """
     from scripts.validate_ground_truth import run_validate_ground_truth
 

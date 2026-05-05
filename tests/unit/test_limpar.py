@@ -330,6 +330,312 @@ def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
     assert "--nao-perguntar" in argv
 
 
+# ----- DISMISSED bucket (peca-registry sub-issue 04) -----------------------
+
+
+def test_dismissed_url_routes_to_dismissed_bucket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A URL marked dismissed via ``peca-dismiss`` short-circuits the
+    classifier — route to DISMISSED regardless of underlying status."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+
+    # Pre-dismiss the URL u1 lives at.
+    peca_cache.write_dismissal("u1", reason="known broken")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    # Would have been REPLAY (transient provider_error) — but dismissal wins.
+    assert len(buckets[Bucket.REPLAY]) == 0
+    assert len(buckets[Bucket.DISMISSED]) == 1
+    assert buckets[Bucket.DISMISSED][0].url == "u1"
+
+
+def test_dismissed_does_not_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """plan_recoveries must produce *zero* spawns for DISMISSED rows —
+    that's the whole point of dismissal."""
+    from judex.utils import peca_cache
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path / "pecas-texto")
+    peca_cache.write_dismissal("u1", reason="known broken")
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+    assert plan == []
+
+
+# ----- plan_recoveries: non-REPLAY buckets (limpar v2) ---------------------
+
+
+def test_classify_residual_routes_outlier_skipped_to_provider_switch(
+    tmp_path: Path,
+) -> None:
+    """``outlier_skipped`` is a kind=terminal extract_text status emitted
+    when a PDF exceeds the cloud-OCR body cap. Recovery is local
+    Tesseract (no body cap), which limpar dispatches via PROVIDER_SWITCH
+    — same bucket as ``empty`` but with a different destination provider.
+    Sub-issue 02 routing through limpar's classifier.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("outlier_skipped")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    assert len(buckets[Bucket.PROVIDER_SWITCH]) == 1
+    assert buckets[Bucket.PROVIDER_SWITCH][0].status == "outlier_skipped"
+
+
+def test_plan_dispatches_provider_switch_empty_via_re_extrair_chandra(
+    tmp_path: Path,
+) -> None:
+    """A PROVIDER_SWITCH row with status=empty must dispatch
+    ``judex re-extrair`` against a materialised URL list, with
+    ``--provedor chandra --forcar``. URL-scoped (no over-extraction)
+    and skips the meta + bytes stages that already succeeded.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    spawn = plan[0]
+    argv_str = " ".join(spawn.argv)
+    assert "re-extrair" in argv_str
+    assert "--provedor chandra" in argv_str
+    assert "--forcar" in argv_str
+    # File is *not* materialised by plan_recoveries (dry-run must stay
+    # side-effect-free) — only the intended path + content are carried
+    # on the Spawn for execute_recoveries to write later.
+    assert spawn.source_errors_file is not None
+    assert not spawn.source_errors_file.exists(), (
+        "plan_recoveries must not write the materialised file (would "
+        "make dry-run side-effecting)"
+    )
+    assert spawn.materialized_content is not None
+    assert "u1" in spawn.materialized_content
+
+
+def test_plan_dispatches_provider_switch_outlier_via_re_extrair_tesseract(
+    tmp_path: Path,
+) -> None:
+    """A PROVIDER_SWITCH row with status=outlier_skipped must dispatch
+    against local tesseract (the only provider without the body cap)."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("outlier_skipped")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    argv_str = " ".join(plan[0].argv)
+    assert "re-extrair" in argv_str
+    assert "--provedor tesseract" in argv_str
+    assert "--forcar" in argv_str
+    # Must NOT route to a cloud provider — defeats the purpose.
+    for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
+        assert f"--provedor {cloud}" not in argv_str
+
+
+def test_plan_splits_provider_switch_by_status_one_spawn_each(
+    tmp_path: Path,
+) -> None:
+    """A dir with both empty and outlier_skipped rows yields TWO spawns
+    — different destination providers can't share an re-extrair call."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("empty")},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("outlier_skipped")},
+            },
+        },
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    # Two PROVIDER_SWITCH spawns — one for each provider.
+    argv_strs = [" ".join(s.argv) for s in plan]
+    has_chandra = any("--provedor chandra" in s for s in argv_strs)
+    has_tesseract = any("--provedor tesseract" in s for s in argv_strs)
+    assert has_chandra
+    assert has_tesseract
+
+
+def test_plan_dispatches_refetch_upstream_via_executar_csv(tmp_path: Path) -> None:
+    """A REFETCH_UPSTREAM row (no_bytes on extract_text) must dispatch
+    ``judex executar --csv`` against a CSV of (classe, processo) pairs.
+    The bytes that are present in cache are skipped automatically by
+    the runner; only the missing bytes are refetched + their text
+    re-extracted. No --forcar (caches honoured)."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("no_bytes")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 1
+    argv_str = " ".join(plan[0].argv)
+    assert "executar" in argv_str
+    assert "--csv" in argv_str
+    assert "--forcar" not in argv_str
+    # CSV not written under plan_recoveries; carried as content only.
+    assert plan[0].source_errors_file is not None
+    assert not plan[0].source_errors_file.exists()
+    assert plan[0].materialized_content is not None
+    assert "HC,1" in plan[0].materialized_content
+
+
+def test_plan_recoveries_does_not_write_to_disk(tmp_path: Path) -> None:
+    """plan_recoveries is a *pure* planner — it must not touch disk.
+    The materialised input files (URL lists / CSVs) are only written
+    by execute_recoveries under --apply. Otherwise dry-run leaves
+    stray files like ``limpar-empty.urls.txt`` in every run dir
+    inspected.
+
+    Caught by an end-to-end limpar dry-run on 2026-05-04 that produced
+    side-effect files in /tmp/. Pinned here so the regression bites a
+    test, not an operator.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("empty")},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("no_bytes")},
+            },
+        },
+    )
+    files_before = sorted(p.name for p in tmp_path.iterdir())
+    buckets = classify_residual([tmp_path])
+    plan_recoveries(buckets, provedor="auto")
+    files_after = sorted(p.name for p in tmp_path.iterdir())
+    assert files_before == files_after, (
+        f"plan_recoveries leaked side-effect files: "
+        f"{set(files_after) - set(files_before)}"
+    )
+
+
+def test_execute_recoveries_materialises_content_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """execute_recoveries is where the materialisation actually happens.
+    Stub Popen so the test doesn't spawn anything, but verify the
+    URL-list / CSV file lands on disk before the (would-be) spawn."""
+    from judex.sweeps import limpar as mod
+
+    captured_argvs: list[list[str]] = []
+
+    class _FakePopen:
+        def __init__(self, argv: list[str], **_kw: object) -> None:
+            captured_argvs.append(argv)
+            self.pid = 12345
+
+    monkeypatch.setattr(mod.subprocess, "Popen", _FakePopen)
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("empty")},
+        }},
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+    pids_path = tmp_path / "limpar.pids"
+    mod.execute_recoveries(plan, pids_path)
+
+    # The URL-list file now exists on disk with the expected content.
+    urls_file = tmp_path / "limpar-empty.urls.txt"
+    assert urls_file.exists()
+    assert "u1" in urls_file.read_text()
+    # And Popen was called with the planned argv.
+    assert len(captured_argvs) == 1
+    assert any("re-extrair" in a for a in captured_argvs[0])
+
+
+def test_plan_combines_replay_and_provider_switch_in_same_dir(
+    tmp_path: Path,
+) -> None:
+    """A dir with a REPLAY row AND a PROVIDER_SWITCH row gets BOTH
+    spawns. The buckets are independent — recovery isn't a single-
+    bucket affair anymore."""
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+            },
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u2": _bytes_entry("ok")},
+                "extract_text": {"u2": _text_entry("empty")},
+            },
+        },
+    )
+    buckets = classify_residual([tmp_path])
+    plan = plan_recoveries(buckets, provedor="auto")
+
+    assert len(plan) == 2
+    argv_strs = [" ".join(s.argv) for s in plan]
+    has_replay = any("--retentar-de" in s for s in argv_strs)
+    has_switch = any("re-extrair" in s for s in argv_strs)
+    assert has_replay
+    assert has_switch
+
+
 # ----- format_summary -------------------------------------------------------
 
 
@@ -353,13 +659,15 @@ def test_format_summary_apply_format() -> None:
         Bucket.CAP_BURNT: [_row("extract_text", "provider_error")] * 231,
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
+        Bucket.DISMISSED: [],
         Bucket.CONFIRMED_UNALLOCATED: [_row("fetch_meta", "unallocated_pid")] * 1036,
         Bucket.TERMINAL_DROPPED: [_row("fetch_bytes", "empty")] * 826,
     }
     line = format_summary(buckets, dry_run=False)
     assert line == (
         "recovered: 301 transient · 231 cap_burnt · 0 cross_stage · "
-        "0 provider_switched · 1036 confirmed_unallocated · 826 terminal_dropped"
+        "0 provider_switched · 0 dismissed · 1036 confirmed_unallocated · "
+        "826 terminal_dropped"
     )
 
 
@@ -372,6 +680,7 @@ def test_format_summary_dry_run_prefix() -> None:
         Bucket.CAP_BURNT: [],
         Bucket.REFETCH_UPSTREAM: [],
         Bucket.PROVIDER_SWITCH: [],
+        Bucket.DISMISSED: [],
         Bucket.CONFIRMED_UNALLOCATED: [],
         Bucket.TERMINAL_DROPPED: [],
     }

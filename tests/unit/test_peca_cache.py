@@ -330,3 +330,77 @@ def test_bytes_cache_is_independent_from_text_cache(tmp_path, monkeypatch) -> No
 
     peca_cache.write("https://example.test/b.pdf", "extracted text")
     assert peca_cache.has_bytes("https://example.test/b.pdf") is False
+
+
+# --- dismissal sidecar (peca-registry sub-issue 03) ----------------------
+
+
+def test_is_dismissed_default_false(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    assert peca_cache.is_dismissed("https://stf/x.pdf") is False
+    assert peca_cache.read_dismissal("https://stf/x.pdf") is None
+
+
+def test_write_dismissal_creates_sidecar(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+
+    peca_cache.write_dismissal(url, reason="permanent 404 on votos endpoint")
+
+    assert peca_cache.is_dismissed(url) is True
+    payload = peca_cache.read_dismissal(url)
+    assert payload is not None
+    assert payload["url"] == url
+    assert payload["reason"] == "permanent 404 on votos endpoint"
+    assert "dismissed_at" in payload  # ISO timestamp
+
+
+def test_dismissal_is_per_url(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    peca_cache.write_dismissal("https://stf/a.pdf", reason="dead URL")
+    assert peca_cache.is_dismissed("https://stf/a.pdf") is True
+    assert peca_cache.is_dismissed("https://stf/b.pdf") is False
+
+
+def test_write_dismissal_overwrites_idempotently(tmp_path, monkeypatch) -> None:
+    """Re-dismissing must overwrite reason + timestamp without erroring."""
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+
+    peca_cache.write_dismissal(url, reason="first reason")
+    peca_cache.write_dismissal(url, reason="updated reason")
+
+    payload = peca_cache.read_dismissal(url)
+    assert payload["reason"] == "updated reason"
+
+
+def test_clear_dismissal_removes_sidecar(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+
+    peca_cache.write_dismissal(url, reason="reason")
+    assert peca_cache.is_dismissed(url) is True
+
+    cleared = peca_cache.clear_dismissal(url)
+    assert cleared is True
+    assert peca_cache.is_dismissed(url) is False
+
+    # idempotent: clearing again returns False, doesn't raise
+    cleared_again = peca_cache.clear_dismissal(url)
+    assert cleared_again is False
+
+
+def test_dismissal_independent_of_other_caches(tmp_path, monkeypatch) -> None:
+    """Dismissal is metadata, not content — must not interfere with
+    text/extractor/bytes caches for the same URL."""
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+
+    peca_cache.write(url, "extracted body", extractor="pypdf")
+    peca_cache.write_dismissal(url, reason="actually wrong, dismiss")
+
+    # Text + extractor still readable; dismissal is a parallel sidecar.
+    assert peca_cache.read(url) == "extracted body"
+    assert peca_cache.read_extractor(url) == "pypdf"
+    assert peca_cache.is_dismissed(url) is True

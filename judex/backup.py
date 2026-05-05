@@ -94,7 +94,7 @@ def make_backup(
     include_warehouse
         Bundle ``data/derived/warehouse/judex.duckdb``. Off by default —
         the warehouse is regenerable in minutes from processos + pecas-texto
-        via ``atualizar-warehouse``.
+        via ``warehouse``.
     classes
         Restrict the processos tree to listed STF classes (e.g. ``["HC"]``).
         When ``None``, all classes under ``processos_dir`` are included.

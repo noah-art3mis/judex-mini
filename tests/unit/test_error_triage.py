@@ -240,6 +240,11 @@ def test_extrair_empty_routes_to_switch_provider() -> None:
                                           "error": "pypdf returned 0 chars"})
     assert recipe.action == "switch_provider"
     assert "chandra" in (recipe.command_hint or "")
+    # Use the URL-scoped extractor — switching providers is a text-stage
+    # operation, no need to re-walk the case-walker (which would also
+    # re-fetch meta + bytes that already succeeded).
+    assert "re-extrair" in (recipe.command_hint or "")
+    assert "extrair-pecas" not in (recipe.command_hint or "")
 
 
 def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
@@ -248,7 +253,40 @@ def test_extrair_unknown_type_routes_to_refetch_bytes() -> None:
                              {"status": "unknown_type",
                               "error": "extension not in {pdf, rtf}"})
     assert recipe.action == "refetch_bytes"
-    assert "baixar-pecas" in (recipe.command_hint or "")
+    # Refetch-then-re-extract is two steps in the unified pipeline,
+    # both via `judex executar` (no separate baixar-pecas command exists
+    # since the 0e874b3 cleanup).
+    assert "judex executar" in (recipe.command_hint or "")
+    assert "baixar-pecas" not in (recipe.command_hint or "")
+
+
+def test_extrair_outlier_skipped_routes_to_switch_provider_local() -> None:
+    """``outlier_skipped`` is emitted by the runner when a PDF exceeds the
+    cloud-OCR size cap (>1 MB by default — Modal/Fly response-body limit).
+    Re-running with the *same* provider would skip again. The actionable
+    recovery is local Tesseract (no body cap).
+
+    Distinct command-hint shape from ``empty`` (which routes to chandra
+    /mistral): outliers specifically require a local provider, not just
+    any beefier one. Sub-issue 02 of .scratch/run-cleanup-loop/.
+    """
+    recipe = recovery_recipe(
+        "extrair",
+        {"status": "outlier_skipped",
+         "error_type": "OutlierPdf",
+         "error": "PDF size 1.19 MB exceeds 1 MB cloud-OCR threshold"},
+    )
+    assert recipe.action == "switch_provider"
+    hint = recipe.command_hint or ""
+    assert "tesseract" in hint, hint
+    # URL-scoped (no over-extraction): must point at re-extrair, not
+    # the case-scoped executar --csv path that re-OCRs whole cases.
+    assert "re-extrair" in hint, hint
+    # Must not point at a cloud provider — defeats the purpose.
+    for cloud in ("chandra", "mistral", "tesseract_modal", "tesseract_fly"):
+        assert cloud not in hint, (
+            f"outlier recipe should target *local* tesseract, not {cloud}: {hint}"
+        )
 
 
 def test_recovery_recipe_routes_transient_to_replay() -> None:
@@ -270,13 +308,59 @@ def test_recovery_recipe_routes_terminal_to_drop() -> None:
     assert recipe.command_hint is None
 
 
+def test_recovery_recipe_routes_votos_404_to_permanent_404() -> None:
+    """The ``digital.stf.jus.br/.../votos/{id}/conteudo.pdf`` endpoint
+    serves PDFs that were withdrawn / never published. A 404 there is
+    deterministic and permanent — re-running just confirms the same
+    absence. Distinct recipe so operators (and limpar) can see these as
+    a separate accounting bucket without lumping them with WAF 404s
+    that *would* be transient on a different IP.
+
+    Sub-issue 05 of .scratch/run-cleanup-loop/. Concrete cases that
+    triggered this: HC 252164, 264813, 266879 (each with a
+    Voto + Relatório symmetric pair).
+    """
+    row = {
+        "status": "http_error",
+        "error": "HTTPError: 404",
+        "http_status": 404,
+        "url": "https://digital.stf.jus.br/decisoes-monocraticas/api/public/votos/12345/conteudo.pdf",
+    }
+    recipe = recovery_recipe("baixar", row)
+    assert recipe.action == "drop_terminal"
+    # Must surface the permanent-404 reason in the summary so the
+    # operator (or a future limpar count) can distinguish.
+    summary_lower = (recipe.summary or "").lower()
+    assert "permanent" in summary_lower or "withdrawn" in summary_lower, (
+        f"summary must flag the permanent-404 nature, got: {recipe.summary!r}"
+    )
+
+
+def test_recovery_recipe_non_votos_404_keeps_generic_drop() -> None:
+    """A 404 on a non-votos URL must keep the generic terminal recipe —
+    the permanent-404 override is keyed on the votos endpoint specifically.
+    """
+    row = {
+        "status": "http_error",
+        "error": "HTTPError: 404",
+        "http_status": 404,
+        "url": "https://portal.stf.jus.br/processos/downloadPeca.asp?id=999&ext=.pdf",
+    }
+    recipe = recovery_recipe("baixar", row)
+    assert recipe.action == "drop_terminal"
+    summary_lower = (recipe.summary or "").lower()
+    assert "permanent" not in summary_lower
+
+
 def test_recovery_recipe_routes_cross_stage_to_refetch_upstream() -> None:
-    """no_bytes on extrair must point at re-baixar, not at retry-extrair."""
+    """no_bytes on extrair must point at the unified pipeline rerun, not
+    at the removed legacy baixar-pecas/extrair-pecas commands."""
     recipe = recovery_recipe("extrair",
                              {"status": "no_bytes",
-                              "error": "run baixar-pecas first"})
+                              "error": "bytes missing from cache"})
     assert recipe.action == "refetch_upstream"
-    assert "baixar-pecas" in (recipe.command_hint or "")
+    assert "judex executar" in (recipe.command_hint or "")
+    assert "baixar-pecas" not in (recipe.command_hint or "")
 
 
 def test_recovery_recipe_ok_action_is_none() -> None:
