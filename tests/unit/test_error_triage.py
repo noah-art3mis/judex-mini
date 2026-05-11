@@ -312,7 +312,7 @@ def test_recovery_recipe_routes_votos_404_to_permanent_404() -> None:
     """The ``digital.stf.jus.br/.../votos/{id}/conteudo.pdf`` endpoint
     serves PDFs that were withdrawn / never published. A 404 there is
     deterministic and permanent — re-running just confirms the same
-    absence. Distinct recipe so operators (and limpar) can see these as
+    absence. Distinct recipe so operators (and recuperar) can see these as
     a separate accounting bucket without lumping them with WAF 404s
     that *would* be transient on a different IP.
 
@@ -329,7 +329,7 @@ def test_recovery_recipe_routes_votos_404_to_permanent_404() -> None:
     recipe = recovery_recipe("baixar", row)
     assert recipe.action == "drop_terminal"
     # Must surface the permanent-404 reason in the summary so the
-    # operator (or a future limpar count) can distinguish.
+    # operator (or a future recuperar count) can distinguish.
     summary_lower = (recipe.summary or "").lower()
     assert "permanent" in summary_lower or "withdrawn" in summary_lower, (
         f"summary must flag the permanent-404 nature, got: {recipe.summary!r}"

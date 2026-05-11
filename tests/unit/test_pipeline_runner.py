@@ -7,6 +7,7 @@ command will hit. They use mocked handlers so they don't touch STF.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -114,6 +115,65 @@ def test_run_pipeline_threads_proxy_pool_through_to_factory(tmp_path: Path) -> N
     assert portal_proxies is not sistemas_proxies  # independent instances
     assert portal_proxies.size() == 2
     assert sistemas_proxies.size() == 2
+
+
+def test_run_pipeline_writes_pid_file_during_run_and_removes_on_exit(tmp_path: Path) -> None:
+    """``judex parar`` needs a pid file primitive: ``<saida>/executar.pid``
+    contains the PID for the lifetime of the run, and is deleted on
+    graceful exit so a stale file can't mislead a later ``parar`` into
+    targeting a recycled PID belonging to an unrelated process.
+
+    The pid file is observed *inside* a handler (mid-run) since the file
+    is removed in the runner's finally block — by the time
+    ``run_pipeline`` returns, the file is already gone.
+    """
+    saida = tmp_path / "run"
+    observed: dict[str, object] = {}
+
+    def observing_factory(state: PipelineState, **kwargs: object) -> dict[str, object]:
+        handlers = _mock_handlers_factory(state, **kwargs)
+        original_meta = handlers["fetch_meta"]
+
+        def handle_meta_with_observation(task: Task) -> list[Task]:
+            pid_file = saida / "executar.pid"
+            observed["pid_file_exists_during_run"] = pid_file.exists()
+            if pid_file.exists():
+                observed["pid_contents"] = pid_file.read_text().strip()
+            return original_meta(task)
+
+        return {**handlers, "fetch_meta": handle_meta_with_observation}
+
+    rc = run_pipeline(
+        targets=[("HC", 1)],
+        saida=saida,
+        provedor="pypdf",
+        handlers_factory=observing_factory,
+    )
+    assert rc == 0
+    assert observed["pid_file_exists_during_run"] is True
+    assert observed["pid_contents"] == str(os.getpid())
+    # Post-run: pid file removed so stale-pid hazards can't mislead `parar`.
+    assert not (saida / "executar.pid").exists()
+
+
+def test_run_pipeline_captures_original_args_in_state(tmp_path: Path) -> None:
+    """When ``run_pipeline`` is invoked with ``original_args``, the
+    state journal captures them so ``judex retomar`` can rebuild the
+    operator's first command."""
+    saida = tmp_path / "run"
+    args = {"classe": "HC", "inicio": 1, "fim": 100, "provedor": "pypdf"}
+
+    rc = run_pipeline(
+        targets=[("HC", 1)],
+        saida=saida,
+        provedor="pypdf",
+        handlers_factory=_mock_handlers_factory,
+        original_args=args,
+    )
+    assert rc == 0
+
+    state = PipelineState.load(saida / "executar.state.json")
+    assert state.original_args == args
 
 
 def test_run_pipeline_no_proxy_pool_yields_none_proxies(tmp_path: Path) -> None:

@@ -296,7 +296,7 @@ def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None
     # ``empty`` is kind-aware: fetch_bytes/empty is the WAF/LB flake
     # (200 OK with zero bytes; empirically transient — pinned by
     # HC 271343 in runs/active/hc-atualizar-20260503). extract_text/empty
-    # is the provider-gave-up case (terminal by replay alone; limpar's
+    # is the provider-gave-up case (terminal by replay alone; recuperar's
     # override routes it to PROVIDER_SWITCH).
     ({"status": "empty", "kind": "fetch_bytes"}, "transient"),
     ({"status": "empty", "kind": "extract_text"}, "terminal"),

@@ -106,10 +106,17 @@ class PipelineState:
     state from one coroutine at a time.
     """
 
-    def __init__(self, path: Path, cases: dict[str, CaseRecord], started_at: str):
+    def __init__(
+        self,
+        path: Path,
+        cases: dict[str, CaseRecord],
+        started_at: str,
+        original_args: Optional[dict] = None,
+    ):
         self._path = path
         self._cases = cases
         self._started_at = started_at
+        self._original_args = dict(original_args) if original_args else None
 
     @classmethod
     def load(cls, path: Path | str) -> PipelineState:
@@ -127,12 +134,34 @@ class PipelineState:
             key: CaseRecord.from_json(payload)
             for key, payload in (raw.get("cases") or {}).items()
         }
-        return cls(path=path, cases=cases, started_at=raw.get("started_at") or _now_iso())
+        return cls(
+            path=path,
+            cases=cases,
+            started_at=raw.get("started_at") or _now_iso(),
+            original_args=raw.get("args"),
+        )
 
     # ---- Query API ----
 
     def case_count(self) -> int:
         return len(self._cases)
+
+    @property
+    def original_args(self) -> Optional[dict]:
+        """The kwargs the run was first launched with — captured at
+        first ``set_original_args`` call, persisted across snapshots, and
+        read by ``judex retomar`` to rebuild the resume argv. ``None``
+        for state files written before this field existed (legacy)."""
+        return dict(self._original_args) if self._original_args else None
+
+    def set_original_args(self, args: dict) -> None:
+        """Capture the original launch args. Idempotent: only the first
+        call persists. A resume re-launch re-invokes this with possibly
+        different kwargs (e.g. concurrency tuned), but the persisted
+        record reflects the original intent — that's what ``retomar``
+        needs to faithfully rebuild the operator's first command."""
+        if self._original_args is None:
+            self._original_args = dict(args)
 
     def aggregate_status_counts(self) -> dict[str, object]:
         """Roll up per-stage status counts + totals across every case.
@@ -407,6 +436,9 @@ class PipelineState:
             "schema_version": SCHEMA_VERSION,
             "started_at": self._started_at,
             "snapshot_at": _now_iso(),
+            # Captured once at first launch (see ``set_original_args``);
+            # absent on state files written before this field existed.
+            "args": self._original_args,
             "cases": {key: rec.to_json() for key, rec in self._cases.items()},
         }
         body = json.dumps(payload, indent=2, default=str).encode("utf-8")

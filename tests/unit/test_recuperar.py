@@ -1,6 +1,6 @@
-"""Pin `judex limpar` discovery + classification + planning.
+"""Pin `judex recuperar` discovery + classification + planning.
 
-`judex limpar <run_dir>` walks a finished `judex executar` run dir,
+`judex recuperar <run_dir>` walks a finished `judex executar` run dir,
 reads ``executar.state.json`` (the canonical record) — *not*
 ``executar.errors.jsonl`` (which is a derived view that gets narrowed
 when ``--retentar-de`` rewrites it). For every non-ok record in state
@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from judex.sweeps.limpar import (
+from judex.sweeps.recuperar import (
     Bucket,
     classify_residual,
     discover_run_dirs,
@@ -49,7 +49,7 @@ def _write_state(
     ``cases`` is keyed by ``"HC-12345"`` and each value carries
     ``fetch_meta`` (optional dict), ``fetch_bytes`` (url→dict),
     ``extract_text`` (url→dict). Each leaf dict needs at minimum
-    ``status`` + ``retry_count`` (the only fields limpar reads beyond
+    ``status`` + ``retry_count`` (the only fields recuperar reads beyond
     the URL key).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -381,7 +381,7 @@ def test_dismissed_does_not_dispatch(
     assert plan == []
 
 
-# ----- plan_recoveries: non-REPLAY buckets (limpar v2) ---------------------
+# ----- plan_recoveries: non-REPLAY buckets (recuperar v2) ---------------------
 
 
 def test_classify_residual_routes_outlier_skipped_to_provider_switch(
@@ -389,9 +389,9 @@ def test_classify_residual_routes_outlier_skipped_to_provider_switch(
 ) -> None:
     """``outlier_skipped`` is a kind=terminal extract_text status emitted
     when a PDF exceeds the cloud-OCR body cap. Recovery is local
-    Tesseract (no body cap), which limpar dispatches via PROVIDER_SWITCH
+    Tesseract (no body cap), which recuperar dispatches via PROVIDER_SWITCH
     — same bucket as ``empty`` but with a different destination provider.
-    Sub-issue 02 routing through limpar's classifier.
+    Sub-issue 02 routing through recuperar's classifier.
     """
     _write_state(
         tmp_path / STATE_FILENAME,
@@ -533,10 +533,10 @@ def test_plan_recoveries_does_not_write_to_disk(tmp_path: Path) -> None:
     """plan_recoveries is a *pure* planner — it must not touch disk.
     The materialised input files (URL lists / CSVs) are only written
     by execute_recoveries under --apply. Otherwise dry-run leaves
-    stray files like ``limpar-empty.urls.txt`` in every run dir
+    stray files like ``recuperar-empty.urls.txt`` in every run dir
     inspected.
 
-    Caught by an end-to-end limpar dry-run on 2026-05-04 that produced
+    Caught by an end-to-end recuperar dry-run on 2026-05-04 that produced
     side-effect files in /tmp/. Pinned here so the regression bites a
     test, not an operator.
     """
@@ -571,7 +571,7 @@ def test_execute_recoveries_materialises_content_files(
     """execute_recoveries is where the materialisation actually happens.
     Stub Popen so the test doesn't spawn anything, but verify the
     URL-list / CSV file lands on disk before the (would-be) spawn."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     captured_argvs: list[list[str]] = []
 
@@ -592,11 +592,11 @@ def test_execute_recoveries_materialises_content_files(
     )
     buckets = classify_residual([tmp_path])
     plan = plan_recoveries(buckets, provedor="auto")
-    pids_path = tmp_path / "limpar.pids"
+    pids_path = tmp_path / "recuperar.pids"
     mod.execute_recoveries(plan, pids_path)
 
     # The URL-list file now exists on disk with the expected content.
-    urls_file = tmp_path / "limpar-empty.urls.txt"
+    urls_file = tmp_path / "recuperar-empty.urls.txt"
     assert urls_file.exists()
     assert "u1" in urls_file.read_text()
     # And Popen was called with the planned argv.
@@ -730,7 +730,7 @@ def test_wait_for_pids_returns_when_all_dead(
 ) -> None:
     """``wait_for_pids`` polls os.kill(pid, 0); a dead pid raises
     ProcessLookupError, which the loop treats as 'this one is done'."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     alive = {1001}  # only one pid 'alive' on first poll, dies on second
     poll_count = [0]
@@ -756,7 +756,7 @@ def test_wait_for_pids_empty_list_is_noop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Empty pids list returns immediately — no sleeps, no kill calls."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     sleep_calls = [0]
     monkeypatch.setattr("time.sleep", lambda _s: sleep_calls.__setitem__(0, sleep_calls[0] + 1))
@@ -769,7 +769,7 @@ def test_run_until_stable_converges_when_residual_drains(
 ) -> None:
     """Pass 1 sees 1 actionable, dispatches, waits, then re-classifies →
     0 actionable → converged."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     # Initial state: 1 REPLAY row.
     _write_state(
@@ -811,7 +811,7 @@ def test_run_until_stable_stops_for_no_progress(
 ) -> None:
     """When dispatching does NOT shrink the actionable count, the loop
     stops early — no point in burning more passes."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     _write_state(
         tmp_path / STATE_FILENAME,
@@ -844,7 +844,7 @@ def test_run_until_stable_caps_at_max_passes(
     """Pathological case: residual shrinks 3→2→1 but the cap fires
     before zero. Must surface ``stopped_for_max_passes`` so operator
     knows it's a cap, not a converge."""
-    from judex.sweeps import limpar as mod
+    from judex.sweeps import recuperar as mod
 
     # Always have N actionable, decreasing 1 each pass.
     state = {"n": 3}
@@ -883,7 +883,7 @@ def test_run_until_stable_caps_at_max_passes(
 
 def test_format_summary_apply_format() -> None:
     """`recovered: N1 transient · N2 cap_burnt · N3 cross_stage · N4 provider_switched · N5 confirmed_unallocated · N6 terminal_dropped`"""
-    from judex.sweeps.limpar import ErrorRow
+    from judex.sweeps.recuperar import ErrorRow
 
     def _row(kind: str, status: str) -> ErrorRow:
         return ErrorRow(
@@ -915,7 +915,7 @@ def test_format_summary_apply_format() -> None:
 
 def test_format_summary_dry_run_prefix() -> None:
     """Under dry-run, prefix is `would-recover:`."""
-    from judex.sweeps.limpar import ErrorRow
+    from judex.sweeps.recuperar import ErrorRow
 
     buckets: dict[Bucket, list[ErrorRow]] = {
         Bucket.REPLAY: [],
@@ -941,7 +941,7 @@ _HC2020_SHARDED = Path("runs/active/hc2020-sharded")
     reason="real run dir not present (cold checkout)",
 )
 def test_pinned_residual_hc2020_sharded() -> None:
-    """As of post-first-limpar-pass on 2026-05-03, the hc2020-sharded run
+    """As of post-first-recuperar-pass on 2026-05-03, the hc2020-sharded run
     carries (per state.json), under the kind-aware classifier:
 
     - 739 REPLAY (mostly fetch_bytes/empty at retry_count < 2 — the

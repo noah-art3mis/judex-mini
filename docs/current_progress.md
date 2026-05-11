@@ -6,18 +6,25 @@ Branch: `dev`. Prior cycle archived at
 v1 + Fly OCR promotes, executar CLI cleanup, plus the post-mortem on the
 parallel-launch overnight failure that motivated the chain v2 below.
 
-**Status as of 2026-05-05 00:40 BRT.** Chain v2 is in **step 6 (HC 2021)**
-at PID ~202806 of 210963 (~45% through). Steps 2-5 closed cleanly; step 7
-(warehouse rebuild via the deprecated `atualizar-warehouse` alias) is
-still queued. Two PRs landed on `dev` mid-flight: PR #16 (run-cleanup
-loop + peça registry, 14 commits, +65 tests) and PR #17 (limpar `--loop`
-convergence, +8 tests). Tests at **998 passing** end-of-session.
+**Status as of 2026-05-05 09:18 BRT.** Chain v2 **paused on operator
+request** mid-step-6 (HC 2021). Orchestrator + step-6 `executar` SIGTERM'd
+gracefully; state.json flushed at `12:18:37+00:00` (75 s after the prior
+snapshot, confirming the signal handler ran). Pause point:
+`runs/active/hc2021-fillin-20260504-v2/`, **12,702 / 14,682 cases with
+`ok_meta`**, **18,373 peças extracted**. Steps 2-5 closed cleanly before
+the pause; steps 6-7 (warehouse rebuild) deferred.
+
+Two PRs landed on `dev` mid-flight: PR #16 (run-cleanup loop + peça
+registry, 14 commits, +65 tests) and PR #17 (recuperar `--loop`
+convergence, +8 tests). Plus a session-local CLI rename: **`judex limpar`
+→ `judex recuperar`** (no shim, per project policy). Tests at **998
+passing**.
 
 ---
 
 ## Resolved this session — PR #16 + PR #17 landed (2026-05-04 → 05)
 
-**PR #16 (`41fbcec`)** — *Run-cleanup loop + peça registry: limpar v2,
+**PR #16 (`41fbcec`)** — *Run-cleanup loop + peça registry: recuperar v2,
 extrair-urls→re-extrair, dismissals, spot-check.* Closes the
 `run-cleanup-loop` and `per-url-extract` PRDs (`.scratch/` operator-local
 notes). 14 commits squash-merged. Headlines:
@@ -25,7 +32,7 @@ notes). 14 commits squash-merged. Headlines:
 - **`executar.errors.jsonl` now actionable-only** — `unallocated_pid`
   rows filtered at write-time. 132× line-count reduction on real HC
   2024 state (2,103 → 16).
-- **`limpar --apply` dispatches all actionable buckets** — REPLAY +
+- **`recuperar --apply` dispatches all actionable buckets** — REPLAY +
   PROVIDER_SWITCH (chandra for `empty`, tesseract for `outlier_skipped`,
   via the new URL-scoped `re-extrair` command) + REFETCH_UPSTREAM. v1
   was REPLAY-only.
@@ -41,17 +48,17 @@ notes). 14 commits squash-merged. Headlines:
   in-flight chain step 7).
 - **Help-text rewrite** across all commands using CONTEXT.md vocabulary
   (Coleta vs Sweep vs Pool, peça not PDF).
-- **Dry-run side-effect-free** — limpar `plan_recoveries` no longer
+- **Dry-run side-effect-free** — recuperar `plan_recoveries` no longer
   materialises files at plan time; `execute_recoveries` writes them
   just before spawning. Pinned by a regression test.
 
-**PR #17 (`e8fa565`)** — *limpar `--loop` until stable: closes the
+**PR #17 (`e8fa565`)** — *recuperar `--loop` until stable: closes the
 convergence loop.* The two-line operator path that the session was
 chasing:
 
 ```bash
 judex executar -c HC -i 250000 -f 250100 --saida runs/active/<label>/
-judex limpar runs/active/<label>/ --loop --nao-perguntar
+judex recuperar runs/active/<label>/ --loop --nao-perguntar
 ```
 
 Loop semantics: dispatch → `wait_for_pids` (poll `os.kill(pid, 0)` since
@@ -81,7 +88,7 @@ like (per `docs/data-layout.md § runs/`).
 
 **Hard-skipped from the move:**
 
-- `runs/active/hc2020-sharded/` — pinned by `tests/unit/test_limpar.py:936`
+- `runs/active/hc2020-sharded/` — pinned by `tests/unit/test_recuperar.py:936`
   (`_HC2020_SHARDED`); moving it would silently skip the smoke test.
 - `runs/active/2026-04-30-ocr-bakeoff/` — referenced by
   `scripts/ocr_tesseract_sweep.py` as input data.
@@ -104,7 +111,54 @@ the lifecycle isn't a manual `mv`.
 
 ---
 
-## Open thread — HC fill-in chain v2 in flight (2026-05-04 22:05 BRT)
+## Open thread — chain v2 paused mid-step-6 (2026-05-05 09:18 BRT)
+
+**Paused on operator request.** SIGTERM'd the orchestrator + the in-flight
+step-6 `executar` (PIDs 193410, 262968, 262971) cleanly; state.json on
+`runs/active/hc2021-fillin-20260504-v2/` flushed at `12:18:37+00:00`,
+~75 s after the prior periodic snapshot — confirming the SIGTERM signal
+handler ran the journal flush before exit.
+
+**Pause point.** Step 6 (HC 2021, range -i 196282 -f 210963):
+
+- `total: 14_682` cases tracked
+- `ok_meta: 12_702` (≈86.5% of cases have metadata; raw progress by PID
+  was ~45% but ok_meta over-counts because cache-hit cases land in the
+  same bucket)
+- `with_text: 18_373` peças extracted
+
+Steps 7 (warehouse rebuild) and any chain-v2 post-processing are deferred.
+
+**Resume command (when ready):**
+
+```bash
+uv run judex executar --retomar \
+    --saida runs/active/hc2021-fillin-20260504-v2/ \
+    --nao-perguntar
+```
+
+`--retomar` re-reads `executar.state.json` and only re-queues records
+whose status is not `ok` / `skipped_cached`. The 12,702 already-OK
+metadata fetches stay done.
+
+**Close-out after resume.** Whenever step 6 finishes (or is paused
+again), drain the residual with:
+
+```bash
+uv run judex recuperar runs/active/hc2021-fillin-20260504-v2/ \
+    --loop --nao-perguntar
+```
+
+Convergence loop drains the DLQ (`executar.errors.jsonl`) until residuals
+stop shrinking. Then re-run the warehouse rebuild step manually to close
+out the chain.
+
+**Why paused.** Operator decision — not a regression. No data loss; the
+ADR-0006 state journal made the SIGTERM safe.
+
+---
+
+## Open thread — HC fill-in chain v2 launched (2026-05-04 22:05 BRT)
 
 **Launched.** `runs/active/_hc-fillin-chain-full-v2.sh` detached at
 22:03:09 BRT. Master log at `runs/active/hc-fillin-chain-v2-20260504-2203.log`.
@@ -137,7 +191,7 @@ during the v1 abort; 7 remaining.
 are real gaps, not just this-task issues. Filed as PRDs:
 
 - [`.scratch/run-cleanup-loop/PRD.md`](../.scratch/run-cleanup-loop/PRD.md)
-  — extend `judex limpar` to plan + dispatch all 8 residual classes
+  — extend `judex recuperar` to plan + dispatch all 8 residual classes
   (today it dispatches 1, reports 2, doesn't see 5). Plus 6 sub-issues
   for the missing recipes.
 - [`.scratch/per-url-extract/PRD.md`](../.scratch/per-url-extract/PRD.md)
@@ -145,7 +199,7 @@ are real gaps, not just this-task issues. Filed as PRDs:
   URL-scoped recovery without case-walker over-extraction.
 
 If both land, the post-run path collapses to `judex executar … && judex
-limpar … --apply` — operator stops reading errors.jsonl because the
+recuperar … --apply` — operator stops reading errors.jsonl because the
 cleanup loop converges on its own.
 
 **Chain v2 step list:**

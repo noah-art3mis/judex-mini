@@ -349,7 +349,7 @@ def classify_unified_error(row: dict[str, Any]) -> str:
         #   - extract_text: provider returned 0 chars after running.
         #     Same provider would give same result; not transient by
         #     replay alone. The actionable recovery is a provider
-        #     switch, which limpar.py's ``_bucket_for`` handles via
+        #     switch, which recuperar.py's ``_bucket_for`` handles via
         #     a (kind="extract_text", status="empty") override on top
         #     of the ``terminal`` classification.
         if row.get("kind") == "fetch_bytes":

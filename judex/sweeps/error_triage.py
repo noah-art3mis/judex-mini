@@ -22,7 +22,7 @@ Every line in ``sweep.errors.jsonl`` (varrer) and ``pdfs.errors.jsonl``
    operator do?* Composes on top of ``classify_error``: looks up the
    ``(stage, kind)`` cell in ``RECOVERY_RECIPES`` and returns a
    ``Recipe(action, summary, command_hint)`` the operator (or a future
-   ``judex limpar`` cleanup step) can act on. Same table that backed
+   ``judex recuperar`` cleanup step) can act on. Same table that backed
    the per-stage recovery tables in ``docs/recovery-patterns.md``
    before they were collapsed in here.
 
@@ -64,7 +64,7 @@ _VALID_STAGES = ("varrer", "baixar", "extrair")
 class Recipe:
     """Operator-facing recovery action for one errors.jsonl row.
 
-    - ``action``: the abstract verb (used by ``judex limpar`` /
+    - ``action``: the abstract verb (used by ``judex recuperar`` /
       cleanup tooling to dispatch the right command).
     - ``summary``: one-line human reason ("WAF 403 — re-queue on a
       different IP").

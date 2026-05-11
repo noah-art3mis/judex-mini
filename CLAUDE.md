@@ -18,7 +18,7 @@ Scraper + parser for STF (Brazilian Supreme Court) process data. **HTTP is the o
 | Checking on a live or completed run (rate, regime, cliff diagnosis) | `judex probe --out-root <dir>` (sharded, live `--watch` mode) / `judex analisar-regimes <run_dir>` (mono+sharded, post-hoc regime trajectory; `--json` for jq). Both in [`judex/cli.py`](judex/cli.py). |
 | Checking per-year HC coverage (cases / peça bytes / text) or picking the next backfill target | [`docs/completion-tracker.md`](docs/completion-tracker.md) — per-year table, cache-integrity caveat, backfill priority queue. |
 | A perf number doesn't match your extrapolation | [`docs/performance.md`](docs/performance.md) — cold numbers + why caching is the real lever. |
-| A sweep finished with a residual (errored / empty / unallocated / lost rows) | **Per-row recipe** — `from judex.sweeps.error_triage import recovery_recipe` returns `Recipe(action, summary, command_hint)`. **Multi-step scenarios** + the `judex limpar` gap — [`docs/recovery-patterns.md`](docs/recovery-patterns.md). The classifier + `RECOVERY_RECIPES` table are pinned by `tests/unit/test_error_triage.py`; the doc is interpretation, the code is SOT. |
+| A sweep finished with a residual (errored / empty / unallocated / lost rows) | **Per-row recipe** — `from judex.sweeps.error_triage import recovery_recipe` returns `Recipe(action, summary, command_hint)`. **Multi-step scenarios** + the `judex recuperar` gap — [`docs/recovery-patterns.md`](docs/recovery-patterns.md). The classifier + `RECOVERY_RECIPES` table are pinned by `tests/unit/test_error_triage.py`; the doc is interpretation, the code is SOT. |
 | Writing a notebook or cross-case SQL query | [`docs/warehouse-design.md`](docs/warehouse-design.md) — DuckDB schema + build pipeline. |
 | Writing a PDF sweep | [`docs/peca-sweep-conventions.md`](docs/peca-sweep-conventions.md) — sweep input semantics, output layout. **Tier definitions / fail-open policy**: module docstring of [`judex/sweeps/peca_classification.py`](judex/sweeps/peca_classification.py); the doc surface in [`docs/peca-tipo-classification.md`](docs/peca-tipo-classification.md) is just the warehouse view + CLI semantics. Empirical row counts / median chars: [`docs/reports/2026-04-23-peca-tipo-tier-validation.md`](docs/reports/2026-04-23-peca-tipo-tier-validation.md). |
 | Doing the "who-wins HC" analysis (research question, lit review, validation) | [`docs/hc-who-wins.md`](docs/hc-who-wins.md) — single consolidated doc with §1 Scope and plan / §2 Literature review / §3 Validation. The three pre-2026-05-03 sub-files (`-lit-review`, `-validation`) were merged here; cross-links use intra-doc anchors. |
@@ -102,15 +102,17 @@ installs the `judex` console entry; commands below also work as
 the matching `run_X(**kwargs)` library function in `judex/sweeps/`
 directly — detached invocation is `nohup uv run judex <command> …`.
 
-**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `limpar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop. The pre-`executar` legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator were removed from the CLI surface; the library code remains in `judex/sweeps/` for `pick_provider` and shared helpers used by the unified pipeline. Recoverable on the `archive/iteration-2-three-command-chain` branch (local + `origin`) if needed.
+**Top-level surface is the everyday operator path: `executar` → `acompanhar` → `relatar`, plus `recuperar` for residual recovery and `atualizar-warehouse` / `relatorio-diario` for downstream artefacts.** Everything else lives under `judex debug` — inspection / validation / comparison / export / backup utilities. The canonical primary path is `judex executar` ([ADR-0005](docs/adr/0005-unified-pipeline.md)); reach for `judex debug …` only when the task isn't part of the everyday loop. The pre-`executar` legacy three-command chain (`varrer-processos`, `baixar-pecas`, `extrair-pecas`) and its `coletar` orchestrator were removed from the CLI surface; the library code remains in `judex/sweeps/` for `pick_provider` and shared helpers used by the unified pipeline. Recoverable on the `archive/iteration-2-three-command-chain` branch (local + `origin`) if needed.
 
 | Command                       | Source                                | What it does                                                                                            |
 |-------------------------------|---------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `executar`                    | `judex/pipeline/runner.py`            | **Primary path.** Single-process unified pipeline (portal/sistemas/ocr Pools) over a (classe, range). One log + one state file + one PID. Sharded mode via `--shards N --proxy-pool FILE`. ADR-0005. |
 | `atualizar <classe>`          | (in-CLI, calls `run_pipeline`)        | Manual incremental: find max processo_id on disk, probe forward via `discover_new_numeros` until N consecutive unallocated_pid (default 20), scrape only the live discoveries end-to-end. Required positional `<classe>`. Auto-stops at STF's leading edge — no margin guesswork. Idempotent. |
+| `listar`                      | `judex/pipeline/run_index.py`         | List runs under `runs/active/` with on-disk status (running / stale / finished / unknown), n_targets, and elapsed time. `--apenas STATUS` filters; `--incluir-arquivo` also walks `runs/archive/`; `--json` for jq; `--podar-pids` removes pid files left by SIGKILL-leaked runs. |
 | `acompanhar`                  | (in-CLI)                              | Tail-with-auto-detection live monitor for monolithic + sharded runs.                                    |
-| `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report.                                             |
-| `limpar`                      | `judex/sweeps/limpar.py`              | One-command residual recovery for finished `judex executar` runs.                                        |
+| `relatar`                     | (in-CLI)                              | Consolidate a finished `executar` run into a single report. `--json` serializes the `RunSummary` for jq / dashboards. |
+| `recuperar`                   | `judex/sweeps/recuperar.py`           | One-command residual recovery for finished `judex executar` runs (DLQ drain + classifier dispatch).      |
+| `arquivar`                    | (in-CLI)                              | Move a finished Coleta from `runs/active/` to `runs/archive/`. Refuses `running` / `stale` runs without `--forcar` (would orphan the pid file). `--dry-run` previews; collisions in `--destino` are errors. |
 | `atualizar-warehouse`         | `judex/sweeps/build_warehouse.py`     | Rebuild `data/derived/warehouse/judex.duckdb` from `data/source/processos/` + `data/derived/pecas-texto/`. Full-rebuild, atomic swap, zero HTTP.|
 | `debug probe`                 | (in-CLI)                              | Live-progress table for sharded runs (predates `executar`'s nested state).                              |
 | `debug analisar-regimes`      | (in-CLI)                              | Post-hoc regime trajectory reconstruction from a sweep log (cliff / SSL-EOF detection).                  |
@@ -119,6 +121,19 @@ directly — detached invocation is `nohup uv run judex <command> …`.
 | `debug fazer-backup`          | (in-CLI, `judex/backup.py`)           | Bundle `data/source/processos` + `data/raw/pecas` + `data/derived/pecas-texto` into a single Windows-openable `.zip`. ZIP64, atomic write. |
 | `debug validar-gabarito`      | `scripts/validate_ground_truth.py`    | Diff the scraper's output against hand-verified `tests/ground_truth/*.json`.                            |
 | `debug relatorio-diario`      | (in-CLI)                              | Daily report of new STF distributions.                                                                  |
+
+**Addressing a run by label, not path.** Every Coleta / Observação
+command that takes `<run_dir>` (`parar`, `retomar`, `relatar`,
+`recuperar`, `arquivar`, `acompanhar`) accepts either an explicit path
+*or* a label — the run's `args.rotulo` from the state journal, or the
+directory name. `judex parar hc2021-fillin-20260504-v2` works the same
+as `judex parar runs/active/hc2021-fillin-20260504-v2/`. Disambiguation
+rule: exact match wins; prefix matches accepted when unambiguous; multi-
+match errors with the candidate list. Tab-completion is enabled
+(`judex --install-completion`); `judex parar hc<tab>` enumerates labels
+from `runs/active/` + `runs/archive/`. Resolver lives in
+`judex.cli._resolve_run_dir`; lookup primitives in
+`judex.pipeline.run_index.{find_by_label,label_candidates}`.
 
 Help on any command: `uv run judex <command> --help`. Source of truth
 for flag names / defaults is `judex/cli.py` (Typer decorators); each

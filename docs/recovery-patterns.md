@@ -51,11 +51,11 @@ directory rather than one row.
 uv run judex executar --retomar --saida runs/active/<label>/
 
 # Or: planner + dispatcher (auto-detects mono/sharded, dry-run by default)
-uv run judex limpar runs/active/<label>/ --apply --nao-perguntar
+uv run judex recuperar runs/active/<label>/ --apply --nao-perguntar
 ```
 
 Both paths filter through `error_triage.classify_error`, so terminal
-rows are dropped automatically — the loop converges. `limpar` adds
+rows are dropped automatically — the loop converges. `recuperar` adds
 per-bucket reporting (REPLAY / CAP_BURNT / PROVIDER_SWITCH / etc.) and
 honors the 2-retry cap.
 
@@ -129,23 +129,23 @@ for the document type. If a meaningful fraction look bad, treat that as
 an `empty`-class residual and recover via Scenario B with a different
 provider.
 
-## `judex limpar <run_dir>` — one-command residual closer
+## `judex recuperar <run_dir>` — one-command residual closer
 
-**As of 2026-05-03, Gap #1 is closed.** `judex limpar <run_dir>` walks
+**As of 2026-05-03, Gap #1 is closed.** `judex recuperar <run_dir>` walks
 a finished `judex executar` run dir (mono *or* sharded — auto-detects),
 classifies every `executar.errors.jsonl` row via
 `classify_unified_error`, partitions by bucket, and (under `--apply`)
 dispatches one detached `judex executar --retentar-de` per shard with
 at least one transient row. Spec:
-[`docs/superpowers/specs/2026-05-03-judex-limpar.md`](superpowers/specs/2026-05-03-judex-limpar.md);
-implementation: [`judex/sweeps/limpar.py`](../judex/sweeps/limpar.py).
+[`docs/superpowers/specs/2026-05-03-judex-recuperar.md`](superpowers/specs/2026-05-03-judex-recuperar.md);
+implementation: [`judex/sweeps/recuperar.py`](../judex/sweeps/recuperar.py).
 
 ```bash
 # Default: dry-run. Prints `would-recover: …` + per-shard plan, exits 0.
-uv run judex limpar runs/active/hc2020-sharded/
+uv run judex recuperar runs/active/hc2020-sharded/
 
 # Actually dispatch the recoveries (16 detached children for sharded).
-uv run judex limpar runs/active/hc2020-sharded/ --apply --nao-perguntar
+uv run judex recuperar runs/active/hc2020-sharded/ --apply --nao-perguntar
 ```
 
 Summary line shape:
@@ -161,13 +161,13 @@ or `executar --csv ... --provedor chandra --forcar` (empty) — same
 operator action as Scenarios B and C above. Promoting these to
 auto-dispatch is a follow-up.
 
-PIDs go to `<run_dir>/limpar.pids`; per-shard logs go to
-`<shard>/limpar.log`. Monitor with `judex acompanhar <run_dir>` or
+PIDs go to `<run_dir>/recuperar.pids`; per-shard logs go to
+`<shard>/recuperar.log`. Monitor with `judex acompanhar <run_dir>` or
 `pgrep -af 'judex executar'`.
 
 ## Remaining gaps
 
-1. **Empty-bucket re-extraction is still manual.** `limpar` counts the
+1. **Empty-bucket re-extraction is still manual.** `recuperar` counts the
    `provider_switch` bucket but doesn't auto-dispatch — the operator
    still has to build a CSV by hand and run `executar --csv ... --forcar`.
    v2 would promote this once `executar` learns a flag analogous to
@@ -177,7 +177,7 @@ PIDs go to `<run_dir>/limpar.pids`; per-shard logs go to
    vs 97-99% on adjacent years) would have surfaced earlier with a
    cheap "median chars per `DECISÃO` document" sanity check.
 3. **Cross-stage residual is reported but not auto-dispatched.**
-   `limpar` surfaces the `refetch_upstream` count but doesn't fan a
+   `recuperar` surfaces the `refetch_upstream` count but doesn't fan a
    bytes refetch. v2 would auto-dispatch since the cap=2 chain has
    already exited on a finished run.
 

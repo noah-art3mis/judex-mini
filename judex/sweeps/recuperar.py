@@ -1,8 +1,8 @@
-"""`judex limpar`: one-command residual recovery for finished runs.
+"""`judex recuperar`: one-command residual recovery for finished runs.
 
 A finished ``judex executar`` run leaves a residual — records in
 ``executar.state.json`` whose status is not ``ok`` /
-``skipped_cached``. ``limpar`` walks the run dir (mono *or* sharded —
+``skipped_cached``. ``recuperar`` walks the run dir (mono *or* sharded —
 auto-detects), reads each shard's **state.json** (the canonical
 record), partitions every non-ok record by
 ``(kind, classify_unified_error(record))`` plus a small
@@ -18,7 +18,7 @@ one *retryable* (REPLAY) row.
 silently disappear from it after a retry while still being present in
 state.json. ``state.json`` is the canonical record (every status +
 retry_count for every URL, snapshotted atomically + replayable from
-``executar.log.jsonl`` if stale). Reading from canonical means limpar
+``executar.log.jsonl`` if stale). Reading from canonical means recuperar
 can't be fooled by a narrowed errors.jsonl.
 
 This module is **pure** for the planner half (``discover_run_dirs``,
@@ -27,7 +27,7 @@ subprocesses, no I/O beyond reading state.json. The side-effecting
 half is :func:`execute_recoveries`, which spawns one detached child
 per source dir.
 
-Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
+Spec: ``docs/superpowers/specs/2026-05-03-judex-recuperar.md``.
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ _PROVIDER_SWITCH_STATUSES: frozenset[str] = frozenset({"empty", "outlier_skipped
 # Status → destination provider for PROVIDER_SWITCH dispatch. Mirrors
 # the recipe table in ``error_triage._EXTRAIR_STATUS_OVERRIDES`` but
 # typed for direct lookup; keeping both in sync is pinned by the
-# limpar dispatch tests + the error_triage recipe tests.
+# recuperar dispatch tests + the error_triage recipe tests.
 _PROVIDER_SWITCH_DESTINATIONS: dict[str, str] = {
     "empty": "chandra",
     "outlier_skipped": "tesseract",
@@ -318,12 +318,12 @@ def classify_residual(dirs: list[Path]) -> dict[Bucket, list[ErrorRow]]:
 
 def _urls_file_path(source_dir: Path, status: str) -> Path:
     """Where the URL-list file *will* land for a (source_dir, status)."""
-    return source_dir / f"limpar-{status}.urls.txt"
+    return source_dir / f"recuperar-{status}.urls.txt"
 
 
 def _refetch_csv_path(source_dir: Path) -> Path:
     """Where the refetch CSV *will* land for a source_dir."""
-    return source_dir / "limpar-refetch.csv"
+    return source_dir / "recuperar-refetch.csv"
 
 
 def _build_urls_content(rows: list[ErrorRow]) -> str:
@@ -523,12 +523,12 @@ def execute_recoveries(
     pids_path: Path,
 ) -> ExecuteResult:
     """Spawn each :class:`Spawn` detached, append to ``<saida>/driver.log``,
-    write a ``limpar.pids`` file at ``pids_path``.
+    write a ``recuperar.pids`` file at ``pids_path``.
 
-    **Why driver.log (append) instead of limpar.log:**
-    ``judex acompanhar`` tails ``shard-*/driver.log``. If limpar wrote
-    to ``limpar.log`` (separate file), the operator running
-    ``acompanhar`` after a limpar pass would see only the *original*
+    **Why driver.log (append) instead of recuperar.log:**
+    ``judex acompanhar`` tails ``shard-*/driver.log``. If recuperar wrote
+    to ``recuperar.log`` (separate file), the operator running
+    ``acompanhar`` after a recuperar pass would see only the *original*
     sweep's tail — blind to the recovery activity. Appending to
     driver.log keeps the run dir's monitoring contract uniform: one
     log file per shard, all activity (original + recovery passes)
@@ -583,7 +583,7 @@ def wait_for_pids(pids: list[int], *, poll_interval: float = 5.0) -> None:
 
     The poll-vs-wait choice is intentional: ``os.waitpid`` only works on
     direct children, but the ``execute_recoveries`` spawns are detached
-    via ``start_new_session=True`` — the limpar parent isn't their
+    via ``start_new_session=True`` — the recuperar parent isn't their
     parent any more, so ``waitpid`` would return immediately with
     ECHILD. ``kill -0`` works regardless of process tree.
     """
@@ -634,7 +634,7 @@ def run_until_stable(
     on_pass_start=None,        # optional: callable(pass_n, actionable_count)
     on_pass_end=None,          # optional: callable(pass_n, n_dispatched, pids)
 ) -> LoopResult:
-    """Run ``limpar --apply`` in a loop until residuals stop shrinking
+    """Run ``recuperar --apply`` in a loop until residuals stop shrinking
     or ``max_passes`` is hit.
 
     Each pass: classify → plan → spawn detached children → wait for
@@ -685,7 +685,7 @@ def run_until_stable(
                 stopped_for_max_passes=False,
             )
 
-        pids_path = run_dir / f"limpar-pass-{pass_n}.pids"
+        pids_path = run_dir / f"recuperar-pass-{pass_n}.pids"
         result = execute_recoveries(plan, pids_path)
 
         if on_pass_end is not None:

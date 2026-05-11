@@ -16,7 +16,7 @@ Exemplos:
     uv run judex --help
     uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
     uv run judex executar -c HC -i 250920 -f 267137            # range mode
-    uv run judex limpar runs/active/<label>/ --apply           # residual recovery
+    uv run judex recuperar runs/active/<label>/ --apply        # residual recovery
     uv run judex warehouse --classe HC                          # rebuild DuckDB
     uv run judex debug exportar --apenas hc_famous_lawyers     # marimo HTML export
 """
@@ -61,20 +61,20 @@ DEFAULT_NOTEBOOKS: tuple[str, ...] = (
 )
 
 app = typer.Typer(
-    add_completion=False,
+    add_completion=True,
     help="judex-mini — hub do raspador + análise do STF.",
     no_args_is_help=True,
 )
 
 # Sub-app for inspection / validation / export utilities that aren't
 # part of the everyday operator loop (`executar` → `acompanhar` →
-# `relatar` + `limpar` + `warehouse`). The legacy three-
+# `relatar` + `recuperar` + `warehouse`). The legacy three-
 # command chain (varrer / baixar / extrair / coletar) was removed
 # from the CLI surface; the library code in `judex/sweeps/` stays for
 # `pick_provider` and shared helpers used by the unified pipeline.
 # Recoverable on the `archive/iteration-2-three-command-chain` branch.
 debug_app = typer.Typer(
-    add_completion=False,
+    add_completion=True,
     help="Utilitários auxiliares (inspeção, backup, exportação, validação).",
     no_args_is_help=True,
 )
@@ -83,6 +83,225 @@ app.add_typer(debug_app, name="debug", rich_help_panel="Utilitários")
 
 # ---------------------------------------------------------------------------
 # helpers compartilhados
+
+
+# ---------------------------------------------------------------------------
+# Sweep lifecycle primitives (shared by `executar --detach`, `parar`, and
+# `retomar`). Each helper is a thin pure function — the Typer wrappers
+# below just compose them.
+#
+# The pid-file contract is: ``run_pipeline`` writes ``<saida>/executar.pid``
+# at startup, deletes it in its finally block. Mono runs land here; sharded
+# runs use ``<saida>/shards.pids`` (one PID per line, written by
+# ``launch_sharded``). ``_read_pids`` prefers shards.pids when both exist —
+# a sharded run has N children to signal, not one.
+
+
+def _newest_run_dir(root: Path = Path("runs/active")) -> Optional[Path]:
+    """Newest sub-directory under ``root`` by mtime, or ``None`` when the
+    root is missing / empty. Used by every Coleta command that takes a
+    ``<run_dir>`` argument: when the operator omits it, the resolver
+    falls back to this so the natural "I just paused something, now do
+    the next thing" workflow doesn't require re-typing the path."""
+    if not root.exists() or not root.is_dir():
+        return None
+    candidates = [p for p in root.iterdir() if p.is_dir()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _resolve_run_dir(explicit: Optional[Path]) -> Path:
+    """Return ``explicit`` if provided; otherwise default to the newest
+    sub-directory under ``runs/active/``. If neither is available,
+    exit with a clear typer error. Every Coleta command shares this
+    resolver so the "no arg → newest" sugar is uniform across
+    ``parar``, ``retomar``, ``acompanhar``, ``relatar``, ``recuperar``.
+
+    ``explicit`` can be a real path *or* a label (``rotulo`` or
+    directory name). When it doesn't exist as a directory we fall
+    through to ``find_by_label``: exact match wins, prefix match
+    accepted when unambiguous, otherwise we error with the candidate
+    list. This is the Modal/Heroku affordance — operators address
+    runs by name, not coordinate.
+
+    Echoes ``(default) run_dir = <path>`` on stderr when defaulting so
+    the operator sees which run is being targeted — no silent
+    assumptions about identity."""
+    if explicit is not None:
+        if explicit.is_dir():
+            return explicit
+        # Not an existing path: try interpreting as a label.
+        from judex.pipeline.run_index import find_by_label
+        matches = find_by_label(str(explicit))
+        if not matches:
+            typer.echo(
+                f"erro: '{explicit}' não é um diretório existente nem um "
+                "rótulo conhecido em runs/active|archive/.",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+        # Exact match (rotulo or dir name) trumps prefix match.
+        exact = [
+            m for m in matches
+            if m.rotulo == str(explicit) or m.saida.name == str(explicit)
+        ]
+        chosen_pool = exact or matches
+        if len(chosen_pool) > 1:
+            typer.echo(
+                f"erro: '{explicit}' é ambíguo. Candidatos:",
+                err=True,
+            )
+            for m in chosen_pool:
+                typer.echo(f"  {m.saida}  ({m.status.value})", err=True)
+            raise typer.Exit(code=2)
+        resolved = chosen_pool[0].saida
+        typer.echo(f"(rótulo) run_dir = {resolved}")
+        return resolved
+
+    chosen = _newest_run_dir()
+    if chosen is None:
+        typer.echo(
+            "erro: nenhum diretório encontrado em runs/active/. "
+            "Passe <run_dir> explícito.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    typer.echo(f"(default) run_dir = {chosen}")
+    return chosen
+
+
+def _complete_run_label(incomplete: str) -> list[str]:
+    """Typer shell-completion hook: enumerate run labels matching the
+    partial input. Used on ``<run_dir>`` / ``<saida>`` arguments so
+    ``judex parar hc<tab>`` expands to a real label.
+
+    Imported lazily by Typer at completion-evaluation time; never
+    runs in the hot path of a regular command invocation."""
+    try:
+        from judex.pipeline.run_index import label_candidates
+        return label_candidates(incomplete)
+    except Exception:
+        # Completion must never crash the shell — return empty on any
+        # error (e.g. a corrupt state.json mid-snapshot).
+        return []
+
+
+def _read_pids(saida: Path) -> list[int]:
+    """Pids associated with ``<saida>``. Sharded layout wins when both
+    files exist (a sharded run has N children — signalling only the mono
+    pid would orphan the rest)."""
+    shards_pids = saida / "shards.pids"
+    if shards_pids.exists():
+        return _parse_pid_file(shards_pids)
+    mono_pid = saida / "executar.pid"
+    if mono_pid.exists():
+        return _parse_pid_file(mono_pid)
+    return []
+
+
+def _parse_pid_file(path: Path) -> list[int]:
+    out: list[int] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(int(line))
+        except ValueError:
+            continue
+    return out
+
+
+def _is_pid_alive(pid: int) -> bool:
+    """``os.kill(pid, 0)`` is the POSIX "process exists?" probe — sends
+    no signal but raises ``ProcessLookupError`` when the pid is gone."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # We can't signal it but it exists.
+        return True
+    return True
+
+
+def _build_retomar_argv(
+    saida: Path,
+    args: dict,
+    *,
+    nao_perguntar: bool,
+    detach: bool,
+) -> list[str]:
+    """Reconstruct an ``executar`` argv from a state-journal args block.
+
+    Pure / total — easy to test independently of subprocess plumbing.
+    """
+    argv: list[str] = ["executar"]
+    if args.get("classe"):
+        argv.extend(["-c", str(args["classe"])])
+    if args.get("inicio") is not None:
+        argv.extend(["-i", str(args["inicio"])])
+    if args.get("fim") is not None:
+        argv.extend(["-f", str(args["fim"])])
+    if args.get("csv"):
+        argv.extend(["--csv", str(args["csv"])])
+    if args.get("retentar_de"):
+        argv.extend(["--retentar-de", str(args["retentar_de"])])
+    argv.extend(["--saida", str(saida)])
+    if args.get("rotulo"):
+        argv.extend(["--rotulo", str(args["rotulo"])])
+    if args.get("provedor") and args["provedor"] != "pypdf":
+        argv.extend(["--provedor", str(args["provedor"])])
+    if args.get("forcar"):
+        argv.append("--forcar")
+    if args.get("proxy_pool"):
+        argv.extend(["--proxy-pool", str(args["proxy_pool"])])
+    if args.get("portal_concurrencia") not in (None, 1):
+        argv.extend(["--portal-concurrencia", str(args["portal_concurrencia"])])
+    if args.get("sistemas_concurrencia") not in (None, 1):
+        argv.extend(["--sistemas-concurrencia", str(args["sistemas_concurrencia"])])
+    if args.get("ocr_concurrencia") not in (None, 4):
+        argv.extend(["--ocr-concurrencia", str(args["ocr_concurrencia"])])
+    if nao_perguntar:
+        argv.append("--nao-perguntar")
+    if detach:
+        argv.append("--detach")
+    return argv
+
+
+def _executar_kwargs_for_state(
+    *,
+    classe: Optional[str],
+    inicio: Optional[int],
+    fim: Optional[int],
+    csv: Optional[Path],
+    retentar_de: Optional[Path],
+    rotulo: Optional[str],
+    provedor: str,
+    forcar: bool,
+    portal_concurrencia: int,
+    sistemas_concurrencia: int,
+    ocr_concurrencia: int,
+    proxy_pool: Optional[Path],
+) -> dict:
+    """Pack the executar invocation's args into a JSON-serializable
+    dict ready to persist via ``state.set_original_args``. Paths get
+    str()-ified so they survive a snapshot round-trip."""
+    return {
+        "classe": classe,
+        "inicio": inicio,
+        "fim": fim,
+        "csv": str(csv) if csv else None,
+        "retentar_de": str(retentar_de) if retentar_de else None,
+        "rotulo": rotulo,
+        "provedor": provedor,
+        "forcar": forcar,
+        "portal_concurrencia": portal_concurrencia,
+        "sistemas_concurrencia": sistemas_concurrencia,
+        "ocr_concurrencia": ocr_concurrencia,
+        "proxy_pool": str(proxy_pool) if proxy_pool else None,
+    }
 
 
 def _push(argv: list[str], flag: str, value: Any) -> None:
@@ -365,6 +584,13 @@ def executar(
         help="Pula o prompt de confirmação após o painel de custo. "
              "Necessário para uso não-interativo (cron, nohup).",
     ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d",
+        help="Roda em background: re-executa este mesmo comando como "
+             "filho num novo grupo de sessão, redireciona stdout/stderr "
+             "para ``<saida>/launcher.log``, imprime PID + log e sai 0. "
+             "Substitui o ritual ``setsid nohup … & disown``.",
+    ),
 ) -> None:
     """Raspa um intervalo (ou CSV) de processos: metadados + peças + texto.
 
@@ -403,6 +629,70 @@ def executar(
             "entre range (-c/-i/-f), --csv, ou --retentar-de."
         )
 
+    # ----- Auto-default rotulo + --saida (hoisted so --detach can fire
+    # before target resolution — the detached child re-enters and
+    # re-derives targets itself) -----
+    if range_mode and rotulo is None:
+        assert classe is not None and inicio is not None and fim is not None
+        rotulo = f"{classe.upper()}_{inicio}-{fim}"
+
+    if saida is None:
+        if rotulo is None:
+            raise typer.BadParameter(
+                "--saida é obrigatório quando nem --rotulo nem modo range "
+                "estão setados (sem rótulo não há nome para o auto-saida)."
+            )
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saida = Path("runs/coletas") / f"{ts}-{rotulo}"
+        typer.echo(f"--saida não fornecido; usando auto-default {saida}")
+
+    # ----- --detach: re-exec self in a new session, exit parent -----
+    if detach:
+        # Strip --detach + force --nao-perguntar in the child: a detached
+        # parent can't answer a confirmation prompt. The child re-enters
+        # this same function with detach=False and falls through to the
+        # normal in-process run.
+        saida.mkdir(parents=True, exist_ok=True)
+        log_path = saida / "launcher.log"
+        child_argv = [a for a in sys.argv if a not in ("--detach", "-d")]
+        if "--nao-perguntar" not in child_argv:
+            child_argv.append("--nao-perguntar")
+        with log_path.open("w", encoding="utf-8") as log_f:
+            child = subprocess.Popen(
+                child_argv,
+                stdin=subprocess.DEVNULL,
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        # Poll briefly for the child to write its pid file — that's the
+        # PID the operator wants (the inner judex process), not the
+        # outer ``uv run`` shim which may be a different pid.
+        import time as _time
+        pid_path = saida / "executar.pid"
+        deadline = _time.monotonic() + 5.0
+        while _time.monotonic() < deadline:
+            if pid_path.exists():
+                break
+            if child.poll() is not None:
+                # Child died before writing the pid file.
+                typer.echo(
+                    f"erro: filho saiu cedo (rc={child.returncode}). "
+                    f"Veja {log_path}.",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+            _time.sleep(0.1)
+        if pid_path.exists():
+            inner_pid = pid_path.read_text(encoding="utf-8").strip()
+        else:
+            inner_pid = f"~{child.pid} (filho não escreveu executar.pid em 5s)"
+        typer.echo(f"pid: {inner_pid}")
+        typer.echo(f"log: {log_path}")
+        typer.echo(f"saida: {saida}")
+        typer.echo(f"parar: judex parar {saida}")
+        raise typer.Exit(code=0)
+
     # ----- Build the (classe, processo) target list -----
     from judex.pipeline.runner import (
         read_targets_csv,
@@ -416,8 +706,6 @@ def executar(
         validate_stf_case_type(classe)
         validate_process_range(inicio, fim)
         targets = targets_from_range(classe, inicio, fim)
-        if rotulo is None:
-            rotulo = f"{classe.upper()}_{inicio}-{fim}"
     elif csv is not None:
         targets = read_targets_csv(csv)
     else:
@@ -427,17 +715,6 @@ def executar(
     if not targets:
         typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
         raise typer.Exit(code=2)
-
-    # ----- Auto-default --saida from --rotulo when omitted -----
-    if saida is None:
-        if rotulo is None:
-            raise typer.BadParameter(
-                "--saida é obrigatório quando nem --rotulo nem modo range "
-                "estão setados (sem rótulo não há nome para o auto-saida)."
-            )
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saida = Path("runs/coletas") / f"{ts}-{rotulo}"
-        typer.echo(f"--saida não fornecido; usando auto-default {saida}")
 
     # ----- --prever: forecast + early-exit -----
     if prever:
@@ -529,6 +806,17 @@ def executar(
         ocr_concurrencia=ocr_concurrencia,
         proxy_pool=proxy_pool,
         forcar=forcar,
+        # Captured into ``executar.state.json`` so ``judex retomar``
+        # can rebuild the operator's first command on resume.
+        original_args=_executar_kwargs_for_state(
+            classe=classe, inicio=inicio, fim=fim,
+            csv=csv, retentar_de=retentar_de,
+            rotulo=rotulo, provedor=provedor, forcar=forcar,
+            portal_concurrencia=portal_concurrencia,
+            sistemas_concurrencia=sistemas_concurrencia,
+            ocr_concurrencia=ocr_concurrencia,
+            proxy_pool=proxy_pool,
+        ),
     )
     raise typer.Exit(code=rc)
 
@@ -953,7 +1241,7 @@ def peca_dismiss_cmd(
 ) -> None:
     """Marca uma URL como conhecida-quebrada para parar de tentar.
 
-    URLs dispensadas são silenciosamente puladas pelo ``judex limpar``
+    URLs dispensadas são silenciosamente puladas pelo ``judex recuperar``
     e não consomem orçamento de retry. Persiste em
     ``data/derived/pecas-texto/<sha1>.dismissed.json`` (atravessa
     rebuilds do warehouse).
@@ -1015,14 +1303,137 @@ def providers_cmd(
 
 
 # ---------------------------------------------------------------------------
+# `listar` — descobre quais Coletas existem (e quais estão vivas)
+
+
+@app.command(name="listar", rich_help_panel="Observação")
+def listar(
+    root: Path = typer.Option(
+        Path("runs/active"), "--root",
+        help="Diretório-raiz para varrer. Padrão: runs/active/.",
+    ),
+    incluir_arquivo: bool = typer.Option(
+        False, "--incluir-arquivo",
+        help="Também varre runs/archive/ — útil para 'onde foi parar o "
+             "run da semana passada?'.",
+    ),
+    apenas: Optional[str] = typer.Option(
+        None, "--apenas",
+        help="Filtra por status: running | stale | finished | unknown.",
+    ),
+    podar_pids: bool = typer.Option(
+        False, "--podar-pids",
+        help="Apaga executar.pid / shards.pids de runs em status `stale` "
+             "(resíduo de SIGKILL — `parar` não consegue limpar sozinho).",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Saída JSON (uma linha por run) em vez de tabela.",
+    ),
+) -> None:
+    """Lista Coletas em runs/active/ com status (running/stale/finished/unknown).
+
+    Lê o pid file (``executar.pid`` / ``shards.pids``) para liveness e o
+    snapshot ``executar.state.json`` para rótulo, timestamps e contagem
+    de alvos. Não grepa logs.
+
+    ``--apenas running`` é o filtro de uso mais comum (responde "o que
+    está rodando agora?"). ``--podar-pids`` é o cleanup pareado com o
+    estado ``stale`` — sem ele, ``parar`` no diretório fica no-op
+    porque o PID listado já não existe. ``--incluir-arquivo`` extende a
+    varredura para ``runs/archive/``.
+    """
+    from judex.pipeline.run_index import (
+        RunStatus,
+        format_elapsed,
+        list_runs as _list_runs,
+        prune_stale_pid_files,
+    )
+
+    if podar_pids:
+        removed = prune_stale_pid_files(root)
+        for p in removed:
+            typer.echo(f"removed: {p}")
+        typer.echo(f"podou {len(removed)} pid file(s) stale.")
+        return
+
+    summaries = _list_runs(root, include_archive=incluir_arquivo)
+
+    if apenas:
+        try:
+            wanted = RunStatus(apenas)
+        except ValueError:
+            raise typer.BadParameter(
+                f"--apenas={apenas!r} inválido. Use: "
+                f"{', '.join(s.value for s in RunStatus)}."
+            )
+        summaries = [s for s in summaries if s.status == wanted]
+
+    if json_out:
+        import json as _json
+        for s in summaries:
+            typer.echo(_json.dumps({
+                "saida": str(s.saida),
+                "status": s.status.value,
+                "pids": s.pids,
+                "rotulo": s.rotulo,
+                "classe": s.classe,
+                "started_at": s.started_at,
+                "snapshot_at": s.snapshot_at,
+                "elapsed_seconds": s.elapsed_seconds(),
+                "n_targets": s.n_targets,
+            }))
+        return
+
+    if not summaries:
+        scope = (
+            f"{root} e runs/archive/" if incluir_arquivo else str(root)
+        )
+        typer.echo(f"(nenhuma Coleta em {scope})")
+        return
+
+    from rich.console import Console
+    from rich.table import Table
+
+    status_style = {
+        RunStatus.RUNNING: "green",
+        RunStatus.STALE: "yellow",
+        RunStatus.FINISHED: "dim",
+        RunStatus.UNKNOWN: "red",
+    }
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("saida")
+    table.add_column("status")
+    table.add_column("classe")
+    table.add_column("rotulo")
+    table.add_column("alvos", justify="right")
+    table.add_column("duração", justify="right")
+    table.add_column("pids")
+
+    for s in summaries:
+        table.add_row(
+            s.saida.name,
+            f"[{status_style[s.status]}]{s.status.value}[/]",
+            s.classe or "—",
+            s.rotulo or "—",
+            str(s.n_targets) if s.n_targets is not None else "—",
+            format_elapsed(s.elapsed_seconds()),
+            ",".join(str(p) for p in s.pids) or "—",
+        )
+    Console().print(table)
+
+
+# ---------------------------------------------------------------------------
 # `acompanhar` — tail unificado mono + sharded com auto-encerramento
 
 
-@app.command(name="acompanhar", rich_help_panel="Coleta")
+@app.command(name="acompanhar", rich_help_panel="Observação")
 def acompanhar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run. Auto-detecta layout: sharded "
+    run_dir: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run. Sem argumento, usa o mais recente em "
+             "runs/active/ por mtime. Auto-detecta layout: sharded "
              "(shard-*/driver.log) ou monolítico (driver.log / "
              "launcher.log no topo).",
     ),
@@ -1051,6 +1462,7 @@ def acompanhar(
     uma linha por intervalo — sem 16 logs idênticos disputando a tela.
     Use ``--persistir`` para continuar acompanhando em vez de encerrar.
     """
+    run_dir = _resolve_run_dir(run_dir)
     from scripts.follow_run import run_follow
     raise typer.Exit(code=run_follow(
         run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
@@ -1058,15 +1470,188 @@ def acompanhar(
 
 
 # ---------------------------------------------------------------------------
+# `parar` — encerra cleanly uma Coleta em curso
+
+
+@app.command(name="parar", rich_help_panel="Coleta")
+def parar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o run mais "
+             "recente em runs/active/ por mtime.",
+        autocompletion=_complete_run_label,
+    ),
+    timeout: float = typer.Option(
+        30.0, "--timeout", "-t",
+        help="Segundos para esperar SIGTERM ser respeitado antes de "
+             "reportar processo travado.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar", "-f",
+        help="Escalar para SIGKILL após --timeout. Padrão: reporta e "
+             "sai com código 1 sem forçar.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Mostra os PIDs que seriam encerrados, mas não envia sinal. "
+             "Sai com código 0. Útil antes de matar 16 shards de uma vez.",
+    ),
+) -> None:
+    """Encerra cleanly uma Coleta em curso (``judex executar`` rodando).
+
+    Lê ``<saida>/executar.pid`` (mono) ou ``<saida>/shards.pids`` (sharded),
+    manda SIGTERM, polla até cada processo encerrar ou até ``--timeout``.
+    Com ``--forcar``, escalona SIGKILL após o timeout. O state journal
+    (ADR-0006) garante que SIGTERM no meio de uma Coleta deixa o estado
+    retomável em disco — re-rodar ``judex executar`` no mesmo
+    ``--saida`` (ou ``judex retomar <saida>``) continua de onde parou.
+    """
+    import signal
+    import time
+
+    saida = _resolve_run_dir(saida)
+
+    pids = _read_pids(saida)
+    if not pids:
+        typer.echo(
+            f"erro: nem executar.pid nem shards.pids em {saida}. "
+            "Coleta já encerrou (limpamente)? Veja `judex relatar {saida}`.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    if dry_run:
+        typer.echo(f"(dry-run) SIGTERM -> {pids}")
+        typer.echo("(dry-run) nada foi enviado. Re-rode sem --dry-run para encerrar.")
+        raise typer.Exit(code=0)
+
+    typer.echo(f"SIGTERM -> {pids}")
+    alive = []
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            alive.append(pid)
+        except ProcessLookupError:
+            typer.echo(f"  pid {pid} já não existe; pulando")
+
+    deadline = time.monotonic() + timeout
+    while alive and time.monotonic() < deadline:
+        alive = [p for p in alive if _is_pid_alive(p)]
+        if alive:
+            time.sleep(1.0)
+
+    if not alive:
+        typer.echo(f"OK: {len(pids)} processo(s) encerraram em <{timeout:.0f}s.")
+        raise typer.Exit(code=0)
+
+    if forcar:
+        typer.echo(f"SIGKILL -> {alive} (após {timeout:.0f}s sem encerrar)")
+        for p in alive:
+            try:
+                os.kill(p, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        raise typer.Exit(code=0)
+
+    typer.echo(
+        f"erro: {alive} ainda vivo(s) após {timeout:.0f}s. "
+        "Use --forcar para SIGKILL.",
+        err=True,
+    )
+    raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# `retomar` — re-dispatch executar with the original args
+
+
+@app.command(name="retomar", rich_help_panel="Coleta")
+def retomar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run. Sem argumento, usa o run mais recente "
+             "em runs/active/ por mtime.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Passa --nao-perguntar para o executar reaberto (skip "
+             "do painel de custo + prompt).",
+    ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d",
+        help="Passa --detach para o executar reaberto: roda em "
+             "background, imprime PID + log e sai.",
+    ),
+) -> None:
+    """Retoma uma Coleta interrompida, inferindo os argumentos originais.
+
+    Lê o bloco ``args`` de ``<saida>/executar.state.json`` (capturado
+    no primeiro ``judex executar`` contra esse ``--saida``) e despacha
+    ``executar`` com a mesma argv. O operador não precisa re-digitar
+    ``-c HC -i 196282 -f 210963 --saida …`` — a Coleta lembra do que
+    foi.
+
+    Falha cleanly se o state journal não tem o bloco ``args`` (run
+    iniciado antes do suporte ao retomar) — caso em que basta
+    re-executar ``executar`` original.
+    """
+    import json as _json
+
+    saida = _resolve_run_dir(saida)
+    state_path = saida / "executar.state.json"
+    if not state_path.exists():
+        typer.echo(
+            f"erro: {state_path} não existe; este diretório não é uma "
+            "Coleta do `judex executar`.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    raw = _json.loads(state_path.read_text(encoding="utf-8"))
+    args = raw.get("args")
+    if not args:
+        typer.echo(
+            f"erro: {state_path} não tem o bloco `args` (Coleta iniciada "
+            "antes do suporte a `retomar`). Re-execute com o `executar` "
+            "original — algo como:\n"
+            f"  uv run judex executar -c <CLASSE> -i <X> -f <Y> "
+            f"--saida {saida} --nao-perguntar",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    argv = _build_retomar_argv(
+        saida, args, nao_perguntar=nao_perguntar, detach=detach,
+    )
+    typer.echo(f"retomar -> judex {' '.join(argv)}")
+
+    # Re-enter the same Typer app instead of execvp — os.execvp would
+    # replace the test process during ``CliRunner.invoke``, which makes
+    # this command untestable; calling ``app(argv)`` keeps the call in
+    # the same Python process and lets the existing executar wrapper
+    # do its own kwarg handling, prompt-skip, and run_pipeline call.
+    # ``app()`` raises SystemExit per the Typer/Click convention; let
+    # it propagate (the runner / shell sees the exit code).
+    app(argv, standalone_mode=True)
+
+
+# ---------------------------------------------------------------------------
 # `relatar` — consolidação pós-run (residuals + próximos passos)
 
 
-@app.command(name="relatar", rich_help_panel="Coleta")
+@app.command(name="relatar", rich_help_panel="Observação")
 def relatar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run (mono ou sharded). "
-             "Funciona tanto para run em curso quanto para run finalizado.",
+    run_dir: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o mais "
+             "recente em runs/active/ por mtime. Funciona tanto para "
+             "run em curso quanto para run finalizado.",
+        autocompletion=_complete_run_label,
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Serializa o RunSummary como JSON em vez do texto humano. "
+             "Pareia com jq / dashboards.",
     ),
 ) -> None:
     """Resume o estado de uma Coleta num relatório consolidado.
@@ -1077,21 +1662,33 @@ def relatar(
     em Coleta em curso ou já finalizada — somente leitura, idempotente,
     roda em menos de 1 s.
     """
+    run_dir = _resolve_run_dir(run_dir)
     from judex.sweeps.run_summary import render_summary, summarize_run
-    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
+    summary = summarize_run(run_dir)
+    if json_out:
+        import json as _json
+        from dataclasses import asdict
+        payload = asdict(summary)
+        # Coerce non-JSON-native fields: Path → str, Enum → its value.
+        payload["run_dir"] = str(payload["run_dir"])
+        payload["state"] = summary.state.value
+        typer.echo(_json.dumps(payload, indent=2))
+        return
+    typer.echo(render_summary(summary), nl=False)
 
 
 # ---------------------------------------------------------------------------
-# `limpar` — close a finished run's residual in one command
+# `recuperar` — close a finished run's residual in one command
 
 
-@app.command(name="limpar", rich_help_panel="Coleta")
-def limpar(
-    run_dir: Path = typer.Argument(
-        ...,
+@app.command(name="recuperar", rich_help_panel="Coleta")
+def recuperar(
+    run_dir: Optional[Path] = typer.Argument(
+        None,
         help="Diretório de um run finalizado de ``judex executar``. "
-             "Auto-detecta layout: sharded (shard-*/) ou monolítico "
-             "(executar.errors.jsonl no topo).",
+             "Sem argumento, usa o mais recente em runs/active/ por "
+             "mtime. Auto-detecta layout: sharded (shard-*/) ou "
+             "monolítico (executar.errors.jsonl no topo).",
     ),
     apply: bool = typer.Option(
         False, "--apply",
@@ -1144,7 +1741,7 @@ def limpar(
     Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
     recuperar.
     """
-    from judex.sweeps.limpar import (
+    from judex.sweeps.recuperar import (
         classify_residual,
         discover_run_dirs,
         execute_recoveries,
@@ -1153,6 +1750,7 @@ def limpar(
         run_until_stable,
     )
 
+    run_dir = _resolve_run_dir(run_dir)
     if not run_dir.exists():
         typer.echo(f"ERROR: run_dir {run_dir} não existe.", err=True)
         raise typer.Exit(code=2)
@@ -1160,7 +1758,7 @@ def limpar(
     dirs = discover_run_dirs(run_dir)
     if not dirs:
         typer.echo(
-            f"limpar: nada a recuperar em {run_dir} "
+            f"recuperar: nada a recuperar em {run_dir} "
             f"(nenhum executar.errors.jsonl encontrado)."
         )
         raise typer.Exit(code=3)
@@ -1181,7 +1779,7 @@ def limpar(
 
     plan = plan_recoveries(buckets, provedor=provedor)
     if not plan:
-        typer.echo("limpar: nenhum bucket transiente — nada a despachar.")
+        typer.echo("recuperar: nenhum bucket transiente — nada a despachar.")
         raise typer.Exit(code=0)
 
     if not nao_perguntar:
@@ -1196,11 +1794,11 @@ def limpar(
 
     if loop:
         def _on_pass_start(n: int, actionable: int) -> None:
-            typer.echo(f"limpar pass {n}: {actionable} actionable rows")
+            typer.echo(f"recuperar pass {n}: {actionable} actionable rows")
 
         def _on_pass_end(n: int, n_dispatched: int, pids: list[int]) -> None:
             typer.echo(
-                f"limpar pass {n}: dispatched {n_dispatched} child(ren) "
+                f"recuperar pass {n}: dispatched {n_dispatched} child(ren) "
                 f"(PIDs: {pids}); waiting for completion…"
             )
 
@@ -1216,27 +1814,98 @@ def limpar(
         typer.echo(final_summary)
         if result.converged:
             typer.echo(
-                f"limpar: converged in {result.passes_run} pass(es)"
+                f"recuperar: converged in {result.passes_run} pass(es)"
             )
         elif result.stopped_for_no_progress:
             typer.echo(
-                f"limpar: stopped after {result.passes_run} pass(es) — "
+                f"recuperar: stopped after {result.passes_run} pass(es) — "
                 f"residual stopped shrinking"
             )
         else:
             typer.echo(
-                f"limpar: stopped at --max-passes={max_passes} — "
+                f"recuperar: stopped at --max-passes={max_passes} — "
                 f"residual still actionable"
             )
         raise typer.Exit(code=0)
 
-    pids_path = run_dir / "limpar.pids"
+    pids_path = run_dir / "recuperar.pids"
     result = execute_recoveries(plan, pids_path)
     typer.echo(
-        f"limpar: spawned {len(result.pids)} child(ren); "
+        f"recuperar: spawned {len(result.pids)} child(ren); "
         f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
     )
     raise typer.Exit(code=0)
+
+
+# ---------------------------------------------------------------------------
+# `arquivar` — move uma Coleta finalizada para runs/archive/
+
+
+@app.command(name="arquivar", rich_help_panel="Coleta")
+def arquivar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o run mais "
+             "recente em runs/active/ por mtime.",
+        autocompletion=_complete_run_label,
+    ),
+    destino: Path = typer.Option(
+        Path("runs/archive"), "--destino",
+        help="Diretório-raiz para onde mover. Padrão: runs/archive/.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar", "-f",
+        help="Arquiva mesmo se o status for `running` ou `stale`. Use "
+             "com cuidado: arquivar um run vivo deixa o PID apontando "
+             "para um caminho que não vai mais existir.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Mostra o que seria movido, mas não move. Sai com código 0.",
+    ),
+) -> None:
+    """Arquiva uma Coleta finalizada (move para ``runs/archive/``).
+
+    Verifica o status via ``list_runs`` antes de mover: ``running`` /
+    ``stale`` exigem ``--forcar`` (arquivar um run vivo deixa o pid
+    file apontando para um caminho inválido). Colisão de nome no
+    destino é um erro — o operador resolve renomeando.
+
+    Pareia naturalmente com ``judex listar --apenas finished`` para
+    descobrir candidatos. A inversa (``desarquivar``) é um ``mv`` na
+    mão; não automatizamos porque é incomum o suficiente.
+    """
+    from judex.pipeline.run_index import summarize_run
+
+    saida = _resolve_run_dir(saida)
+    if not saida.is_dir():
+        typer.echo(f"erro: {saida} não é um diretório.", err=True)
+        raise typer.Exit(code=2)
+
+    summary = summarize_run(saida)
+    if summary.status.value in ("running", "stale") and not forcar:
+        typer.echo(
+            f"erro: status={summary.status.value}. Use --forcar para "
+            "arquivar mesmo assim (cuidado: pid file vira ponteiro inválido).",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    target = destino / saida.name
+    if target.exists():
+        typer.echo(
+            f"erro: {target} já existe. Renomeie um dos dois e tente de novo.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    if dry_run:
+        typer.echo(f"(dry-run) {saida} -> {target}")
+        raise typer.Exit(code=0)
+
+    destino.mkdir(parents=True, exist_ok=True)
+    saida.rename(target)
+    typer.echo(f"arquivado: {saida} -> {target}")
 
 
 # ---------------------------------------------------------------------------

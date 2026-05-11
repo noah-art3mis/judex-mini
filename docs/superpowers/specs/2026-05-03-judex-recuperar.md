@@ -1,7 +1,13 @@
-# `judex limpar`: one-command residual recovery for finished runs
+# `judex recuperar`: one-command residual recovery for finished runs
 
 Status: **draft, 2026-05-03.** Closes Gap #1 in
 [`docs/recovery-patterns.md`](../../recovery-patterns.md).
+
+> **Naming note (2026-05-05).** Originally specified and shipped as
+> `judex limpar`. Renamed to `judex recuperar` to align the operator
+> verb with the internal recovery vocabulary (`recovery_recipe`,
+> `RECOVERY_RECIPES`, `Recipe`, `Action`) and to stop suggesting
+> destructive cleanup. No backwards-compat shim — the old name is gone.
 
 ## Goal
 
@@ -25,33 +31,33 @@ walk the run dir once, partition by bucket, dispatch the right tool
 per bucket, and emit a one-line summary.**
 
 ```bash
-uv run judex limpar runs/active/hc2020-sharded/
+uv run judex recuperar runs/active/hc2020-sharded/
 # → recovered: 532 transient · 0 cross_stage · 0 provider_switched · 1862 terminal_dropped
 ```
 
-This is the same residual the user-quoted snippet recovers; `limpar`
+This is the same residual the user-quoted snippet recovers; `recuperar`
 is a wrapper, not new physics.
 
 ## Non-goals
 
 - **Not** a replacement for `--retentar-de` — it composes on top of it.
-- **Not** auto-recovery during a live run. `limpar` runs *post*-run, on
+- **Not** auto-recovery during a live run. `recuperar` runs *post*-run, on
   a `<run_dir>` whose scheduler has exited. (Mid-run recovery is the
   scheduler's job via per-task cap=2.)
-- **Not** a state-file rewriter. `limpar` reads state + errors, writes
+- **Not** a state-file rewriter. `recuperar` reads state + errors, writes
   nothing to them. The recoveries it dispatches mutate state via the
   same `--retentar-de` path the operator uses by hand.
 - **Not** a quality-spotchecker. The "is the extracted text actually
   good?" question (Gap #4 in `recovery-patterns.md`) is out of scope —
-  `limpar` only acts on classifier output, not text plausibility.
+  `recuperar` only acts on classifier output, not text plausibility.
 - **Not** a way to bypass `RETRY_CAP=2`. If a row's `retry_count` is
-  already at cap, `limpar`'s dispatched `--retentar-de` still no-ops on
+  already at cap, `recuperar`'s dispatched `--retentar-de` still no-ops on
   it. Escalation past cap is manual (`--forcar`).
 
 ## Surface
 
 ```
-judex limpar <run_dir> [OPTIONS]
+judex recuperar <run_dir> [OPTIONS]
 
 Arguments:
   run_dir          Directory of a finished `judex executar` run.
@@ -61,7 +67,7 @@ Arguments:
 Options:
   --apply          Actually launch dispatched recoveries. Default
                    prints the plan and exits (dry-run is the safe
-                   default since `limpar` spawns detached children).
+                   default since `recuperar` spawns detached children).
   --provedor TEXT  Provider hint forwarded to the dispatched
                    `judex executar --retentar-de` invocations.
                    [default: auto]
@@ -89,7 +95,7 @@ print "nothing to recover" — not an error.
 
 Single source of truth: `judex.pipeline.log.classify_unified_error`,
 which already maps `(status)` → `transient | terminal | cross_stage |
-ok` for the unified vocabulary. `limpar` does not introduce a new
+ok` for the unified vocabulary. `recuperar` does not introduce a new
 classifier.
 
 The partition is `(kind, classify_unified_error(row))` plus a small
@@ -119,7 +125,7 @@ to auto-dispatch once the filter knobs land.
 ## Dispatch
 
 For each shard dir (or the single mono dir) that has at least one
-`replay`-bucket row, `limpar --apply` spawns:
+`replay`-bucket row, `recuperar --apply` spawns:
 
 ```bash
 nohup uv run judex executar \
@@ -127,16 +133,16 @@ nohup uv run judex executar \
     --saida <dir> \
     --provedor <--provedor flag> \
     --nao-perguntar \
-    > <dir>/limpar.log 2>&1 &
+    > <dir>/recuperar.log 2>&1 &
 ```
 
 Detached, one PID per source dir. PIDs are written to
-`<run_dir>/limpar.pids` (mirroring `shards.pids`). Exits immediately
+`<run_dir>/recuperar.pids` (mirroring `shards.pids`). Exits immediately
 after spawning — operator monitors with `judex acompanhar <run_dir>` or
 `pgrep -af 'judex executar'`.
 
 This matches the existing fan-out idiom (the `for d in shard-*; do
-nohup … &` loop). `limpar` is the named verb for that pattern.
+nohup … &` loop). `recuperar` is the named verb for that pattern.
 
 ## Summary line
 
@@ -167,7 +173,7 @@ Under `--dry-run` (default), the line is the same format prefixed
 
 ## Implementation
 
-New module `judex/sweeps/limpar.py`:
+New module `judex/sweeps/recuperar.py`:
 
 ```python
 def discover_run_dirs(run_dir: Path) -> list[Path]: ...
@@ -181,9 +187,9 @@ Pure functions (no side effects) for the first four; only
 `execute_recoveries` spawns subprocesses. This keeps the unit tests
 free of subprocess mocking.
 
-New Typer command `limpar` in `judex/cli.py` calls these in order.
+New Typer command `recuperar` in `judex/cli.py` calls these in order.
 
-Tests at `tests/unit/test_limpar.py`:
+Tests at `tests/unit/test_recuperar.py`:
 - `discover_run_dirs` returns sharded list when `shard-*/` exists.
 - `discover_run_dirs` returns `[run_dir]` for mono.
 - `classify_residual` partitions a synthetic errors.jsonl correctly,
@@ -203,7 +209,7 @@ Tests at `tests/unit/test_limpar.py`:
 4. Typer command + help text.
 5. Smoke against `runs/active/hc2020-sharded/`.
 6. Update `docs/recovery-patterns.md` Gaps section: cross out Gap #1,
-   point at `judex limpar`.
+   point at `judex recuperar`.
 
 No promotion to `main` until smoke is clean and the unit suite is
 green.

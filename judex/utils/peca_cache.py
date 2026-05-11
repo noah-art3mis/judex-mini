@@ -189,7 +189,7 @@ def write_elements(url: str, elements: list[dict[str, Any]]) -> None:
 def is_dismissed(url: str) -> bool:
     """True if an operator has marked this URL as known-broken.
 
-    A dismissed URL is silently skipped by ``judex limpar`` and excluded
+    A dismissed URL is silently skipped by ``judex recuperar`` and excluded
     from retry budgets. The dismissal sidecar persists across warehouse
     rebuilds since it lives under ``data/derived/pecas-texto/`` (which
     is preserved) rather than inside the rebuildable warehouse.
