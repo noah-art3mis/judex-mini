@@ -868,6 +868,131 @@ def _print_executar_forecast(
 
 
 # ---------------------------------------------------------------------------
+# `listar` — descobre quais Coletas existem (e quais estão vivas).
+# Placed before the Manutenção do corpus block so its ``Observação``
+# rich_help_panel registers earlier than ``Manutenção do corpus`` —
+# Typer/rich orders panels by first-occurrence in source.
+
+
+@app.command(name="listar", rich_help_panel="Observação")
+def listar(
+    root: Path = typer.Option(
+        Path("runs/active"), "--root",
+        help="Diretório-raiz para varrer. Padrão: runs/active/.",
+    ),
+    incluir_arquivo: bool = typer.Option(
+        False, "--incluir-arquivo",
+        help="Também varre runs/archive/ — útil para 'onde foi parar o "
+             "run da semana passada?'.",
+    ),
+    apenas: Optional[str] = typer.Option(
+        None, "--apenas",
+        help="Filtra por status: running | stale | finished | unknown.",
+    ),
+    podar_pids: bool = typer.Option(
+        False, "--podar-pids",
+        help="Apaga executar.pid / shards.pids de runs em status `stale` "
+             "(resíduo de SIGKILL — `parar` não consegue limpar sozinho).",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Saída JSON (uma linha por run) em vez de tabela.",
+    ),
+) -> None:
+    """Lista Coletas em runs/active/ com status (running/stale/finished/unknown).
+
+    Lê o pid file (``executar.pid`` / ``shards.pids``) para liveness e o
+    snapshot ``executar.state.json`` para rótulo, timestamps e contagem
+    de alvos. Não grepa logs.
+
+    ``--apenas running`` é o filtro de uso mais comum (responde "o que
+    está rodando agora?"). ``--podar-pids`` é o cleanup pareado com o
+    estado ``stale`` — sem ele, ``parar`` no diretório fica no-op
+    porque o PID listado já não existe. ``--incluir-arquivo`` extende a
+    varredura para ``runs/archive/``.
+    """
+    from judex.pipeline.run_index import (
+        RunStatus,
+        format_elapsed,
+        list_runs as _list_runs,
+        prune_stale_pid_files,
+    )
+
+    if podar_pids:
+        removed = prune_stale_pid_files(root)
+        for p in removed:
+            typer.echo(f"removed: {p}")
+        typer.echo(f"podou {len(removed)} pid file(s) stale.")
+        return
+
+    summaries = _list_runs(root, include_archive=incluir_arquivo)
+
+    if apenas:
+        try:
+            wanted = RunStatus(apenas)
+        except ValueError:
+            raise typer.BadParameter(
+                f"--apenas={apenas!r} inválido. Use: "
+                f"{', '.join(s.value for s in RunStatus)}."
+            )
+        summaries = [s for s in summaries if s.status == wanted]
+
+    if json_out:
+        import json as _json
+        for s in summaries:
+            typer.echo(_json.dumps({
+                "saida": str(s.saida),
+                "status": s.status.value,
+                "pids": s.pids,
+                "rotulo": s.rotulo,
+                "classe": s.classe,
+                "started_at": s.started_at,
+                "snapshot_at": s.snapshot_at,
+                "elapsed_seconds": s.elapsed_seconds(),
+                "n_targets": s.n_targets,
+            }))
+        return
+
+    if not summaries:
+        scope = (
+            f"{root} e runs/archive/" if incluir_arquivo else str(root)
+        )
+        typer.echo(f"(nenhuma Coleta em {scope})")
+        return
+
+    from rich.console import Console
+    from rich.table import Table
+
+    status_style = {
+        RunStatus.RUNNING: "green",
+        RunStatus.STALE: "yellow",
+        RunStatus.FINISHED: "dim",
+        RunStatus.UNKNOWN: "red",
+    }
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("saida")
+    table.add_column("status")
+    table.add_column("classe")
+    table.add_column("rotulo")
+    table.add_column("alvos", justify="right")
+    table.add_column("duração", justify="right")
+    table.add_column("pids")
+
+    for s in summaries:
+        table.add_row(
+            s.saida.name,
+            f"[{status_style[s.status]}]{s.status.value}[/]",
+            s.classe or "—",
+            s.rotulo or "—",
+            str(s.n_targets) if s.n_targets is not None else "—",
+            format_elapsed(s.elapsed_seconds()),
+            ",".join(str(p) for p in s.pids) or "—",
+        )
+    Console().print(table)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar` — varre os processos novos até o leading edge atual da STF
 
 
@@ -1301,128 +1426,6 @@ def providers_cmd(
     typer.echo(render_provider_table(
         n_pdfs=n_pdfs, n_pages=n_pages, batch_ok=batch,
     ))
-
-
-# ---------------------------------------------------------------------------
-# `listar` — descobre quais Coletas existem (e quais estão vivas)
-
-
-@app.command(name="listar", rich_help_panel="Observação")
-def listar(
-    root: Path = typer.Option(
-        Path("runs/active"), "--root",
-        help="Diretório-raiz para varrer. Padrão: runs/active/.",
-    ),
-    incluir_arquivo: bool = typer.Option(
-        False, "--incluir-arquivo",
-        help="Também varre runs/archive/ — útil para 'onde foi parar o "
-             "run da semana passada?'.",
-    ),
-    apenas: Optional[str] = typer.Option(
-        None, "--apenas",
-        help="Filtra por status: running | stale | finished | unknown.",
-    ),
-    podar_pids: bool = typer.Option(
-        False, "--podar-pids",
-        help="Apaga executar.pid / shards.pids de runs em status `stale` "
-             "(resíduo de SIGKILL — `parar` não consegue limpar sozinho).",
-    ),
-    json_out: bool = typer.Option(
-        False, "--json",
-        help="Saída JSON (uma linha por run) em vez de tabela.",
-    ),
-) -> None:
-    """Lista Coletas em runs/active/ com status (running/stale/finished/unknown).
-
-    Lê o pid file (``executar.pid`` / ``shards.pids``) para liveness e o
-    snapshot ``executar.state.json`` para rótulo, timestamps e contagem
-    de alvos. Não grepa logs.
-
-    ``--apenas running`` é o filtro de uso mais comum (responde "o que
-    está rodando agora?"). ``--podar-pids`` é o cleanup pareado com o
-    estado ``stale`` — sem ele, ``parar`` no diretório fica no-op
-    porque o PID listado já não existe. ``--incluir-arquivo`` extende a
-    varredura para ``runs/archive/``.
-    """
-    from judex.pipeline.run_index import (
-        RunStatus,
-        format_elapsed,
-        list_runs as _list_runs,
-        prune_stale_pid_files,
-    )
-
-    if podar_pids:
-        removed = prune_stale_pid_files(root)
-        for p in removed:
-            typer.echo(f"removed: {p}")
-        typer.echo(f"podou {len(removed)} pid file(s) stale.")
-        return
-
-    summaries = _list_runs(root, include_archive=incluir_arquivo)
-
-    if apenas:
-        try:
-            wanted = RunStatus(apenas)
-        except ValueError:
-            raise typer.BadParameter(
-                f"--apenas={apenas!r} inválido. Use: "
-                f"{', '.join(s.value for s in RunStatus)}."
-            )
-        summaries = [s for s in summaries if s.status == wanted]
-
-    if json_out:
-        import json as _json
-        for s in summaries:
-            typer.echo(_json.dumps({
-                "saida": str(s.saida),
-                "status": s.status.value,
-                "pids": s.pids,
-                "rotulo": s.rotulo,
-                "classe": s.classe,
-                "started_at": s.started_at,
-                "snapshot_at": s.snapshot_at,
-                "elapsed_seconds": s.elapsed_seconds(),
-                "n_targets": s.n_targets,
-            }))
-        return
-
-    if not summaries:
-        scope = (
-            f"{root} e runs/archive/" if incluir_arquivo else str(root)
-        )
-        typer.echo(f"(nenhuma Coleta em {scope})")
-        return
-
-    from rich.console import Console
-    from rich.table import Table
-
-    status_style = {
-        RunStatus.RUNNING: "green",
-        RunStatus.STALE: "yellow",
-        RunStatus.FINISHED: "dim",
-        RunStatus.UNKNOWN: "red",
-    }
-
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("saida")
-    table.add_column("status")
-    table.add_column("classe")
-    table.add_column("rotulo")
-    table.add_column("alvos", justify="right")
-    table.add_column("duração", justify="right")
-    table.add_column("pids")
-
-    for s in summaries:
-        table.add_row(
-            s.saida.name,
-            f"[{status_style[s.status]}]{s.status.value}[/]",
-            s.classe or "—",
-            s.rotulo or "—",
-            str(s.n_targets) if s.n_targets is not None else "—",
-            format_elapsed(s.elapsed_seconds()),
-            ",".join(str(p) for p in s.pids) or "—",
-        )
-    Console().print(table)
 
 
 # ---------------------------------------------------------------------------
