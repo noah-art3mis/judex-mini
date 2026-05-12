@@ -167,7 +167,7 @@ def _resolve_run_dir(explicit: Optional[Path]) -> Path:
             err=True,
         )
         raise typer.Exit(code=2)
-    typer.echo(f"(default) run_dir = {chosen}")
+    typer.echo(f"(padrão) run_dir = {chosen}")
     return chosen
 
 
@@ -645,7 +645,7 @@ def executar(
             )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         saida = Path("runs/coletas") / f"{ts}-{rotulo}"
-        typer.echo(f"--saida não fornecido; usando auto-default {saida}")
+        typer.echo(f"--saida não fornecido; usando padrão automático {saida}")
 
     # ----- --detach: re-exec self in a new session, exit parent -----
     if detach:
@@ -1001,7 +1001,8 @@ def atualizar_corpus(
     classe: str = typer.Argument(
         ...,
         help="Classe a varrer (HC, ADI, ADPF, RE, …). Obrigatório — "
-             "não há default; cada classe tem um leading edge próprio.",
+             "não há padrão; cada classe tem uma fronteira de avanço "
+             "(leading edge) própria.",
     ),
     paradas_apos_misses: int = typer.Option(
         20, "--paradas-apos-misses",
@@ -1021,15 +1022,15 @@ def atualizar_corpus(
     ),
     provedor_ocr: str = typer.Option(
         "auto", "--provedor-ocr",
-        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
+        help="Provedor OCR (padrão ``auto`` = roteamento pypdf↔tesseract_fly).",
     ),
     portal_concurrencia: int = typer.Option(
         1, "--portal-concurrencia",
-        help="Concorrência do pool portal. Direct-IP: 1.",
+        help="Concorrência do pool portal. IP direto: 1.",
     ),
     sistemas_concurrencia: int = typer.Option(
         1, "--sistemas-concurrencia",
-        help="Concorrência do pool sistemas. Direct-IP: 1.",
+        help="Concorrência do pool sistemas. IP direto: 1.",
     ),
     ocr_concurrencia: int = typer.Option(
         4, "--ocr-concurrencia",
@@ -1325,7 +1326,7 @@ def peca_spot_check_cmd(
     ),
     n: int = typer.Option(
         10, "-n", "--n",
-        help="Quantas peças amostrar (default 10).",
+        help="Quantas peças amostrar (padrão 10).",
     ),
     seed: Optional[int] = typer.Option(
         None, "--seed",
@@ -1474,7 +1475,7 @@ def acompanhar(
 
 
 # ---------------------------------------------------------------------------
-# `parar` — encerra cleanly uma Coleta em curso
+# `parar` — encerra de forma limpa uma Coleta em curso
 
 
 @app.command(name="parar", rich_help_panel="Coleta")
@@ -1501,14 +1502,15 @@ def parar(
              "Sai com código 0. Útil antes de matar 16 shards de uma vez.",
     ),
 ) -> None:
-    """Encerra cleanly uma Coleta em curso (``judex executar`` rodando).
+    """Encerra de forma limpa uma Coleta em curso (``judex executar`` rodando).
 
-    Lê ``<saida>/executar.pid`` (mono) ou ``<saida>/shards.pids`` (sharded),
-    manda SIGTERM, polla até cada processo encerrar ou até ``--timeout``.
-    Com ``--forcar``, escalona SIGKILL após o timeout. O state journal
-    (ADR-0006) garante que SIGTERM no meio de uma Coleta deixa o estado
-    retomável em disco — re-rodar ``judex executar`` no mesmo
-    ``--saida`` (ou ``judex retomar <saida>``) continua de onde parou.
+    Lê ``<saida>/executar.pid`` (mono) ou ``<saida>/shards.pids``
+    (fragmentado), envia SIGTERM, e aguarda cada processo encerrar até
+    o ``--timeout``. Com ``--forcar``, escalona para SIGKILL após o
+    timeout. O diário de estado (ADR-0006) garante que SIGTERM no meio
+    de uma Coleta deixa o estado retomável em disco — re-rodar
+    ``judex executar`` no mesmo ``--saida`` (ou ``judex retomar
+    <saida>``) continua de onde parou.
     """
     import signal
     import time
@@ -1595,9 +1597,9 @@ def retomar(
     ``-c HC -i 196282 -f 210963 --saida …`` — a Coleta lembra do que
     foi.
 
-    Falha cleanly se o state journal não tem o bloco ``args`` (run
-    iniciado antes do suporte ao retomar) — caso em que basta
-    re-executar ``executar`` original.
+    Falha de forma limpa se o diário de estado não tem o bloco ``args``
+    (Coleta iniciada antes do suporte a ``retomar``) — nesse caso basta
+    re-executar o ``executar`` original.
     """
     import json as _json
 
@@ -1696,31 +1698,32 @@ def recuperar(
     ),
     apply: bool = typer.Option(
         False, "--apply",
-        help="Dispara as recoveries planejadas. Sem este flag, o comando "
+        help="Dispara as recuperações planejadas. Sem este flag, o comando "
              "imprime o plano (``would-recover: …``) e sai sem efeito "
-             "colateral — dry-run é o default seguro.",
+             "colateral — simulação é o padrão seguro.",
     ),
     provedor: str = typer.Option(
         "auto", "--provedor",
         help="Provedor passado para os ``judex executar --retentar-de`` "
-             "filhos detached. Padrão `auto` (tier-routing pypdf↔OCR).",
+             "filhos despachados em background. Padrão ``auto`` "
+             "(roteamento por tier pypdf↔OCR).",
     ),
     nao_perguntar: bool = typer.Option(
         False, "--nao-perguntar",
         help="Pula o prompt de confirmação sob ``--apply``. Necessário "
-             "para invocações non-interactive (cron, nohup).",
+             "para invocações não-interativas (cron, nohup).",
     ),
     loop: bool = typer.Option(
         False, "--loop",
-        help="Repete o ciclo (apply → wait → reclassificar) até os "
+        help="Repete o ciclo (aplicar → aguardar → reclassificar) até os "
              "resíduos pararem de encolher ou ``--max-passes`` ser "
-             "atingido. Bloqueia até cada pass completar — diferente "
-             "do ``--apply`` simples, que despacha detached e sai.",
+             "atingido. Bloqueia até cada passe completar — diferente "
+             "do ``--apply`` simples, que despacha em background e sai.",
     ),
     max_passes: int = typer.Option(
         3, "--max-passes",
-        help="Teto de passes em ``--loop`` (default 3). Cap de "
-             "segurança para o caso patológico em que cada pass "
+        help="Teto de passes em ``--loop`` (padrão 3). Trava de "
+             "segurança para o caso patológico em que cada passe "
              "encolhe o resíduo mas a convergência demora demais.",
     ),
     poll_interval: float = typer.Option(
