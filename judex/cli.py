@@ -406,7 +406,7 @@ def fazer_backup(
     saida: Optional[Path] = typer.Option(
         None, "--saida", "-o",
         help="Caminho do .zip de saída. Default: "
-             "runs/active/backups/judex-backup-<UTC>.zip.",
+             "runs/backups/judex-backup-<UTC>.zip.",
     ),
     sem_pecas: bool = typer.Option(
         False, "--sem-pecas",
@@ -459,7 +459,7 @@ def fazer_backup(
 
     if saida is None:
         stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-        saida = Path("runs/active/backups") / f"judex-backup-{stamp}.zip"
+        saida = Path("runs/backups") / f"judex-backup-{stamp}.zip"
 
     typer.echo(f"empacotando -> {saida}")
     typer.echo(f"  processos:    {diretorio_processos}{f' (classes={classe})' if classe else ''}")
@@ -522,14 +522,14 @@ def executar(
         None, "--rotulo",
         help="Rótulo curto identificando esta execução. Em modo intervalo, "
              "assume `{CLASSE}_{i}-{f}` quando omitido. Quando definido sem "
-             "--saida, --saida assume `runs/coletas/{ts}-{rotulo}/`.",
+             "--saida, --saida assume `runs/active/{ts}-{rotulo}/`.",
     ),
     saida: Optional[Path] = typer.Option(
         None, "--saida",
         help="Diretório da execução. Recebe executar.state.json, "
              "executar.log.jsonl, executar.errors.jsonl, report.md. "
              "Padrão automático em modo intervalo (ou com --rotulo): "
-             "runs/coletas/{ts}-{rotulo}/.",
+             "runs/active/{ts}-{rotulo}/.",
     ),
     provedor: str = typer.Option(
         "pypdf", "--provedor",
@@ -644,7 +644,7 @@ def executar(
                 "estão setados (sem rótulo não há nome para o auto-saida)."
             )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saida = Path("runs/coletas") / f"{ts}-{rotulo}"
+        saida = Path("runs/active") / f"{ts}-{rotulo}"
         typer.echo(f"--saida não fornecido; usando padrão automático {saida}")
 
     # ----- --detach: re-exec self in a new session, exit parent -----
