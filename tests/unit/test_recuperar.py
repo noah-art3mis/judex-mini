@@ -330,6 +330,112 @@ def test_plan_recoveries_command_uses_retentar_de(tmp_path: Path) -> None:
     assert "--nao-perguntar" in argv
 
 
+def test_plan_replay_materialises_retentar_de_payload(tmp_path: Path) -> None:
+    """REPLAY must materialise the --retentar-de file from in-memory rows.
+
+    Killed-mid-flight runs have no pre-existing ``executar.errors.jsonl``
+    (the finalize step never ran). Before this fix, recuperar dispatched
+    a child pointing at a non-existent file and the child exited-2 with
+    ``"nenhum alvo resolvido"``. The materialised content must carry the
+    fields ``targets_from_errors_jsonl`` consumes — ``kind``, ``classe``,
+    ``processo``, ``status``.
+    """
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {
+            "HC-1": {"fetch_meta": _meta("http_error")},
+            "HC-2": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("http_error")},
+            },
+        },
+    )
+    buckets = classify_residual([tmp_path])
+    [spawn] = plan_recoveries(buckets, provedor="pypdf")
+
+    assert spawn.materialized_content is not None, (
+        "REPLAY must materialise its --retentar-de payload — otherwise "
+        "killed-mid-flight runs have no errors.jsonl for the child to read"
+    )
+    lines = [l for l in spawn.materialized_content.splitlines() if l.strip()]
+    assert len(lines) == 2
+    parsed = [json.loads(l) for l in lines]
+    pairs = {(r["classe"], r["processo"]) for r in parsed}
+    assert pairs == {("HC", 1), ("HC", 2)}
+    for r in parsed:
+        assert r["kind"] in {"fetch_meta", "fetch_bytes", "extract_text"}
+        assert r["status"] == "http_error"
+
+
+def test_execute_recoveries_writes_replay_errors_file_to_disk(
+    tmp_path: Path,
+) -> None:
+    """The materialised REPLAY content must hit disk at
+    ``source_errors_file`` before the child is spawned. A child reading
+    a non-existent file gets zero targets and exits 2."""
+    from judex.sweeps.recuperar import execute_recoveries, Spawn
+
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {"fetch_meta": _meta("http_error")}},
+    )
+    buckets = classify_residual([tmp_path])
+    [orig_spawn] = plan_recoveries(buckets, provedor="pypdf")
+
+    # Swap argv for a no-op so we don't actually launch executar.
+    safe_spawn = Spawn(
+        argv=["true"],
+        saida=orig_spawn.saida,
+        source_errors_file=orig_spawn.source_errors_file,
+        n_replay_rows=orig_spawn.n_replay_rows,
+        materialized_content=orig_spawn.materialized_content,
+    )
+    execute_recoveries([safe_spawn], tmp_path / "recuperar.pids")
+
+    assert orig_spawn.source_errors_file.exists(), (
+        "execute_recoveries must persist materialized_content before "
+        "spawning — the child consumes it via --retentar-de"
+    )
+    content = orig_spawn.source_errors_file.read_text()
+    parsed = [json.loads(l) for l in content.splitlines() if l.strip()]
+    assert any(r["classe"] == "HC" and r["processo"] == 1 for r in parsed)
+
+
+def test_wait_for_pids_detects_zombie_child(tmp_path: Path) -> None:
+    """``wait_for_pids`` must treat zombie PIDs as "done".
+
+    A child spawned with ``start_new_session=True`` and exit-2'd without
+    its parent calling ``wait()`` sits in the proctable as ``State: Z``
+    until reaped. ``os.kill(zombie_pid, 0)`` returns silently — does NOT
+    raise ``ProcessLookupError`` — so the original
+    ``while True: os.kill(pid, 0)`` poll hung forever. The fix detects
+    zombies via ``/proc/<pid>/status`` (Linux).
+    """
+    import os
+    import time
+
+    from judex.sweeps import recuperar as mod
+
+    pid = os.fork()
+    if pid == 0:
+        os._exit(0)
+    # parent: child is now a zombie until we waitpid it below
+    try:
+        time.sleep(0.05)  # give the kernel a moment
+        start = time.monotonic()
+        mod.wait_for_pids([pid], poll_interval=0.05)
+        elapsed = time.monotonic() - start
+        assert elapsed < 2.0, (
+            f"wait_for_pids hung for {elapsed:.2f}s on a zombie PID "
+            f"(was the os.kill-based poll; should be /proc-based now)"
+        )
+    finally:
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+
+
 # ----- DISMISSED bucket (peca-registry sub-issue 04) -----------------------
 
 
@@ -728,11 +834,15 @@ def test_provider_switch_wrong_extractor_still_dispatches(
 def test_wait_for_pids_returns_when_all_dead(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``wait_for_pids`` polls os.kill(pid, 0); a dead pid raises
-    ProcessLookupError, which the loop treats as 'this one is done'."""
+    """``wait_for_pids`` exits once all pids report inactive.
+
+    Behavioural: pins the loop semantics ("exit when no remaining pid
+    is active"), not the syscall ("os.kill returned ProcessLookupError")
+    — which would re-couple the test to the pre-zombie-fix impl.
+    """
     from judex.sweeps import recuperar as mod
 
-    alive = {1001}  # only one pid 'alive' on first poll, dies on second
+    alive = {1001}
     poll_count = [0]
 
     def fake_sleep(_secs: float) -> None:
@@ -740,16 +850,14 @@ def test_wait_for_pids_returns_when_all_dead(
         if poll_count[0] >= 2:
             alive.clear()
 
-    def fake_kill(pid: int, sig: int) -> None:
-        if pid not in alive:
-            raise ProcessLookupError()
+    def fake_is_active(pid: int) -> bool:
+        return pid in alive
 
-    monkeypatch.setattr(mod, "wait_for_pids", mod.wait_for_pids)  # noqa  (sanity)
     monkeypatch.setattr("time.sleep", fake_sleep)
-    monkeypatch.setattr("os.kill", fake_kill)
+    monkeypatch.setattr(mod, "_pid_is_active", fake_is_active)
 
     mod.wait_for_pids([1001], poll_interval=0.001)
-    assert poll_count[0] >= 2  # at least one poll where pid was alive
+    assert poll_count[0] >= 2  # at least one poll where pid was active
 
 
 def test_wait_for_pids_empty_list_is_noop(

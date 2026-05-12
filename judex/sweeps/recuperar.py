@@ -33,6 +33,7 @@ Spec: ``docs/superpowers/specs/2026-05-03-judex-recuperar.md``.
 from __future__ import annotations
 
 import enum
+import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -349,10 +350,46 @@ def _build_cases_csv_content(rows: list[ErrorRow]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _build_replay_errors_jsonl(rows: list[ErrorRow]) -> str:
+    """Render REPLAY rows into the ``executar.errors.jsonl`` wire schema.
+
+    Matches the shape ``judex.pipeline.log.derive_errors_file`` emits and
+    ``judex.pipeline.runner.targets_from_errors_jsonl`` reads — that
+    consumer only touches ``kind``/``classe``/``processo``/``status``,
+    but we emit the full record so any other downstream reader
+    (operator inspection, future tooling) sees the same shape it would
+    after a clean-finished sweep.
+    """
+    payload = "".join(
+        json.dumps({
+            "kind": row.kind,
+            "classe": row.classe,
+            "processo": row.processo,
+            "status": row.status,
+            "url": row.url,
+            "doc_type": None,
+            "extractor": None,
+            "error": None,
+        }, ensure_ascii=False) + "\n"
+        for row in rows
+    )
+    return payload
+
+
 def _plan_replay_spawns(
     rows: list[ErrorRow], *, provedor: str,
 ) -> list[Spawn]:
-    """REPLAY → one ``executar --retentar-de`` per source dir."""
+    """REPLAY → one ``executar --retentar-de`` per source dir.
+
+    Materialises the errors-file content from the in-memory rows the
+    classifier just produced. The on-disk ``executar.errors.jsonl`` is
+    only written by a clean-finished sweep's finalize step; a killed-
+    mid-flight run has no such file, which left earlier versions of
+    this dispatcher pointing the child at a missing file (child
+    exited-2 with "nenhum alvo resolvido"). State.json is canonical
+    (per this module's top docstring), so re-deriving the file from
+    the classifier's rows is at worst identical to the original.
+    """
     rows_per_dir: dict[Path, list[ErrorRow]] = {}
     for row in rows:
         rows_per_dir.setdefault(row.source_dir, []).append(row)
@@ -373,6 +410,7 @@ def _plan_replay_spawns(
             saida=source_dir,
             source_errors_file=errors_file,
             n_replay_rows=len(bucket_rows),
+            materialized_content=_build_replay_errors_jsonl(bucket_rows),
         ))
     return plans
 
@@ -576,27 +614,60 @@ def execute_recoveries(
 # ---------------------------------------------------------------------------
 
 
-def wait_for_pids(pids: list[int], *, poll_interval: float = 5.0) -> None:
-    """Block until none of ``pids`` are running. Polls with ``os.kill(pid, 0)``
-    which returns silently if the process is alive and raises
-    ``ProcessLookupError`` once it exits. No-op on an empty list.
+def _pid_is_active(pid: int) -> bool:
+    """True if ``pid`` is a live, non-zombie process.
 
-    The poll-vs-wait choice is intentional: ``os.waitpid`` only works on
-    direct children, but the ``execute_recoveries`` spawns are detached
-    via ``start_new_session=True`` — the recuperar parent isn't their
-    parent any more, so ``waitpid`` would return immediately with
-    ECHILD. ``kill -0`` works regardless of process tree.
+    The naive ``os.kill(pid, 0)`` check has a hole: on Linux it returns
+    silently for zombie PIDs (process exited but parent hasn't reaped
+    yet) — ``ProcessLookupError`` only fires once the PID slot is
+    actually released. Execute_recoveries spawns children with
+    ``start_new_session=True``; if the parent never calls ``waitpid``,
+    the child stays a zombie indefinitely and the original
+    ``wait_for_pids`` polled it forever.
+
+    On Linux we read ``/proc/<pid>/status`` and treat ``State: Z``
+    (zombie) or ``State: X`` (dead) as inactive. ``FileNotFoundError``
+    means the PID slot is fully released — also inactive. On platforms
+    without ``/proc`` we fall back to the original ``os.kill`` probe
+    (the zombie blind spot is Linux-specific to begin with, but on
+    macOS subprocess.Popen's lazy reaper usually catches zombies
+    within the next Popen call).
     """
     import os
+    import sys
+
+    if sys.platform.startswith("linux"):
+        try:
+            with open(f"/proc/{pid}/status") as f:
+                for line in f:
+                    if line.startswith("State:"):
+                        state_char = line.split()[1]
+                        return state_char not in ("Z", "X")
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError:
+            pass
+
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def wait_for_pids(pids: list[int], *, poll_interval: float = 5.0) -> None:
+    """Block until none of ``pids`` are running. Uses
+    :func:`_pid_is_active` per pid; treats zombies as done. No-op on an
+    empty list.
+    """
     import time
 
     remaining = set(pids)
     while remaining:
         time.sleep(poll_interval)
         for pid in list(remaining):
-            try:
-                os.kill(pid, 0)
-            except ProcessLookupError:
+            if not _pid_is_active(pid):
                 remaining.discard(pid)
 
 
