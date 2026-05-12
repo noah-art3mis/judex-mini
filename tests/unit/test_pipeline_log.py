@@ -238,6 +238,34 @@ def test_derive_errors_file_excludes_skipped_cached(tmp_path: Path) -> None:
     )
 
 
+def test_derive_errors_file_excludes_unallocated_pid(tmp_path: Path) -> None:
+    """``unallocated_pid`` is a terminal-no-retry outcome (ADR-0002):
+    STF's portal never bound an incidente for this case-id. Re-running
+    against ``--retentar-de`` would re-probe the same known-empty slot
+    — wasted WAF budget. Worse, when a sweep produces thousands of
+    unallocated_pid rows (e.g. HC 2025 fill-in: 2,853 of 2,859 lines),
+    the file becomes operator-hostile noise that drowns out the real
+    failures.
+
+    Like ``skipped_cached``, these rows are excluded at write-time —
+    the state-machine still records them (so resume is correct) but
+    the derived errors.jsonl carries only actionable rows.
+
+    Sub-issue 06 of .scratch/run-cleanup-loop/.
+    """
+    state = PipelineState(path=tmp_path / "executar.state.json", cases={}, started_at="x")
+    state.record_meta(("HC", 1), status="ok")
+    state.record_meta(("HC", 2), status="unallocated_pid")
+    state.record_meta(("HC", 3), status="http_error", error="WAF 403")
+    out = derive_errors_file(tmp_path, state, [("HC", 1), ("HC", 2), ("HC", 3)])
+    rows = read_errors_file(out)
+    assert len(rows) == 1, (
+        f"Only the http_error row should land in errors.jsonl; got {rows}"
+    )
+    assert rows[0]["processo"] == 3
+    assert rows[0]["status"] == "http_error"
+
+
 def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None:
     """If bytes failed, text below it can never have been ok — the bytes
     row alone captures the failure root. Don't emit a redundant text row."""
@@ -268,7 +296,7 @@ def test_derive_errors_file_skips_text_when_bytes_failed(tmp_path: Path) -> None
     # ``empty`` is kind-aware: fetch_bytes/empty is the WAF/LB flake
     # (200 OK with zero bytes; empirically transient — pinned by
     # HC 271343 in runs/active/hc-atualizar-20260503). extract_text/empty
-    # is the provider-gave-up case (terminal by replay alone; limpar's
+    # is the provider-gave-up case (terminal by replay alone; recuperar's
     # override routes it to PROVIDER_SWITCH).
     ({"status": "empty", "kind": "fetch_bytes"}, "transient"),
     ({"status": "empty", "kind": "extract_text"}, "terminal"),

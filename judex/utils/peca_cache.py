@@ -78,6 +78,11 @@ def _extractor_path(url: str) -> Path:
     return TEXTO_ROOT / f"{_hash(url)}.extractor"
 
 
+def _dismissed_path(url: str) -> Path:
+    """Sidecar for "operator marked this URL as known-broken, stop retrying"."""
+    return TEXTO_ROOT / f"{_hash(url)}.dismissed.json"
+
+
 _BYTES_EXTS: tuple[str, ...] = ("pdf", "rtf")
 _MAGIC_TO_EXT: tuple[tuple[bytes, str], ...] = (
     (b"%PDF", "pdf"),
@@ -179,6 +184,58 @@ def write_elements(url: str, elements: list[dict[str, Any]]) -> None:
     """
     payload = json.dumps(elements, ensure_ascii=False).encode("utf-8")
     _atomic_write(_elements_path(url), gzip.compress(payload))
+
+
+def is_dismissed(url: str) -> bool:
+    """True if an operator has marked this URL as known-broken.
+
+    A dismissed URL is silently skipped by ``judex recuperar`` and excluded
+    from retry budgets. The dismissal sidecar persists across warehouse
+    rebuilds since it lives under ``data/derived/pecas-texto/`` (which
+    is preserved) rather than inside the rebuildable warehouse.
+    """
+    return _dismissed_path(url).exists()
+
+
+def read_dismissal(url: str) -> Optional[dict]:
+    """Return the dismissal payload (``{url, reason, dismissed_at}``)
+    or ``None`` if the URL hasn't been dismissed."""
+    p = _dismissed_path(url)
+    if not p.exists():
+        return None
+    return json.loads(p.read_bytes().decode("utf-8"))
+
+
+def write_dismissal(url: str, *, reason: str) -> None:
+    """Mark a URL as dismissed with a human-readable reason.
+
+    Idempotent: re-dismissing overwrites the timestamp + reason but
+    keeps the sidecar present. The reason is operator-facing prose
+    ("permanent 404", "scanned PDF, OCR maxed out", "duplicate of <X>")
+    so the next operator inspecting the residual knows why this URL
+    is excluded.
+    """
+    import datetime as dt
+    payload = {
+        "url": url,
+        "reason": reason,
+        "dismissed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+    _atomic_write(
+        _dismissed_path(url),
+        json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+    )
+
+
+def clear_dismissal(url: str) -> bool:
+    """Remove a URL's dismissal sidecar. Returns True if a sidecar
+    existed (operator un-dismissed); False if there was nothing to
+    clear (idempotent no-op)."""
+    p = _dismissed_path(url)
+    if not p.exists():
+        return False
+    p.unlink()
+    return True
 
 
 def has_bytes(url: str) -> bool:

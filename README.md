@@ -213,6 +213,69 @@ uv run judex --help
 
 ---
 
+## 4.5 Pipeline unificado: `judex executar`
+
+Para sweeps de produção, `judex executar` substitui a antiga cadeia de três comandos por um único processo: três `asyncio.Pool`s concorrentes (`portal`, `sistemas`, `ocr`) que se alimentam mutuamente, com estado retomável e relatório consolidado. Mesma cobertura, uma invocação só, métricas de pipelining no `report.md`.
+
+### Versão simples (IP direto, grátis)
+
+Um intervalo de HCs em IP direto, OCR via `pypdf` (extrai a camada de texto, sem custo). Cabe num único processo; o WAF do STF tolera o ritmo serial bem.
+
+```bash
+uv run judex executar -c HC -i 250920 -f 267137 \
+    --saida runs/active/hc2025-fillin-$(date +%Y%m%d)/ \
+    --nao-perguntar
+```
+
+- **Custo:** $0,00 (sem proxy, sem OCR pago).
+- **Wall esperado:** ~30–60 min se o cache estiver frio (ano inteiro de HCs); ~2 min se já tiver passado uma vez (cache hit em todas as três etapas).
+- **Quando usar:** ranges pequenos (algumas dezenas a poucos milhares), passes de verificação sobre dados já capturados, ambientes de dev sem proxy contratado.
+- **Monitor:** `uv run judex acompanhar runs/active/hc2025-fillin-<data>/` (auto-detecta layout monolítico vs. shardeado, faz tail-with-headers).
+
+### Versão completa (16 shards + proxies + OCR auto via Fly)
+
+Para sweeps em escala (uma classe inteira, ano-ladders), o trio é: **shards** (paralelismo via processos) + **proxies** (rotação de IP para escapar do WAF) + **`--provedor auto`** (roteia ACÓRDÃOs para `tesseract_fly` e o resto para `pypdf` local — pago só onde precisa).
+
+```bash
+# Pré-requisitos uma vez:
+#   - Pool de proxies em config/proxies (uma URL por linha)
+#   - App Fly de OCR rodando (ver docs/setup-fly.md)
+#   - Variáveis de ambiente apontando para o app Fly
+
+export PATH="$HOME/.fly/bin:$PATH"
+export FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract
+export JUDEX_AUTO_TESSERACT_PROVIDER=tesseract_fly
+
+# Pré-aquece o cluster Fly (elimina storm de 502 no início).
+# ~$0.002 por pulse; auto-stop devolve as Machines a $0 após ~5 min.
+fly machine start --select -a judex-ocr-tesseract-arcos || true
+sleep 15
+
+# Sweep shardeado: 16 processos paralelos, um pool de proxy por shard,
+# OCR auto-roteado (~91% pypdf / ~9% tesseract_fly em corpora de HC).
+uv run judex executar -c HC -i 250920 -f 267137 \
+    --saida runs/active/hc2025-completo-$(date +%Y%m%d)/ \
+    --rotulo hc2025_completo \
+    --shards 16 --proxy-pool config/proxies \
+    --provedor auto \
+    --ocr-concurrencia 10 \
+    --nao-perguntar
+```
+
+- **Custo estimado** (ano inteiro de HCs ≈ 14 k cases / 19 k peças):
+  - Proxies (varrer): ~660 MB × $3,65/GB ≈ **$2,35**
+  - Proxies (baixar): ~3,15 GB × $3,65/GB ≈ **$11,49**
+  - OCR Fly (auto): ~9% das peças OCR'd, ≈ 1,7 k páginas × $0,005/1k ≈ **$0,01**
+  - **Total ≈ $14** por ano de HC (re-anchore com `--prever` antes de cada lançamento)
+- **Wall esperado:** ~2,5 h (varrer ~38 min + baixar ~1,3 h + extrair ~32 min, pipelinados).
+- **Por que `--ocr-concurrencia 10` e não 60:** o número 60 era pra o cluster sempre-quente (Modal). Com Fly em `min_machines_running=0` (Machines ligam sob demanda), 10 chamadas paralelas casam com o ritmo de wake-on-request — acima disso, o proxy Fly devolve 502 enquanto Machines ainda aquecem. Detalhes em [`docs/setup-fly.md`](docs/setup-fly.md).
+- **Monitor:** `uv run judex acompanhar runs/active/hc2025-completo-<data>/` interleva os logs dos 16 shards. `pgrep -af hc2025_completo_shard_` confirma quantos seguem vivos. Para parar limpo: `xargs -a runs/active/hc2025-completo-<data>/shards.pids kill -TERM`.
+- **Antes de lançar:** sempre `--prever` para ver o painel de custo + tempo (`uv run judex executar … --prever`). Re-anchore as constantes em `judex/utils/cost.py` se o corpus dobrou desde a última calibragem.
+
+Para o roteador `auto` em si (regras de classificação ACÓRDÃO vs. demais, fold-over para `pypdf` quando o Fly cai), ver o docstring de [`judex/sweeps/peca_classification.py`](judex/sweeps/peca_classification.py); empíricos do trade-off de custo/qualidade entre provedores em [`docs/reports/2026-04-30-ocr-bakeoff.md`](docs/reports/2026-04-30-ocr-bakeoff.md).
+
+---
+
 ## 5. Baixando e extraindo PDFs
 
 O `varrer-processos` já coleta os **metadados** de cada processo, incluindo as URLs dos PDFs anexados (decisões, acórdãos, manifestações da PGR). Quando você quer o **texto** desses PDFs também, rode dois comandos em sequência — eles são independentes de propósito:

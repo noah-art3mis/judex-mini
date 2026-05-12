@@ -1,1212 +1,501 @@
 # Current progress — judex-mini
 
 Branch: `dev`. Prior cycle archived at
-[`docs/progress_archive/2026-05-01_1750_cloud-ocr-fly-landing.md`](progress_archive/2026-05-01_1750_cloud-ocr-fly-landing.md)
-— ACÓRDÃO re-extract diagnostics + Fly.io cloud-OCR pivot
-(2026-05-01). Empirical close-out: local Tesseract structurally
-unstable on the 4 GB WSL2 box (Pool deadlocks under OOM); landed
-`tesseract_fly` provider + `--paralelo` thread-pool wrapper +
-`fly/` deploy stack. Chosen path: Fly shared-cpu-2x × 60 Machines,
-~$0.10 / 1k pages, ~1.8 hr per HC year-ladder. App deployed at
-`judex-ocr-tesseract-arcos.fly.dev` (gru, 60 shared-cpu-2x
-Machines, auto-stop-when-idle).
+[`docs/progress_archive/2026-05-11_2130_chain-closeout-corpus-restore-lifecycle-cli.md`](progress_archive/2026-05-11_2130_chain-closeout-corpus-restore-lifecycle-cli.md)
+— HC 2025/2024/2022/2021 fill-in chain v2 launch + paused-at-step-6
+narrative, PR #16/#17 (recuperar v2 + `--loop` convergence), runs/active
+housekeeping (74 → 40), `executar` flag-surface narrowing.
 
-**Status as of 2026-05-02 20:37 BRT.** Corpus: **90,763** HC
-cases. PDF cache 99,095 `.pdf.gz` (+38 from HC 2026 baixar) +
-3,621 `.rtf.gz`, **109,777** `.txt.gz` (+3,956 from HC 2026
-extract). 93,074 `.extractor` sidecars (gap of ~16k vs
-`.txt.gz` is pre-sidecar-discipline residue, not a regression).
-Warehouse rebuilt 2026-05-02 12:43 BRT (1.85 GB; DJe Phase 1
-populated). Both HC backfill chains (2025 + 2021) **stopped at
-user request 20:30-20:33 BRT** while in Stage C (extrair) — see
-"Halt 2026-05-02 20:33 BRT" below for state snapshots + resume
-commands. Now in flight: a `coletar`-orchestrator smoke test
-(HC 245000-245099, exercises today's ADR-0004 commits).
+**Status as of 2026-05-12 ~18:00 BRT.** Today knocked out priority-queue
+item #1 (May 4-5 chain delta re-run) and patched two real recuperar
+bugs surfaced by the closeout. The progress narrative for today is in
+`## Resolved this session — chain delta re-run + recuperar bugfix
+(2026-05-12)` below. Status as of 2026-05-11 21:30 BRT (kept for
+context — three things shipped that day):
 
-## Open thread — Fly OCR cascade + queue stampede + remediation (2026-05-03)
+1. **HC 2021 chain v2 step 6 closed cleanly.** Resume re-entered the
+   paused-since-May-5 sweep against `runs/active/hc2021-fillin-20260504-v2/`,
+   wall=30.3 s (98.6% cache-hit at the meta layer), drained the 351
+   residual transient fetch_bytes, then `recuperar --loop --apply --nao-perguntar`
+   one-pass-and-stopped on the 290 terminal `empty` peças (URLs that STF
+   serves zero bytes for — irrecoverable). Final `report.md` quality
+   grade **B** (text_ok 98.6%).
+2. **Corpus restored from the May 3 backup zip.** Between May 5 and today
+   somebody deleted `data/source/processos/HC/` (live tree); the local
+   17.6 GB `runs/active/backups/judex-backup-20260503T054402Z.zip` was
+   the recovery anchor. Restored 91,048 case JSONs + topped up bytes/text
+   caches; warehouse rebuild back to 91,048 cases / 318,693 partes /
+   1,247,234 andamentos / 28,822 substantive PDFs, all five build-time
+   quality gates passing.
+3. **Sweep-lifecycle CLI feature landed.** New `judex parar`, `judex
+   retomar`, `executar --detach` plus a shared `_resolve_run_dir`
+   default-to-newest helper applied uniformly across all five Coleta
+   commands (`acompanhar`, `relatar`, `recuperar`, `parar`, `retomar`).
+   +25 new tests (`tests/unit/test_cli_lifecycle.py` new file + extensions
+   to `test_pipeline_state.py` and `test_pipeline_runner.py`). Tests now
+   at **1,048 passing**.
 
-**What happened, in order.** Ran into a sweep-load failure mode on
-the Fly cloud-OCR app and worked through a two-stage fix.
+---
 
-**Stage 1 — OOM cascade (morning).** During the HC 2020 sharded sweep
-(16 shards × `--ocr-concurrencia 4` = 64 in-flight POSTs against the
-9-Machine fleet), `tesseract_fly` hit a **50.6% server-side failure
-rate** (728 of 1438 cumulative attempts; 97.9% in the hour before the
-fix). Fly logs revealed the root cause: every Machine OOM-killed at
-`anon-rss=1863 MB` on a 2 GB shape, then hit `max_restart_count=10`
-and stayed permanently stopped. Fleet collapse.
+## Resolved this session — chain delta re-run + recuperar bugfix (2026-05-12)
 
-**Diagnosis.** `fly/server.py:160-167` advertised "each Fly Machine
-handles one PDF at a time" in the docstring but **nothing in code
-enforced it**. The `/extract` handler called
-`loop.run_in_executor(None, _ocr_pdf_sync, pdf_bytes)` with `None` =
-asyncio's default executor (`min(32, cpu_count + 4) = 8` workers on
-shared-cpu-4x), so up to 8 concurrent OCR jobs ran on each Machine —
-each holding `pdf_bytes` + a 16-page raster chunk (~176 MB) in RAM.
-Memory math closed exactly: steady ~1058 MB + 5 × 176 MB ≈ 1938 MB →
-OOM trip at observed 1863 MB anon-rss. The `fly.toml` memory model on
-lines 53-78 implicitly assumed "1 in-flight per Machine"; the assumption
-was correct, just unenforced.
+The May 4-5 chain delta re-run (priority-queue item #1 from the prior
+notebook) is now closed for all four years. Wall + outcomes:
 
-**Fix 1 — Semaphore(1) + 5MB body cap.** `fly/server.py` patched to
-add `_REQUEST_SEMAPHORE = asyncio.Semaphore(1)` acquired before
-`await request.body()`, plus `_MAX_PDF_BYTES = 5 MB` server-side cap
-as a wayward-client defence. Committed `be74d08`, deployed via
-`flyctl deploy --strategy rolling` (all 9 Machines on V12). Smoke
-test (real 1-page PDF) → 200 OK in 2.12s. Server-OOM rate dropped
-from 50.6% → 0% in the first ~14 minutes of post-fix traffic.
+| # | Run                                         | n_targets | Status   | Wall    | Notes                            |
+|---|---------------------------------------------|----------:|----------|---------|----------------------------------|
+| 1 | `hc2024-delta`                              |    14,389 | finished | 1h 02m  | clean                            |
+| 2 | `hc2025-pending-delta`                      |       744 | finished | 47m     | clean                            |
+| 3 | `hc2022-delta`                              |    12,922 | finished | 1h 18m  | clean                            |
+| 4 | `hc2021-delta`                              |    10,522 | stopped → recuperar | 12 h then 0.9 s + 3-pass loop | hit two recuperar bugs (see below) |
 
-**Stage 2 — queue-amplification stampede (afternoon).** Re-launched
-the sharded sweep at `--ocr-concurrencia 1` (16 in-flight, 4× less
-pressure). Initial signal looked clean — but log rows kept showing
-`provider_error` clustered at suspicious **30.83s p25 wall time**.
-88 of 161 post-deploy failures hit that exact bucket. Diagnosis: the
-new `Semaphore(1)` enforced "one PDF per Machine" by *queuing* extra
-requests inside the asyncio handler, which the client couldn't see.
-Tenacity (`tesseract_fly.py:93-98`) had `stop_after_attempt(5)` ×
-`wait_exponential(max=30)` = ~31s of total wall budget — exactly
-matching the failure timing. With ~32 in-flight against 9 Machines,
-queue-drain time was ~210s; tenacity gave up at 31s. Every retry hit
-a still-busy fleet, returned a fast 503, exhausted the budget.
-The OOM cascade was fixed; we accidentally created a queue-length
-cascade in its place.
+All four archived to `runs/archive/`. Warehouse rebuilt. The HC 2021
+delta tail was a 12-hour drift into WAF collapse (`regime=collapse,
+fail_rate=0.38, p95_wall=844 s`) — operator-stopped at processo 202710
+with 9,150 ok meta + 19 SSL-storm `http_error` meta on a contiguous
+range (HC-206779 to HC-206797) + 51 terminal `empty` peças. The
+`empty` bytes are the same persistent-zero-bytes pattern from the
+2026-05-11 chain v2 closeout (290 such peças then); STF's portal
+serves 0 bytes on those URLs and they look transient by
+classification but are terminal by data.
 
-**Fix 2 — 503 fast-fail + 300s tenacity budget.** Two coupled
-changes, committed together as `4cb7b2f`:
+### Recuperar two-bug fix — commit `52b3fa8`
 
-1. **`fly/server.py`** — added `if _REQUEST_SEMAPHORE.locked(): raise
-   HTTPException(503)` *before* the `async with`. Converts queue
-   contention into instant retryable failures so Fly's edge proxy
-   load-balances retries to less-busy Machines. Smoke test: 8
-   concurrent requests against the 9-Machine fleet → 7×200 + 1×503,
-   the 503 returning in **240 ms** vs. the prior **300 s queue wait**.
-   Roughly 1000× improvement on the failure case. The `async with`
-   stays as a defence-in-depth race-window guard.
-2. **`judex/scraping/ocr/tesseract_fly.py`** — switched from
-   `stop_after_attempt(5)` + `wait_exponential(max=30)` to
-   `stop_after_delay(300)` + `wait_exponential(max=60)`. Bounded by
-   total wall budget (5 min) rather than attempt count, with single-
-   backoff cap raised to 60 s so transient queue-saturation periods
-   can drain. The `test_extract_gives_up_after_max_attempts_of_persistent_5xx`
-   test was retired (faithful test of the new contract would need
-   mocking `time.monotonic` inside tenacity; not worth the plumbing).
+Running `judex recuperar --loop --apply --nao-perguntar` against the
+stopped run **hung indefinitely**. Diagnosis surfaced two latent bugs
+that only fire when recuperar is run against a *killed-mid-flight*
+sweep (clean finishes never triggered them — that's why the bugs
+survived in prior `recuperar v2` work):
 
-**Active sweeps post-fix (HC 2020 + HC 2021).** Both running at
-`--ocr-concurrencia 1` against the patched server:
+**Bug 1 — REPLAY didn't materialise its `--retentar-de` payload.**
+`_plan_replay_spawns` (judex/sweeps/recuperar.py:355–376) pointed the
+child at `source_dir / executar.errors.jsonl` and wrote nothing,
+relying on the file existing from a clean sweep finalize. Killed-mid-
+flight runs have no `executar.errors.jsonl` (the finalize step at
+`judex/pipeline/runner.py:430–438` never ran). The child opened the
+absent file, `targets_from_errors_jsonl` returned zero rows, the
+`resolve_targets` over-scoping guard exited 2 with "nenhum alvo
+resolvido pelos parâmetros dados." The 89 ErrorRows recuperar's
+classifier had identified lived only in the parent's memory.
 
-| run | dir | shards | targets | status |
-|---|---|---|---|---|
-| HC 2020 (sharded) | `runs/active/hc2020-sharded/` | 16 | 9,137 cases | resumed; ~99.6% text complete; ~620 stuck `provider_error` being chewed through with new tenacity budget |
-| HC 2021 (sharded) | `runs/archive/2026-05-03-hc2021-executar/` | 16 | 7,085 cases (gap) | **done** 2026-05-03 18:32 BRT (launcher wall 5h 36m; per-shard wall 3h 31m–5h 27m). Meta ok=5,084 (71.8%) + unallocated_pid=1,975 (28.0%) + http_error=26. Bytes ok=14,671/15,751 (93.1%); text ok=13,792/14,671 (**94.0%**). 15 of 16 shards graded D individually only because per-shard text denominators include 1,080 `missing` rows that were never-fetched bytes (empty/http_error), not OCR failures — see close-out. |
+The other two spawn planners (`_plan_provider_switch_spawns`,
+`_plan_refetch_upstream_spawns`) **already materialised** their
+inputs via `materialized_content`; REPLAY was the only one that
+forgot. Fix: render the 89 rows into the canonical wire schema (same
+shape as `judex.pipeline.log.derive_errors_file`) via a new
+`_build_replay_errors_jsonl(rows)` helper and pass it through as
+`materialized_content`. `execute_recoveries` writes it to disk at line
+549–553 before spawning.
 
-Total in-flight: 32 OCR POSTs against 9 Machines. The 503 fast-fail
-shape spreads load via Fly's edge proxy; tenacity's 300 s budget
-absorbs queue-drain periods.
+**Bug 2 — `wait_for_pids` couldn't detect zombies.** The original
+implementation used `os.kill(pid, 0)` polling. On Linux that returns
+silently for **zombie PIDs** (`State: Z` in `/proc/<pid>/status`) —
+`ProcessLookupError` only fires once the PID is reaped. With
+`start_new_session=True` on the child + no parent reaper, the
+exit-2'd child became a zombie that nobody reaped, the poll spun
+forever. Fix: new `_pid_is_active(pid)` helper reads
+`/proc/<pid>/status` on Linux and treats `Z`/`X` as inactive; kill-
+based probe as non-Linux fallback. Updated docstrings.
 
-**Idempotence story (asked + answered).** The unified pipeline's
-state file is per-stage per-target, the cache is URL-keyed and
-corpus-shared, and re-running with the same `--saida` requeues only
-non-ok work via the seed builder — gated by ADR-0005's 2-retry cap.
-Practical workflow:
+**Tests (+3 new, +1 refactor; suite now 1,073 passing in 26 s):**
 
-1. **First run** — let it go. Meta + bytes complete reliably; most
-   text completes; some hit `provider_error`.
-2. **Re-run same `--saida`** — auto-retries everything within 2-retry
-   budget. Cache wins from parallel runs heal silently across runs.
-3. **Past the cap** — `--retentar-de runs/.../executar.errors.jsonl`
-   resets the budget for those specific targets.
-4. **Last resort** — `extrair-pecas --csv <leftovers> --provedor
-   tesseract --forcar` for genuine outliers (>1 MB or pathological
-   PDFs that need local OCR).
+| File                          | Test                                                   | What it pins                                                              |
+|-------------------------------|--------------------------------------------------------|---------------------------------------------------------------------------|
+| `tests/unit/test_recuperar.py`| `test_plan_replay_materialises_retentar_de_payload`    | REPLAY emits `materialized_content` with the right wire schema fields     |
+| `tests/unit/test_recuperar.py`| `test_execute_recoveries_writes_replay_errors_file_to_disk` | The materialised content actually lands at `source_errors_file`          |
+| `tests/unit/test_recuperar.py`| `test_wait_for_pids_detects_zombie_child`              | `os.fork`-based real zombie pid is detected within `poll_interval`        |
+| `tests/unit/test_recuperar.py`| `test_wait_for_pids_returns_when_all_dead` (refactor)  | Mocks `_pid_is_active` instead of `os.kill` — behavioural, not syscall-coupled |
 
-**Outstanding (not blocking).**
+### Recuperar pass-by-pass after the fix
 
-- **21 HTTP 500s observed pre-relaunch** weren't fully traced. `flyctl
-  logs --no-tail | grep -i exception` didn't surface a clear
-  traceback, so they may be uncaught FastAPI exceptions, transient
-  pdf2image failures on malformed PDFs, or OOMs during raster (less
-  likely now with Semaphore(1)). Worth a Fly-log dive if they recur
-  in the new run.
-- **`min_machines_running = 0`** in `fly.toml` means Machines
-  auto-stop when idle, contributing to cold-start 502/503 noise. Bump
-  to 2-3 would reduce the tail at ~$2-3/day. Defer until current
-  sweep convergence shows whether the residual matters at scale.
-- **`runs/active/backfill-hc2021-2026-05-02/`** still uses the old
-  three-command chain layout (varrer/baixar/extrair subdirs). Not
-  resumable with `executar`'s state shape, but the cache it produced
-  is corpus-shared, so its contribution survives in the new run via
-  `skipped_cached`.
-
-**Close-out — HC 2021 done (2026-05-03 18:32 BRT).** All 16 shards
-emitted terminal `report.md`; aggregator counters frozen across 7
-consecutive 30 s ticks; no `judex` / `uv run` processes alive.
-Final tallies (sum across `shard-{a..p}/report.md`, matches monitor):
-
-| stage            | total  | ok     | other                                          |
-|------------------|-------:|-------:|------------------------------------------------|
-| meta (portal)    |  7,085 |  5,084 | unallocated_pid=1,975 (28.0%); http_error=26   |
-| bytes (sistemas) | 15,751 | 14,671 | empty=1,035; http_error=45                     |
-| text (ocr)       | 14,671 | 13,792 | provider_error=879                             |
-
-Aggregate text quality = `text_ok / bytes_ok` = 13,792 / 14,671 =
-**94.0%** (C-grade). The per-shard `report.md` D-grades are an
-artefact of the shard-side denominator including 1,080 `missing` rows
-— bytes that were never fetched (empty + http_error) — not OCR
-failures; the OCR pool itself converted 94.0% of fetched bytes.
-
-The Stage 2 fix (`4cb7b2f`: 503 fast-fail + 300 s tenacity budget)
-held end-to-end: OCR pool ran at 100% utilisation for the full
-5h 36m, no SSL-EOF tail-storm, no fleet collapse. Per-shard wall
-variance (3h 31m–5h 27m) is the expected queue-distribution effect
-on a 16-shard / 9-Machine ratio with per-Machine `Semaphore(1)`.
-
-Run dir archived in place: `runs/archive/2026-05-03-hc2021-executar/`.
-
-Open follow-ups (not blocking):
-
-- **1,975 `unallocated_pid` (28.0% of cases)** is high. Likely a mix
-  of segredo-de-justiça / sealed cases (legitimate `pid=null`) and
-  scrape-side parse misses; one pass of `judex.sweeps.error_triage.
-  recovery_recipe` over `executar.errors.jsonl` (concatenated across
-  shards) discriminates which.
-- **879 `provider_error`** (6.0% of fetched bytes) is the residual
-  OCR tail. Re-running the same `--saida` retries them within the
-  ADR-0005 2-retry budget; past that, `--retentar-de` resets the
-  budget for those targets specifically.
-- **1,035 `empty` PDFs** (downloaded but 0-byte after decompress) are
-  most likely STF-side capture gaps; cross-check `error_triage` to
-  distinguish from a `baixar-pecas` write-side bug.
-- **Completion-tracker refresh deferred.** `docs/completion-tracker.md`
-  still shows HC 2021 at `❌ 0.5%` bytes; the table is sourced from a
-  warehouse rebuild, so update it after the next `atualizar-warehouse`
-  pass (the on-disk cache already carries the new bytes/text).
-
-## Open thread — ADR-0006 state journal: rebase landed, FF to `dev` ready (2026-05-03)
-
-**What.** ADR-0006 implementation committed as `817cfef` on
-`worktree-adr-0006-state-journal` and pushed to origin. Replaces the
-snapshot-only `PipelineState` with snapshot+log durability:
-`PipelineState.open(saida=...)` reads the snapshot, then replays every
-log row whose `ts > snapshot_at` directly into in-memory state,
-bypassing the live `record_*` mutators (so `retry_count` is preserved
-from the row rather than re-incremented per replayed row — fixes a
-correctness bug the legacy `recover_state_from_log` carried). `run_id`
-(UUID4) on every snapshot + log row is the staleness defence: a
-co-resident log from a prior aborted run raises `StaleLogError` on
-`open()`. Schema bumped 2→3; pre-bump state files cannot be loaded
-(no backwards-compat shim per CLAUDE.md § Conventions). 848 unit tests
-pass (89 in pipeline subtree, 759 unaffected).
-
-**Diff.** 8 files, +610 / -178: `state.py` (+332 net — `open()`,
-`_apply_log_row`, `StaleLogError`, run_id/snapshot_at properties),
-`test_pipeline_state.py` (+224 — 4 new ADR-0006 contract tests),
-`log.py` (lost `recover_state_from_log`; gained `run_id`/`retry_count`
-row fields), `runner.py` (collapsed log-vs-snapshot mtime dance into
-one `PipelineState.open()` call), `scheduler.py` (threads `run_id`
-through every `make_log_record` call + `_read_task_retry_count`
-helper), plus two test-file migrations and the ADR-0006 doc.
-
-**Rebase landed.** After PR #14 promoted ~65 commits to `main` as
-squash `734c280`, the worktree branch (originally based on `772491e`)
-sat 4 commits behind the new dev tip. Used
-`git rebase --onto origin/dev 772491e` to transplant just the
-ADR-0006 commit onto current `dev`. New commit: `f850170` on
-`worktree-adr-0006-state-journal` (force-pushed to origin).
-
-**Conflicts resolved (4 files):**
-
-- `state.py` — trivial: kept both `import uuid` (mine) and
-  `from collections import Counter` (dev, used by the multi-stage
-  progress aggregator at lines 377-411).
-- `log.py` — kept the retire-comment for `recover_state_from_log`;
-  updated the module docstring to reference `PipelineState.open()`'s
-  native reconciliation instead of the now-deleted standalone replay
-  function.
-- `scheduler.py` — kept both helpers (`_read_task_chars` from dev for
-  the per-task tail line, `_read_task_retry_count` from mine for the
-  log-row projection). Merged the `make_log_record` call site by
-  dropping my redundant `extractor = _read_task_extractor(...)` line
-  (dev pre-computes `line_extractor` and `line_chars` upstream for
-  the tail line) and keeping `retry_count` threading.
-- `test_pipeline_log.py` — dropped the two retired
-  `recover_state_from_log` tests (their concern is now in
-  `test_pipeline_state.py`); ported dev's
-  `test_log_record_carries_chars_and_recovers_into_state` from
-  `recover_state_from_log` to `PipelineState.open()`'s replay API.
-
-**Bonus fidelity fixes surfaced by the rebase.** `_apply_log_row` in
-`state.py` was dropping two fields on replay:
-
-- `chars` (dev added to `TaskLogRecord` for the tail-line UI; my
-  replay didn't project it back into `state.text_chars`).
-- `n_pecas` (dev added to in-memory state; my replay overwrote
-  `rec.meta` wholesale, clobbering the snapshot's value because
-  `n_pecas` isn't carried in log rows).
-
-Both fixed in the rebase commit. Pattern for any future log-row-vs-
-in-memory-state field mismatch: replay should preserve prior fields
-not represented in the row.
-
-**Test result.** 889 unit tests pass (~40 s; +41 net since the
-pre-rebase 848 passed — dev's tail-line/n_pecas tests, my 4 ADR-0006
-contract tests, minus the 2 retired recover tests).
-
-**Next step.** Single FF of `dev` to `f850170` lands ADR-0006 on the
-trunk. The branch is exactly 1 commit ahead of `dev` (now at
-`4cb7b2f` after the 503-fast-fail + tenacity-budget commit).
-
-## Open thread — Unified pipeline v1 landed (2026-05-02 late evening)
-
-**What.** Replaced the three-command chain (`varrer-processos` →
-`baixar-pecas` → `extrair-pecas`) and `coletar`'s six-substage
-orchestrator with a single fire-and-forget `judex executar` command
-backed by a three-pool asyncio DAG scheduler. **Spec-complete v1 is
-on `explore/unified-pipeline` (origin)**, fast-forwarded from
-`worktree-unified-pipeline-impl`. Both refs at `4af9eaa` after slice
-5 (real-STF validation) passed.
-
-**Why.** `coletar` collapsed three commands into one chain but the
-operator still saw six substages, six per-substage logs, six
-per-substage state files, and a launcher process tree. The unified
-pipeline collapses all of that to **one process, one log, one PID,
-one state file, one resume point**. The win is *operational*, not
-primarily throughput — the spec was reframed mid-session from a
-0.60 throughput-gate (mathematically unreachable for this workload)
-to a six-point ergonomic checklist (one submission, one log, one
-state file, one PID, resume across pool failures, output identical
-to today). See `docs/superpowers/specs/2026-05-02-unified-pipeline.md`.
-
-**Branch state (origin).**
+Real numbers from `runs/archive/20260512_011434-hc2021-delta/`:
 
 ```
-4af9eaa feat(pipeline): comparison metrics + concurrency-aware utilisation
-218f8f2 fix(pipeline): persist case JSON in handle_fetch_meta
-48b2c5e feat(pipeline): per-pool circuit breaker (slice 3)
-cf8d0be feat(pipeline): runner + judex executar CLI (slice 4)
-fe62cd4 feat(pipeline): scheduler + handlers (slice 2)
-c538d07 feat(pipeline): models + atomic state store (slice 1)
-67e0fc6 feat(pipeline): scheduler prototype with mock-mode smoke test
-e12f91d docs(spec): reframe from throughput gate to ergonomic checklist
-ccc01c3 docs(spec): unified pipeline — DAG scheduler successor to coletar
+recuperar pass 1: 89 actionable rows  →  child wall=0.9s  →  88 actionable after
+recuperar pass 2: 63 actionable rows  →  child wall ~1s   →  63 actionable after
+recuperar pass 3: 63 actionable rows  →  loop's no-progress guard exits
+recuperar: stopped after 3 pass(es) — residual stopped shrinking
 ```
 
-`origin/explore/unified-pipeline` and `origin/worktree-unified-pipeline-impl`
-both at `4af9eaa`. `dev` still at `62a1101` — unified pipeline is
-NOT yet promoted to trunk.
+Stage-level shrinkage:
 
-**What's in `judex/pipeline/`.**
+| Bucket                  | Pre-recuperar | Post-recuperar | Notes                                          |
+|-------------------------|---------------:|---------------:|------------------------------------------------|
+| `fetch_meta http_error` |             19 |             11 | 8 SSL-storm cases recovered                    |
+| `fetch_meta unallocated_pid` |        1,353 |          1,358 | 5 of the SSL-failed turned out to be real 404s |
+| `fetch_bytes http_error`|             19 |              0 | all recovered                                  |
+| `fetch_bytes empty`     |             51 |             63 | net +12 — fresh empties discovered on retry    |
+| `cap_burnt`             |              0 |              1 | safety valve dropping a perpetual-fail row     |
 
-| File | Lines | Purpose |
-|---|---|---|
-| `__init__.py`     | 32  | Public re-exports |
-| `models.py`       | 100 | `Task`, `PoolName`, `TaskKind`, `TaskStatus`, `PoolConfig`, `Counters` |
-| `state.py`        | 200 | `PipelineState` with atomic snapshot, resume predicates, per-URL granularity |
-| `pools.py`        | 110 | `Pool` runtime with `CircuitBreaker` + optional `ProxyPool`/`AdaptiveThrottle` scaffolding |
-| `scheduler.py`    | 300 | Three-pool asyncio core, signal-driven graceful shutdown, periodic snapshotter |
-| `handlers.py`     | 195 | Real handlers wired to scraper / `_http_get_with_retry` / `peca_cache` / `ocr.dispatch` |
-| `runner.py`       | 230 | `run_pipeline(targets, saida, ...)` + `read_targets_csv` + comparison-metrics report |
+The 63 stuck-empty residual is the false-transient class (classifier
+correctly says retry, server says 0 bytes every time). The 3-pass
+no-progress exit is the loop doing its job. This delta is at
+effectively 100% coverage of the resolvable cases (9,165 ok /
+(10,522 − 1,358 unallocated) = 99.99%).
 
-Plus `scratch/pipeline_prototype.py` (kept as the throwaway prototype
-that surfaced the pipelining-ceiling math), and 34 unit tests across
-`tests/unit/test_pipeline_{state,scheduler,runner,pools}.py`. **Full
-unit suite: 716 passed (34 new + 682 pre-existing).**
+---
 
-**Slice 5 receipts (real STF, direct-IP, `pypdf`).**
+## Resolved this session — HC 2021 chain v2 closed (2026-05-11)
 
-5-case (HC 250000-250004), wall **3.3 s**:
-
-| pool      | started | finished | failed | utilisation |
-|-----------|---------|----------|--------|-------------|
-| portal    | 5       | 5        | 0      | 58%         |
-| sistemas  | 10      | 10       | 0      | 63%         |
-| ocr       | 10      | 9        | 1      | 30% (concurrency-aware) |
-
-50-case (HC 250000-250049), wall **25.9 s**:
-
-| pool      | started | finished | failed | utilisation |
-|-----------|---------|----------|--------|-------------|
-| portal    | 50      | 50       | 0      | 54%         |
-| sistemas  | 119     | 119      | 0      | 88%         |
-| ocr       | 119     | 119      | 0      | 34%         |
-
-State-side: `meta=ok×50`, `bytes=ok×116`, `text=ok×100,
-provider_error×16` (RTF-passed-to-pypdf — same outcome as legacy
-`extrair-pecas --provedor pypdf`; `--provedor auto` would route those
-to tesseract). Spot-checked `.txt.gz` outputs: real Portuguese
-("HABEAS CORPUS 250.000 DISTRITO FEDERAL / RELATOR : MIN. FLÁVIO DINO
-/ ..."), no mojibake.
-
-**Comparison vs. legacy chain (50-case slice).**
-
-| metric                                | this run | legacy (≈ sum-of-busy) |
-|---------------------------------------|----------|------------------------|
-| wall (s)                              | **25.9** | 71.8                   |
-| cases                                 | 50       | 50                     |
-| peças bytes ok                        | 116      | 116                    |
-| peças text ok                         | 100      | 100                    |
-| OCR cost (USD, `--provedor pypdf`)    | $0.0000  | $0.0000                |
-| pipelining ratio                      | **0.36** | n/a                    |
-| **wall savings vs sequential**        | **64%**  | n/a                    |
-
-The 64% is higher than the analytical projection (15-25%) because
-much of the work is cache-hits — HTML cache for meta, `peca_cache`
-for already-fetched bytes — which makes the bottleneck pool's wall
-shrink dramatically while pipelining still amortizes the fresh-fetch
-tail. **Cache-aware resume gets the bigger win**; a fully-fresh
-50-case run from cold cache would land closer to the 15-25% band.
-
-**Six-point fire-and-forget checklist.**
-
-| Invariant | Status |
-|---|---|
-| 1. One submission                 | ✅ `judex executar --csv …` |
-| 2. One log                        | ✅ Single stderr stream |
-| 3. One state file                 | ✅ `executar.state.json` (atomic snapshot) |
-| 4. One PID                        | ✅ Single asyncio process |
-| 5. Resume across pool failures    | ✅ Unit tests cover; integration via re-run pending |
-| 6. Output identical to today      | ✅ Case JSON + four-file quartet land in `data/`; texts spot-check is real Portuguese |
-
-**One mid-session bug, one small follow-up.**
-
-* **Bug found and fixed (`218f8f2`).** First slice-5 run produced
-  `meta=ok×10, bytes=none, text=none` because (i) the slice
-  (HC 271130-271134 + 271140-271144) was unintentionally trivial —
-  all 10 cases are stub filings with zero peça links — and (ii) my
-  `handle_fetch_meta` was scraping into memory but never persisting
-  the case JSON to `data/source/processos/<classe>/`. Legacy
-  `varrer-processos` does this via `run_sweep._write_item_json`;
-  the unified pipeline was missing the equivalent step. Without the
-  fix, invariant #6 would silently break: `executar.state.json`
-  shows `ok` but no JSON on disk for downstream consumers
-  (warehouse rebuild, `validar-gabarito`, ad-hoc analysis) to find.
-  Lift-and-replicated the legacy atomic-write logic into
-  `handlers.py`. Same on-disk format, same atomicity contract.
-
-* **Follow-up (non-blocking): intra-case URL dedup.** 50-case run
-  showed `sistemas.started=119` but only 116 unique URLs in state
-  → 3 intra-case dupes (same peça URL emitted from two surfaces of
-  the same case, e.g. once via andamento, once via DJe).
-  `_iter_case_pdf_targets` does not dedupe per case (CLAUDE.md
-  documents this); my handler should dedupe before emitting bytes
-  tasks. Cost: the dupes hit `peca_cache.has_bytes` → True → skip
-  fetch, so the only cost is bookkeeping noise. ~3 lines to fix.
-
-**Open follow-ups (priority order).**
-
-1. **Promote `explore/unified-pipeline` → `dev`.** Currently `dev` is
-   at `62a1101` (no unified pipeline). The work passes slice 5; can
-   ship via `gh pr create --base dev --head explore/unified-pipeline`
-   and squash-merge per CLAUDE.md § Conventions.
-2. **Slice 6: removal of legacy CLI commands.** Spec says delete
-   `varrer-processos` / `baixar-pecas` / `extrair-pecas` / `coletar`
-   from `judex/cli.py` once slice 5 passes. Slice 5 has passed;
-   removal is now unblocked. Per CLAUDE.md § Conventions, no
-   backcompat shims — remove outright.
-3. **Intra-case URL dedup in `handle_fetch_meta`** (above).
-4. **`--provedor auto` integration** so RTF-as-PDF routes correctly.
-   Same legacy parity as `extrair-pecas --provedor auto`.
-5. **Real-resume integration test.** Unit tests cover; want a real
-   "kill mid-run via SIGTERM, resume, verify finished" cycle as
-   slice 5b receipt before promoting to `dev`.
-
-## Open thread — HC 2020 `executar` smoke test + warehouse rebuild blocker (2026-05-03 ~02:10 BRT)
-
-**Run in flight.** Detached `judex executar --csv runs/active/hc2020-executar/cases.csv
---saida runs/active/hc2020-executar/ --provedor auto --nao-perguntar` (env:
-`FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract`,
-`JUDEX_AUTO_TESSERACT_PROVIDER=tesseract_fly`). PIDs `952184`/`952189`. Started
-03:50:41 UTC (snapshot view at 05:06:58 UTC). 9,137 HC 2020 cases queued.
-
-**Spot-check verdict at ~5.6 % through: healthy.** Snapshot from `executar.state.json`:
-
-| stage      | ok    | fail | fail %  | dominant failure |
-|-----------:|------:|-----:|--------:|---------------------------------------------------|
-| meta       | 769   | 123  | 13.8 %  | `unallocated_pid` (terminal-normal STF state)     |
-| bytes      | 3373  | 20   | 0.59 %  | `empty` (0-byte STF response, magic-byte guard)   |
-| text       | 2178  | 38   | 1.71 %  | 34× Fly Tesseract HTTP 404 + 1× `OutlierPdfError` (>1 MB cloud-OCR refusal) + 3× misc |
-
-Fully-through-all-stages: **512 / 9137 cases**. Throughput drift 0.21 → 0.17
-cases/s (heavy-tail OCR jobs at 430 s / 275 s / 171 s pulling the average).
-Auto-routing mix: rtf=1016, pypdf=1080, tesseract_fly=78, tesseract=8 — exactly
-what HC 2020 should look like.
-
-**Artifact-layout parity confirmed.** `executar` writes the same on-disk
-quartet as the legacy chain: case JSON in `data/source/processos/HC/`, peça
-bytes in `data/raw/pecas/<sha1>.{pdf,rtf}.gz`, text in
-`data/derived/pecas-texto/<sha1>.txt.gz` + `.extractor` sidecar. Run-dir
-holds `executar.state.json` (atomic, periodic snapshot) +
-`executar.log.jsonl` (append-only, per-URL events).
-`executar.errors.jsonl` and `report.md` write at clean exit only —
-`judex/pipeline/runner.py:405-411`. Spot-checked 8 `.txt.gz` files across
-all four extractors: real Portuguese, no mojibake, plausible sizes.
-
-**Two non-blocking signals to track:**
-
-1. **34× Fly Tesseract 404s (1.5 % of text jobs).** Error-reported URL is the
-   bare host (`https://judex-ocr-tesseract-arcos.fly.dev/`, no `/extract`),
-   suggesting the worker is responding 404 to certain payloads or the
-   redirected response URL is being captured. Easily re-tried from
-   `executar.errors.jsonl` once the run is done. Watch for the rate
-   climbing past ~3 %.
-2. **OCR wall-time spikes** (430 s, 275 s, 171 s) push avg to 4.8 s and ETA
-   to ~14 h. All complete `ok` — Fly cold-start / queue tail, not failure.
-
-### Warehouse rebuild blocker — 13,747 stray case JSONs at the wrong path
-
-**Triggered by the user's "rebuild the warehouse" follow-up.** `uv run judex
-atualizar-warehouse` crashed in `_bulk_insert` at
-`judex/warehouse/builder.py:877`:
+The chain v2 launched 2026-05-04 22:03 BRT and paused 2026-05-05 09:18 BRT
+at step 6 (HC 2021, range -i 196282 -f 210963, 12,702 / 14,682 ok_meta).
+Resume command + close-out chain ran in three phases:
 
 ```
-ConstraintException: Constraint Error: Duplicate key
-"classe: HC, processo_id: 253283" violates primary key constraint.
+[step 1] resume executar          30.3 s   → 351 transient resolved
+[step 2] recuperar --loop --apply  ~1 min  → 1 pass, no shrink, exit clean
+[step 3] judex warehouse --classe HC  4m 40s → 91,048 cases / 1.9 GB DB
 ```
 
-Root cause: **13,747 case JSONs are duplicated at `data/source/processos/*.json`
-(parent dir) AND at `data/source/processos/HC/*.json` (canonical)**. The
-builder's traversal is `cases_root.rglob("judex-mini_*.json")`
-(`builder.py:812`) — recursive, so both copies enter the `cases` insert and
-collide on `(classe, processo_id)` PK.
-
-Stray range: HC 198000-267137 (2021-2025). Mtime window: 2026-05-02
-**14:12 → 15:22 BRT** (≈70 min, hour-bucket distribution: 14h = 4811 files,
-15h = 8936 files). **Confirmed not the active run** — newest mtime in parent
-dir is 15:22 BRT yesterday; nothing modified in the last 60 min as of
-2026-05-03 02:18 BRT (`find … -mmin -60` returns empty), and the live HC
-2020 `executar` sweep's recent JSONs land correctly under
-`data/source/processos/HC/`. Sample of 25 strays vs `HC/` twins:
-
-- 25/25 same byte size
-- 25/25 sha1-different
-- single field-level diff: **`_meta.extraido` only** — strays' timestamp
-  is ~18 h newer than `HC/` twins' (parent ≈ `2026-05-02T14:50:36`,
-  `HC/` ≈ `2026-04-21T18:49:28` on the spot-checked file)
-
-Interpretation: a sweep yesterday afternoon re-scraped this range and wrote
-the JSONs to `data/source/processos/<f>.json` instead of
-`data/source/processos/HC/<f>.json`. Case content is identical to the
-existing `HC/` copy — only the `_meta.extraido` timestamp moved. **No data
-was lost.** The strays are functionally redundant; the canonical `HC/` copy
-is intact (just with an older scrape-timestamp).
-
-**The active HC 2020 `executar` run is writing to the correct path** —
-files at 02:06 BRT today land under `data/source/processos/HC/`. So the
-mis-pathed-write bug isn't firing on this run, but the strays at the parent
-level are blocking the warehouse rebuild and stand as evidence of a
-historical regression worth tracing (most likely candidates: yesterday's
-`coletar` smoke test or the `executar` sweep that wrote at 14:22 BRT).
-Whichever pipeline emitted these had a missing `<classe>/` segment in its
-case-store write path.
-
-**Side artefact.** `data/derived/warehouse/judex.duckdb.tmp` (522 MB) is the
-half-built rebuild from this attempt. Safe to delete; the canonical
-`judex.duckdb` (1.85 GB, 2026-05-02 12:43 BRT) is untouched.
-
-**Resolution (02:21 → 02:28 BRT).** Moved all 13,747 strays into `HC/` with
-overwrite via `find … -maxdepth 1 -name 'judex-mini_*.json' -exec mv -f -t
-.../HC/ {} +`. Atomic per-file rename within the same filesystem; race-free
-against the active sweep (no path overlap, HC 187xxx vs 198000+). Spot-check
-post-move: `_meta.extraido = 2026-05-02T14:50:36.579461` on
-`HC_255555-255555.json` (the newer timestamp won, as intended). Parent-dir
-JSON count: 0. `judex.duckdb.tmp` deleted. Re-ran `uv run judex
-atualizar-warehouse` → **clean build in 414.8 s, atomic swap to 3.05 GB
-warehouse**, all five quality thresholds passed:
-
-```
-  cases                 90,835
-  partes               317,860
-  andamentos         1,242,860
-  documentos            36,405
-  pautas                15,459
-  publicacoes_dje       85,803
-  decisoes_dje          13,311
-  pdfs                 115,056
-  unallocated_pids      24,568
-```
-
-**Carried-over investigation.** Whichever sweep wrote into the parent dir
-during the **2026-05-02 14:12 → 15:22 BRT** window (4811 files in 14h, 8936
-in 15h, range HC 198000-267137) had a missing `<classe>/` segment in its
-case-store write path. Worth grepping launcher logs from that window to
-identify the offending command before the next big sweep. Verifier guard
-for after the fix:
-
-```bash
-ls data/source/processos/*.json 2>/dev/null | wc -l   # must be 0
-find data/source/processos/ -maxdepth 1 -type d       # must be only HC/
-```
-
-## Open thread — Fly OCR cluster cost shape (2026-05-02 late evening)
-
-**Why.** The first real Fly invoice landed (May 1+2 = $8.70 over
-181.5 Machine-hours) and revealed two surprises: (a) the prior
-`$0.0118/hr per Machine` quote in `fly/README.md` and
-`tesseract_fly.py:cost()` was **4× under-anchored** because it
-ignored the "Additional RAM" line item, and (b) RAM is **82% of
-the per-Machine bill** at the old `[[vm]] memory = "4gb"`, not the
-expected CPU-dominated split. The bill anchored a real per-hour
-rate of $0.0479 / Machine-hour.
-
-**Landed on `dev`.**
-
-- `71e3d43 feat(fly): chunked rasterize + 2 GB Machine, bill-anchor cost surface`
-  — `fly/server.py` switched from upfront `convert_from_bytes(pdf_bytes,
-  dpi=200)` (peak RAM ≈ 11 MB × n_pages) to chunked
-  `_RASTER_CHUNK_PAGES = 4` rasterization (peak RAM ≈ 50 MB regardless
-  of page count). `[[vm]] memory: "4gb" → "2gb"`. Cost docstring
-  rewritten with two-meter pricing model anchored to the real invoice.
-  Per-Machine rate: $0.0479/hr → $0.0256/hr (**~47% reduction**).
-- `62a1101 docs(fly): smoke-test report for streaming refactor + 1 GB Machine`
-  — full report at `docs/reports/2026-05-02-fly-streaming-refactor-smoke-test.md`.
-
-**Cluster state right now.**
-
-| Field | Value |
-|---|---|
-| Branch | `dev` |
-| Local `fly.toml` | `memory = "2gb"`, `shared-cpu-2x` |
-| Live cluster | 10 Machines × shared-cpu-2x × 2 GB ✓ matches local |
-| Live image | streaming refactor (chunked rasterize) ✓ matches local |
-| Per-Machine rate | $0.0256/hr |
-| Was scaled to | 100 Machines pre-test; **needs restore to 100** |
-
-**Smoke-test results so far.** 1-page PDF: ✅ clean (~4 s wall,
-991 chars, accents intact). 123-page PDF: server-side 200 OK at
-~270 s wall but client got empty body — diagnosed as
-`async def extract()` blocking the asyncio event loop during sync
-OCR work, so `/healthz` fails and Fly's proxy drops the upstream
-connection. **No OOM in logs**, so 2 GB is genuinely sufficient
-for 123-page PDFs. 295-page PDF (`37ee397e8732…`, 5.4 MB gz):
-**not yet run** — direct user concern about long-PDF handling.
-
-**Open follow-ups (priority order).**
-
-1. **Run 295-page PDF test** against the live 2 GB cluster to
-   pin "very long PDFs handled correctly" empirically, not by
-   design extrapolation.
-2. **`async def` → `run_in_executor` one-liner** so long-request
-   responses don't get dropped on the way back through the proxy.
-   Pinned by re-running the 123-page PDF and getting clean text.
-3. **Restore cluster to 100 Machines** (`flyctl scale count 100`)
-   before any production sweep.
-4. **Money optimization choices** still on the table — current
-   $0.0256/hr; achievable lower bounds:
-   - `shared-cpu-2x` + `memory = "1gb"`: $0.0143/hr (44% further
-     cut). Headroom ~314 MB over peak ~710 MB working set — tight,
-     silent-OOM risk on edge PDFs (Pillow large-image spikes).
-   - `shared-cpu-4x` + `memory = "1gb"`: $0.0174/hr (39% cut)
-     **and** 2× wall speedup on 3+ page PDFs (4 parallel Tesseract
-     instances vs 2). Risk: 4 concurrent Tesseract working sets
-     (~600 MB) plus baseline (~400 MB) ≈ 1 GB exact — needs the
-     2 GB shape to be safe in practice.
-   - Both options are shape-only — `server.py` reads
-     `os.cpu_count()` so the worker pool auto-scales to whatever
-     the deployed shape provides. No Python change required.
-5. **Investigate health-check failures** on started Machines —
-   noticed during smoke test that `1 critical` checks were
-   common, possibly from `/healthz` being blocked during long
-   OCRs (same async-blocking root cause as #2).
-
-**Decision pending.** Whether to spend engineering effort on the
-remaining ~$0.10–$0.20/ladder savings, or stop here. The headline
-win (4 GB → 2 GB, 47% off the per-Machine rate) is locked in;
-further cuts are diminishing returns.
-
-### Update 2026-05-03 — tesserocr swap + included-RAM-tier insight
-
-**Three things landed since the prior entry.**
-
-1. **pytesseract → tesserocr** (`fly/server.py`, commits `83766eb`,
-   `6588012`, `557835e`). The pytesseract path spawned a fresh
-   `tesseract` subprocess per page (~150 ms LSTM model load × N
-   pages, parallelized across 2 workers ≈ 4-8 s wasted on a
-   50-page PDF). Swapped to tesserocr (Cython libtesseract
-   bindings) with a per-thread `PyTessBaseAPI` via
-   `threading.local`, held by a **module-scoped**
-   `ThreadPoolExecutor` (per-chunk pool would re-init the LSTM
-   for every PDF, defeating the swap). The model is now loaded
-   N_workers times for the entire server lifetime, not per page.
-   Estimated 1.3-2× speedup on multi-page PDFs.
-2. **CPU-detection investigation** ruled out a non-bug. Confirmed
-   via `flyctl ssh console`: `os.cpu_count()` returns **2** on
-   `shared-cpu-2x` (matches the configured shape, no Firecracker
-   leakage). `/sys/fs/cgroup/cpu.max` does not exist on Fly —
-   Firecracker microVMs present vCPUs to the guest directly,
-   without a cgroup hierarchy. The cgroup-quota fallback in
-   `_resolve_page_workers()` is dead code on Fly (works as
-   portability insurance for redeploys to k8s/Fargate).
-3. **Included-RAM-tier insight rewrites the cost-shape choice.**
-   `shared-cpu-Nx` ships with N × 256 MB included RAM in the
-   per-second CPU rate (verified via Fly pricing docs). At our
-   `[[vm]] memory = "1gb"`, that means:
-   - shared-cpu-2x: 512 MB included → 512 MB additional billed
-   - shared-cpu-4x: **1024 MB included → 0 MB additional billed**
-
-   The CPU-rate jump from 2x → 4x ($0.0087 → $0.0174 in gru) is
-   exactly offset by the eliminated additional-RAM line, so the
-   per-Machine bill is only 22% higher despite 2× the vCPU count.
-   Per-page-slot cost drops ~39%.
-
-**Cost-shape comparison (gru rates, all at 1 GB total RAM).**
-
-| Shape               | Workers | $/hr (gru) | Pages/sec (est) | $/page-slot/hr      |
-|---------------------|---------|------------|-----------------|---------------------|
-| shared-cpu-2x @ 1gb | 2       | $0.0143    | ~2.0            | $0.00715            |
-| shared-cpu-4x @ 1gb | 4       | $0.0174    | ~4.0            | $0.00435 ← sweet spot |
-| shared-cpu-8x @ 2gb | 8       | ~$0.0349   | ~7.0            | $0.00499            |
-
-Pages/sec figures are estimates from per-page OCR ~1 s × worker
-count, with sub-linear scaling assumed at 8 workers (process-
-global libtesseract state contention). **Needs empirical
-validation** — the table is the basis for picking 4x as the
-landed choice, not a measured baseline.
-
-**Landed shape.** `[[vm]] size = "shared-cpu-4x"`, `memory = "1gb"`.
-Memory peak re-derived for 4 workers: 310 MB baseline + 400 MB
-tesserocr (4 × ~100 MB) + 176 MB raster = **886 MB peak**, ~14%
-headroom over the 1 GB ceiling. Tighter than the prior 2x shape
-(~33% headroom) but above the empirically-confirmed safe floor.
-
-**Experiment to run post-deploy.**
-
-1. ~~Smoke-test 5-10 PDFs spanning page counts on the new 4x
-   cluster.~~ **Run on the 1 GB live cluster 2026-05-03 ~02:57 BRT
-   ahead of the 2 GB scale-up** (artifacts at
-   `analysis/fly-1gb-smoke-2026-05-03/`). Test set spanned 10 → 295
-   pages; only the 10-page PDF (single-chunk, 5.7 s wall) returned
-   200 + clean Portuguese text. Every PDF >16 pages — i.e. every
-   request that needed a *second* raster chunk — returned 502 +
-   empty body, with five corresponding `oom-killed` events in
-   `flyctl logs`:
-
-   | pages | wall (s) | result | anon-rss at kill |
-   |------:|---------:|:------:|-----------------:|
-   | 10    |  5.7     | ok     | (no kill)        |
-   | 31    |  5.8     | 502    | 847 MB           |
-   | 51    | 22.7     | 502    | 862 MB           |
-   | 63    | 35.3     | 502    | 863 MB           |
-   | 143   | 28.3     | 502    | 855 MB           |
-   | 295   | 124.7    | 502    | 842 MB           |
-
-   Mean kill-RSS 854 MB on a 1024 MB ceiling — matches the prior
-   session's 861 MB datapoint cited in commit `308426e` to within
-   1%, so the OOM ceiling is reproducible. The boundary is now
-   pinned at **17-pages-or-more** (one full chunk + any second-
-   chunk overlap), tighter than the 123-page bound speculated
-   before. Smoking gun: the 295-page case OCR'd ~16 pages
-   successfully (~5 s/chunk × 1 chunk = ~5 s) before the kernel
-   killed it during chunk-2 raster — partial-OCR walls (5.8/22.7/
-   35.3/28.3 s) confirm work-then-die, not proxy-immediate 502.
-   Confirms the calculated 1234 MB peak doesn't fit on the 1 GB
-   ceiling by ≥210 MB; 2 GB needed.
-
-   **2 GB re-run after `flyctl scale memory 2048` (2026-05-03 ~03:13
-   BRT, artifacts at `analysis/fly-2gb-smoke-2026-05-03/`).** Same 6
-   PDFs, same image (`deployment-01KQNVP194VNVC5TXPJ1MQZXBK`), only
-   the memory ceiling changed:
-
-   | pages | pdf MB | 1 GB outcome   | 2 GB outcome              | 2 GB s/page |
-   |------:|-------:|:--------------:|:-------------------------:|------------:|
-   | 10    | 2.08   | ✓ ok           | ✓ ok (5.9 s)              | 0.53        |
-   | 31    | 1.24   | OOM 847 MB     | ✓ ok (18.7 s)             | 0.59        |
-   | 51    | 1.62   | OOM 862 MB     | ✓ ok (28.5 s)             | 0.53        |
-   | 63    | 1.39   | OOM 863 MB     | ✓ ok (**213.8 s**)        | **3.38**    |
-   | 143   | 2.27   | OOM 855 MB     | ✗ ReadTimeout (900 s)     | n/a         |
-   | 295   | 5.67   | OOM 842 MB     | ✗ ReadTimeout (900 s)     | n/a         |
-
-   **Crucial receipt: zero `Out of memory` lines in `fly.log` over
-   the entire 2 GB run** (`grep -c 'Out of memory' fly.log → 0`,
-   over 191 log lines). The two `Main child exited normally`
-   entries at 03:04 are from the `flyctl scale memory 2048` rolling
-   restart (graceful uvicorn shutdown before VM resize), not from
-   the smoke test. So the 143/295-page failures are *server-stalled*,
-   not OOM-killed — `/healthz` continued returning 200 every 30 s
-   throughout, meaning the asyncio loop stayed alive and the OCR
-   worker was just running very, very slowly. This is the
-   degradation-without-death signature, distinct from the 1 GB
-   crash-kill signature.
-
-   **Smoke-test cases were *picked from the largest 0.01% of the
-   corpus* (the 5383 KB / 295-page outlier is the single biggest PDF
-   in 103,952 cached files), so the n=4 percentile distribution
-   above is meaningless as a percentile claim — the test inputs were
-   selected to stress the cluster, not sampled uniformly. The
-   right percentile question is over the *corpus*, not the test set:**
-
-   **Corpus-wide PDF distribution** (`data/raw/pecas/`, n=103,952
-   `.pdf.gz` files, computed 2026-05-03):
-
-   | Stat        |   Compressed |  Est. pages | Implication on 4x @ 2gb |
-   |:-----------:|-------------:|------------:|-------------------------|
-   | Total       | 14.92 GB     | —           | manageable on disk      |
-   | p50 (median)|   123.5 KB   |   3 pages   | single-chunk, ~2 s wall (fast path) |
-   | mean        |   150.5 KB   |   ~4 pages  | tail-skewed; mean > median by 22% |
-   | p95         |   411.1 KB   |   12 pages  | single-chunk, ~7 s wall (still fast) |
-   | p99         |   507.4 KB   |   13 pages  | single-chunk, ~7 s wall |
-   | p99.5       |   517.9 KB   |   13 pages  | single-chunk, ~7 s wall |
-   | p99.9       |   628.4 KB   |   14 pages  | single-chunk, ~8 s wall |
-   | p99.99      |  1284.6 KB   |   67 pages  | **slowdown zone** (~3 s/page, ~200 s wall) |
-   | max         |  5382.9 KB   |  295 pages  | **stall zone** (≥900 s, the test outlier) |
-
-   Page counts at percentiles ≤p99.9 are direct page-counts of the
-   PDF at that exact size-rank; max is empirical (the smoke-test's
-   295-page case). The mid-percentile values are *page counts*
-   (not estimated from a regression — those would underestimate
-   the tail since text-heavy PDFs compress 5× better than scans).
-
-   **Punch line: corpus-fraction projection of the smoke-test boundaries.**
-
-   | Boundary on 2 GB cluster      | Corpus fraction       | Count   |
-   |-------------------------------|-----------------------|---------|
-   | ≤16 pages (single-chunk fast) | **99.51%**            | 103,442 |
-   | 17-63 pages (multi-chunk fast)| **0.48%**             | 502     |
-   | 64-143 pages (slowdown zone)  | **0.007%**            | 7       |
-   | >143 pages (stall zone)       | **0.001%**            | 1       |
-
-   So the literal "40% headroom holds" claim resolves favorably for
-   real production traffic: **99.99% of corpus PDFs are inside the
-   smoke-test's confirmed-clean-zone** (≤63 pages, no OOM, no
-   stall, ≤30 s wall on the 2 GB cluster). The chunk-overlap
-   slowdown affects ~7 PDFs across the entire corpus; the stall
-   affects exactly 1 (the 5382 KB / 295-page outlier we deliberately
-   used as a stress test). Chunk-overlap fix is nice-to-have, not
-   a launch blocker for the year-ladder backfills against the
-   existing 99.99% short-PDF traffic.
-
-   **Bigger reframe (2026-05-03 close-out): every PDF in the
-   smoke-test set is *already excluded* from the production Fly
-   path.** `tesseract_fly.py:67` has a `OUTLIER_BYTES = 1 MB`
-   threshold; `extract()` raises `OutlierPdfError` for any
-   `.pdf.gz > 1 MB compressed`, which the sweep runner records as
-   `status='outlier_skipped'` and surfaces in `report.md` with a
-   copy-pasteable local-OCR command. All 6 smoke-test PDFs (10p,
-   31p, 51p, 63p, 143p, 295p) are 1.24-5.67 MB — every one
-   exceeds the threshold and would never reach Fly in a real
-   sweep. Across the 103,952-PDF corpus, only 17 files (0.016%)
-   are above 1 MB.
-
-   **What this means for the open follow-ups (priority list above
-   superseded):**
-   - **Chunk-overlap patch**: tested empirically against the
-     unpatched 2 GB run by deploying the `del chunk_imgs;
-     gc.collect()` form and re-running the same 6 PDFs. Result:
-     **patch added 10-18% wall on every PDF and did not move the
-     63-page cliff** (10p 5.9→7.0 s; 31p 18.7→21.2 s; 51p
-     28.5→31.3 s; 63p 213.8→247.5 s; 143p still timed out). The
-     cliff is therefore *not* memory-overlap — most plausible
-     remaining cause is **shared-cpu CPU-credit exhaustion**
-     (4 workers burst-running for ~30-60 s deplete Fly's
-     shared-cpu credit pool, then throttle to baseline). Reverted
-     the patch (`git checkout fly/server.py` + `flyctl deploy`,
-     2026-05-03 ~04:10 BRT). Cluster is back on the un-patched
-     image at 2 GB.
-   - **CPU-credit hypothesis**: only worth chasing if we ever
-     loosen the 1 MB outlier threshold. Right now it's an
-     unreachable failure mode behind a guard. Park.
-   - **Production status**: 4x @ 2gb is **production-ready as-is**
-     for the 99.984% of corpus that flows through Fly; the 0.016%
-     outliers go to local Tesseract via the existing
-     `outlier_skipped` flow. Restore Machine count + resume HC
-     backfills whenever convenient.
-
-   **Cost re-anchor (2026-05-03).** `tesseract_fly.py:cost()`
-   currently returns `n_pages * 0.005 / 1000` (anchored to the old
-   shared-cpu-2x @ 4gb shape's $0.0479/Machine-hr). Re-derived
-   against the current 4x @ 2gb shape ($0.0286/Machine-hr) and
-   the empirical 0.55 s/page mean on 4 workers (smoke-test
-   fast-path): **~$0.0011 / 1k pages** = **128× cheaper than
-   Modal's $0.140 / 1k**. Year-ladder backfill (~46k OCR pages):
-   $0.05 on Fly vs $6.50 on Modal. Re-anchor `cost.py` next time
-   the file is touched; cost-test bounds in `tests/unit/test_cost.py`
-   tolerate ±10%, so the change is non-breaking.
-
-   **What the 2 GB pass actually proved.**
-   1. **OOM at the small/mid end is fixed.** 31/51-page PDFs that
-      OOM-killed on 1 GB at anon-rss ~847-862 MB now complete cleanly
-      with intact Portuguese text (54,514 / 88,002 chars); the
-      40%-headroom math holds for the bottleneck case the design
-      was built for.
-   2. **A new degradation mode appeared at 63+ pages.** No OOM in
-      `flyctl logs` (zero `Out of memory` lines during the 2 GB run),
-      but per-page OCR jumped ~6× between 51 and 63 pages — the
-      63-page case took 213.8 s where the trend predicts ~35 s.
-      The 143-page case never returned within the script's 900 s
-      client read-timeout despite Fly's `/healthz` pings continuing
-      to succeed every 30 s (asyncio loop alive, server still
-      running). Most plausible cause: memory pressure short of OOM
-      causing GC churn / page-cache thrash as the 4-worker tesserocr
-      pool's resident model + chunk-overlap PIL rasters approach
-      the 2 GB ceiling on long PDFs. Empirically, the *operational*
-      ceiling for the 4x @ 2gb shape on this workload is ≤63 pages
-      with acceptable wall, not the 295+ that fly.toml's static
-      memory math suggests.
-   3. **Calculated 40% headroom is misleading at the long tail.**
-      Toml comment: peak 1234 MB on 2048 MB = 40%. But the kernel
-      OOM-killer (we saw on 1 GB) fired at ~83% of the configured
-      ceiling, suggesting the *effective* OOM threshold is ~1700 MB
-      on 2 GB, and the 1234 MB calc only accounts for *steady-state
-      first-chunk* — chunk-2 overlap before GC adds another 176 MB
-      transient, putting peak closer to 1410 MB and effective
-      headroom at ~17%.
-
-   **Open follow-ups (priority order, post-2-GB-receipt).**
-
-   1. **Diagnose the 63+ page slowdown.** Two cheap experiments:
-      (a) add `del chunk_imgs; gc.collect()` between chunks in
-      `_ocr_pdf_sync` (forces release of chunk-1 PIL images before
-      chunk-2 allocs), redeploy, re-run the same 6-PDF smoke test
-      and look for the 63-page wall returning to the 35-s trendline;
-      (b) drop `_RASTER_CHUNK_PAGES` from 16 to 8 — halves peak
-      raster spike from 176 MB to 88 MB at the cost of 2× the
-      pdftoppm parse cost, but trades fixed overhead for an ironclad
-      no-pressure ceiling.
-   2. **Larger N for real percentiles.** Sample 50-100 random ACÓRDÃO
-      PDFs from `data/raw/pecas/` spanning page-count buckets,
-      re-run, then claim p50/p90/p99 with statistical force. Without
-      this, current "p95/p99 ≡ max" caveat is the honest read.
-   3. **Restore cluster to production count** (whatever the next
-      sweep needs — currently 10 Machines, was 100 pre-test in the
-      2 GB-streaming-refactor cycle).
-   4. **Decide whether 2 GB at $0.0347/hr is the right shape vs
-      shared-cpu-8x @ 2gb.** If the 63-page slowdown is the chunk-
-      overlap effect (mitigation #1 above), 4x @ 2gb still wins on
-      $/page-slot. If it's hard libtesseract concurrency contention,
-      8x @ 2gb might not help and a different chunk strategy is
-      needed.
-
-2. ~~Sample wall_seconds vs the prior 2x baseline for matched~~
-   PDFs. Expected: ~50% reduction in per-PDF wall (4 workers
-   vs 2). If actual <40% reduction, suspect contention in
-   libtesseract's process-global state and consider whether
-   stepping up to shared-cpu-8x @ 2gb is worth the cost-per-slot
-   regression ($0.00499 vs $0.00435 — slightly worse, but only
-   meaningful if 8x scales near-linearly).
-3. Validate the per-page-slot cost claim against a real
-   end-to-end sweep bill. Compare $/1k pages between the prior
-   2x runs and the first 4x run. If the 39% saving holds, lock
-   in 4x as the cluster-wide default; if it degrades to <25%,
-   revisit (likely cause: 4-worker contention eating the
-   apparent throughput gain).
-
-Open question: would 8 workers + `OMP_NUM_THREADS=2` (instead of
-8 workers + OMP=1) recover any tail throughput on the 8x shape?
-The math says no — cross-page parallelism dominates per-page OMP
-parallelism whenever the page pool is saturated, which it almost
-always is given chunk_size=16. But worth one A/B run if 8x
-becomes a serious candidate.
-
-## Active task — HC year-ladder backfill via 3-stage chain
-
-**Why.** Iterate `varrer-processos → baixar-pecas → extrair-pecas`
-per HC year, working backward from 2026, to close out the four-year
-HC ladder (2022-2026) with current Fly-cloud OCR for ACÓRDÃOs and
-correct EMENTAs corpus-wide.
-
-**Chain shape (per year).** Sequential, idempotent (`set -e` +
-`--retomar` everywhere). Run dir: `runs/active/backfill-hc<YYYY>-<date>/`.
-
-```bash
-export PATH="$HOME/.fly/bin:$PATH"
-export FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract
-export JUDEX_AUTO_TESSERACT_PROVIDER=tesseract_fly
-
-setsid nohup bash -c '
-# Pre-warm the Fly OCR cluster — eliminates the Stage-C cold-start 502
-# storm without paying for an always-warm pool. ~$0.002/pulse; auto-stop
-# returns Machines to $0 ~5 min after the run finishes.
-fly machine start --select -a judex-ocr-tesseract-arcos || true
-sleep 15
-
-uv run judex varrer-processos -c HC -i <PID_LO> -f <PID_HI> \
-    --saida runs/active/backfill-hc<YYYY>-<date>/varrer \
-    --diretorio-itens data/source/processos \
-    --rotulo hc<YYYY>_backfill_<date> --retomar
-
-uv run judex baixar-pecas -c HC -i <PID_LO> -f <PID_HI> \
-    --saida runs/active/backfill-hc<YYYY>-<date>/baixar \
-    --retomar --nao-perguntar
-
-uv run judex extrair-pecas -c HC -i <PID_LO> -f <PID_HI> \
-    --provedor auto \
-    --saida runs/active/backfill-hc<YYYY>-<date>/extrair \
-    --paralelo 10 --retomar --nao-perguntar
-' > runs/active/backfill-hc<YYYY>-<date>/launcher-stdout.log 2>&1 < /dev/null &
-disown
-```
-
-**Template invariants** (don't drop these — each one is a scar from a
-real failure mode this session):
-
-- `setsid nohup … </dev/null & disown` — full session detach. Plain
-  `nohup` survives terminal SIGHUP but not WSL VM suspend (HC 2026
-  original chain died this way ~2 hr in on 2026-05-01).
-- **No `set -e`** in the wrapper. `baixar-pecas` exits non-zero when
-  *any* failures occur (e.g. 10 stable surface-2 404s), and `set -e`
-  would kill the chain before Stage C runs. Each stage's own
-  `--retomar` makes re-launching after a manual stop safe.
-- `fly machine start --select` pre-warm pulse before any extrair work.
-  `--paralelo 10` matches the cluster's organic warm-up rate; pre-warm
-  ensures the cluster is ready when the parallel barrage hits. Without
-  pre-warm, even the new tenacity retry can't always catch all
-  cold-start 502s when 10 requests fire against 0 warm Machines.
-- `--paralelo 10` (not 60). The 60-parallel number was tuned for the
-  always-warm Modal cluster; on Fly with `min_machines_running = 0`
-  it overwhelms the wake-on-request capacity. 10 lets the proxy keep
-  pace with demand. Trade: ~30 min wall vs ~11 min on HC 2026, but
-  with a much higher final success rate.
-- `|| true` on the pre-warm — a transient `fly` CLI failure shouldn't
-  kill the chain. The retry layer in `tesseract_fly.py` will absorb
-  the cold-start storm if pre-warm doesn't fire.
-
-**Per-year PID ranges** (from warehouse, refresh if corpus grows):
-
-| Year | PID range          | Cases captured / total |
-| ---- | ------------------ | ---------------------- |
-| 2026 | 267,138 → 271,139  | 3,099 / 4,001          |
-| 2025 | 250,920 → 267,137  | 13,365 / 16,200        |
-| 2024 | 236,530 → 250,918  | 12,014 / 14,387        |
-| 2023 | 223,886 → 236,833  | 11,129 / 12,644        |
-| 2022 | 210,964 → 223,885  | 10,824 / 13,057        |
-
-**HC 2026 chain in flight** (PID 1280502, launched 2026-05-01 17:40
-BRT). Stage A (varrer) ~done (4001/4002 walked, 3097 ok + 903 dead
-PIDs); stage B + C will auto-trigger via `&&`. Expected total
-wall ~2.5 hr.
-
-**Resumed 2026-05-02 12:44 BRT** after the original chain's parent
-bash died ~19:42 (likely WSL VM suspend; nohup survives SIGHUP but
-not VM exit). Used `setsid nohup … </dev/null & disown` for full
-session detach this time. Stage B finished clean (downloaded=32,
-cached=5,231, failed=10 — all 10 are stable 404s on
-`digital.stf.jus.br/.../votos/<id>/conteudo.pdf` surface-2 IDs that
-were captured in `sessao_virtual.documentos[].url` but no longer
-resolve; harmless edge case, not a regression). Critical wrinkle:
-the chain template's `set -e` interpreted `baixar-pecas`'s non-zero
-exit (10 failures present) as a hard fail, so Stage C never ran via
-the chain — had to launch standalone. **Followup**: either drop
-`set -e` in the chain wrapper or change `baixar-pecas` to exit 0
-when failures are present but capped (the failures live in
-`pdfs.errors.jsonl` regardless).
-
-Stage C (`extrair-pecas --provedor auto --paralelo 60`) launched
-standalone at ~12:45 BRT. Auto router decided **pypdf=4,806 / 
-tesseract_fly=446** (91% / 9% split) — `--provedor auto`
-forecast: $0.03 / ~30 min, vs forced-`tesseract_fly` forecast of
-$0.33 / ~262 min. Validates the auto router's value:
-~11× cheaper, ~8× faster on this corpus shape.
-
-**Known issue — Fly OCR 502s under cold-cluster load.** During
-Stage C's first ~30 min, ~9% of OCR-routed requests
-(~300 / ~3,500 attempted) returned `provider_error (HTTPError: 502
-Bad Gateway)` from `judex-ocr-tesseract-arcos.fly.dev`. Diagnosis:
-the cluster has `min_machines_running = 0` (`fly/fly.toml`), so all
-60 Machines start `stopped`. Local `--paralelo 60` fires faster than
-Fly's auto-start can warm Machines (5s cold-start), so the Fly edge
-proxy routes some requests to Machines mid-boot and bounces them
-with 502. Confirmed by Fly status during the run: cluster sat at
-11-14 `started` Machines for most of Stage C, never warming the full
-60 because `auto_stop_machines = "stop"` re-idles them as soon as a
-batch wave passes. **502 is purely a transport signal** — the PDF
-content is fine; verified by spot-opening source `.pdf.gz` for
-several 502'd URLs (they parse cleanly outside the OCR path).
-
-Stage C final tally (HC 2026, 2026-05-02 12:48-13:00 BRT, 11.3 min
-wall): ok=4,869 (92.3%) / provider_error=383 (7.3%) / cached=11 /
-no_bytes=10. **All 383 failures are Fly OCR transport, none are PDF
-content** — auto-router routed 446 PDFs to `tesseract_fly`, only 63
-succeeded (~14%). The other 383 = the entire OCR failure budget on
-this run, all 502 / ReadTimeout from cold-start cluster.
-
-Three mitigation paths, ordered by lift:
-
-1. ✅ **Tenacity retry landed in `judex/scraping/ocr/tesseract_fly.py`**
-   (2026-05-02). Wraps `_post_extract()` with retry-on-transient
-   (502/503/504 + `requests.ConnectionError` + `requests.Timeout`,
-   incl. ReadTimeout) at **5 attempts × `wait_exponential(2, 2, 30)`**
-   (originally 3 × max=10; bumped after observing the in-flight
-   retry pass needed more headroom against a 60-Machine cold cluster
-   under `--paralelo 20`). 4xx (auth, malformed PDF) fails fast —
-   no retry budget wasted. Pinned by 4 tests in
-   `tests/unit/test_ocr_tesseract_fly.py` (suite 670 pass). With
-   pre-warm pulse + `--paralelo 10` (chain template), the retry
-   becomes the safety net for transient hits during the active run,
-   not the primary cold-start mitigation. Expected post-fix failure
-   budget on a re-run of HC 2026: **<5 PDFs (out of 446 OCR-routed)**,
-   down from 383.
-2. **Bump `min_machines_running = 20` in `fly/fly.toml`** before
-   the next year's chain. Pre-warms a permanent pool, eliminating
-   cold-start at the cost of ~$0.30/day idle billing. Right move
-   for the upcoming HC 2025/2024/2023/2022 ladder where each year
-   is 3-4× larger than 2026 — the retry alone gets us to ~95%, but
-   pre-warming closes the rest.
-3. **Drop `--paralelo 60 → --paralelo 20`** to match warm-cluster
-   capacity. Lower throughput but higher reliability without infra
-   changes. Useful as a stopgap if (2) doesn't ship.
-
-Recommended sequencing: (1) shipped today; (2) is the next
-follow-up before HC 2025 launches. (3) is a fallback knob, not a
-permanent answer.
-
-Failed 502 URLs are recoverable in-place via:
-
-```bash
-uv run judex extrair-pecas \
-    --retentar-de runs/active/backfill-hc2026-2026-05-01/extrair/extracao.errors.jsonl \
-    --provedor tesseract_fly \
-    --saida runs/active/backfill-hc2026-2026-05-01/extrair-retry \
-    --paralelo 20 --nao-perguntar
-```
-
-(Force `tesseract_fly` because `auto` would re-route the same way;
-drop `--paralelo` to match warm capacity.)
-
-**HC 2026 — closed out 2026-05-02 14:30 BRT.** Retry pass v2 (with
-the new tenacity 5×30 retry + pre-warmed cluster + `--paralelo 10`)
-processed 310 previously-failed URLs with **0 failures** (cost
-$0.04, 3,453 pages OCR'd). Combined coverage: **5,179 ok / 10
-legitimately-dead surface-2 voto IDs = 99.8% effective**, well
-past the ≥99% close-out threshold. OCR quality validated by
-8-sample ACÓRDÃO spot-check: EMENTA + ACÓRDÃO markers present in
-100%, body text clean Portuguese, char counts plausible
-(2.4k-23.7k range). Empirical validation that the four-layer
-defense (pre-warm + paralelo 10 + tenacity 5×30 + auto router)
-turns a 7.3% failure rate into 0% on the same workload.
-
-**HC 2025 chain regression caught + fixed (commit `b5cd7d2`).**
-First varrer-processos run since the Phase 1 parser fix
-(`ae19d73`) surfaced an `AttributeError: 'NoneType' object has no
-attribute 'encode'` on every redirect-form DJe entry —
-`_resolve_publicacoes_dje:150` called `detail_fetcher(None)`
-without checking. ~47% case error rate by record 1,300. Killed
-the chain, fixed (skip the detail fetch when `detail_url is
-None`), restarted from the same `--saida` (resume picked up the
-~480 captured cases). Post-restart error rate: 0 in the first
-2,750 records. HC 2026 didn't surface this because Stage A ran
-2026-05-01 *before* the parser fix landed; the bug was latent
-until the next varrer-processos invocation.
-
-**Halt 2026-05-02 20:33 BRT — both backfill chains stopped at
-user request.** Both chains had progressed Stage A (varrer) and
-Stage B (baixar) cleanly and were in Stage C (extrair) at halt
-time. SIGTERM was sent at 20:30 BRT; the `--paralelo 10`
-extractors didn't drain in 10s (workers blocked on in-flight
-`tesseract_fly` round-trips), so escalated to SIGKILL at 20:33.
-State snapshots at halt:
-
-| Chain    | Stage C progress              | Throughput / ETA              | State file mtime |
-| -------- | ----------------------------- | ----------------------------- | ---------------- |
-| HC 2025  | 13,512 / 28,261 (47.8%)       | 0.76 tgt/s · ETA ~323 min     | 20:33            |
-| HC 2021  | 1,179  / 10,062 (~11.7%)      | early ramp                    | 20:32            |
-
-HC 2025 ok=5,784 / cached=6,162 / no_bytes=11 / fail=1,543 at
-halt — the ~11% running fail rate is well above HC 2026's
-post-mitigation 0%, which would have been worth a regime probe
-mid-run. SIGKILL is safe because `peca_store.py`'s atomic
-write contract (tempfile + fsync + rename) means each
-`pdfs.state.json` is either the prior or current snapshot,
-never a half-write; `--retomar` resumes from the last flushed
-record. Resume commands (Stage C only — Stages A + B are
-fully done):
-
-```bash
-uv run judex extrair-pecas -c HC -i 250920 -f 267137 \
-    --provedor auto --saida runs/active/backfill-hc2025-2026-05-02/extrair \
-    --paralelo 10 --retomar --nao-perguntar
-
-uv run judex extrair-pecas -c HC -i 198000 -f 210963 \
-    --provedor auto --saida runs/active/backfill-hc2021-2026-05-02/extrair \
-    --paralelo 10 --retomar --nao-perguntar
-```
-
-**`coletar`-orchestrator smoke test in flight** (PID 504746,
-launched 20:22 BRT). Exercises today's three commits — `42f1d12
-feat(coletar): orchestrator for the 6-stage pipeline (ADR-0004)`,
-`53d3ce3 feat(replay): status-aware retry replay via
-error_triage classifier`, `0abeef7 docs(adr): ADR-0004 coleta
-orchestrator with status-aware retry`. Scope: HC 245000-245099
-(100 cases, narrow slice of HC 2024 PID range). Run dir
-`runs/active/coletar-smoke-2026-05-02/` with the orchestrator's
-own `varrer/`, `baixar/`, `extrair/` sub-dirs (one launcher log
-at the run root, not per-stage). At 20:37 BRT: extrair sub-stage
-50/171 (29.2%) at 0.08 tgt/s, ETA ~24.6 min — slow rate worth
-watching but plausible given the small denominator and the
-`tesseract_fly` Modal hop dominating any non-pypdf doc.
-
-**Monitor.** Same pattern across all 3 stages:
-
-```bash
-tail -f runs/active/backfill-hc2026-2026-05-01/launcher-stdout.log
-```
-
-(Per CLAUDE.md § Conventions, this is the canonical live sweep
-monitor — don't reach for anything fancier first.)
-
-**Done when.** Stage C's `report.md` shows ≥99% ok across the
-year's targets; spot-check 5–10 ACÓRDÃO `.txt.gz` files (`EXTRATO
-DE ATA` and `RELATÓRIO`/`VOTO` markers should appear exactly once
-per doc). Then move on to HC 2025, repeating the chain with the
-next PID range. After all five years close out, rebuild the
-warehouse: `uv run judex atualizar-warehouse --classe HC`.
-
-## In-flight side-quest — ADR-0003 Phase 1 (DJe parser fix)
-
-**Why.** Today's HC 2026 baixar-pecas / extrair-pecas pre-flight surfaced that surface 3 (`publicacoes_dje[]`) emits zero URLs for HC 2023+ in every case JSON since STF's DJe content-URL migration on **2022-12-19** (date pinned by STF's own footer — *"Até o dia 19/12/2022, o Supremo Tribunal Federal mantinha dois Diários de Justiça Eletrônicos com conteúdos distintos"*). Initial diagnosis (system-changes.md row 2026-04-21) blamed the new `digital.stf.jus.br` platform's AWS WAF and queued Playwright as the only fix. Reconnaissance today refuted that: **the legacy `listarDiarioJustica.asp` endpoint still serves the publication metadata** for every year — our `parse_dje_listing` parser was hard-requiring the `abreDetalheDiarioProcesso(...)` JS-callback shape that STF kept only for procedural Distribuição entries. Substantive entries (Decisão / Acórdão / Despacho) post-migration use plain redirect-anchor shape, which the parser silently dropped. ADR-0003 codifies the diagnosis + fix path.
-
-**Phase 1 — landed (parser + tests + types + ADR + docs):**
-
-- ✅ `judex/scraping/extraction/dje.py` — `_DJ_HEADER_RE` loosened to match *"DJ do dia DD/MM/YYYY"* without DJ number; new redirect-anchor branch in the parsing loop emits `PublicacaoDJe` entries with `external_redirect=https://digital.stf.jus.br/publico/publicacoes`, `detail_url=None`, `incidente_linked=None`.
-- ✅ `judex/data/types.py` — `PublicacaoDJe.numero: int → Optional[int]`; `detail_url: str → Optional[str]`; `incidente_linked: int → Optional[int]`; new `external_redirect: Optional[str]`. Pre-migration entries unchanged in shape.
-- ✅ `tests/unit/test_extract_dje.py` — 4 new tests against captured HC 236529 (HC 2024) + HC 267138 (HC 2026) listing fixtures. Existing 10 tests still pass. Full unit suite 665/665 pass.
-- ✅ ADR-0003 (`docs/adr/0003-surface-3-dje-capture-path.md`) — full diagnosis + Phase 1 vs Phase 2 (deferred Playwright) + open questions.
-- ✅ ADR-0001 — header updated to "step 3 validates 2 of 3 surfaces; surface 3 awaits ADR-0003".
-- ✅ `docs/system-changes.md` row dated 2022-12-19 — corrected from "Playwright queued" to "Phase 1 in progress; Phase 2 deferred".
-
-**Phase 1 — landed (renormalize HC 2023-2026 case JSONs, no STF traffic):**
-
-- ✅ One-shot Python pass: read every HC 2023-2026 case JSON, extract `dje_listing.html` from per-case tar.gz cache at `data/raw/html/HC_<pid>.tar.gz`, run patched parser, atomic-write the case JSON when parser yields ≥1 entry. Conservative selection: skip cases with already-populated `publicacoes_dje[]` (preserves HC 2022's 18,585 legacy entries; explicit non-goal of Phase 1).
-- ✅ Run summary (528s wall, ~76 files/s): **20,690 cases populated, 51,361 publication entries surfaced.** 14,933 cases unchanged (degenerate-cache HTML — page-shell with no result content). 299 cases without HTML cache. Year-by-year coverage: 2023 → 15,660 / 2024 → 19,588 / 2025 → 22,328 / 2026 → 4,727.
-- ✅ Manual portal verification: HC 223889 (2023, 1 entry, `numero=None`, `data=2023-01-09`) matches what STF's browser page shows.
-
-**Phase 1 — pending:**
-
-- ✅ Ran `uv run judex atualizar-warehouse --classe HC` 2026-05-02 12:43 BRT (~6 min, atomic swap, 1.85 GB warehouse). Empirical close-out by year (HC, post-migration):
-
-  | Year | `publicacoes_dje` coverage | Was | `decisoes_dje.rtf_url` |
-  | ---- | --------------------------:| ---:| ----------------------:|
-  | 2022 |                      74.5% | 74.5% (legacy era unchanged) | 10,128 (legacy) |
-  | 2023 |                  **49.8%** | **0%** | 0 (Phase 2 deferred) |
-  | 2024 |                  **57.0%** | **0%** | 0 (Phase 2 deferred) |
-  | 2025 |                  **72.8%** | **0%** | 0 (Phase 2 deferred) |
-  | 2026 |                  **73.0%** | **0%** | 0 (Phase 2 deferred) |
-
-  Pub-entry counts match the renormalize report exactly for 2025 (22,328) and 2026 (4,727); 2023/2024 land within ~3% of the renormalize numbers (warehouse flatten/dedupe path). All-zero `decisoes_dje.rtf_url` for 2023+ is the literal storage manifestation of "Phase 2 deferred" (per ADR-0003).
-- ✅ Commit Phase 1 to `dev` — landed as `ae19d73 feat(dje): capture post-migration redirect entries (ADR-0003 Phase 1)`.
-- [ ] Field-coverage audit (Sampled 50-500 per year × 21 fields × cliff/always-empty/drop-recent flags) — looking for OTHER systematic gaps similar to the DJe regression. Slow scan (90k file glob + sample); previous attempts hit Bash buffering / timeout problems. **Park for a focused offline run** rather than fighting the tool plumbing live.
-
-**Phase 2 — explicitly deferred** unless a downstream analysis demands DJe-only decision content text. The metadata layer (Phase 1) covers ~80% of DJe queries per system-changes.md note; full content recovery requires Playwright + AWS WAF challenge solving (1-2 day lift). Forcing question for later: *does any analysis need DJe-only content beyond what surfaces 1 + 2 already provide?* Owner: data-side comparison on HC 2022, the only year with both legacy DJe content and full surface-1/2 coverage.
-
-**HC 2022 enrichment — open follow-up.** Phase 1's selection skipped HC 2022 (already populated, no regression risk). But the cached HTML for those cases has been refreshed since the original 2022 scrape (HC 210826 has 1 entry on disk, parser would emit 3 from current cache: 1 legacy + 2 redirect). Renormalizing HC 2022 with a *merge-not-replace* strategy could add ~2 redirect entries per case on top of existing legacy entries — strict gain, no data loss. Not blocked by anything; defer until Phase 1 ships and proves stable.
-
-## Backlog (carried over from prior cycle)
-
-1. **Urgent — DJe scraper regression** (post-2022 blackout).
-   Path 1 (andamentos-side regex parse) is the cheap mitigation;
-   Path 2 (Playwright against `digital.stf.jus.br`) is the proper
-   fix. See archived cycle § "Urgent — DJe scraper regression"
-   for the full diagnosis + 200-case empirical table.
-2. **HC 2017–2021 case sweeps** — ~37k missing case widths combined,
-   ordered by year-density. Once cases land, re-use the 3-stage
-   chain above per year.
-3. **Schema cleanup** — drop `andamentos.link_text` /
-   `documentos.text` / `decisoes_dje.rtf_text` from the warehouse
-   build path (queries already use `pdfs_substantive`'s join).
-4. **`publicacoes_dje` → warehouse** — open warehouse gap noted in
-   prior archive § Backlog.
-5. **`pick_provider` env-var override** is in place
-   (`JUDEX_AUTO_TESSERACT_PROVIDER`) but the auto-router default
-   remains `"tesseract"` for unit-test stability. Consider flipping
-   the default to `"tesseract_fly"` once the Fly path proves stable
-   over a full year-ladder.
+Final state of `runs/active/hc2021-fillin-20260504-v2/`:
+
+- `cases: 14,682` (12,702 ok + 1,980 terminal `unallocated_pid`)
+- `pecas: 20,203` (19,913 ok + 290 terminal `empty`)
+- `text: 19,913 ok` (no missing — every ok-bytes row had its successor text)
+- Quality grade **B**: text_ok 19,913 / 20,203 = 98.6%
+
+The 290 `empty` peças are URLs where STF's `portal.stf.jus.br` /
+`sistemas.stf.jus.br` serves 0 bytes (no document on the server-side).
+Recuperar's loop correctly identified them as non-actionable on the second
+classification pass — `stopped for no progress`. They are persistent and
+won't unstick on retry.
+
+**Why this finished so fast** (30 s for 14,682 cases): nearly the entire
+case-meta layer was a state.json cache hit from the May 5 sweep — only
+the 351 transient bytes residuals + the meta probes for the 1,980 newly-confirmed
+`unallocated_pid` slots needed real network work. After the corpus restore
+(below), the warehouse rebuild was the only sizeable wall-time cost.
+
+---
+
+## Resolved this session — corpus restored from May 3 backup (2026-05-11)
+
+Mid-session the warehouse rebuild surfaced **0 cases** despite the chain
+having processed 12,702 of them on May 5. Investigation showed
+`data/source/processos/HC/` (the canonical case-JSON sink at
+`judex/pipeline/handlers.py:176`) had been deleted from the live tree;
+mtime of `data/` was 2026-05-05 00:39 BRT — the same wall-clock minute
+as `~/projects/archive/` (the renamed previous incarnation of judex-mini).
+That's almost certainly when somebody reshuffled the working tree and
+the corpus dir got wiped in the move. `data/` is `.gitignore`'d so there
+was no git history trail.
+
+**Recovery anchor:** `runs/active/backups/judex-backup-20260503T054402Z.zip`
+— 17.6 GB, 422,786 files, schema=2, integrity-verified via `unzip -t`
+(all CRCs intact). MANIFEST.json claimed 91,048 HC case JSONs +
+106,755 .pdf.gz + 115,640 .txt.gz at canonical paths. Mirror copies
+existed at `/mnt/c/Users/noah_/My Drive/data science/`
+(`judex-backup-20260426T153124Z.zip` 6.8 GB and
+`judex-data-2026-04-19.tar.zst` 2.2 GB) — strictly older / less complete.
+
+Restore via `unzip -n` (never overwrite) preserved the ~6k .pdf.gz and
+~9k .txt.gz the May 4-5 chain had written *after* the May 3 backup point.
+Final counts post-restore:
+
+| Path                                          | Before | After    | Backup had |
+|-----------------------------------------------|-------:|---------:|-----------:|
+| `data/source/processos/HC/*.json`             |      0 | **91,048** | 91,048   |
+| `data/raw/pecas/*.pdf.gz`                     |  6,055 | **112,791** | 106,755 |
+| `data/derived/pecas-texto/*.txt.gz`           |  9,387 | **124,965** | 115,640 |
+
+Disk usage net of the day: 451 GB used → 411 GB used. Restoration cost
++22 GB; cleanup recovered −27 GB (Synapse cache) −37 GB (archive/) on
+top. Disk free now 546 GB / 1007 GB total (43% used).
+
+**Off-host backup mirrored to Drive.** The 17.6 GB May 3 zip is now also
+at `/mnt/c/Users/noah_/My Drive/data science/judex-backup-20260503T054402Z.zip`
+(rsync `--inplace --partial`, ~3 min 40 s wall, source/dest byte-exact;
+the earlier `cp` attempt failed with WSL2's drvfs `Cannot allocate memory`
+on multi-GB writes — rsync's per-block I/O dodged it).
+
+**Lesson pinned.** `.gitignore`'d `data/` paired with no host-level
+canary check means a corpus deletion is silent. The MANIFEST.json inside
+the backup zip was what made recovery a one-command operation (instead of
+"is this archive intact? unzip and see"). Pattern worth keeping for any
+future `judex arquivar`-style command.
+
+**What's NOT in the May 3 backup** (will need re-fetch from STF if you
+care about those rows): the ~12k new case JSONs the May 4-5 chain captured
+fresh — HC 2024 fill-in resume + HC 2025 pending recheck + HC 2022 + HC
+2021 metadata. The current warehouse therefore reflects the May 3 corpus
+snapshot, not the May 4-5 chain's deltas. Re-running the May 4-5 chain
+against the same `--saida` dirs would mostly cache-hit on bytes/text and
+fetch the case-meta deltas (~3-5 hr direct-IP). Documented but not done
+this session.
+
+---
+
+## Resolved this session — sweep-lifecycle CLI feature (2026-05-11)
+
+Closed the documented gap (prior archive § "Strategic — simplify the CLI
+surface · Sweep lifecycle as three first-class commands"). What landed:
+
+### New + extended commands
+
+| Command / flag                       | What it does                                                                                              | Source                |
+|--------------------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------|
+| `judex executar --detach / -d`       | Forks the parent into a new session with stdout/stderr → `<saida>/launcher.log`, prints `pid:`/`log:`/`parar:` advice, exits 0. Replaces `setsid nohup … & disown`. | `judex/cli.py`        |
+| `judex parar [run_dir]`              | SIGTERM all pids from `executar.pid` (mono) or `shards.pids` (sharded), poll until gone or `--timeout` (default 30 s). `--forcar` escalates to SIGKILL. | `judex/cli.py`        |
+| `judex retomar [run_dir]`            | Reads the `args` block now persisted on `executar.state.json` and re-dispatches `executar` with the operator's original argv. Falls back to a clean exit-2 if the run pre-dates the args block. | `judex/cli.py`        |
+| **default-to-newest** on `[run_dir]` | All five Coleta commands (`acompanhar`, `relatar`, `recuperar`, `parar`, `retomar`) now default to the most-recently-touched dir under `runs/active/`. Echoes `(default) run_dir = <path>` on stderr. | `_resolve_run_dir` shared helper |
+
+### Primitives that made it possible (lower layer)
+
+| Change                                              | Source                          | Why                                                                  |
+|-----------------------------------------------------|---------------------------------|----------------------------------------------------------------------|
+| `<saida>/executar.pid` written on `run_pipeline` entry, removed in its `finally` block | `judex/pipeline/runner.py`     | `parar` needs a pid to signal; mono runs didn't write one before     |
+| New `state.original_args` field (additive, no schema bump) + `state.set_original_args` (one-way idempotent setter) | `judex/pipeline/state.py`       | `retomar` reads this; legacy state files load with `original_args=None` and get a clean error message from `retomar` |
+| `run_pipeline` gained `original_args: Optional[dict]` kwarg; `executar` Typer wrapper packs its kwargs into it | `judex/pipeline/runner.py` + `judex/cli.py` | Captures the operator's first invocation so `retomar` can rebuild the argv |
+| `_resolve_run_dir(explicit: Optional[Path]) -> Path` helper | `judex/cli.py`                  | One place where "no arg → newest" lives — five commands inherit it instantly |
+
+### Tests (+25, total 1,048 passing)
+
+| File                                  | New tests | Highlights                                                                                                  |
+|---------------------------------------|----------:|-------------------------------------------------------------------------------------------------------------|
+| `tests/unit/test_pipeline_state.py`   | +3        | `original_args` round-trip, idempotent on resume, legacy-state defaults None                                |
+| `tests/unit/test_pipeline_runner.py`  | +2        | pid file present mid-run + removed on graceful exit; args captured into state journal                       |
+| `tests/unit/test_cli_lifecycle.py` (new) | +20    | Helper unit tests + end-to-end `parar` against real PIDs (mono + sharded + stale-pid) + retomar argv reconstruction + `--detach` integration + uniform-surface contract pinned across all five Coleta commands |
+
+**Pinned in `test_cli_lifecycle.py::test_acompanhar_relatar_recuperar_default_to_newest_run_dir`**: iterates over the command names; if anyone adds a sixth Coleta command and forgets to call `_resolve_run_dir`, the test breaks. That's the load-bearing one for the uniform-surface contract.
+
+**Non-obvious gotcha pinned in the runner pid-file test**: zombie semantics. The end-to-end `parar` test against a spawned child needed a background daemon-thread reaper because subprocess.Popen leaves SIGTERM'd children as zombies (`os.kill(pid, 0)` still succeeds for zombies) — which doesn't reproduce in production where parar isn't the parent of the executar process. Documented in `_spawn_sleeper_with_reaper`'s docstring so the next person reading the test knows why it's not just `Popen + parar`.
+
+### What's intentionally NOT done
+
+The PRD in the archive (§ "Sweep lifecycle as three first-class commands")
+also mentioned shell-completion via `Typer`'s `--completion` hook so
+`judex parar <tab>` enumerates real run names. Not done — would need a
+`shell_complete=` callback on the `<run_dir>` arg pointing at
+`judex.pipeline.run_index.label_candidates` (already exists). Filed as a
+loose end below.
+
+---
+
+## Resolved this session — housekeeping
+
+- **Synapse cache deleted** (27 GB recovered). `~/.synapseCache/` held a
+  clinical EEG dataset from `syn50614821` (123 subjects × ~470 MB BioSemi
+  `.bdf` recordings, downloaded Feb 2025 for the dormant `~/lis/right-word-eeg/`
+  project). Manifest preserved at
+  `~/lis/right-word-eeg/manifest_1739892945834266839.csv` — re-downloadable
+  from Synapse with credentials when needed.
+- **`~/projects/archive/` deleted** (37 GB recovered). A frozen
+  pre-cleanup snapshot of judex-mini (had `.venv/`, `.mypy_cache/`,
+  `dist/`, `data/` mirroring the canonical tree, no source code, no git
+  history). All data superseded by the May 3 backup restore; the only
+  unique content was ~300 KB of `hc_famous_lawyers.{md,pdf,_blog.zip}`
+  rendered outputs which are regeneratable from
+  `analysis/reports/2026-04-19-hc-famous-lawyers.py` if needed.
+
+---
+
+## Active task — HC year-ladder backfill (multi-cycle)
+
+Items #1 (May 4-5 chain delta re-run), #2 (HC 2020 outlier recovery)
+both closed today by direct work. Item #3 (HC 2024 text coverage
+anomaly) **auto-closed as a side effect of the delta re-run** — the
+2026-05-12 warehouse rebuild shows HC 2024 text at 99.9% (was 80%
+in the 2026-04-30 snapshot). The data-coverage anomaly resolved
+itself without a targeted retry; what remains is a *quality*
+spot-check, which is much cheaper than the original "find and
+re-extract ~3k underperforming PDFs" plan. See
+`docs/completion-tracker.md` for the refreshed per-year table.
+Remaining priority queue:
+
+1. ~~**HC 2020 outlier-recovery byte re-fetch** — done 2026-05-12 ✓~~
+   Closed today: 4/8 outliers OCR'd via local Tesseract (3 already-cached
+   + 1 re-fetched via 2-case `judex executar` run, archived at
+   `runs/archive/hc2020-outlier-bytes-refetch/`). **4/8 permanently
+   lost / unrecoverable**: 3 are orphan-URLs from the corpus deletion
+   event (`id=15346588384` / `15353487630` / `15346093660` — owning
+   cases were among the ~12k case-JSON deltas the May 3 backup
+   doesn't have; not surfaced anywhere in the restored HC corpus);
+   1 is a persistent server-side empty (`id=15347614538` in HC 193726
+   — STF serves 0 bytes for that URL today, same pattern as the 63
+   stuck-empties in HC 2021 delta). Going forward, the same residual
+   class would be drained automatically by `recuperar --loop --apply`
+   via the PROVIDER_SWITCH `outlier_skipped → tesseract` route
+   (`recuperar.py:172`) — today's manual fix was specifically a
+   pre-recuperar-v2 cleanup. Cache state after today:
+   `_extract-hc2020-outliers-direct.py` is idempotent so a future
+   re-run only processes new arrivals.
+2. ~~**HC 2024 text coverage anomaly** — auto-closed 2026-05-12 ✓~~
+   Text coverage is now 21,889/21,904 = 99.9% (vs the 80% baseline
+   from the 2026-04-30 snapshot that originally surfaced the anomaly).
+   The delta re-run's case-meta refetches + bytes/text caches catching
+   up filled the gap without any targeted retry. **Quality spot-check
+   still recommended** — sample 5-10 `.txt.gz` files from HC 2024 to
+   confirm the text content is usable (not pypdf-mojibake / silent-
+   whitespace failures). 10-min task. If quality holds, this item
+   closes entirely.
+3. **HC 2023 bytes coverage hole** — 14,456 / 21,453 = 67% on bytes
+   while text is at 97%. Surfaced 2026-05-12 by the post-delta
+   warehouse snapshot; the 2026-04-30 baseline had 2023 bytes at
+   70%. Likely URL-set churn between the bytes sweep and the latest
+   warehouse rebuild — a targeted `executar --csv` over the affected
+   cases (or `baixar-pecas`) should close the gap cheaply.
+4. **HC 2017–2019 fresh sweeps** — pre-2021 layer of the priority queue
+   per [`docs/completion-tracker.md`](completion-tracker.md). HC 2017 is
+   the natural next density × budget target.
+5. **ADR-0001 step 3 — surface 2 + 3 byte-gap backfill** for HC
+   2017–2024 (~50–80k URLs, direct-IP, ~5-10 hr/year). HC 2025 + 2026
+   already done.
+
+---
+
+## Loose ends — consolidated from prior archives
+
+Items that landed this session (sweep-lifecycle triplet, recuperar
+v2, `--loop` convergence, `unallocated_pid`-filter, args-capture state
+schema) are dropped. What remains:
+
+### Strategic — finalize the database (analysis-ready handoff)
+
+The warehouse has been a moving target: schema v1 → v8, table layout
+in flux, RTF/PDF separation pending, inline-text fields slated for
+deletion. The goal is a **freeze-candidate** milestone where the schema
+is declared closed for net-new fields, all known coverage gaps are
+filled, and the doc surface matches the live shape. Workstreams:
+
+- **Coverage.** Today's restore is at the May 3 corpus level. The May
+  4-5 chain delta re-run (above) + HC 2020 outlier OCR + HC 2025
+  pending recheck + HC 2017–2019 fresh sweeps + ADR-0001 step 3 jointly
+  gate the freeze.
+- **Schema lock-in.** Declare `schema_version=8` final (no v9 without
+  an ADR). Drop inline `andamentos.link_text` / `documentos.text` /
+  `decisoes_dje.rtf_text` from the build path (queries already use the
+  `pdfs_substantive` join). Rename `pdfs` → `pecas`. Rename bytes-cache
+  suffix `.pdf.gz` → `.bytes.gz`. Promote `pdfs_substantive` to canonical
+  analysis entry-point view.
+- **Currency contract.** After the May 4-5 delta re-run, write down a
+  periodic recheck cadence (quarterly?) so callers know when
+  `outcome=None` means "STF hasn't decided" vs "we haven't re-scraped".
+- **Doc fidelity.** Bring `docs/data-dictionary.md` and
+  `docs/warehouse-design.md` to match the locked schema.
+- **Build determinism.** Pin the build-input hash (count + sha of
+  source JSONs + text gzs) in the rebuild log so any output diff has a
+  known upstream cause. **Today's rebuild was a soft data point**:
+  91,048 cases / 1.9 GB DB after the May 3 restore. Pin this as the
+  May-restore baseline.
+
+### Strategic — operator survivability against silent corpus loss
+
+Surfaced by today's data-loss postmortem (corpus wipe between May 5 and
+May 11 with no audit trail because `/data/` is `.gitignore`'d):
+
+- **`judex debug fazer-backup` should be scheduleable.** Today it's
+  manual. A `judex schedule fazer-backup --weekly` or a cron snippet in
+  README would have meant today's corpus state was already on Drive
+  before the wipe. The schedule skill exists; one entry would close
+  this.
+- **Host-level canary on `data/source/processos/<classe>/`.** A simple
+  shell guard run on `executar` startup: "if the canonical source dir
+  exists but is empty for a class that has cases in state.json, that's
+  a corpus-deletion event — refuse to write fresh JSONs there until the
+  operator confirms". Catches accidental wipes before they propagate
+  through a sweep.
+- **MANIFEST.json convention is load-bearing.** Today the manifest
+  inside the backup zip is what made recovery a one-command operation
+  (file_count + sources + created_at). Keep the pattern for any future
+  `judex arquivar`-style command.
+
+### Strategic — simplify the CLI surface (continued)
+
+Lifecycle triplet ✅ landed today. What remains from the prior list:
+
+- **Apply the flag audit to `peca_cli`** (`baixar-pecas` + `extrair-pecas`
+  still expose `--impte-contem`, `--relator-contem`, `--tipos-doc`,
+  `--excluir-tipos-doc`, `--limite` — the same filter knobs we removed
+  from `executar`).
+- **Audit `judex debug` subgroup.** `debug fazer-backup` is a real
+  operator tool — promote to top-level. `debug providers` could be
+  `judex --providers` or a standalone script. Keep `debug
+  analisar-regimes`, `debug probe`, `debug validar-gabarito`,
+  `debug exportar`, `debug relatorio-diario`.
+- **Help-text consistency across the whole CLI.** Today's
+  Portuguese-tightening pass cleaned only `executar`. Other commands
+  still mix English jargon (`Direct-IP`, `case JSON`, `flat file`,
+  `default`, `bypass`) into Portuguese helps.
+- **Shell-completion on `<run_dir>` arguments.** Hook the existing
+  `judex.pipeline.run_index.label_candidates` into Typer's
+  `shell_complete=` callback so `judex parar <tab>` enumerates real run
+  names. ~20 LOC.
+
+### Tactical CLI / observability fixes
+
+- **`bytes` stage doesn't distinguish cached vs freshly downloaded.**
+  `report.md` shows a single `bytes: ok=N` bucket while `text` already
+  splits `ok=N + skipped_cached=M`. Add `cached: bool` to
+  `fetch_bytes` log; split `ok` → `ok_fresh` + `skipped_cached` in
+  `report.md`.
+- **404s on voto PDFs deserve a distinct error class.** 6 known-permanent
+  404s on `digital.stf.jus.br/decisoes-monocraticas/api/public/votos/{id}/conteudo.pdf`
+  live as generic `http_error`. A `permanent_404` terminal status would
+  let `--retentar-de` skip them. Pairs with the `unallocated_pid` filter
+  (already shipped in PR #16).
+- **Intra-case URL dedup in `handle_fetch_meta`.** 50-case validation
+  surfaced 3 intra-case duplicate peça URLs. Cost is bookkeeping noise;
+  ~3 lines to fix.
+- **CliffDetector `--cliff-require-sustained K` flag.** Current detector
+  trips on a single window-sample; K=3 would absorb rotation-forgiveness
+  patterns. Non-blocking.
+
+### Investigation / postmortem incomplete
+
+- **2026-05-02 14:12–15:22 BRT — 13,747 case JSONs written to wrong
+  path.** Sweep wrote to `data/source/processos/*.json` instead of
+  `data/source/processos/HC/`. Operator moved them; root cause untraced.
+  Add verifier guard: `ls data/source/processos/*.json` must be 0. Grep
+  launcher logs from that window to identify the offending sweep.
+- **HC 2024 text coverage anomaly — 80% vs 97–99% on 2023/2022.**
+  ~3k-row gap. Cause unverified (provider failures? RTF mistypes?
+  scanned originals?). Spot-check + focused `--csv` retry with
+  chandra/tesseract on the underperforming subset.
+- **2026-05-05 / 2026-05-11 corpus deletion event.** When exactly was
+  `data/source/processos/HC/` wiped from the live tree? Dir mtime on
+  `~/projects/archive/` was 2026-05-05 00:39 — same minute as `data/`
+  mtime. Probably during a directory shuffle that produced `archive/`,
+  but the operator-side actions are uncorrelated. Filed for the
+  survivability strategic item above.
+
+### Architecture / spec work
+
+- **ADR-0003 Phase 2 — Playwright fallback for surface 3
+  (`publicacoes_dje`).** Phase 1 (loosened parser + redirect-anchor
+  branch) landed 2026-05-02 (`ae19d73`). Phase 2 (full PDF fetch via
+  Playwright past the AWS WAF JS challenge on `digital.stf.jus.br`) is
+  deferred until empirical demand forces it.
+- **ACÓRDÃO re-extract corpus-wide via auto-router.** HC 2026 closed out
+  with Fly Tesseract (5,179 ok / 10 dead surface-2 IDs = 99.8%
+  effective, EMENTA validated 100% in spot-check). HC 2017–2025 ACÓRDÃO
+  files still hold pypdf text from before the column-scramble bug was
+  diagnosed — silent gold-CER ~12%, vs Tesseract's 0.75%. Per-year wall
+  ≈ 1.8 hr × Fly shared-cpu-2x × 60 ≈ $0.10 / 1k pages.
+
+### Cost / performance / warehouse hygiene
+
+- **Re-anchor `judex/utils/cost.py` for new Fly shape (shared-cpu-4x @ 2 gb).**
+  Currently anchored to old 2x @ 4 gb. New empirical shape:
+  $0.0286/Machine-hr, 0.55 s/page mean, ~$0.0011 / 1k pages (vs Modal's
+  $0.140). Tests use ±10% bounds — non-breaking.
+- **Drop inline text fields from warehouse build path** (`andamentos.link_text`
+  / `documentos.text` / `decisoes_dje.rtf_text`).
+- **Warehouse table rename `pdfs` → `pecas`.** Holds all peças (PDF + RTF);
+  name is a v3-era artifact.
+- **Bytes-cache suffix rename `.pdf.gz` → `.bytes.gz`.** 5-step migration
+  script exists.
+- **Fly OCR — 143-page+ PDFs hit shared-CPU credit ceiling.** 1 MB
+  compressed-bytes threshold gates them out of production today (0.016%
+  of corpus). Decision: park further optimisation; fall back to local
+  Tesseract for the tail.
+
+### Doc / observability drift
+
+- **Completion tracker refreshed today** (post-restore + warehouse
+  rebuild). Reflects the May 3 corpus snapshot; will need another
+  refresh after the May 4-5 chain delta re-run.
+
+---
 
 ## Where things live (durable pointers)
 
@@ -1219,40 +508,34 @@ warehouse: `uv run judex atualizar-warehouse --classe HC`.
 - [`docs/warehouse-design.md`](warehouse-design.md) — DuckDB schema + build.
 - [`docs/data-dictionary.md`](data-dictionary.md) — schema history v1→v8.
 - [`docs/completion-tracker.md`](completion-tracker.md) — per-year coverage.
+- [`docs/recovery-patterns.md`](recovery-patterns.md) — multi-step residual recovery.
+- [`docs/agent-sweeps.md`](agent-sweeps.md) — context-window pitfalls + detached pattern.
 - [`docs/reports/`](reports/) — promoted narratives (validation sweeps, OCR bakeoff).
 - [`docs/superpowers/specs/`](superpowers/specs/) — major-feature design specs.
-- [`fly/`](../fly/) — Fly.io OCR app (Dockerfile + server.py + fly.toml + README).
+- [`fly/`](../fly/) — Fly.io OCR app.
 
 ## Working conventions
 
 - **`analysis/`** — git-ignored scratch for this-session exploration.
-- **`config/`** — git-ignored (credentials). Canonical proxy input is
-  `config/proxies` (flat file).
-- **All non-trivial arithmetic via `uv run python -c`** — never mental
-  math. See `CLAUDE.md § Arithmetic`.
+- **`config/`** — git-ignored (credentials).
+- **All non-trivial arithmetic via `uv run python -c`** — never mental math.
 - **Sweeps write a directory**, not a file. Layout in
   [`docs/data-layout.md § Sweep run artifacts`](data-layout.md#sweep-run-artifacts).
-- **Live sweep monitor**: `tail -f <run_dir>/launcher-stdout.log` is
-  the canonical view across all 3 pipeline stages — see
-  `CLAUDE.md § Conventions`. Don't roll bespoke monitor scripts.
-- **Archive convention**: when the active task closes out or this file
-  grows past ~500 lines, move it (or the cycle-specific portion) to
-  `docs/progress_archive/YYYY-MM-DD_HHMM_<slug>.md`.
-- **Per-thread status convention** (added 2026-05-03 because the file
-  hit 1196 lines with implicit-status threads). Every top-level
-  section uses one of three prefixes:
-  - `## Open thread — <slug> (<date>)` — active, still load-bearing
-    for the current session. Default for new sections.
-  - `## Resolved — <slug> (<date>)` — closed but kept in the file as
-    short-term context (e.g. resume commands the next session might
-    still want). Archive at the *next* session boundary, not the
-    moment of resolution.
+- **Live sweep monitor**: `judex acompanhar [run_dir]` is canonical
+  (auto-detects mono vs sharded; defaults to newest under `runs/active/`).
+- **Sweep lifecycle**: `judex executar --detach` → `judex acompanhar` →
+  `judex parar` → `judex retomar` → `judex relatar` → `judex recuperar
+  --loop --apply --nao-perguntar`. All commands default to the newest
+  `runs/active/` dir when invoked without an argument.
+- **Run direct-IP sweeps serially.** One judex process == one WAF
+  reputation budget. Stacking parallel direct-IP runs splits the budget
+  and trips the 403 cliff.
+- **Archive convention**: when this file grows past ~500 lines or all
+  Open/Resolved sections drain, move it to
+  `docs/progress_archive/YYYY-MM-DD_HHMM_<slug>.md` and start a fresh
+  notebook carrying the live threads + a consolidated loose-ends list.
+- **Per-thread status convention.** Top-level sections use one of:
+  - `## Open thread — <slug> (<date>)` — active, still load-bearing.
+  - `## Resolved — <slug> (<date>)` — closed but kept short-term.
   - `## Active task — <slug>` / `## In-flight side-quest — <slug>` —
-    multi-cycle work, distinct from a single-thread "open"/"resolved"
-    pair. Stays at the top.
-
-  When all `## Open thread` and `## Resolved` sections drain (or the
-  file passes ~500 lines), apply the archive convention above. The
-  flip from `Open thread` → `Resolved` is the load-bearing signal —
-  it makes "what's still alive in this notebook" greppable without
-  reading every section.
+    multi-cycle work. Stays at the top.

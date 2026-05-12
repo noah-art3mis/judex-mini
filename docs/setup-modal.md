@@ -35,7 +35,7 @@ correct — the PDF has no rendered text.
 ## Wire it into a sweep
 
 ```bash
-uv run judex extrair-pecas --csv runs/active/<sweep>/cases.csv \
+uv run judex executar --csv runs/active/<sweep>/cases.csv \
     --provedor tesseract_modal --paralelo 8 \
     --saida runs/active/<sweep>/ --retomar
 ```

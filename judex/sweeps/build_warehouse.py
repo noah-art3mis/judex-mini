@@ -4,12 +4,13 @@ Rebuilds the DuckDB warehouse at ``data/derived/warehouse/judex.duckdb``
 from the current ``data/source/processos/`` + ``data/derived/pecas-texto/``
 stores. Full rebuild, atomic swap, no incremental logic.
 
-Surfaced via Typer at ``judex atualizar-warehouse``; library entry point
-is :func:`run_build_warehouse`. Examples:
+Surfaced via Typer at ``judex warehouse`` (with deprecated alias
+``judex atualizar-warehouse``); library entry point is
+:func:`run_build_warehouse`. Examples:
 
-    uv run judex atualizar-warehouse
-    uv run judex atualizar-warehouse --classe HC
-    uv run judex atualizar-warehouse --year 2026 --classe HC \\
+    uv run judex warehouse
+    uv run judex warehouse --classe HC
+    uv run judex warehouse --year 2026 --classe HC \\
         --output data/derived/warehouse/judex-2026.duckdb
 """
 
@@ -30,6 +31,7 @@ def run_build_warehouse(
     progress_every: int = 10_000,
     strict: bool = False,
     unallocated_pids_root: Path = Path("data/derived/nao-alocados"),
+    runs_root: Path | None = None,
 ) -> int:
     id_range = None
     if year is not None:
@@ -56,6 +58,7 @@ def run_build_warehouse(
             progress_every=progress_every,
             strict=strict,
             unallocated_pids_root=unallocated_pids_root,
+            runs_root=runs_root if (runs_root is not None and runs_root.exists()) else None,
         )
     except builder.BuildValidationError as e:
         # `strict=True` raises *after* writing the warehouse file + printing

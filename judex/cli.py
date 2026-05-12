@@ -15,12 +15,10 @@ Exemplos:
 
     uv run judex --help
     uv run judex executar --csv lista.csv --saida out/         # caminho primário (ADR-0005)
-    uv run judex debug varrer-processos -c HC -i 135041 -f 135041    # legacy (ad-hoc range)
-    uv run judex debug baixar-pecas -c HC -i 252920 -f 253000       # legacy (bytes only)
-    uv run judex debug extrair-pecas -c HC -i 252920 -f 253000 \\
-        --provedor mistral --nao-perguntar                          # legacy (OCR-only)
-    uv run judex atualizar-warehouse --classe HC               # rebuild DuckDB
-    uv run judex exportar --apenas hc_famous_lawyers
+    uv run judex executar -c HC -i 250920 -f 267137            # range mode
+    uv run judex recuperar runs/active/<label>/ --apply        # residual recovery
+    uv run judex warehouse --classe HC                          # rebuild DuckDB
+    uv run judex debug exportar --apenas hc_famous_lawyers     # marimo HTML export
 """
 
 from __future__ import annotations
@@ -63,30 +61,247 @@ DEFAULT_NOTEBOOKS: tuple[str, ...] = (
 )
 
 app = typer.Typer(
-    add_completion=False,
+    add_completion=True,
     help="judex-mini — hub do raspador + análise do STF.",
     no_args_is_help=True,
 )
 
-# Legacy three-command chain (varrer → baixar → extrair) plus the
-# `coletar` orchestrator. Superseded by `judex executar` (ADR-0005)
-# but kept reachable here as ad-hoc utilities — re-running just one
-# pool of a finished Coleta, or operator habit. The library code in
-# `judex/sweeps/` stays the canonical home; this sub-app only changes
-# the CLI surface.
+# Sub-app for inspection / validation / export utilities that aren't
+# part of the everyday operator loop (`executar` → `acompanhar` →
+# `relatar` + `recuperar` + `warehouse`). The legacy three-
+# command chain (varrer / baixar / extrair / coletar) was removed
+# from the CLI surface; the library code in `judex/sweeps/` stays for
+# `pick_provider` and shared helpers used by the unified pipeline.
+# Recoverable on the `archive/iteration-2-three-command-chain` branch.
 debug_app = typer.Typer(
-    add_completion=False,
-    help="Comandos auxiliares: chain legada pré-pipeline "
-         "(varrer/baixar/extrair/coletar) + utilitários de inspeção, "
-         "validação, comparação de provedores, backup e exportação. "
-         "`judex executar` é o caminho primário do dia-a-dia.",
+    add_completion=True,
+    help="Utilitários auxiliares (inspeção, backup, exportação, validação).",
     no_args_is_help=True,
 )
-app.add_typer(debug_app, name="debug")
+app.add_typer(debug_app, name="debug", rich_help_panel="Utilitários")
 
 
 # ---------------------------------------------------------------------------
 # helpers compartilhados
+
+
+# ---------------------------------------------------------------------------
+# Sweep lifecycle primitives (shared by `executar --detach`, `parar`, and
+# `retomar`). Each helper is a thin pure function — the Typer wrappers
+# below just compose them.
+#
+# The pid-file contract is: ``run_pipeline`` writes ``<saida>/executar.pid``
+# at startup, deletes it in its finally block. Mono runs land here; sharded
+# runs use ``<saida>/shards.pids`` (one PID per line, written by
+# ``launch_sharded``). ``_read_pids`` prefers shards.pids when both exist —
+# a sharded run has N children to signal, not one.
+
+
+def _newest_run_dir(root: Path = Path("runs/active")) -> Optional[Path]:
+    """Newest sub-directory under ``root`` by mtime, or ``None`` when the
+    root is missing / empty. Used by every Coleta command that takes a
+    ``<run_dir>`` argument: when the operator omits it, the resolver
+    falls back to this so the natural "I just paused something, now do
+    the next thing" workflow doesn't require re-typing the path."""
+    if not root.exists() or not root.is_dir():
+        return None
+    candidates = [p for p in root.iterdir() if p.is_dir()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _resolve_run_dir(explicit: Optional[Path]) -> Path:
+    """Return ``explicit`` if provided; otherwise default to the newest
+    sub-directory under ``runs/active/``. If neither is available,
+    exit with a clear typer error. Every Coleta command shares this
+    resolver so the "no arg → newest" sugar is uniform across
+    ``parar``, ``retomar``, ``acompanhar``, ``relatar``, ``recuperar``.
+
+    ``explicit`` can be a real path *or* a label (``rotulo`` or
+    directory name). When it doesn't exist as a directory we fall
+    through to ``find_by_label``: exact match wins, prefix match
+    accepted when unambiguous, otherwise we error with the candidate
+    list. This is the Modal/Heroku affordance — operators address
+    runs by name, not coordinate.
+
+    Echoes ``(default) run_dir = <path>`` on stderr when defaulting so
+    the operator sees which run is being targeted — no silent
+    assumptions about identity."""
+    if explicit is not None:
+        if explicit.is_dir():
+            return explicit
+        # Not an existing path: try interpreting as a label.
+        from judex.pipeline.run_index import find_by_label
+        matches = find_by_label(str(explicit))
+        if not matches:
+            typer.echo(
+                f"erro: '{explicit}' não é um diretório existente nem um "
+                "rótulo conhecido em runs/active|archive/.",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+        # Exact match (rotulo or dir name) trumps prefix match.
+        exact = [
+            m for m in matches
+            if m.rotulo == str(explicit) or m.saida.name == str(explicit)
+        ]
+        chosen_pool = exact or matches
+        if len(chosen_pool) > 1:
+            typer.echo(
+                f"erro: '{explicit}' é ambíguo. Candidatos:",
+                err=True,
+            )
+            for m in chosen_pool:
+                typer.echo(f"  {m.saida}  ({m.status.value})", err=True)
+            raise typer.Exit(code=2)
+        resolved = chosen_pool[0].saida
+        typer.echo(f"(rótulo) run_dir = {resolved}")
+        return resolved
+
+    chosen = _newest_run_dir()
+    if chosen is None:
+        typer.echo(
+            "erro: nenhum diretório encontrado em runs/active/. "
+            "Passe <run_dir> explícito.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    typer.echo(f"(padrão) run_dir = {chosen}")
+    return chosen
+
+
+def _complete_run_label(incomplete: str) -> list[str]:
+    """Typer shell-completion hook: enumerate run labels matching the
+    partial input. Used on ``<run_dir>`` / ``<saida>`` arguments so
+    ``judex parar hc<tab>`` expands to a real label.
+
+    Imported lazily by Typer at completion-evaluation time; never
+    runs in the hot path of a regular command invocation."""
+    try:
+        from judex.pipeline.run_index import label_candidates
+        return label_candidates(incomplete)
+    except Exception:
+        # Completion must never crash the shell — return empty on any
+        # error (e.g. a corrupt state.json mid-snapshot).
+        return []
+
+
+def _read_pids(saida: Path) -> list[int]:
+    """Pids associated with ``<saida>``. Sharded layout wins when both
+    files exist (a sharded run has N children — signalling only the mono
+    pid would orphan the rest)."""
+    shards_pids = saida / "shards.pids"
+    if shards_pids.exists():
+        return _parse_pid_file(shards_pids)
+    mono_pid = saida / "executar.pid"
+    if mono_pid.exists():
+        return _parse_pid_file(mono_pid)
+    return []
+
+
+def _parse_pid_file(path: Path) -> list[int]:
+    out: list[int] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(int(line))
+        except ValueError:
+            continue
+    return out
+
+
+def _is_pid_alive(pid: int) -> bool:
+    """``os.kill(pid, 0)`` is the POSIX "process exists?" probe — sends
+    no signal but raises ``ProcessLookupError`` when the pid is gone."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # We can't signal it but it exists.
+        return True
+    return True
+
+
+def _build_retomar_argv(
+    saida: Path,
+    args: dict,
+    *,
+    nao_perguntar: bool,
+    detach: bool,
+) -> list[str]:
+    """Reconstruct an ``executar`` argv from a state-journal args block.
+
+    Pure / total — easy to test independently of subprocess plumbing.
+    """
+    argv: list[str] = ["executar"]
+    if args.get("classe"):
+        argv.extend(["-c", str(args["classe"])])
+    if args.get("inicio") is not None:
+        argv.extend(["-i", str(args["inicio"])])
+    if args.get("fim") is not None:
+        argv.extend(["-f", str(args["fim"])])
+    if args.get("csv"):
+        argv.extend(["--csv", str(args["csv"])])
+    if args.get("retentar_de"):
+        argv.extend(["--retentar-de", str(args["retentar_de"])])
+    argv.extend(["--saida", str(saida)])
+    if args.get("rotulo"):
+        argv.extend(["--rotulo", str(args["rotulo"])])
+    if args.get("provedor") and args["provedor"] != "pypdf":
+        argv.extend(["--provedor", str(args["provedor"])])
+    if args.get("forcar"):
+        argv.append("--forcar")
+    if args.get("proxy_pool"):
+        argv.extend(["--proxy-pool", str(args["proxy_pool"])])
+    if args.get("portal_concurrencia") not in (None, 1):
+        argv.extend(["--portal-concurrencia", str(args["portal_concurrencia"])])
+    if args.get("sistemas_concurrencia") not in (None, 1):
+        argv.extend(["--sistemas-concurrencia", str(args["sistemas_concurrencia"])])
+    if args.get("ocr_concurrencia") not in (None, 4):
+        argv.extend(["--ocr-concurrencia", str(args["ocr_concurrencia"])])
+    if nao_perguntar:
+        argv.append("--nao-perguntar")
+    if detach:
+        argv.append("--detach")
+    return argv
+
+
+def _executar_kwargs_for_state(
+    *,
+    classe: Optional[str],
+    inicio: Optional[int],
+    fim: Optional[int],
+    csv: Optional[Path],
+    retentar_de: Optional[Path],
+    rotulo: Optional[str],
+    provedor: str,
+    forcar: bool,
+    portal_concurrencia: int,
+    sistemas_concurrencia: int,
+    ocr_concurrencia: int,
+    proxy_pool: Optional[Path],
+) -> dict:
+    """Pack the executar invocation's args into a JSON-serializable
+    dict ready to persist via ``state.set_original_args``. Paths get
+    str()-ified so they survive a snapshot round-trip."""
+    return {
+        "classe": classe,
+        "inicio": inicio,
+        "fim": fim,
+        "csv": str(csv) if csv else None,
+        "retentar_de": str(retentar_de) if retentar_de else None,
+        "rotulo": rotulo,
+        "provedor": provedor,
+        "forcar": forcar,
+        "portal_concurrencia": portal_concurrencia,
+        "sistemas_concurrencia": sistemas_concurrencia,
+        "ocr_concurrencia": ocr_concurrencia,
+        "proxy_pool": str(proxy_pool) if proxy_pool else None,
+    }
 
 
 def _push(argv: list[str], flag: str, value: Any) -> None:
@@ -137,7 +352,7 @@ def exportar(
              "Repita para selecionar vários. Omita para exportar todos.",
     ),
 ) -> None:
-    """Exporta os cinco notebooks Marimo de HC como HTML interativo autônomo."""
+    """Exporta os notebooks de análise como HTML interativo."""
     diretorio_saida.mkdir(parents=True, exist_ok=True)
 
     selecionados = tuple(apenas) if apenas else DEFAULT_NOTEBOOKS
@@ -191,7 +406,7 @@ def fazer_backup(
     saida: Optional[Path] = typer.Option(
         None, "--saida", "-o",
         help="Caminho do .zip de saída. Default: "
-             "runs/active/backups/judex-backup-<UTC>.zip.",
+             "runs/backups/judex-backup-<UTC>.zip.",
     ),
     sem_pecas: bool = typer.Option(
         False, "--sem-pecas",
@@ -203,7 +418,7 @@ def fazer_backup(
         False, "--incluir-warehouse",
         help="Inclui data/derived/warehouse/judex.duckdb. Por padrão fica "
              "de fora — é artefato derivado, regenerável via "
-             "`atualizar-warehouse`.",
+             "`warehouse`.",
     ),
     classe: Optional[list[str]] = typer.Option(
         None, "--classe",
@@ -231,24 +446,20 @@ def fazer_backup(
         help="Frequência (em arquivos) das linhas de progresso. 0 desliga.",
     ),
 ) -> None:
-    """Empacota processos + peças num único .zip aberto pelo Windows.
+    """Empacota o corpus num .zip que abre direto no Windows.
 
-    Saída atômica: grava em <saida>.tmp e renomeia ao final. Compressão é
-    por entrada — JSON deflaciona, .gz/.pdf/.rtf vão como ZIP_STORED.
+    Saída atômica (grava em ``.tmp`` e renomeia ao final).
 
-    Para um backup completo (processos + peças + warehouse):
+    Exemplos:
 
-        uv run judex fazer-backup --incluir-warehouse
-
-    Para só metadados de HC (sem peças, sem warehouse):
-
-        uv run judex fazer-backup --classe HC --sem-pecas
+        uv run judex debug fazer-backup --incluir-warehouse
+        uv run judex debug fazer-backup --classe HC --sem-pecas
     """
     from judex.backup import make_backup
 
     if saida is None:
         stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-        saida = Path("runs/active/backups") / f"judex-backup-{stamp}.zip"
+        saida = Path("runs/backups") / f"judex-backup-{stamp}.zip"
 
     typer.echo(f"empacotando -> {saida}")
     typer.echo(f"  processos:    {diretorio_processos}{f' (classes={classe})' if classe else ''}")
@@ -276,958 +487,124 @@ def fazer_backup(
 
 
 # ---------------------------------------------------------------------------
-# `varrer-processos` — varredura em massa de processos (encaminha para scripts.run_sweep)
-
-
-@debug_app.command(name="varrer-processos")
-def varrer_processos(
-    # Três modos de entrada: range (-c/-i/-f), --csv ou --retentar-de.
-    classe: Optional[str] = typer.Option(
-        None, "-c", "--classe",
-        help="[modo range] Classe processual (HC, RE, AI, ADI etc.). "
-             "Combine com -i e -f para rodar um intervalo contíguo sem "
-             "CSV.",
-    ),
-    processo_inicial: Optional[int] = typer.Option(
-        None, "-i", "--processo-inicial",
-        help="[modo range] Primeiro processo do intervalo (inclusivo).",
-    ),
-    processo_final: Optional[int] = typer.Option(
-        None, "-f", "--processo-final",
-        help="[modo range] Último processo do intervalo (inclusivo).",
-    ),
-    csv: Optional[Path] = typer.Option(
-        None, "--csv",
-        help="[modo CSV] CSV de entrada com pares (classe, processo).",
-    ),
-    rotulo: Optional[str] = typer.Option(
-        None, "--rotulo",
-        help="Rótulo curto identificando esta varredura. Obrigatório nos "
-             "modos --csv / --retentar-de; em modo range é inferido como "
-             "`{classe}_{i}-{f}`.",
-    ),
-    saida: Optional[Path] = typer.Option(
-        None, "--saida",
-        help="Diretório de saída (recebe sweep.log.jsonl, sweep.state.json, "
-             "sweep.errors.jsonl, report.md). Obrigatório nos modos --csv "
-             "/ --retentar-de; em modo range é inferido como "
-             "`runs/coletas/{YYYYMMDD_HHMMSS}-{rotulo}/`.",
-    ),
-    gabarito_dir: Optional[Path] = typer.Option(
-        None, "--gabarito-dir",
-        help="Diretório de fixtures de gabarito para diff por processo.",
-    ),
-    paridade_csv: Optional[Path] = typer.Option(
-        None, "--paridade-csv",
-        help="CSV-baseline (p.ex. saída do Selenium) para comparação de paridade.",
-    ),
-    passagem_quente: bool = typer.Option(
-        False, "--passagem-quente",
-        help="Faz uma segunda passagem sobre a mesma lista sem limpar o cache.",
-    ),
-    limpar_cache: bool = typer.Option(
-        False, "--limpar-cache",
-        help="Remove data/html dos processos da varredura antes de iniciar.",
-    ),
-    retomar: bool = typer.Option(
-        False, "--retomar",
-        help="Pula processos já marcados como status=ok em sweep.state.json.",
-    ),
-    retentar_de: Optional[Path] = typer.Option(
-        None, "--retentar-de",
-        help="Caminho para um sweep.errors.jsonl existente; reroda só esses processos.",
-    ),
-    progresso_cada: int = typer.Option(
-        25, "--progresso-cada",
-        help="Imprime totais corridos a cada N processos.",
-    ),
-    retry_403: bool = typer.Option(
-        True, "--retry-403/--no-retry-403",
-        help="Retry em 403 (o WAF do STF usa 403, não 429, como sinal de throttle).",
-    ),
-    diretorio_itens: Optional[Path] = typer.Option(
-        None, "--diretorio-itens",
-        help="Grava um judex-mini_<CLASSE>_<n>-<n>.json por processo ok aqui.",
-    ),
-    janela_cliff: int = typer.Option(
-        50, "--janela-cliff",
-        help="Janela rolante do CliffDetector para classificar o regime.",
-    ),
-    ignorar_collapse: bool = typer.Option(
-        False, "--ignorar-collapse",
-        help="Continua raspando mesmo com regime=collapse (em vez de parar limpo).",
-    ),
-    proxy_pool: Optional[Path] = typer.Option(
-        None, "--proxy-pool",
-        help="Arquivo com uma URL de proxy por linha; habilita rotação "
-             "proativa. Em modo monolítico vai direto para run_sweep; em "
-             "modo sharded (--shards > 1) o launcher divide round-robin em "
-             "N pools materializados em <saida>/proxies/proxies.<letra>.txt "
-             "(linhas em branco e comentários '#' ignorados). Obrigatório "
-             "em modo sharded.",
-    ),
-    shards: int = typer.Option(
-        0, "--shards",
-        help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard), cada um com sua fatia round-robin "
-             "do --proxy-pool. Exige --csv, --saida, --rotulo e "
-             "--proxy-pool.",
-    ),
-    excluir_nao_alocados: Optional[Path] = typer.Option(
-        None, "--excluir-nao-alocados",
-        help="Caminho para um arquivo <classe>.txt (um processo_id por "
-             "linha) gerado por scripts/aggregate_unallocated_pids.py; "
-             "IDs listados são omitidos da varredura. Aplicável em modo "
-             "range — filtra o CSV sintetizado.",
-    ),
-    estrategia_shard: str = typer.Option(
-        "interleave", "--estrategia-shard",
-        help="Particionamento de CSV em modo sharded. 'interleave' "
-             "(padrão) distribui linhas round-robin entre shards, "
-             "equilibrando qualquer dimensão correlacionada com a "
-             "ordem do CSV. 'range' mantém pids contíguos por shard.",
-    ),
-    prever: bool = typer.Option(
-        False, "--prever",
-        help="Mostra previsão de custo + tempo (single direct-IP vs "
-             "16 shards) e sai sem rodar a varredura. Anchors em "
-             "judex/utils/cost.py.",
-    ),
-) -> None:
-    """Varredura do backend HTTP do STF — serve para um processo, cem ou cem mil.
-
-    Três modos de entrada (mutuamente exclusivos):
-
-    - **Modo range** (``-c CLASSE -i N -f M``): raspa o intervalo
-      contíguo ``[N..M]`` da classe. Forma ad-hoc, sem CSV. Rótulo
-      e diretório de saída são inferidos se omitidos — basta
-      ``judex varrer-processos -c HC -i 135041 -f 135041``.
-    - **Modo CSV** (``--csv arquivo.csv``): lê pares ``(classe,
-      processo)`` do arquivo; escala para dezenas de milhares de
-      processos. Exige ``--rotulo`` e ``--saida``.
-    - **Modo retentar** (``--retentar-de sweep.errors.jsonl``):
-      reroda apenas os processos que falharam em uma varredura
-      anterior. Exige ``--saida`` (apontando para o diretório da
-      varredura original, em regra).
-
-    Toda execução materializa ``sweep.log.jsonl`` (append-only),
-    ``sweep.state.json`` (estado atômico compacto),
-    ``sweep.errors.jsonl`` e ``report.md`` em ``--saida``. SIGINT /
-    SIGTERM encerram de forma limpa depois que o processo em curso
-    termina. Em modo range, um sub-diretório ``items/`` recebe
-    ``judex-mini_<CLASSE>_<n>-<n>.json`` (um por processo) —
-    substitui o comportamento do antigo ``coletar -o json``.
-    """
-    # Detecta e valida o modo de entrada
-    range_flags_given = [
-        f for f, v in
-        [("-c", classe), ("-i", processo_inicial), ("-f", processo_final)]
-        if v is not None
-    ]
-    range_mode = len(range_flags_given) > 0
-    if range_mode and len(range_flags_given) != 3:
-        raise typer.BadParameter(
-            "Modo range exige os três: -c (classe), -i (inicial), -f (final). "
-            f"Faltou: {[f for f in ('-c', '-i', '-f') if f not in range_flags_given]}."
-        )
-
-    n_modes = int(range_mode) + int(csv is not None) + int(retentar_de is not None)
-    if n_modes == 0:
-        raise typer.BadParameter(
-            "Escolha um modo de entrada: range (-c/-i/-f), --csv ou "
-            "--retentar-de."
-        )
-    if n_modes > 1:
-        raise typer.BadParameter(
-            "Modos de entrada mutuamente exclusivos: escolha apenas um "
-            "entre range (-c/-i/-f), --csv ou --retentar-de."
-        )
-
-    # `--prever`: count targets per mode + print forecast table + exit.
-    # Runs before any side-effecting setup (temp-CSV write, dead-id load,
-    # saída/ mkdir) so users can plan recipes without leaving artifacts.
-    if prever:
-        from judex.utils.cost import (
-            forecast_varrer_processos,
-            render_forecast_table,
-        )
-
-        if range_mode:
-            assert (
-                classe is not None
-                and processo_inicial is not None
-                and processo_final is not None
-            )
-            n_cases = processo_final - processo_inicial + 1
-            if excluir_nao_alocados is not None:
-                from judex.utils.unallocated_pids import load_unallocated_pids
-                unallocated = load_unallocated_pids(excluir_nao_alocados)
-                n_cases -= sum(
-                    1 for p in range(processo_inicial, processo_final + 1)
-                    if p in unallocated
-                )
-        elif csv is not None:
-            with csv.open(encoding="utf-8") as fp:
-                # CSV has a (classe, processo) header — subtract it.
-                n_cases = max(0, sum(1 for _ in fp) - 1)
-        else:
-            assert retentar_de is not None
-            with retentar_de.open(encoding="utf-8") as fp:
-                n_cases = sum(1 for _ in fp)
-
-        fcs = forecast_varrer_processos(n_cases)
-        typer.echo(render_forecast_table(
-            fcs, n_units=n_cases, unit_label="cases",
-        ))
-        raise typer.Exit(code=0)
-
-    # Modo range: sintetiza CSV temporário + auto-defaults de rótulo/saída
-    tmp_csv: Optional[Path] = None
-    if range_mode:
-        assert classe is not None and processo_inicial is not None and processo_final is not None
-        validate_stf_case_type(classe)
-        validate_process_range(processo_inicial, processo_final)
-
-        # Auto-default do rótulo: {CLASSE}_{i}-{f}
-        if rotulo is None:
-            rotulo = f"{classe.upper()}_{processo_inicial}-{processo_final}"
-        # Auto-default da saída: runs/coletas/{timestamp}-{rotulo}/
-        if saida is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            saida = Path("runs/coletas") / f"{ts}-{rotulo}"
-        # Auto-default do --items-dir em modo range: saída/items/
-        if diretorio_itens is None:
-            diretorio_itens = saida / "items"
-
-        saida.mkdir(parents=True, exist_ok=True)
-
-        # Carrega o registro de não-alocados se o usuário passou --excluir-nao-alocados.
-        if excluir_nao_alocados is not None:
-            from judex.utils.unallocated_pids import load_unallocated_pids
-            unallocated = load_unallocated_pids(excluir_nao_alocados)
-        else:
-            unallocated = set()
-
-        # Grava o CSV persistente dentro de --saida (não em /tmp): fica
-        # auditável ao lado dos demais artefatos da varredura.
-        tmp_csv = saida / "input.csv"
-        n_written = 0
-        with tmp_csv.open("w", encoding="utf-8", newline="") as fp:
-            writer = _csv.writer(fp)
-            writer.writerow(["classe", "processo"])
-            for p in range(processo_inicial, processo_final + 1):
-                if p in unallocated:
-                    continue
-                writer.writerow([classe.upper(), p])
-                n_written += 1
-        csv = tmp_csv
-
-        total = processo_final - processo_inicial + 1
-        dead_msg = (
-            f", {total - n_written} não-alocado(s) excluído(s)"
-            if unallocated else ""
-        )
-        typer.echo(
-            f"Modo range: {classe} {processo_inicial}..{processo_final} "
-            f"({n_written} processo(s){dead_msg}). "
-            f"Rótulo={rotulo!r}, saída={saida}."
-        )
-
-    # Nos modos --csv / --retentar-de, rótulo e saída continuam obrigatórios
-    if rotulo is None:
-        raise typer.BadParameter(
-            "--rotulo é obrigatório quando a entrada é --csv ou --retentar-de."
-        )
-    if saida is None:
-        raise typer.BadParameter(
-            "--saida é obrigatório quando a entrada é --csv ou --retentar-de."
-        )
-
-    # Modo shardeado: particiona o CSV em N e dispara N filhos detach.
-    # Mesma forma que baixar-pecas --shards — inclusive PIDs/monitor.
-    if shards > 1:
-        if csv is None:
-            raise typer.BadParameter(
-                "--shards > 1 exige --csv (sharding particiona o CSV). "
-                "Modo range já sintetizou um CSV; mas --shards + range "
-                "só faz sentido acima de ~milhares de processos."
-            )
-        if proxy_pool is None:
-            raise typer.BadParameter(
-                "--shards > 1 exige --proxy-pool (arquivo flat com URLs; "
-                "o launcher divide round-robin entre os shards)."
-            )
-
-        from judex.sweeps.shard_launcher import launch_sharded
-
-        # Flags que valem a pena carregar para todos os shards. O launcher
-        # spawna `uv run judex varrer-processos ...` por shard, então as
-        # flags abaixo são as mesmas do Typer (em português).
-        extra: list[str] = []
-        _push(extra, "--retomar", retomar)
-        _push(extra, "--diretorio-itens", diretorio_itens)
-        _push(extra, "--progresso-cada", progresso_cada)
-        _push(extra, "--janela-cliff", janela_cliff)
-        _push(extra, "--ignorar-collapse", ignorar_collapse)
-        if not retry_403:
-            extra.append("--no-retry-403")
-
-        if estrategia_shard not in ("interleave", "range"):
-            raise typer.BadParameter(
-                f"--estrategia-shard inválida: {estrategia_shard!r}. "
-                "Use 'interleave' ou 'range'."
-            )
-        try:
-            pids_path = launch_sharded(
-                command="varrer-processos",
-                command_group="debug",
-                csv_path=csv,
-                shards=shards,
-                proxy_pool=proxy_pool,
-                saida_root=saida,
-                label_prefix=rotulo,
-                extra_args=extra,
-                strategy=estrategia_shard,  # type: ignore[arg-type]
-            )
-        except ValueError as e:
-            raise typer.BadParameter(str(e))
-
-        typer.echo(f"Lançou {shards} shards em background.")
-        typer.echo(f"  PIDs:   {pids_path}")
-        typer.echo(f"  Watch:  pgrep -af {rotulo}_shard_")
-        typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
-        raise typer.Exit(code=0)
-
-    from judex.sweeps.run_sweep import run_process_sweep
-
-    raise typer.Exit(code=run_process_sweep(
-        label=rotulo,
-        out=saida,
-        csv=csv,
-        parity_dir=gabarito_dir,
-        parity_csv=paridade_csv,
-        warm_pass=passagem_quente,
-        wipe_cache=limpar_cache,
-        resume=retomar,
-        retry_from=retentar_de,
-        progress_every=progresso_cada,
-        retry_403=retry_403,
-        items_dir=diretorio_itens,
-        cliff_window=janela_cliff,
-        no_stop_on_collapse=ignorar_collapse,
-        proxy_pool=proxy_pool,
-    ))
-
-
-# ---------------------------------------------------------------------------
-# `baixar-pecas` — baixa os PDFs brutos para o cache local
-# `extrair-pecas` — extrai texto via provedor (pypdf, mistral, chandra, unstructured)
-
-
-@debug_app.command(name="baixar-pecas")
-def baixar_pecas(
-    # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
-    classe: Optional[str] = typer.Option(
-        None, "-c", "--classe",
-        help='Classe (p.ex. "HC"). Sozinha → filtros. Com -i/-f → range.',
-    ),
-    inicio: Optional[int] = typer.Option(
-        None, "-i", "--inicio",
-        help="Primeiro processo do range (inclusive).",
-    ),
-    fim: Optional[int] = typer.Option(
-        None, "-f", "--fim",
-        help="Último processo do range (inclusive).",
-    ),
-    csv: Optional[Path] = typer.Option(
-        None, "--csv",
-        help="CSV de (classe, processo). Ganha de range e filtros.",
-    ),
-    retentar_de: Optional[Path] = typer.Option(
-        None, "--retentar-de",
-        help="Caminho de um pdfs.errors.jsonl anterior; reroda só essas URLs.",
-    ),
-    # Filtros (fallback).
-    impte_contem: str = typer.Option(
-        "", "--impte-contem",
-        help='Filtro: substrings (qualquer uma) para IMPTE.(S).',
-    ),
-    tipos_doc: str = typer.Option(
-        "", "--tipos-doc",
-        help="Filtro: valores exatos de andamento.link.tipo.",
-    ),
-    relator_contem: str = typer.Option(
-        "", "--relator-contem",
-        help="Filtro: substrings em .relator.",
-    ),
-    excluir_tipos_doc: str = typer.Option(
-        "", "--excluir-tipos-doc",
-        help="Filtro: tipos de doc a pular (depois de --tipos-doc).",
-    ),
-    apenas_substantivas: bool = typer.Option(
-        True, "--apenas-substantivas/--todos-tipos",
-        help="Pula peças tier-C (certidões, termos, intimações) por padrão. "
-             "Ver docs/peca-tipo-classification.md. Use --todos-tipos para "
-             "desativar e baixar TODAS as peças.",
-    ),
-    limite: int = typer.Option(
-        0, "--limite",
-        help="Trunca em N alvos (0 = sem limite).",
-    ),
-    # Execução.
-    saida: Optional[Path] = typer.Option(
-        None, "--saida",
-        help="Diretório de saída. Usa runs/active/baixar-adhoc se omitido.",
-    ),
-    forcar: bool = typer.Option(
-        False, "--forcar",
-        help="Rebaixar mesmo se os bytes já estiverem em disco.",
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run",
-        help="Só prévia; não baixa nada.",
-    ),
-    nao_perguntar: bool = typer.Option(
-        False, "--nao-perguntar",
-        help="Pula o confirm. Obrigatório para não-TTY.",
-    ),
-    retomar: bool = typer.Option(
-        False, "--retomar",
-        help="Pula alvos já status=ok em pdfs.state.json.",
-    ),
-    proxy_pool: Optional[Path] = typer.Option(
-        None, "--proxy-pool",
-        help="Arquivo com uma URL de proxy por linha; habilita rotação "
-             "proativa. Em modo monolítico vai direto para baixar_pecas; "
-             "em modo sharded (--shards > 1) o launcher divide round-robin "
-             "em N pools materializados em <saida>/proxies/proxies.<letra>.txt "
-             "(linhas em branco e comentários '#' ignorados). Sem este "
-             "flag em modo monolítico, baixa via IP direto. Obrigatório "
-             "em modo sharded.",
-    ),
-    shards: int = typer.Option(
-        0, "--shards",
-        help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard), cada um com sua fatia round-robin "
-             "do --proxy-pool. Exige --csv, --saida e --proxy-pool.",
-    ),
-    estrategia_shard: str = typer.Option(
-        "interleave", "--estrategia-shard",
-        help="Particionamento de CSV em modo sharded. 'interleave' "
-             "(padrão) distribui linhas round-robin entre shards, "
-             "equilibrando workloads correlacionados com a ordem do CSV "
-             "(ex.: URLs já em cache vs. fresh). 'range' mantém pids "
-             "contíguos por shard.",
-    ),
-    prever: bool = typer.Option(
-        False, "--prever",
-        help="Mostra previsão de custo + tempo (single direct-IP vs "
-             "16 shards) e sai sem baixar. Atalho para "
-             "--dry-run --nao-perguntar; ignora --shards.",
-    ),
-) -> None:
-    """Baixa PDFs do STF para o cache local de bytes.
-
-    Metade do pipeline que fala com o portal STF; escreve bytes crus
-    em ``data/raw/pecas/<sha1(url)>.<ext>.gz``. A extração de texto é
-    um comando separado (``extrair-pecas``).
-
-    Prioridade de modos de entrada: ``--retentar-de`` > ``--csv`` >
-    range (``-c`` + ``-i``/``-f``) > filtros.
-
-    Rotação de proxy é opcional e espelha ``varrer-processos``: sem
-    ``--proxy-pool``, roda em IP direto (comportamento padrão). Com
-    ``--proxy-pool``, o driver troca de sessão/IP proativamente — janela
-    alinhada com o tempo que o WAF do STF leva para esquecer um IP.
-    """
-    if prever:
-        # Forecast-only path: short-circuit to the monolithic dry-run flow,
-        # which lets `print_download_preview` render the side-by-side
-        # forecast table without resolving shards or touching state.
-        dry_run = True
-        nao_perguntar = True
-        shards = 0
-
-    if shards > 1:
-        if csv is None:
-            raise typer.BadParameter(
-                "--shards > 1 exige --csv (sharding particiona o CSV)."
-            )
-        if saida is None:
-            raise typer.BadParameter(
-                "--shards > 1 exige --saida (raiz das pastas por shard)."
-            )
-        if proxy_pool is None:
-            raise typer.BadParameter(
-                "--shards > 1 exige --proxy-pool (arquivo flat com URLs; "
-                "o launcher divide round-robin entre os shards)."
-            )
-
-        from judex.sweeps.shard_launcher import launch_sharded
-
-        extra: list[str] = []
-        _push(extra, "--retomar", retomar)
-        _push(extra, "--forcar", forcar)
-        _push(extra, "--nao-perguntar", nao_perguntar)
-        if apenas_substantivas:
-            extra.append("--apenas-substantivas")
-        else:
-            extra.append("--todos-tipos")
-
-        if estrategia_shard not in ("interleave", "range"):
-            raise typer.BadParameter(
-                f"--estrategia-shard inválida: {estrategia_shard!r}. "
-                "Use 'interleave' ou 'range'."
-            )
-        try:
-            pids_path = launch_sharded(
-                command="baixar-pecas",
-                command_group="debug",
-                csv_path=csv,
-                shards=shards,
-                proxy_pool=proxy_pool,
-                saida_root=saida,
-                extra_args=extra,
-                strategy=estrategia_shard,  # type: ignore[arg-type]
-            )
-        except ValueError as e:
-            raise typer.BadParameter(str(e))
-
-        typer.echo(f"Lançou {shards} shards em background.")
-        typer.echo(f"  PIDs:   {pids_path}")
-        typer.echo(f"  Watch:  pgrep -af baixar_pecas")
-        typer.echo(f"  Stop:   xargs -a {pids_path} kill -TERM")
-        raise typer.Exit(code=0)
-
-    from judex.sweeps.baixar_pecas import run_download_pecas
-    raise typer.Exit(code=run_download_pecas(
-        classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de,
-        impte_contem=impte_contem, tipos_doc=tipos_doc,
-        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, apenas_substantivas=apenas_substantivas,
-        saida=saida, forcar=forcar, dry_run=dry_run,
-        nao_perguntar=nao_perguntar, retomar=retomar,
-        proxy_pool=proxy_pool,
-    ))
-
-
-@debug_app.command(name="extrair-pecas")
-def extrair_pecas(
-    # Modos de entrada (prioridade: retentar-de > csv > range > filtros).
-    classe: Optional[str] = typer.Option(
-        None, "-c", "--classe",
-        help='Classe (p.ex. "HC"). Sozinha → filtros. Com -i/-f → range.',
-    ),
-    inicio: Optional[int] = typer.Option(
-        None, "-i", "--inicio",
-        help="Primeiro processo do range (inclusive).",
-    ),
-    fim: Optional[int] = typer.Option(
-        None, "-f", "--fim",
-        help="Último processo do range (inclusive).",
-    ),
-    csv: Optional[Path] = typer.Option(None, "--csv"),
-    retentar_de: Optional[Path] = typer.Option(None, "--retentar-de"),
-    # Filtros (fallback).
-    impte_contem: str = typer.Option("", "--impte-contem"),
-    tipos_doc: str = typer.Option("", "--tipos-doc"),
-    relator_contem: str = typer.Option("", "--relator-contem"),
-    excluir_tipos_doc: str = typer.Option("", "--excluir-tipos-doc"),
-    apenas_substantivas: bool = typer.Option(
-        True, "--apenas-substantivas/--todos-tipos",
-        help="Pula peças tier-C (certidões, termos, intimações) por padrão. "
-             "Ver docs/peca-tipo-classification.md.",
-    ),
-    limite: int = typer.Option(0, "--limite"),
-    # Extrator.
-    provedor: str = typer.Option(
-        "pypdf", "--provedor",
-        help="Extrator: pypdf | tesseract | tesseract_modal | "
-             "tesseract_fly | mistral | chandra | unstructured | auto. "
-             "Padrão: pypdf (local, grátis, camada de texto). "
-             "'tesseract' roda local (in-process); 'tesseract_modal' é "
-             "a variante hospedada no Modal; 'tesseract_fly' é o "
-             "endpoint HTTP hospedado em Fly.io (ver fly/README.md), "
-             "~10× mais barato que Modal e desenhado para fanout via "
-             "--paralelo. 'auto' roteia por doc_type — usa tesseract "
-             "para INTEIRO TEOR DO ACÓRDÃO (onde pypdf duplica conteúdo "
-             "via cover-stream do iText, ~90% CER) e pypdf para o resto. "
-             "OCR em nuvem requer a chave de API correspondente "
-             "(MISTRAL_API_KEY / UNSTRUCTURED_API_KEY / CHANDRA_API_KEY); "
-             "tesseract_fly lê o endpoint de FLY_TESSERACT_URL.",
-    ),
-    forcar: bool = typer.Option(
-        False, "--forcar",
-        help="Re-extrai mesmo se o sidecar já for igual a --provedor.",
-    ),
-    # Execução.
-    saida: Optional[Path] = typer.Option(None, "--saida"),
-    dry_run: bool = typer.Option(False, "--dry-run"),
-    nao_perguntar: bool = typer.Option(False, "--nao-perguntar"),
-    retomar: bool = typer.Option(False, "--retomar"),
-    paralelo: int = typer.Option(
-        1, "--paralelo",
-        help="Despachos OCR em paralelo via ThreadPoolExecutor "
-             "(default 1 = sequencial). Útil só para provedores HTTP "
-             "(tesseract_fly, tesseract_modal, mistral) onde a wall é "
-             "dominada pela rede; provedores locais (pypdf, tesseract) "
-             "ignoram essa flag em essência (CPU-bound, GIL).",
-    ),
-    prever: bool = typer.Option(
-        False, "--prever",
-        help="Mostra previsão de custo + tempo do OCR e sai sem "
-             "extrair. Atalho para --dry-run --nao-perguntar.",
-    ),
-) -> None:
-    """Extrai texto dos PDFs já baixados em disco (zero HTTP).
-
-    Lê bytes de ``data/raw/pecas/<sha1(url)>.<ext>.gz``, despacha
-    para o provedor pedido via ``src.scraping.ocr.extract_pdf``,
-    escreve texto em ``data/derived/pecas-texto/<sha1(url)>.txt.gz``
-    + sidecar ``.extractor``. Pré-requisito: rodar ``baixar-pecas``
-    antes.
-
-    Prioridade de modos de entrada igual a ``baixar-pecas``.
-    """
-    if prever:
-        dry_run = True
-        nao_perguntar = True
-
-    from judex.sweeps.extrair_pecas import run_extract_pecas
-    raise typer.Exit(code=run_extract_pecas(
-        classe=classe, inicio=inicio, fim=fim, csv=csv,
-        retentar_de=retentar_de,
-        impte_contem=impte_contem, tipos_doc=tipos_doc,
-        relator_contem=relator_contem, excluir_tipos_doc=excluir_tipos_doc,
-        limite=limite, apenas_substantivas=apenas_substantivas,
-        provedor=provedor, forcar=forcar, saida=saida,
-        dry_run=dry_run, nao_perguntar=nao_perguntar, retomar=retomar,
-        paralelo=paralelo,
-    ))
-
-
-# ---------------------------------------------------------------------------
-# `coletar` — orquestra o pipeline completo (ADR-0004)
-#
-# Sucedido por ``executar`` (unified pipeline, ADR-2026-05-02). ``coletar``
-# permanece como caminho legado durante a transição; novos sweeps devem usar
-# ``executar``. Veja ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
-
-
-@debug_app.command(name="coletar")
-def coletar(
-    classe: str = typer.Option(
-        ..., "-c", "--classe",
-        help="Classe STF (ex: HC).",
-    ),
-    inicio: int = typer.Option(
-        ..., "-i", "--inicio",
-        help="processo_id inicial (inclusive).",
-    ),
-    fim: int = typer.Option(
-        ..., "-f", "--fim",
-        help="processo_id final (inclusive).",
-    ),
-    saida: Path = typer.Option(
-        ..., "--saida",
-        help="Diretório raiz da coleta. Cria <saida>/{varrer,baixar,extrair}/ "
-        "e seus diretórios de retry. REPORT.md final fica em <saida>/.",
-    ),
-    rotulo: str = typer.Option(
-        ..., "--rotulo",
-        help="Rótulo da coleta (usado em logs e relatório).",
-    ),
-    max_retry_cycles: int = typer.Option(
-        2, "--max-retry-cycles",
-        help="Máximo de ciclos de retry por etapa (cap, com early-exit em "
-        "residual=0 ou no-shrink). Default 2 — ver ADR-0004.",
-    ),
-    gate_varrer: float = typer.Option(
-        0.02, "--gate-varrer",
-        help="Taxa de transientes que aborta varrer. Default 2%.",
-    ),
-    gate_baixar: float = typer.Option(
-        0.02, "--gate-baixar",
-        help="Taxa de transientes que aborta baixar. Default 2%.",
-    ),
-    gate_extrair: float = typer.Option(
-        0.02, "--gate-extrair",
-        help="Taxa de transientes que aborta extrair. Default 2%.",
-    ),
-    provedor: str = typer.Option(
-        "auto", "--provedor",
-        help="Extractor para extrair-pecas e seus retries. Default 'auto'.",
-    ),
-    paralelo: int = typer.Option(
-        10, "--paralelo",
-        help="Threads paralelas para extrair-pecas (passa direto). Default 10.",
-    ),
-    ocr_tesseract_provider: str = typer.Option(
-        "tesseract_fly", "--ocr-tesseract-provider",
-        help="OCR backend usado pelo router auto quando o doc_type "
-             "requer escalação (ACÓRDÃO). 'tesseract_fly' é cobrado pelo "
-             "Fly (~$0.01/1k páginas) mas é paralelizável via --paralelo; "
-             "'tesseract' é local, gratuito, e gargalo de CPU. Default "
-             "'tesseract_fly' para coletas em escala — passe 'tesseract' "
-             "se você não quer cobrança por páginas.",
-    ),
-    nao_perguntar: bool = typer.Option(
-        False, "--nao-perguntar",
-        help="Pula confirmação interativa do banner de custo (uso "
-             "não-supervisionado). Sem esta flag, em TTY o coletar "
-             "pede confirmação antes de iniciar.",
-    ),
-) -> None:
-    """Orquestra o pipeline completo (ADR-0004): varrer → varrer-retry →
-    baixar → baixar-retry → extrair → extrair-retry, com classificador
-    status-aware (judex.sweeps.error_triage), cap de retries, e
-    transient-rate gate por etapa.
-
-    Cada etapa escreve sua própria pasta dentro de --saida; cada ciclo
-    de retry escreve em <saida>/<etapa>-retry-{1,2}/. O REPORT.md final
-    sai em <saida>/REPORT.md com a tabela por etapa + grade da run
-    quality (clean / acceptable / degraded / broken).
-
-    Halt-on-abort: se uma etapa tropeçar no gate, etapas subsequentes
-    não rodam; quality = broken; operador investiga e retoma.
-
-    Examples:
-
-        uv run judex coletar -c HC -i 250920 -f 267137 \\
-            --saida runs/active/backfill-hc2025-2026-05-02 \\
-            --rotulo hc2025_backfill
-    """
-    from judex.sweeps.coletar import (
-        ColetaConfig,
-        make_subprocess_runners,
-        run_coleta,
-    )
-
-    config = ColetaConfig(
-        classe=classe.upper(),
-        inicio=inicio,
-        fim=fim,
-        saida=saida,
-        rotulo=rotulo,
-        max_retry_cycles=max_retry_cycles,
-        transient_gates={
-            "varrer": gate_varrer,
-            "baixar": gate_baixar,
-            "extrair": gate_extrair,
-        },
-    )
-
-    runners = make_subprocess_runners(
-        config, provedor=provedor, paralelo=paralelo,
-        ocr_tesseract_provider=ocr_tesseract_provider,
-    )
-
-    typer.echo(
-        f"Coleta {config.classe} {config.inicio}..{config.fim} → {config.saida}"
-    )
-    typer.echo(
-        f"  max-retry-cycles={config.max_retry_cycles} · "
-        f"gates(varrer={gate_varrer}, baixar={gate_baixar}, "
-        f"extrair={gate_extrair}) · provedor={provedor} · paralelo={paralelo}"
-    )
-
-    # Cost banner — always printed before the run starts so the
-    # operator sees what's billable before committing time. Each line
-    # names the resource, its rate, and the rough scope; exact dollar
-    # cost depends on per-target outcomes (cache hits, doc_types) and
-    # is reported at end-of-run by each child stage's report.md.
-    typer.echo("")
-    typer.echo("  Cost notice (resources billed by external providers):")
-    n_cases = config.fim - config.inicio + 1
-    if ocr_tesseract_provider == "tesseract_fly":
-        typer.echo(
-            f"    OCR fallback (tesseract_fly): $0.01 / 1k pages, billed by Fly. "
-            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs (typically 1-2 per case)."
-        )
-    elif ocr_tesseract_provider == "tesseract_modal":
-        typer.echo(
-            f"    OCR fallback (tesseract_modal): billed by Modal. "
-            f"Scope: ~{n_cases} cases × ACÓRDÃO PDFs."
-        )
-    else:
-        typer.echo(
-            f"    OCR fallback ({ocr_tesseract_provider}): local CPU, $0."
-        )
-    typer.echo(
-        "    Proxies: not configured (direct-IP, $0). "
-        "If sweeps are sharded with --proxy-pool, residential "
-        "bandwidth bills at ~$3.65/GB."
-    )
-
-    if not nao_perguntar and sys.stdin.isatty():
-        typer.echo("")
-        typer.echo("Prosseguir? [s/N] ", nl=False)
-        answer = sys.stdin.readline().strip().lower()
-        if answer not in {"s", "sim", "y", "yes"}:
-            typer.echo("cancelado.")
-            raise typer.Exit(code=0)
-
-    result = run_coleta(config, runners)
-
-    typer.echo("")
-    typer.echo(f"Quality: **{result.quality}**")
-    if result.aborted_at_stage:
-        typer.echo(f"  Aborted at stage: {result.aborted_at_stage}")
-    typer.echo(f"  Report: {config.saida / 'REPORT.md'}")
-
-    # Exit code: 0 if completed (any quality), 2 if aborted mid-flight.
-    raise typer.Exit(code=0 if result.aborted_at_stage is None else 2)
-
-
-# ---------------------------------------------------------------------------
 # `executar` — pipeline unificado fire-and-forget (varrer + baixar + extrair
 #              num único processo asyncio com três pools concorrentes)
 
 
-@app.command(name="executar")
+@app.command(name="executar", rich_help_panel="Coleta")
 def executar(
     # Modos de entrada (mutuamente exclusivos): range, --csv ou --retentar-de.
     classe: Optional[str] = typer.Option(
         None, "-c", "--classe",
-        help="[modo range] Classe processual (HC, RE, AI, ADI etc.). "
+        help="[modo intervalo] Classe processual (HC, RE, AI, ADI etc.). "
              "Combine com -i e -f para rodar um intervalo contíguo sem CSV.",
     ),
     inicio: Optional[int] = typer.Option(
         None, "-i", "--inicio",
-        help="[modo range] Primeiro processo do intervalo (inclusivo).",
+        help="[modo intervalo] Primeiro processo do intervalo (inclusivo).",
     ),
     fim: Optional[int] = typer.Option(
         None, "-f", "--fim",
-        help="[modo range] Último processo do intervalo (inclusivo).",
+        help="[modo intervalo] Último processo do intervalo (inclusivo).",
     ),
     csv: Optional[Path] = typer.Option(
         None, "--csv",
         help="[modo CSV] Arquivo com colunas 'classe,processo' (ou 'processo_id'). "
-             "Cada linha é um alvo do pipeline.",
+             "Cada linha é um alvo a processar.",
     ),
     retentar_de: Optional[Path] = typer.Option(
         None, "--retentar-de",
-        help="[modo retry] Caminho para um executar.errors.jsonl existente; "
-             "reroda só os (classe, processo) com falha transiente "
-             "(judex.pipeline.log.classify_unified_error).",
+        help="[modo nova tentativa] Caminho para um executar.errors.jsonl "
+             "existente; executa novamente apenas os pares (classe, processo) "
+             "com falha transitória.",
     ),
     rotulo: Optional[str] = typer.Option(
         None, "--rotulo",
-        help="Rótulo curto identificando esta execução. Em modo range, "
-             "infere `{CLASSE}_{i}-{f}` se omitido. Quando setado sem "
-             "--saida, --saida defaulta para `runs/coletas/{ts}-{rotulo}/`.",
+        help="Rótulo curto identificando esta execução. Em modo intervalo, "
+             "assume `{CLASSE}_{i}-{f}` quando omitido. Quando definido sem "
+             "--saida, --saida assume `runs/active/{ts}-{rotulo}/`.",
     ),
     saida: Optional[Path] = typer.Option(
         None, "--saida",
-        help="Diretório do run. Recebe executar.state.json, executar.log.jsonl, "
-             "executar.errors.jsonl, report.md. Auto-default em modo range "
-             "(ou com --rotulo): runs/coletas/{ts}-{rotulo}/.",
+        help="Diretório da execução. Recebe executar.state.json, "
+             "executar.log.jsonl, executar.errors.jsonl, report.md. "
+             "Padrão automático em modo intervalo (ou com --rotulo): "
+             "runs/active/{ts}-{rotulo}/.",
     ),
     provedor: str = typer.Option(
         "pypdf", "--provedor",
         help="Extrator de texto: pypdf | tesseract | tesseract_modal | "
              "tesseract_fly | mistral | chandra | unstructured | auto. "
-             "Padrão: pypdf (local, grátis).",
+             "Padrão: pypdf (local, gratuito).",
     ),
     forcar: bool = typer.Option(
         False, "--forcar",
-        help="Re-extrai mesmo se o sidecar já for igual a --provedor "
-             "(bypass do skip-on-cache-match em handle_extract_text).",
+        help="Re-extrai o texto mesmo quando o sidecar já indica o mesmo "
+             "provedor (ignora a verificação de cache).",
     ),
     portal_concurrencia: int = typer.Option(
         1, "--portal-concurrencia",
-        help="Concorrência do pool portal (case JSON). Direct-IP: 1.",
+        help="Concorrência do pool portal (JSON do processo). IP direto: 1.",
     ),
     sistemas_concurrencia: int = typer.Option(
         1, "--sistemas-concurrencia",
-        help="Concorrência do pool sistemas (PDF bytes). Direct-IP: 1.",
+        help="Concorrência do pool sistemas (bytes do PDF). IP direto: 1.",
     ),
     ocr_concurrencia: int = typer.Option(
         4, "--ocr-concurrencia",
-        help="Concorrência do pool OCR. CPU-bound providers: 4. "
-             "API-bound providers (mistral/chandra/tesseract_fly): 8+.",
-    ),
-    sem_dje: bool = typer.Option(
-        False, "--sem-dje",
-        help="Não buscar publicações DJe durante fetch_meta.",
+        help="Concorrência do pool OCR. Provedores limitados por CPU: 4. "
+             "Provedores limitados por API (mistral/chandra/tesseract_fly): 8+.",
     ),
     proxy_pool: Optional[Path] = typer.Option(
         None, "--proxy-pool",
-        help="Arquivo flat de URLs de proxy (uma por linha). Cada handler HTTP "
-             "rota proxies independentemente. Sem este flag: direct-IP. "
-             "Obrigatório em modo sharded (--shards > 1).",
+        help="Arquivo simples com URLs de proxy (uma por linha). Cada "
+             "handler HTTP roteia proxies de forma independente. Sem esta "
+             "opção: IP direto. Obrigatório em modo fragmentado "
+             "(--shards > 1).",
     ),
     shards: int = typer.Option(
         0, "--shards",
-        help="Se > 1, particiona o CSV em N shards e dispara N processos "
-             "paralelos (um por shard). Cada shard recebe sua fatia "
-             "round-robin do --proxy-pool. Exige --csv (ou range), "
-             "--rotulo, --proxy-pool. Mesma forma que varrer-processos / "
-             "baixar-pecas --shards.",
+        help="Se > 1, particiona o CSV em N fragmentos e dispara N "
+             "processos paralelos (um por fragmento). Cada fragmento "
+             "recebe sua fatia round-robin do --proxy-pool. Exige --csv "
+             "(ou intervalo), --rotulo e --proxy-pool.",
     ),
     estrategia_shard: str = typer.Option(
         "interleave", "--estrategia-shard",
-        help="Particionamento de CSV em modo sharded. 'interleave' "
+        help="Particionamento do CSV em modo fragmentado. 'interleave' "
              "(padrão) ou 'range'.",
-    ),
-    # Filter knobs — applied case-by-case inside handle_fetch_meta.
-    impte_contem: str = typer.Option(
-        "", "--impte-contem",
-        help="Filtra cases cujo nome do impetrante contenha qualquer dos "
-             "substrings (separados por '|'). Comparação case- e "
-             "accent-insensitive.",
-    ),
-    relator_contem: str = typer.Option(
-        "", "--relator-contem",
-        help="Filtra cases cujo relator contenha qualquer dos substrings "
-             "(separados por '|').",
-    ),
-    tipos_doc: str = typer.Option(
-        "", "--tipos-doc",
-        help="Limita peças aos doc_types listados (separados por '|').",
-    ),
-    excluir_tipos_doc: str = typer.Option(
-        "", "--excluir-tipos-doc",
-        help="Exclui peças cujo doc_type contenha qualquer dos substrings.",
-    ),
-    limite: int = typer.Option(
-        0, "--limite",
-        help="Cap no número total de cases. 0 = sem cap. Aplicado após "
-             "todos os outros filtros, antes do scheduler ver o seed.",
     ),
     prever: bool = typer.Option(
         False, "--prever",
-        help="Mostra previsão de custo + tempo (varrer + baixar + extrair) "
-             "e sai. Atalho para --dry-run que valida o tamanho do alvo "
-             "sem materializar nada além do CSV temporário.",
+        help="Mostra previsão de custo e tempo (varrer + baixar + extrair) "
+             "e encerra, sem materializar nada além do CSV temporário.",
     ),
     nao_perguntar: bool = typer.Option(
         False, "--nao-perguntar",
-        help="Pula o prompt de confirmação após o banner de custo. "
-             "Necessário para uso non-interactive (cron, nohup).",
+        help="Pula o prompt de confirmação após o painel de custo. "
+             "Necessário para uso não-interativo (cron, nohup).",
+    ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d",
+        help="Roda em background: re-executa este mesmo comando como "
+             "filho num novo grupo de sessão, redireciona stdout/stderr "
+             "para ``<saida>/launcher.log``, imprime PID + log e sai 0. "
+             "Substitui o ritual ``setsid nohup … & disown``.",
     ),
 ) -> None:
-    """Pipeline unificado: varrer + baixar + extrair num único processo.
+    """Inicia uma Coleta: metadados + peças + texto de um intervalo (ou CSV) de processos.
 
-    Substitui a chain ``varrer-processos`` → ``baixar-pecas`` →
-    ``extrair-pecas`` (e o orquestrador ``coletar``) por uma única
-    invocação fire-and-forget. Três asyncio.Queues alimentam três
-    coroutines de pool (``portal``, ``sistemas``, ``ocr``); cada
-    tarefa emite suas sucessoras ao terminar.
+    Cada Coleta produz um diretório de run com log, estado e relatório
+    consolidado. Três modos de entrada (mutuamente exclusivos):
 
-    **Modos de entrada (escolha um):**
-      - range: ``-c HC -i 250000 -f 250100``
-      - CSV:   ``--csv alvos.csv``
-      - retry: ``--retentar-de runs/.../executar.errors.jsonl``
+      - intervalo:  ``-c HC -i 250000 -f 250100``
+      - CSV:        ``--csv alvos.csv``
+      - retomada:   ``--retentar-de runs/.../executar.errors.jsonl``
 
-    Estado persistido em ``<saida>/executar.state.json`` (snapshot
-    atômico, periódico) + ``<saida>/executar.log.jsonl`` (append-only,
-    fsynced por linha — durável contra SIGKILL / OOM / VM suspend).
-    Resume é automático: re-rodar com a mesma ``--saida`` requeue só
-    o trabalho não-ok. SIGTERM/SIGINT acionam shutdown gracioso.
-
-    Spec: ``docs/superpowers/specs/2026-05-02-unified-pipeline.md``.
+    Retomada é automática — re-rodar com o mesmo ``--saida`` pula o
+    trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
+    encerram de forma limpa, deixando o estado retomável em disco
+    (use ``judex parar`` para encerrar, ``judex retomar`` para continuar).
     """
     # ----- Mode resolution -----
     range_flags = [
@@ -1253,6 +630,70 @@ def executar(
             "entre range (-c/-i/-f), --csv, ou --retentar-de."
         )
 
+    # ----- Auto-default rotulo + --saida (hoisted so --detach can fire
+    # before target resolution — the detached child re-enters and
+    # re-derives targets itself) -----
+    if range_mode and rotulo is None:
+        assert classe is not None and inicio is not None and fim is not None
+        rotulo = f"{classe.upper()}_{inicio}-{fim}"
+
+    if saida is None:
+        if rotulo is None:
+            raise typer.BadParameter(
+                "--saida é obrigatório quando nem --rotulo nem modo range "
+                "estão setados (sem rótulo não há nome para o auto-saida)."
+            )
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saida = Path("runs/active") / f"{ts}-{rotulo}"
+        typer.echo(f"--saida não fornecido; usando padrão automático {saida}")
+
+    # ----- --detach: re-exec self in a new session, exit parent -----
+    if detach:
+        # Strip --detach + force --nao-perguntar in the child: a detached
+        # parent can't answer a confirmation prompt. The child re-enters
+        # this same function with detach=False and falls through to the
+        # normal in-process run.
+        saida.mkdir(parents=True, exist_ok=True)
+        log_path = saida / "launcher.log"
+        child_argv = [a for a in sys.argv if a not in ("--detach", "-d")]
+        if "--nao-perguntar" not in child_argv:
+            child_argv.append("--nao-perguntar")
+        with log_path.open("w", encoding="utf-8") as log_f:
+            child = subprocess.Popen(
+                child_argv,
+                stdin=subprocess.DEVNULL,
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        # Poll briefly for the child to write its pid file — that's the
+        # PID the operator wants (the inner judex process), not the
+        # outer ``uv run`` shim which may be a different pid.
+        import time as _time
+        pid_path = saida / "executar.pid"
+        deadline = _time.monotonic() + 5.0
+        while _time.monotonic() < deadline:
+            if pid_path.exists():
+                break
+            if child.poll() is not None:
+                # Child died before writing the pid file.
+                typer.echo(
+                    f"erro: filho saiu cedo (rc={child.returncode}). "
+                    f"Veja {log_path}.",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+            _time.sleep(0.1)
+        if pid_path.exists():
+            inner_pid = pid_path.read_text(encoding="utf-8").strip()
+        else:
+            inner_pid = f"~{child.pid} (filho não escreveu executar.pid em 5s)"
+        typer.echo(f"pid: {inner_pid}")
+        typer.echo(f"log: {log_path}")
+        typer.echo(f"saida: {saida}")
+        typer.echo(f"parar: judex parar {saida}")
+        raise typer.Exit(code=0)
+
     # ----- Build the (classe, processo) target list -----
     from judex.pipeline.runner import (
         read_targets_csv,
@@ -1266,8 +707,6 @@ def executar(
         validate_stf_case_type(classe)
         validate_process_range(inicio, fim)
         targets = targets_from_range(classe, inicio, fim)
-        if rotulo is None:
-            rotulo = f"{classe.upper()}_{inicio}-{fim}"
     elif csv is not None:
         targets = read_targets_csv(csv)
     else:
@@ -1277,20 +716,6 @@ def executar(
     if not targets:
         typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
         raise typer.Exit(code=2)
-
-    if limite > 0:
-        targets = targets[:limite]
-
-    # ----- Auto-default --saida from --rotulo when omitted -----
-    if saida is None:
-        if rotulo is None:
-            raise typer.BadParameter(
-                "--saida é obrigatório quando nem --rotulo nem modo range "
-                "estão setados (sem rótulo não há nome para o auto-saida)."
-            )
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saida = Path("runs/coletas") / f"{ts}-{rotulo}"
-        typer.echo(f"--saida não fornecido; usando auto-default {saida}")
 
     # ----- --prever: forecast + early-exit -----
     if prever:
@@ -1345,13 +770,7 @@ def executar(
         _push(extra, "--portal-concurrencia", portal_concurrencia)
         _push(extra, "--sistemas-concurrencia", sistemas_concurrencia)
         _push(extra, "--ocr-concurrencia", ocr_concurrencia)
-        _push(extra, "--sem-dje", sem_dje)
         _push(extra, "--forcar", forcar)
-        _push(extra, "--impte-contem", impte_contem)
-        _push(extra, "--relator-contem", relator_contem)
-        _push(extra, "--tipos-doc", tipos_doc)
-        _push(extra, "--excluir-tipos-doc", excluir_tipos_doc)
-        _push(extra, "--limite", limite)
 
         if estrategia_shard not in ("interleave", "range"):
             raise typer.BadParameter(
@@ -1386,13 +805,19 @@ def executar(
         portal_concurrencia=portal_concurrencia,
         sistemas_concurrencia=sistemas_concurrencia,
         ocr_concurrencia=ocr_concurrencia,
-        fetch_dje=not sem_dje,
         proxy_pool=proxy_pool,
         forcar=forcar,
-        impte_contains=tuple(s for s in impte_contem.split("|") if s),
-        doc_types=tuple(s for s in tipos_doc.split("|") if s),
-        exclude_doc_types=tuple(s for s in excluir_tipos_doc.split("|") if s),
-        relator_contains=tuple(s for s in relator_contem.split("|") if s),
+        # Captured into ``executar.state.json`` so ``judex retomar``
+        # can rebuild the operator's first command on resume.
+        original_args=_executar_kwargs_for_state(
+            classe=classe, inicio=inicio, fim=fim,
+            csv=csv, retentar_de=retentar_de,
+            rotulo=rotulo, provedor=provedor, forcar=forcar,
+            portal_concurrencia=portal_concurrencia,
+            sistemas_concurrencia=sistemas_concurrencia,
+            ocr_concurrencia=ocr_concurrencia,
+            proxy_pool=proxy_pool,
+        ),
     )
     raise typer.Exit(code=rc)
 
@@ -1443,15 +868,141 @@ def _print_executar_forecast(
 
 
 # ---------------------------------------------------------------------------
+# `listar` — descobre quais Coletas existem (e quais estão vivas).
+# Placed before the Manutenção do corpus block so its ``Observação``
+# rich_help_panel registers earlier than ``Manutenção do corpus`` —
+# Typer/rich orders panels by first-occurrence in source.
+
+
+@app.command(name="listar", rich_help_panel="Observação")
+def listar(
+    root: Path = typer.Option(
+        Path("runs/active"), "--root",
+        help="Diretório-raiz para varrer. Padrão: runs/active/.",
+    ),
+    incluir_arquivo: bool = typer.Option(
+        False, "--incluir-arquivo",
+        help="Também varre runs/archive/ — útil para 'onde foi parar o "
+             "run da semana passada?'.",
+    ),
+    apenas: Optional[str] = typer.Option(
+        None, "--apenas",
+        help="Filtra por status: running | stale | finished | unknown.",
+    ),
+    podar_pids: bool = typer.Option(
+        False, "--podar-pids",
+        help="Apaga executar.pid / shards.pids de runs em status `stale` "
+             "(resíduo de SIGKILL — `parar` não consegue limpar sozinho).",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Saída JSON (uma linha por run) em vez de tabela.",
+    ),
+) -> None:
+    """Lista Coletas em runs/active/ com status (running/stale/finished/unknown).
+
+    Lê o pid file (``executar.pid`` / ``shards.pids``) para liveness e o
+    snapshot ``executar.state.json`` para rótulo, timestamps e contagem
+    de alvos. Não grepa logs.
+
+    ``--apenas running`` é o filtro de uso mais comum (responde "o que
+    está rodando agora?"). ``--podar-pids`` é o cleanup pareado com o
+    estado ``stale`` — sem ele, ``parar`` no diretório fica no-op
+    porque o PID listado já não existe. ``--incluir-arquivo`` extende a
+    varredura para ``runs/archive/``.
+    """
+    from judex.pipeline.run_index import (
+        RunStatus,
+        format_elapsed,
+        list_runs as _list_runs,
+        prune_stale_pid_files,
+    )
+
+    if podar_pids:
+        removed = prune_stale_pid_files(root)
+        for p in removed:
+            typer.echo(f"removed: {p}")
+        typer.echo(f"podou {len(removed)} pid file(s) stale.")
+        return
+
+    summaries = _list_runs(root, include_archive=incluir_arquivo)
+
+    if apenas:
+        try:
+            wanted = RunStatus(apenas)
+        except ValueError:
+            raise typer.BadParameter(
+                f"--apenas={apenas!r} inválido. Use: "
+                f"{', '.join(s.value for s in RunStatus)}."
+            )
+        summaries = [s for s in summaries if s.status == wanted]
+
+    if json_out:
+        import json as _json
+        for s in summaries:
+            typer.echo(_json.dumps({
+                "saida": str(s.saida),
+                "status": s.status.value,
+                "pids": s.pids,
+                "rotulo": s.rotulo,
+                "classe": s.classe,
+                "started_at": s.started_at,
+                "snapshot_at": s.snapshot_at,
+                "elapsed_seconds": s.elapsed_seconds(),
+                "n_targets": s.n_targets,
+            }))
+        return
+
+    if not summaries:
+        scope = (
+            f"{root} e runs/archive/" if incluir_arquivo else str(root)
+        )
+        typer.echo(f"(nenhuma Coleta em {scope})")
+        return
+
+    from rich.console import Console
+    from rich.table import Table
+
+    status_style = {
+        RunStatus.RUNNING: "green",
+        RunStatus.STALE: "yellow",
+        RunStatus.FINISHED: "dim",
+        RunStatus.UNKNOWN: "red",
+    }
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("saida")
+    table.add_column("status")
+    table.add_column("classe")
+    table.add_column("rotulo")
+    table.add_column("alvos", justify="right")
+    table.add_column("duração", justify="right")
+    table.add_column("pids")
+
+    for s in summaries:
+        table.add_row(
+            s.saida.name,
+            f"[{status_style[s.status]}]{s.status.value}[/]",
+            s.classe or "—",
+            s.rotulo or "—",
+            str(s.n_targets) if s.n_targets is not None else "—",
+            format_elapsed(s.elapsed_seconds()),
+            ",".join(str(p) for p in s.pids) or "—",
+        )
+    Console().print(table)
+
+
+# ---------------------------------------------------------------------------
 # `atualizar` — varre os processos novos até o leading edge atual da STF
 
 
-@app.command(name="atualizar")
+@app.command(name="atualizar", rich_help_panel="Manutenção do corpus")
 def atualizar_corpus(
     classe: str = typer.Argument(
         ...,
         help="Classe a varrer (HC, ADI, ADPF, RE, …). Obrigatório — "
-             "não há default; cada classe tem um leading edge próprio.",
+             "não há padrão; cada classe tem uma fronteira de avanço "
+             "(leading edge) própria.",
     ),
     paradas_apos_misses: int = typer.Option(
         20, "--paradas-apos-misses",
@@ -1471,37 +1022,30 @@ def atualizar_corpus(
     ),
     provedor_ocr: str = typer.Option(
         "auto", "--provedor-ocr",
-        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
+        help="Provedor OCR (padrão ``auto`` = roteamento pypdf↔tesseract_fly).",
     ),
     portal_concurrencia: int = typer.Option(
         1, "--portal-concurrencia",
-        help="Concorrência do pool portal. Direct-IP: 1.",
+        help="Concorrência do pool portal. IP direto: 1.",
     ),
     sistemas_concurrencia: int = typer.Option(
         1, "--sistemas-concurrencia",
-        help="Concorrência do pool sistemas. Direct-IP: 1.",
+        help="Concorrência do pool sistemas. IP direto: 1.",
     ),
     ocr_concurrencia: int = typer.Option(
         4, "--ocr-concurrencia",
         help="Concorrência do pool OCR.",
     ),
 ) -> None:
-    """Atualiza o corpus de uma classe até o leading edge atual da STF.
+    """Adiciona ao corpus os processos novos publicados pela STF para uma classe.
 
-    1. Glob ``data/source/processos/<classe>/`` para o maior processo_id
-       já scrapeado.
-    2. Sonda case-ids acima dele um a um via portal, parando após
-       ``--paradas-apos-misses`` IDs não-alocados consecutivos (sinal
-       de ter passado o leading edge da STF para essa classe).
-    3. Roda o pipeline completo (meta + bytes + text) só nos case-ids
-       descobertos como vivos — pula automaticamente os buracos.
+    Pega o último processo_id já raspado em ``data/source/processos/<classe>/``,
+    sonda processos mais recentes pelo portal, e raspa só os que aparecerem
+    como vivos. Comando idempotente — re-rodar pula o que já está em disco.
 
-    Comando idempotente — re-rodar pula o que já foi puxado via
-    ``skipped_cached``.
+    Exemplos:
 
-    Exemplo:
-
-        uv run judex atualizar HC                       # default
+        uv run judex atualizar HC
         uv run judex atualizar ADI --paradas-apos-misses 50
     """
     from datetime import datetime
@@ -1585,134 +1129,47 @@ def atualizar_corpus(
 
 
 # ---------------------------------------------------------------------------
-# `refrescar` — re-varre processos existentes para pegar andamentos novos
+# `warehouse` — reconstrói o DuckDB derivado dos JSONs + cache de texto.
+# (anteriormente ``atualizar-warehouse``; ver alias deprecado abaixo).
 
 
-@app.command(name="refrescar")
-def refrescar_corpus(
-    classe: str = typer.Argument(
-        ...,
-        help="Classe a refrescar (HC, ADI, ADPF, RE, …).",
-    ),
-    ultimos: int = typer.Option(
-        1000, "--ultimos",
-        help="Refrescar os N case-ids mais recentes em disco. STF "
-             "aloca ~50-100 HC/dia; 1000 cobre ~10-20 dias de atividade. "
-             "Casos mais antigos raramente recebem novos andamentos — "
-             "aumentar isto só se precisar pegar updates em casos "
-             "estáveis há tempo.",
-    ),
-    saida: Optional[Path] = typer.Option(
-        None, "--saida",
-        help="Run dir; padrão runs/active/<classe>-refrescar-YYYYMMDD/.",
-    ),
-    provedor_ocr: str = typer.Option(
-        "auto", "--provedor-ocr",
-        help="Provedor OCR (default 'auto' = router pypdf↔tesseract_fly).",
-    ),
-    portal_concurrencia: int = typer.Option(
-        1, "--portal-concurrencia",
-        help="Concorrência do pool portal. Direct-IP: 1.",
-    ),
-    sistemas_concurrencia: int = typer.Option(
-        1, "--sistemas-concurrencia",
-        help="Concorrência do pool sistemas. Direct-IP: 1.",
-    ),
-    ocr_concurrencia: int = typer.Option(
-        4, "--ocr-concurrencia",
-        help="Concorrência do pool OCR.",
-    ),
-) -> None:
-    """Re-varre os N case-ids mais recentes em disco para detectar updates.
+def _run_warehouse(
+    diretorio_processos: Path,
+    diretorio_pecas_texto: Path,
+    saida: Path,
+    classe: Optional[list[str]],
+    ano: Optional[int],
+    progresso_cada: int,
+    estrito: bool,
+    runs_root: Optional[Path] = None,
+) -> int:
+    """Shared body for the canonical ``warehouse`` command and its
+    deprecated ``atualizar-warehouse`` alias. Returns the exit code from
+    :func:`judex.sweeps.build_warehouse.run_build_warehouse`.
 
-    O dual de ``atualizar``: aquele descobre case-ids novos, este
-    refresca os que já temos. Útil quando STF adiciona andamentos
-    (votos, decisões, certidões) a casos previamente capturados.
-
-    Estratégia:
-
-    1. Glob ``data/source/processos/<classe>/`` para todos os
-       case-ids em disco, ordena por valor numérico, pega os N
-       maiores (--ultimos N).
-    2. Roda ``executar --forcar`` contra esses case-ids: a flag
-       bypassa o ``handle_fetch_meta`` skip-se-existe, forçando
-       um re-scrape do JSON.
-    3. Pipeline detecta peças novas no JSON refrescado, baixa só
-       essas (peças já em cache pulam via sidecar).
-
-    Custo marginal:
-
-    - ``ultimos`` × 1 portal request (sempre, para refresh meta)
-    - + (peças novas) × full pipeline (raro — só se houve atividade)
-
-    Para HC ~50-100 cases/dia, default 1000 cobre ~10-20 dias de
-    janela ativa. Casos > 30 dias raramente movimentam; aumentar
-    se houver decisões antigas atrasadas chegando.
-
-    Exemplo:
-
-        uv run judex refrescar HC                  # últimos 1000
-        uv run judex refrescar HC --ultimos 5000   # ~50-100 dias
+    When ``runs_root`` is non-None and exists, the build also populates
+    the ``peca_issues`` cross-run registry. Default ``None`` keeps the
+    deprecated alias (and tests) on the lighter pre-registry build path.
     """
-    from datetime import datetime
-    from judex.pipeline.runner import run_pipeline
+    from judex.sweeps.build_warehouse import run_build_warehouse
 
-    source_dir = Path(f"data/source/processos/{classe}")
-    if not source_dir.exists():
-        typer.echo(
-            f"erro: nada em {source_dir} — corpus vazio para essa classe.",
-            err=True,
-        )
-        raise typer.Exit(2)
-
-    case_ids: list[int] = []
-    for f in source_dir.glob(f"judex-mini_{classe}_*.json"):
-        try:
-            n = int(f.stem.split("_")[-1].split("-")[-1])
-            case_ids.append(n)
-        except (ValueError, IndexError):
-            continue
-
-    if not case_ids:
-        typer.echo(
-            f"erro: nenhum {classe} válido em {source_dir}.", err=True,
-        )
-        raise typer.Exit(2)
-
-    case_ids.sort(reverse=True)
-    refresh_set = sorted(case_ids[:ultimos])
-
-    if saida is None:
-        date_str = datetime.now().strftime("%Y%m%d")
-        saida = Path(f"runs/active/{classe.lower()}-refrescar-{date_str}")
-
-    typer.echo(
-        f"corpus: {len(case_ids):,} {classe} em disco\n"
-        f"refresh: top {len(refresh_set):,} (case-ids "
-        f"{refresh_set[0]}-{refresh_set[-1]})\n"
-        f"saída: {saida}\n"
+    effective_runs_root = (
+        runs_root if (runs_root is not None and runs_root.exists()) else None
+    )
+    return run_build_warehouse(
+        cases_root=diretorio_processos,
+        pecas_texto_root=diretorio_pecas_texto,
+        output=saida,
+        classe=classe,
+        year=ano,
+        progress_every=progresso_cada,
+        strict=estrito,
+        runs_root=effective_runs_root,
     )
 
-    targets = [(classe, n) for n in refresh_set]
 
-    rc = run_pipeline(
-        targets=targets,
-        saida=saida,
-        provedor=provedor_ocr,
-        portal_concurrencia=portal_concurrencia,
-        sistemas_concurrencia=sistemas_concurrencia,
-        ocr_concurrencia=ocr_concurrencia,
-        forcar=True,
-    )
-    raise typer.Exit(code=rc)
-
-
-# ---------------------------------------------------------------------------
-# `atualizar-warehouse` — reconstrói o DuckDB derivado dos JSONs + cache
-
-
-@app.command(name="atualizar-warehouse")
-def atualizar_warehouse(
+@app.command(name="warehouse", rich_help_panel="Manutenção do corpus")
+def warehouse(
     diretorio_processos: Path = typer.Option(
         Path("data/source/processos"), "--diretorio-processos",
         help="Raiz dos JSONs de processo (particionados por classe).",
@@ -1745,29 +1202,194 @@ def atualizar_warehouse(
              "regressões silenciosas do scraper. O arquivo .duckdb ainda "
              "é gravado para inspeção manual; só o exit code muda.",
     ),
+    com_peca_issues: bool = typer.Option(
+        False, "--com-peca-issues",
+        help="Constrói também a tabela ``peca_issues`` — registro per-URL "
+             "agregado dos run dirs em ``runs/active/`` (status, tentativas, "
+             "dispensa, suspeita-curta). Default off porque adiciona "
+             "alguns segundos ao build e nem todo operador precisa.",
+    ),
+    runs_root: Path = typer.Option(
+        Path("runs/active"), "--runs-root",
+        help="Raiz dos run dirs. Usada apenas com --com-peca-issues.",
+    ),
 ) -> None:
-    """Reconstrói o warehouse DuckDB a partir dos JSONs + cache de texto.
+    """Reconstrói o banco DuckDB a partir dos dados raspados.
 
-    Full-rebuild com swap atômico — não há modo incremental. Os JSONs
-    em ``data/source/processos/`` continuam sendo a fonte de verdade;
-    o warehouse é um artefato derivado, regenerável. Custo típico:
-    ~2–3 min para ~55k processos, ~15–20 min para 350k.
+    Usado para análise em SQL ou nos notebooks em ``analysis/``. Rebuild
+    completo com swap atômico — não há modo incremental. Não fala com a
+    rede; é puro scan local. Custo típico: ~2-3 min para 55 k processos,
+    ~15-20 min para 350 k.
 
-    O comando não fala com a rede — é puro scan local de JSON + gzip.
-    Rode depois de ``varrer-processos`` / ``extrair-pecas`` sempre que
-    quiser ver os dados novos nos notebooks / em SQL.
+    Rode depois de ``executar`` para refletir os dados novos.
     """
-    from judex.sweeps.build_warehouse import run_build_warehouse
-
-    raise typer.Exit(code=run_build_warehouse(
-        cases_root=diretorio_processos,
-        pecas_texto_root=diretorio_pecas_texto,
-        output=saida,
-        classe=classe,
-        year=ano,
-        progress_every=progresso_cada,
-        strict=estrito,
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
+        runs_root=runs_root if com_peca_issues else None,
     ))
+
+
+@app.command(name="atualizar-warehouse", hidden=True, rich_help_panel="Manutenção do corpus")
+def atualizar_warehouse(
+    diretorio_processos: Path = typer.Option(
+        Path("data/source/processos"), "--diretorio-processos",
+    ),
+    diretorio_pecas_texto: Path = typer.Option(
+        Path("data/derived/pecas-texto"), "--diretorio-pecas-texto",
+    ),
+    saida: Path = typer.Option(
+        Path("data/derived/warehouse/judex.duckdb"), "--saida",
+    ),
+    classe: Optional[list[str]] = typer.Option(None, "--classe"),
+    ano: Optional[int] = typer.Option(None, "--ano"),
+    progresso_cada: int = typer.Option(10_000, "--progresso-cada"),
+    estrito: bool = typer.Option(False, "--estrito"),
+) -> None:
+    """[DEPRECADO] Use ``judex warehouse``. Mantido como alias enquanto
+    scripts antigos (chains, jobs) usam o nome anterior."""
+    import sys
+    print(
+        "[deprecation] use `judex warehouse` — `atualizar-warehouse` "
+        "is a transition alias and will be removed",
+        file=sys.stderr,
+    )
+    raise typer.Exit(code=_run_warehouse(
+        diretorio_processos, diretorio_pecas_texto, saida,
+        classe, ano, progresso_cada, estrito,
+    ))
+
+
+# ---------------------------------------------------------------------------
+# `re-extrair` — URL-scoped re-extraction (no fetch, no case-walker)
+
+
+@app.command(name="re-extrair", rich_help_panel="Peças individuais")
+def re_extrair_cmd(
+    arquivo_urls: Path = typer.Argument(
+        ..., exists=True, dir_okay=False, readable=True,
+        help="Arquivo simples com uma URL por linha. Linhas em branco e "
+             "comentários (#) são ignoradas.",
+    ),
+    provedor: str = typer.Option(
+        "tesseract", "--provedor",
+        help="Provedor de OCR: pypdf | tesseract | tesseract_modal | "
+             "tesseract_fly | mistral | chandra | unstructured.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Re-extrai mesmo quando o sidecar já indica o mesmo provedor "
+             "(ignora a verificação de cache).",
+    ),
+) -> None:
+    """Re-extrai o texto de peças específicas com o provedor escolhido.
+
+    O alvo é uma lista de URLs (uma por linha). Para cada URL, lê os
+    bytes do cache de peças, roda o provedor de novo, e regrava o texto.
+    Não fala com a STF — os bytes precisam já estar em cache (rode
+    ``judex executar`` antes); URLs sem bytes em cache contam para
+    ``missing_bytes`` no relatório.
+
+    Caso de uso típico: re-OCR pontual de peças que estouraram o cap de
+    body do OCR em cloud, com ``--provedor tesseract`` local — sem
+    re-extrair as outras peças do mesmo processo.
+    """
+    from judex.sweeps.re_extrair import run_re_extrair
+
+    result = run_re_extrair(arquivo_urls, provedor=provedor, forcar=forcar)
+    typer.echo(
+        f"re-extrair: ok={result.n_ok} · skipped={result.n_skipped} · "
+        f"missing_bytes={result.n_missing_bytes} · fail={result.n_fail} · "
+        f"wall={result.wall_s:.1f}s"
+    )
+    if result.n_fail > 0:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# `peca-spot-check` — sample peças from the warehouse for quality inspection
+
+
+@app.command(name="peca-spot-check", rich_help_panel="Peças individuais")
+def peca_spot_check_cmd(
+    classe: Optional[str] = typer.Option(
+        None, "--classe",
+        help="Filtra para uma classe processual (HC, ADI, RE, …).",
+    ),
+    ano: Optional[int] = typer.Option(
+        None, "--ano",
+        help="Filtra para um ano de protocolo do processo.",
+    ),
+    doc_type: Optional[str] = typer.Option(
+        None, "--doc-type",
+        help='Filtra por tipo de peça (ex.: "DECISÃO MONOCRÁTICA", "VOTO").',
+    ),
+    n: int = typer.Option(
+        10, "-n", "--n",
+        help="Quantas peças amostrar (padrão 10).",
+    ),
+    seed: Optional[int] = typer.Option(
+        None, "--seed",
+        help="Fixa a aleatoriedade — mesma seed re-produz a mesma amostra.",
+    ),
+) -> None:
+    """Amostra N peças do warehouse e mostra o texto extraído.
+
+    Usado para auditar qualidade da extração — cada amostra exibe
+    classe, processo, tipo, contagem de chars e um preview. Peças
+    suspeitas-curtas (provavelmente falha silenciosa do pypdf — chars
+    > 0 mas só com cabeçalho) são marcadas com ⚠.
+
+    Pré-requisito: o warehouse precisa estar construído (``judex
+    warehouse``).
+    """
+    from judex.analysis.peca_spot_check import render_samples, sample_pecas
+    from judex.warehouse.query import open_readonly
+
+    con = open_readonly()
+    samples = sample_pecas(
+        con, classe=classe, year=ano, doc_type=doc_type, n=n, seed=seed,
+    )
+    typer.echo(render_samples(samples), nl=False)
+
+
+# ---------------------------------------------------------------------------
+# `peca-dismiss` / `peca-undismiss` — operator-set "stop retrying this URL"
+
+
+@app.command(name="peca-dismiss", rich_help_panel="Peças individuais")
+def peca_dismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a dispensar."),
+    motivo: str = typer.Option(
+        ..., "--motivo",
+        help="Razão legível para a dispensa (ex.: 'PDF retirado da STF', "
+             "'OCR pesado pra valer a pena', 'duplicata de <X>').",
+    ),
+) -> None:
+    """Marca uma URL como conhecida-quebrada para parar de tentar.
+
+    URLs dispensadas são silenciosamente puladas pelo ``judex recuperar``
+    e não consomem orçamento de retry. Persiste em
+    ``data/derived/pecas-texto/<sha1>.dismissed.json`` (atravessa
+    rebuilds do warehouse).
+    """
+    from judex.utils import peca_cache
+    peca_cache.write_dismissal(url, reason=motivo)
+    typer.echo(f"dispensada: {url}")
+    typer.echo(f"  motivo: {motivo}")
+
+
+@app.command(name="peca-undismiss", rich_help_panel="Peças individuais")
+def peca_undismiss_cmd(
+    url: str = typer.Argument(..., help="URL da peça a re-habilitar."),
+) -> None:
+    """Remove a marca de dispensa de uma URL — volta a entrar no retry."""
+    from judex.utils import peca_cache
+    cleared = peca_cache.clear_dismissal(url)
+    if cleared:
+        typer.echo(f"re-habilitada: {url}")
+    else:
+        typer.echo(f"nada a fazer (não estava dispensada): {url}")
 
 
 # ---------------------------------------------------------------------------
@@ -1795,16 +1417,11 @@ def providers_cmd(
              "wall caveat).",
     ),
 ) -> None:
-    """Print the OCR provider comparison table for a given workload size.
+    """Compara custo e velocidade dos provedores de OCR para um volume.
 
-    Reads each provider's ``SPEC: ProviderSpec`` from
-    ``judex/scraping/ocr/<provider>.py``, asks for cost(n_pages) and
-    wall(n_pdfs), prints sorted by cost. Providers whose ``wall``
-    anchor isn't measured yet show ``—`` in the minutes column.
-
-    The numbers come from the same SPECs ``extrair-pecas --prever``
-    consults, so this view and the per-sweep forecast are always
-    consistent.
+    Mostra uma tabela ordenada por custo, com USD por mil páginas e
+    wall estimado para o volume informado. Provedores sem âncora de
+    wall medida exibem ``—``.
     """
     from judex.scraping.ocr.dispatch import render_provider_table
     typer.echo(render_provider_table(
@@ -1813,121 +1430,15 @@ def providers_cmd(
 
 
 # ---------------------------------------------------------------------------
-# `limpar` — close a finished run's residual in one command
-
-
-@app.command(name="limpar")
-def limpar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório de um run finalizado de ``judex executar``. "
-             "Auto-detecta layout: sharded (shard-*/) ou monolítico "
-             "(executar.errors.jsonl no topo).",
-    ),
-    apply: bool = typer.Option(
-        False, "--apply",
-        help="Dispara as recoveries planejadas. Sem este flag, o comando "
-             "imprime o plano (``would-recover: …``) e sai sem efeito "
-             "colateral — dry-run é o default seguro.",
-    ),
-    provedor: str = typer.Option(
-        "auto", "--provedor",
-        help="Provedor passado para os ``judex executar --retentar-de`` "
-             "filhos detached. Padrão `auto` (tier-routing pypdf↔OCR).",
-    ),
-    nao_perguntar: bool = typer.Option(
-        False, "--nao-perguntar",
-        help="Pula o prompt de confirmação sob ``--apply``. Necessário "
-             "para invocações non-interactive (cron, nohup).",
-    ),
-) -> None:
-    """One-command residual recovery for finished ``judex executar`` runs.
-
-    Walks ``<run_dir>`` (mono ou sharded — auto-detecta), classifica
-    cada linha de ``executar.errors.jsonl`` em buckets via
-    ``judex.pipeline.log.classify_unified_error``, e dispara um
-    ``judex executar --retentar-de`` detached por shard com pelo menos
-    uma linha transiente. Buckets terminais (``unallocated_pid``,
-    ``empty``, ``no_bytes``) são contados e reportados — não
-    auto-dispatchados em v1.
-
-    Default é dry-run (imprime ``would-recover: …`` e sai). Para
-    realmente executar, ``--apply``. Para non-interactive (cron/nohup),
-    combine com ``--nao-perguntar``.
-
-    Spec: ``docs/superpowers/specs/2026-05-03-judex-limpar.md``.
-    Exit codes:
-
-    - ``0`` — plano computado (e sob ``--apply``, todos os spawns OK).
-    - ``2`` — args inválidos (``run_dir`` não existe).
-    - ``3`` — resíduo vazio (nenhum ``executar.errors.jsonl`` encontrado).
-    """
-    from judex.sweeps.limpar import (
-        classify_residual,
-        discover_run_dirs,
-        execute_recoveries,
-        format_summary,
-        plan_recoveries,
-    )
-
-    if not run_dir.exists():
-        typer.echo(f"ERROR: run_dir {run_dir} não existe.", err=True)
-        raise typer.Exit(code=2)
-
-    dirs = discover_run_dirs(run_dir)
-    if not dirs:
-        typer.echo(
-            f"limpar: nada a recuperar em {run_dir} "
-            f"(nenhum executar.errors.jsonl encontrado)."
-        )
-        raise typer.Exit(code=3)
-
-    buckets = classify_residual(dirs)
-    summary = format_summary(buckets, dry_run=not apply)
-    typer.echo(summary)
-
-    if not apply:
-        plan = plan_recoveries(buckets, provedor=provedor)
-        if plan:
-            total_replay = sum(s.n_replay_rows for s in plan)
-            typer.echo(
-                f"plan: would dispatch {len(plan)} child(ren) "
-                f"({total_replay} replay row(s) total) under --apply."
-            )
-        raise typer.Exit(code=0)
-
-    plan = plan_recoveries(buckets, provedor=provedor)
-    if not plan:
-        typer.echo("limpar: nenhum bucket transiente — nada a despachar.")
-        raise typer.Exit(code=0)
-
-    if not nao_perguntar:
-        if not typer.confirm(
-            f"Confirmar dispatch de {len(plan)} child(ren) detached em "
-            f"{run_dir}?",
-            default=True,
-        ):
-            typer.echo("Abortado pelo usuário.")
-            raise typer.Exit(code=2)
-
-    pids_path = run_dir / "limpar.pids"
-    result = execute_recoveries(plan, pids_path)
-    typer.echo(
-        f"limpar: spawned {len(result.pids)} child(ren); "
-        f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
-    )
-    raise typer.Exit(code=0)
-
-
-# ---------------------------------------------------------------------------
 # `acompanhar` — tail unificado mono + sharded com auto-encerramento
 
 
-@app.command(name="acompanhar")
+@app.command(name="acompanhar", rich_help_panel="Observação")
 def acompanhar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run. Auto-detecta layout: sharded "
+    run_dir: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run. Sem argumento, usa o mais recente em "
+             "runs/active/ por mtime. Auto-detecta layout: sharded "
              "(shard-*/driver.log) ou monolítico (driver.log / "
              "launcher.log no topo).",
     ),
@@ -1948,29 +1459,15 @@ def acompanhar(
              "encerrar com um ``relatar`` consolidado.",
     ),
 ) -> None:
-    """Tail unificado para runs monolíticos e shardeados, com
-    encerramento automático ao final do run.
+    """Acompanha uma Coleta ao vivo e mostra o relatório final quando termina.
 
-    Padrão: tail + auto-detect de fim-de-run + ``relatar`` consolidado.
-    A linha-âncora é ``executar: done`` (emitida por
-    ``judex/pipeline/runner.py``). Quando todos os shards (ou o log
-    monolítico) registram pelo menos uma, o ``acompanhar`` para o
-    multitail, imprime o resumo e sai com código 0. Use ``--persistir``
-    para o comportamento legado de tailar indefinidamente.
-
-    **Mono** e **sharded** rodam o mesmo loop Python — sem ``execvp`` —
-    para que a detecção de fim-de-run funcione em ambos os layouts.
-    Ctrl-C também é capturado limpo, sem stack-trace de Python.
-
-    Em sharded, a saída é compactada de duas formas:
-
-      1. Cabeçalhos ``==> shard-X/driver.log <==`` viram prefixo
-         compacto ``[X]`` por linha.
-      2. As linhas ``─── 571/571 (100%) … ───`` de cada shard são
-         suprimidas (16 idênticas a cada intervalo é puro ruído).
-         Uma thread agregadora emite UMA linha cluster-wide com
-         counts reais (``provider_error``, ``unallocated_pid``, …).
+    Detecta automaticamente o fim da Coleta e imprime um resumo
+    consolidado (mesmo formato de ``judex relatar``). Em Coletas
+    paralelizadas (shards), agrega o progresso dos vários shards em
+    uma linha por intervalo — sem 16 logs idênticos disputando a tela.
+    Use ``--persistir`` para continuar acompanhando em vez de encerrar.
     """
+    run_dir = _resolve_run_dir(run_dir)
     from scripts.follow_run import run_follow
     raise typer.Exit(code=run_follow(
         run_dir, n=n, agg_interval=agg_interval, persistir=persistir,
@@ -1978,37 +1475,444 @@ def acompanhar(
 
 
 # ---------------------------------------------------------------------------
+# `parar` — encerra de forma limpa uma Coleta em curso
+
+
+@app.command(name="parar", rich_help_panel="Coleta")
+def parar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o run mais "
+             "recente em runs/active/ por mtime.",
+        autocompletion=_complete_run_label,
+    ),
+    timeout: float = typer.Option(
+        30.0, "--timeout", "-t",
+        help="Segundos para esperar SIGTERM ser respeitado antes de "
+             "reportar processo travado.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar", "-f",
+        help="Escalar para SIGKILL após --timeout. Padrão: reporta e "
+             "sai com código 1 sem forçar.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Mostra os PIDs que seriam encerrados, mas não envia sinal. "
+             "Sai com código 0. Útil antes de matar 16 shards de uma vez.",
+    ),
+) -> None:
+    """Encerra de forma limpa uma Coleta em curso (``judex executar`` rodando).
+
+    Lê ``<saida>/executar.pid`` (mono) ou ``<saida>/shards.pids``
+    (fragmentado), envia SIGTERM, e aguarda cada processo encerrar até
+    o ``--timeout``. Com ``--forcar``, escalona para SIGKILL após o
+    timeout. O diário de estado (ADR-0006) garante que SIGTERM no meio
+    de uma Coleta deixa o estado retomável em disco — re-rodar
+    ``judex executar`` no mesmo ``--saida`` (ou ``judex retomar
+    <saida>``) continua de onde parou.
+    """
+    import signal
+    import time
+
+    saida = _resolve_run_dir(saida)
+
+    pids = _read_pids(saida)
+    if not pids:
+        typer.echo(
+            f"erro: nem executar.pid nem shards.pids em {saida}. "
+            "Coleta já encerrou (limpamente)? Veja `judex relatar {saida}`.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    if dry_run:
+        typer.echo(f"(dry-run) SIGTERM -> {pids}")
+        typer.echo("(dry-run) nada foi enviado. Re-rode sem --dry-run para encerrar.")
+        raise typer.Exit(code=0)
+
+    typer.echo(f"SIGTERM -> {pids}")
+    alive = []
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            alive.append(pid)
+        except ProcessLookupError:
+            typer.echo(f"  pid {pid} já não existe; pulando")
+
+    deadline = time.monotonic() + timeout
+    while alive and time.monotonic() < deadline:
+        alive = [p for p in alive if _is_pid_alive(p)]
+        if alive:
+            time.sleep(1.0)
+
+    if not alive:
+        typer.echo(f"OK: {len(pids)} processo(s) encerraram em <{timeout:.0f}s.")
+        raise typer.Exit(code=0)
+
+    if forcar:
+        typer.echo(f"SIGKILL -> {alive} (após {timeout:.0f}s sem encerrar)")
+        for p in alive:
+            try:
+                os.kill(p, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        raise typer.Exit(code=0)
+
+    typer.echo(
+        f"erro: {alive} ainda vivo(s) após {timeout:.0f}s. "
+        "Use --forcar para SIGKILL.",
+        err=True,
+    )
+    raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# `retomar` — re-dispatch executar with the original args
+
+
+@app.command(name="retomar", rich_help_panel="Coleta")
+def retomar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run. Sem argumento, usa o run mais recente "
+             "em runs/active/ por mtime.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Passa --nao-perguntar para o executar reaberto (skip "
+             "do painel de custo + prompt).",
+    ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d",
+        help="Passa --detach para o executar reaberto: roda em "
+             "background, imprime PID + log e sai.",
+    ),
+) -> None:
+    """Retoma uma Coleta interrompida, inferindo os argumentos originais.
+
+    Lê o bloco ``args`` de ``<saida>/executar.state.json`` (capturado
+    no primeiro ``judex executar`` contra esse ``--saida``) e despacha
+    ``executar`` com a mesma argv. O operador não precisa re-digitar
+    ``-c HC -i 196282 -f 210963 --saida …`` — a Coleta lembra do que
+    foi.
+
+    Falha de forma limpa se o diário de estado não tem o bloco ``args``
+    (Coleta iniciada antes do suporte a ``retomar``) — nesse caso basta
+    re-executar o ``executar`` original.
+    """
+    import json as _json
+
+    saida = _resolve_run_dir(saida)
+    state_path = saida / "executar.state.json"
+    if not state_path.exists():
+        typer.echo(
+            f"erro: {state_path} não existe; este diretório não é uma "
+            "Coleta do `judex executar`.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    raw = _json.loads(state_path.read_text(encoding="utf-8"))
+    args = raw.get("args")
+    if not args:
+        typer.echo(
+            f"erro: {state_path} não tem o bloco `args` (Coleta iniciada "
+            "antes do suporte a `retomar`). Re-execute com o `executar` "
+            "original — algo como:\n"
+            f"  uv run judex executar -c <CLASSE> -i <X> -f <Y> "
+            f"--saida {saida} --nao-perguntar",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    argv = _build_retomar_argv(
+        saida, args, nao_perguntar=nao_perguntar, detach=detach,
+    )
+    typer.echo(f"retomar -> judex {' '.join(argv)}")
+
+    # Re-enter the same Typer app instead of execvp — os.execvp would
+    # replace the test process during ``CliRunner.invoke``, which makes
+    # this command untestable; calling ``app(argv)`` keeps the call in
+    # the same Python process and lets the existing executar wrapper
+    # do its own kwarg handling, prompt-skip, and run_pipeline call.
+    # ``app()`` raises SystemExit per the Typer/Click convention; let
+    # it propagate (the runner / shell sees the exit code).
+    app(argv, standalone_mode=True)
+
+
+# ---------------------------------------------------------------------------
 # `relatar` — consolidação pós-run (residuals + próximos passos)
 
 
-@app.command(name="relatar")
+@app.command(name="relatar", rich_help_panel="Observação")
 def relatar(
-    run_dir: Path = typer.Argument(
-        ...,
-        help="Diretório do run (mono ou sharded). "
-             "Funciona tanto para run em curso quanto para run finalizado.",
+    run_dir: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o mais "
+             "recente em runs/active/ por mtime. Funciona tanto para "
+             "run em curso quanto para run finalizado.",
+        autocompletion=_complete_run_label,
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Serializa o RunSummary como JSON em vez do texto humano. "
+             "Pareia com jq / dashboards.",
     ),
 ) -> None:
-    """Consolida o estado de um run de ``executar`` em um relatório único.
+    """Resume o estado de uma Coleta num relatório consolidado.
 
-    Caminha por ``shard-*/executar.state.json``,
-    ``shard-*/executar.errors.jsonl`` e ``shard-*/report.md`` (ou seus
-    equivalentes top-level em mono) e renderiza:
-
-    - banner de status (``DONE``/``RUNNING``/``EMPTY``);
-    - mix de status por estágio (processos / pecas / text);
-    - wall-clock (maior shard + soma) e custo de OCR (USD);
-    - residuals classificados por ``(kind, status)``, com label
-      humano e contagem;
-    - próximos passos copy-paste (loops ``--retentar-de`` por shard
-      para classes retryable; classes terminais ficam só listadas).
-
-    Idempotente, somente-leitura, executa em <1 s em runs finalizados.
-    Pareado com ``acompanhar`` (que chama o mesmo renderer ao detectar
-    fim-de-run).
+    Mostra status, mix por Pool (processos / peças / texto),
+    wall-clock, custo de OCR, lista de erros agrupados por causa, e
+    próximos passos copy-paste para recuperar o que ainda dá. Funciona
+    em Coleta em curso ou já finalizada — somente leitura, idempotente,
+    roda em menos de 1 s.
     """
+    run_dir = _resolve_run_dir(run_dir)
     from judex.sweeps.run_summary import render_summary, summarize_run
-    typer.echo(render_summary(summarize_run(run_dir)), nl=False)
+    summary = summarize_run(run_dir)
+    if json_out:
+        import json as _json
+        from dataclasses import asdict
+        payload = asdict(summary)
+        # Coerce non-JSON-native fields: Path → str, Enum → its value.
+        payload["run_dir"] = str(payload["run_dir"])
+        payload["state"] = summary.state.value
+        typer.echo(_json.dumps(payload, indent=2))
+        return
+    typer.echo(render_summary(summary), nl=False)
+
+
+# ---------------------------------------------------------------------------
+# `recuperar` — close a finished run's residual in one command
+
+
+@app.command(name="recuperar", rich_help_panel="Coleta")
+def recuperar(
+    run_dir: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório de um run finalizado de ``judex executar``. "
+             "Sem argumento, usa o mais recente em runs/active/ por "
+             "mtime. Auto-detecta layout: sharded (shard-*/) ou "
+             "monolítico (executar.errors.jsonl no topo).",
+    ),
+    apply: bool = typer.Option(
+        False, "--apply",
+        help="Dispara as recuperações planejadas. Sem este flag, o comando "
+             "imprime o plano (``would-recover: …``) e sai sem efeito "
+             "colateral — simulação é o padrão seguro.",
+    ),
+    provedor: str = typer.Option(
+        "auto", "--provedor",
+        help="Provedor passado para os ``judex executar --retentar-de`` "
+             "filhos despachados em background. Padrão ``auto`` "
+             "(roteamento por tier pypdf↔OCR).",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o prompt de confirmação sob ``--apply``. Necessário "
+             "para invocações não-interativas (cron, nohup).",
+    ),
+    loop: bool = typer.Option(
+        False, "--loop",
+        help="Repete o ciclo (aplicar → aguardar → reclassificar) até os "
+             "resíduos pararem de encolher ou ``--max-passes`` ser "
+             "atingido. Bloqueia até cada passe completar — diferente "
+             "do ``--apply`` simples, que despacha em background e sai.",
+    ),
+    max_passes: int = typer.Option(
+        3, "--max-passes",
+        help="Teto de passes em ``--loop`` (padrão 3). Trava de "
+             "segurança para o caso patológico em que cada passe "
+             "encolhe o resíduo mas a convergência demora demais.",
+    ),
+    poll_interval: float = typer.Option(
+        5.0, "--poll-interval",
+        help="Frequência (s) com que o loop verifica se os filhos "
+             "detached terminaram. 5 s é razoável para Coletas de "
+             "minutos; baixe para sub-segundo só em testes.",
+    ),
+) -> None:
+    """Recupera os erros que sobraram depois de uma Coleta (``executar``).
+
+    Classifica os erros da Coleta em buckets (transientes, cap-burnt,
+    troca de provedor, refetch, terminais) e dispara as recuperações
+    cabíveis: ``executar --retentar-de`` para transientes, ``re-extrair``
+    para troca de provedor, ``executar --csv`` para refetch de bytes
+    faltantes.
+
+    Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
+    ``--apply`` despacha um pass detached. ``--loop`` repete até
+    convergir (resíduo zera) ou estagnar (não encolhe entre passes).
+
+    Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
+    recuperar.
+    """
+    from judex.sweeps.recuperar import (
+        classify_residual,
+        discover_run_dirs,
+        execute_recoveries,
+        format_summary,
+        plan_recoveries,
+        run_until_stable,
+    )
+
+    run_dir = _resolve_run_dir(run_dir)
+    if not run_dir.exists():
+        typer.echo(f"ERROR: run_dir {run_dir} não existe.", err=True)
+        raise typer.Exit(code=2)
+
+    dirs = discover_run_dirs(run_dir)
+    if not dirs:
+        typer.echo(
+            f"recuperar: nada a recuperar em {run_dir} "
+            f"(nenhum executar.errors.jsonl encontrado)."
+        )
+        raise typer.Exit(code=3)
+
+    buckets = classify_residual(dirs)
+    summary = format_summary(buckets, dry_run=not (apply or loop))
+    typer.echo(summary)
+
+    if not apply and not loop:
+        plan = plan_recoveries(buckets, provedor=provedor)
+        if plan:
+            total_replay = sum(s.n_replay_rows for s in plan)
+            typer.echo(
+                f"plan: would dispatch {len(plan)} child(ren) "
+                f"({total_replay} replay row(s) total) under --apply."
+            )
+        raise typer.Exit(code=0)
+
+    plan = plan_recoveries(buckets, provedor=provedor)
+    if not plan:
+        typer.echo("recuperar: nenhum bucket transiente — nada a despachar.")
+        raise typer.Exit(code=0)
+
+    if not nao_perguntar:
+        prompt_label = "loop" if loop else "dispatch"
+        if not typer.confirm(
+            f"Confirmar {prompt_label} de {len(plan)} child(ren) detached em "
+            f"{run_dir}?",
+            default=True,
+        ):
+            typer.echo("Abortado pelo usuário.")
+            raise typer.Exit(code=2)
+
+    if loop:
+        def _on_pass_start(n: int, actionable: int) -> None:
+            typer.echo(f"recuperar pass {n}: {actionable} actionable rows")
+
+        def _on_pass_end(n: int, n_dispatched: int, pids: list[int]) -> None:
+            typer.echo(
+                f"recuperar pass {n}: dispatched {n_dispatched} child(ren) "
+                f"(PIDs: {pids}); waiting for completion…"
+            )
+
+        result = run_until_stable(
+            run_dir,
+            provedor=provedor,
+            max_passes=max_passes,
+            poll_interval=poll_interval,
+            on_pass_start=_on_pass_start,
+            on_pass_end=_on_pass_end,
+        )
+        final_summary = format_summary(result.final_buckets, dry_run=False)
+        typer.echo(final_summary)
+        if result.converged:
+            typer.echo(
+                f"recuperar: converged in {result.passes_run} pass(es)"
+            )
+        elif result.stopped_for_no_progress:
+            typer.echo(
+                f"recuperar: stopped after {result.passes_run} pass(es) — "
+                f"residual stopped shrinking"
+            )
+        else:
+            typer.echo(
+                f"recuperar: stopped at --max-passes={max_passes} — "
+                f"residual still actionable"
+            )
+        raise typer.Exit(code=0)
+
+    pids_path = run_dir / "recuperar.pids"
+    result = execute_recoveries(plan, pids_path)
+    typer.echo(
+        f"recuperar: spawned {len(result.pids)} child(ren); "
+        f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
+    )
+    raise typer.Exit(code=0)
+
+
+# ---------------------------------------------------------------------------
+# `arquivar` — move uma Coleta finalizada para runs/archive/
+
+
+@app.command(name="arquivar", rich_help_panel="Coleta")
+def arquivar(
+    saida: Optional[Path] = typer.Argument(
+        None,
+        help="Diretório do run ou rótulo. Sem argumento, usa o run mais "
+             "recente em runs/active/ por mtime.",
+        autocompletion=_complete_run_label,
+    ),
+    destino: Path = typer.Option(
+        Path("runs/archive"), "--destino",
+        help="Diretório-raiz para onde mover. Padrão: runs/archive/.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar", "-f",
+        help="Arquiva mesmo se o status for `running` ou `stale`. Use "
+             "com cuidado: arquivar um run vivo deixa o PID apontando "
+             "para um caminho que não vai mais existir.",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run",
+        help="Mostra o que seria movido, mas não move. Sai com código 0.",
+    ),
+) -> None:
+    """Arquiva uma Coleta finalizada (move para ``runs/archive/``).
+
+    Verifica o status via ``list_runs`` antes de mover: ``running`` /
+    ``stale`` exigem ``--forcar`` (arquivar um run vivo deixa o pid
+    file apontando para um caminho inválido). Colisão de nome no
+    destino é um erro — o operador resolve renomeando.
+
+    Pareia naturalmente com ``judex listar --apenas finished`` para
+    descobrir candidatos. A inversa (``desarquivar``) é um ``mv`` na
+    mão; não automatizamos porque é incomum o suficiente.
+    """
+    from judex.pipeline.run_index import summarize_run
+
+    saida = _resolve_run_dir(saida)
+    if not saida.is_dir():
+        typer.echo(f"erro: {saida} não é um diretório.", err=True)
+        raise typer.Exit(code=2)
+
+    summary = summarize_run(saida)
+    if summary.status.value in ("running", "stale") and not forcar:
+        typer.echo(
+            f"erro: status={summary.status.value}. Use --forcar para "
+            "arquivar mesmo assim (cuidado: pid file vira ponteiro inválido).",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    target = destino / saida.name
+    if target.exists():
+        typer.echo(
+            f"erro: {target} já existe. Renomeie um dos dois e tente de novo.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    if dry_run:
+        typer.echo(f"(dry-run) {saida} -> {target}")
+        raise typer.Exit(code=0)
+
+    destino.mkdir(parents=True, exist_ok=True)
+    saida.rename(target)
+    typer.echo(f"arquivado: {saida} -> {target}")
 
 
 # ---------------------------------------------------------------------------
@@ -2026,16 +1930,11 @@ def probe_cmd(
         help="Intervalo de atualização em segundos (0 = mostra uma vez e sai).",
     ),
 ) -> None:
-    """Mostra o progresso de uma varredura sharded em tempo real.
+    """Mostra ao vivo o progresso de uma Coleta paralelizada (shards).
 
-    Lê `shard-*/sweep.state.json` sob `--out-root` e renderiza uma
-    tabela rich com done/target, throughput por shard, regime de WAF
-    (colorido) e ETA agregada. Com `--watch N` redesenha a tela a cada
-    N segundos (Ctrl-C para sair).
-
-    A fonte de verdade de `target` é `<out-root>/shards/*.shard.N.csv`
-    — gerado automaticamente pelo launcher de `varrer-processos
-    --shards`.
+    Renderiza uma tabela com done/target, throughput por shard, regime
+    da WAF (colorido) e ETA agregada. Com ``--watch N`` redesenha a
+    cada N segundos (Ctrl-C sai).
     """
     from scripts.probe_sharded import run_probe
 
@@ -2072,21 +1971,18 @@ def analisar_regimes(
              "para obter só as mudanças.",
     ),
 ) -> None:
-    """Reconstrói a trajetória de regime de um sweep a partir de seu log.
+    """Diagnostica o histórico de throughput de uma Coleta terminada.
 
-    Lê ``sweep.log.jsonl`` (varrer-processos) ou ``pdfs.log.jsonl``
-    (baixar-pecas) — auto-detectado — e responde duas perguntas
-    operacionais sem ``jq``:
+    Reconstrói as transições de regime (``warming`` →
+    ``approaching_collapse`` → ``collapse``) a partir do log da Coleta
+    e responde:
 
-    1. **Quando o regime mudou?** Lista as transições com ``fail_rate``,
-       ``p95`` e qual eixo (A=fail-rate / B=p95) promoveu cada banda.
-    2. **Onde a queda começou?** Para cada banda severa
-       (``l2_engaged`` / ``approaching_collapse`` / ``collapse``),
-       o primeiro registro que a atingiu.
+    1. **Quando o regime mudou?** Lista cada transição com ``fail_rate``
+       e ``p95``, mostrando qual métrica disparou.
+    2. **Onde a queda (cliff) começou?** Primeiro registro a atingir
+       cada banda severa.
 
-    Distingue-se de ``probe`` (que lê o snapshot ``*.state.json`` para
-    monitoramento ao vivo) por ler o log append-only e responder
-    perguntas históricas.
+    Use ``--apenas-transicoes`` para Coletas grandes (só as mudanças).
     """
     from scripts.analyze_regimes import run_analyze_regimes
 
@@ -2105,12 +2001,11 @@ def analisar_regimes(
 
 @debug_app.command(name="validar-gabarito")
 def validar_gabarito() -> None:
-    """Diff da saída do raspador contra os gabaritos conferidos à mão.
+    """Compara o raspador com os gabaritos conferidos à mão.
 
-    Lê cada fixture em ``tests/ground_truth/*.json``, raspa o processo
-    correspondente pelo backend HTTP e imprime os diffs por fixture e
-    o resumo final. Atinge o portal do STF na primeira execução; o
-    cache HTML absorve as chamadas seguintes.
+    Lê ``tests/ground_truth/*.json``, raspa cada processo via HTTP e
+    imprime os diffs por fixture mais o resumo. Atinge o portal STF
+    apenas na primeira execução; o cache HTML absorve o resto.
     """
     from scripts.validate_ground_truth import run_validate_ground_truth
 

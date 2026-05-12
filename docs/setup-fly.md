@@ -21,7 +21,7 @@ flyctl deploy
 ```bash
 export FLY_TESSERACT_URL=https://judex-ocr-tesseract-arcos.fly.dev/extract
 
-uv run judex extrair-pecas --csv runs/active/<sweep>/cases.csv \
+uv run judex executar --csv runs/active/<sweep>/cases.csv \
     --provedor tesseract_fly --paralelo 30 \
     --saida runs/active/<sweep>/ --retomar
 ```
@@ -54,7 +54,7 @@ expected_drain ≈ (N_shards − M_machines) / M_machines × 30s × 2
 Aim for `expected_drain < 100s`. At 32 shards: M=14 is comfortable,
 M=9 is tight.
 
-If `pdfs.log.jsonl` shows `provider_error · ~300s · tesseract_fly`,
-the budget exhausted — recovery via `judex extrair-pecas
---retentar-de <run>/errors.jsonl`. See
+If `executar.log.jsonl` shows `provider_error · ~300s · tesseract_fly`,
+the budget exhausted — recovery via `judex executar --retentar-de
+<run>/executar.errors.jsonl --saida <run>/`. See
 [`docs/recovery-patterns.md`](recovery-patterns.md).

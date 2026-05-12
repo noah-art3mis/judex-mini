@@ -22,7 +22,7 @@ Every line in ``sweep.errors.jsonl`` (varrer) and ``pdfs.errors.jsonl``
    operator do?* Composes on top of ``classify_error``: looks up the
    ``(stage, kind)`` cell in ``RECOVERY_RECIPES`` and returns a
    ``Recipe(action, summary, command_hint)`` the operator (or a future
-   ``judex limpar`` cleanup step) can act on. Same table that backed
+   ``judex recuperar`` cleanup step) can act on. Same table that backed
    the per-stage recovery tables in ``docs/recovery-patterns.md``
    before they were collapsed in here.
 
@@ -64,7 +64,7 @@ _VALID_STAGES = ("varrer", "baixar", "extrair")
 class Recipe:
     """Operator-facing recovery action for one errors.jsonl row.
 
-    - ``action``: the abstract verb (used by ``judex limpar`` /
+    - ``action``: the abstract verb (used by ``judex recuperar`` /
       cleanup tooling to dispatch the right command).
     - ``summary``: one-line human reason ("WAF 403 — re-queue on a
       different IP").
@@ -96,7 +96,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("varrer", "transient"): Recipe(
         "replay",
         "WAF 403 / 5xx / SSL / cookies churn — cookies + IP rotate naturally between runs",
-        "uv run judex debug varrer-processos --retentar-de <run>/sweep.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("varrer", "cross_stage"): Recipe(
         "drop_terminal",
@@ -110,7 +110,7 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("baixar", "transient"): Recipe(
         "replay",
         "empty / non-document / 5xx / SSL / Timeout — usually auth/cookie/Referer churn (abaX.asp triad, see CLAUDE.md)",
-        "uv run judex debug baixar-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("baixar", "cross_stage"): Recipe(
         "drop_terminal",
@@ -124,28 +124,72 @@ RECOVERY_RECIPES: dict[tuple[Stage, Kind], Recipe] = {
     ("extrair", "transient"): Recipe(
         "replay",
         "Fly OCR 502 / network blip / provider error — re-queue",
-        "uv run judex debug extrair-pecas --retentar-de <run>/pdfs.errors.jsonl --saida <run>/",
+        "uv run judex executar --retentar-de <run>/executar.errors.jsonl --saida <run>/",
     ),
     ("extrair", "cross_stage"): Recipe(
         "refetch_upstream",
-        "no_bytes — bytes weren't downloaded; re-baixar first, then re-extrair",
-        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/  # then debug extrair-pecas same csv",
+        "no_bytes — bytes weren't downloaded; re-run executar against the same range/CSV (cache-skips the bytes that did succeed, refetches the missing)",
+        "uv run judex executar --csv <subset> --saida <run>/",
     ),
 }
 
+# URL substring patterns on which an HTTP 404 is *deterministic and
+# permanent*, not a WAF/transient flake. The
+# ``digital.stf.jus.br/decisoes-monocraticas/api/public/votos/{id}/conteudo.pdf``
+# endpoint serves Voto/Relatório PDFs that may have been withdrawn or
+# never finalised — re-running on a fresh IP returns the same 404.
+# Recovery: drop quietly, distinct from a generic terminal so operators
+# can account for these without thinking they're missed retries.
+_PERMANENT_404_URL_SUBSTRINGS: tuple[str, ...] = (
+    "digital.stf.jus.br/decisoes-monocraticas/api/public/votos/",
+)
+
+
+_PERMANENT_404_RECIPE = Recipe(
+    "drop_terminal",
+    "permanent 404 on a known-withdrawn endpoint (votos/conteudo.pdf) — PDF was never published or has been removed; retry returns the same 404 on any IP",
+)
+
+
+def _is_permanent_404(row: dict) -> bool:
+    """True if a row is an HTTP 404 against a known-permanent endpoint.
+
+    Distinct from generic terminal 404s (which the ``(stage, terminal)``
+    recipe catches) because the *reason* is provable: the upstream
+    endpoint serves these as deterministic 404s rather than WAF blocks.
+    """
+    if row.get("http_status") != 404:
+        return False
+    url = row.get("url") or ""
+    return any(p in url for p in _PERMANENT_404_URL_SUBSTRINGS)
+
+
 # Status-specific overrides on extrair: classifier returns ``terminal``
-# for both, but the operator action is *not* "drop"; it's a different
-# tool. Looked up before the generic ``(stage, kind)`` table.
+# for these statuses, but the operator action is *not* "drop"; it's a
+# different tool. Looked up before the generic ``(stage, kind)`` table.
 _EXTRAIR_STATUS_OVERRIDES: dict[str, Recipe] = {
     "empty": Recipe(
         "switch_provider",
         "scanned/image-only PDF — pypdf gave up; re-extract with a beefier provider",
-        "uv run judex debug extrair-pecas --csv <subset> --provedor chandra --forcar --saida <run>-empty-recover/",
+        "uv run judex re-extrair <urls.txt> --provedor chandra --forcar",
     ),
     "unknown_type": Recipe(
         "refetch_bytes",
-        "magic bytes weren't %PDF / {\\rtf — cache is corrupt; refresh the bytes",
-        "uv run judex debug baixar-pecas --csv <subset> --saida <run>/",
+        "magic bytes weren't %PDF / {\\rtf — cache is corrupt; refresh the bytes via a fresh executar pass",
+        "uv run judex executar --csv <subset> --saida <run>/  # cache-skip on bytes drops, fresh fetch refills",
+    ),
+    # ``outlier_skipped``: emitted by the runner when a cached PDF exceeds
+    # the cloud-OCR body cap (>1 MB by default — Modal/Fly response-size
+    # limit). Re-running the same sweep would skip again. The actionable
+    # recovery is **local** Tesseract, which has no body-size limit.
+    # Action shape matches ``empty`` (provider switch) but the destination
+    # provider is specifically the local one. URL-scoped via ``judex
+    # re-extrair`` so we don't over-extract the rest of the case's
+    # peças (which already have clean pypdf text).
+    "outlier_skipped": Recipe(
+        "switch_provider",
+        "PDF exceeds cloud-OCR body cap — re-extract with local tesseract (no cap)",
+        "uv run judex re-extrair <urls.txt> --provedor tesseract --forcar",
     ),
 }
 
@@ -300,6 +344,13 @@ def recovery_recipe(stage: Stage, row: dict) -> Recipe:
     different tool (provider switch / byte refetch), so the recipe
     points at that tool rather than at ``drop_terminal``.
     """
+    # Permanent-404 override fires across every stage: the same
+    # known-deterministic 404 endpoints would emit identical signals
+    # regardless of which stage observed them. Checked before the
+    # extrair-status overrides because a permanent 404 is more
+    # specific than a generic empty/unknown_type/outlier classification.
+    if _is_permanent_404(row):
+        return _PERMANENT_404_RECIPE
     if stage == "extrair":
         status = row.get("status")
         if status in _EXTRAIR_STATUS_OVERRIDES:

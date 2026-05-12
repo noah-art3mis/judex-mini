@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import csv as _csv
 import logging
+import os
 from collections import Counter as _Counter
 from pathlib import Path
 from typing import Optional
@@ -293,6 +294,7 @@ def run_pipeline(
     exclude_doc_types: tuple[str, ...] = (),
     relator_contains: tuple[str, ...] = (),
     handlers_factory=None,  # type: ignore[no-untyped-def]
+    original_args: Optional[dict] = None,
 ) -> int:
     """Run the unified pipeline against ``targets`` to completion.
 
@@ -327,95 +329,122 @@ def run_pipeline(
     state_path = saida / "executar.state.json"
     log_path = saida / "executar.log.jsonl"
 
-    # If the log file is fresher than the snapshot, the snapshot is stale
-    # — the process was killed between snapshot intervals. Replay the
-    # log to recover the up-to-date state, then snapshot before workers
-    # start. Cheap when the log is short; the only cost when both files
-    # are aligned is one stat() per file.
-    if log_path.exists() and (
-        not state_path.exists()
-        or log_path.stat().st_mtime > state_path.stat().st_mtime
-    ):
-        from judex.pipeline.log import recover_state_from_log
+    # Pid-file primitive read by ``judex parar`` (and printed by
+    # ``judex executar --detach``). Written eagerly so a SIGTERM in
+    # the first millisecond of the run still leaves a target the
+    # operator can address. The finally block at the end of this
+    # function deletes it on graceful exit so a recycled PID can't
+    # mislead a later ``parar`` into killing the wrong process.
+    pid_path = saida / "executar.pid"
+    pid_path.write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+    try:
+        # If the log file is fresher than the snapshot, the snapshot is stale
+        # — the process was killed between snapshot intervals. Replay the
+        # log to recover the up-to-date state, then snapshot before workers
+        # start. Cheap when the log is short; the only cost when both files
+        # are aligned is one stat() per file.
+        if log_path.exists() and (
+            not state_path.exists()
+            or log_path.stat().st_mtime > state_path.stat().st_mtime
+        ):
+            from judex.pipeline.log import recover_state_from_log
+            log.info(
+                "executar: log newer than snapshot; recovering state from %s",
+                log_path,
+            )
+            state = recover_state_from_log(log_path)
+            state.snapshot()
+        else:
+            state = PipelineState.load(state_path)
+
+        # Persist the original kwargs once so ``judex retomar`` can
+        # rebuild the operator's first command on a future resume.
+        # ``set_original_args`` is one-way: a re-launch never overwrites.
+        if original_args is not None:
+            state.set_original_args(original_args)
+            state.snapshot()
+
+        portal_proxies = sistemas_proxies = None
+        if proxy_pool is not None:
+            from judex.scraping.proxy_pool import ProxyPool
+
+            # Same file, two independent pool instances. Different origins
+            # (portal.stf vs sistemas.stf), different WAF counters at the
+            # remote end, so cooldown bookkeeping must not cross-contaminate.
+            portal_proxies = ProxyPool.from_file(Path(proxy_pool))
+            sistemas_proxies = ProxyPool.from_file(Path(proxy_pool))
+            log.info(
+                "proxy pool loaded: %d entries from %s (portal + sistemas, independent counters)",
+                portal_proxies.size(),
+                proxy_pool,
+            )
+
+        factory = handlers_factory or make_handlers
+        handlers = factory(
+            state,
+            provedor=provedor,
+            fetch_dje=fetch_dje,
+            portal_proxies=portal_proxies,
+            sistemas_proxies=sistemas_proxies,
+            forcar=forcar,
+            impte_contains=impte_contains,
+            doc_types=doc_types,
+            exclude_doc_types=exclude_doc_types,
+            relator_contains=relator_contains,
+        )
+
+        pools = [
+            PoolConfig(name="portal", concurrency=portal_concurrencia),
+            PoolConfig(name="sistemas", concurrency=sistemas_concurrencia),
+            PoolConfig(name="ocr", concurrency=ocr_concurrencia),
+        ]
+        config = SchedulerConfig(
+            pools=pools, handlers=handlers, n_targets=len(targets),
+            log_path=log_path,
+        )
+
+        seeds = seeds_from_targets(targets, state)
         log.info(
-            "executar: log newer than snapshot; recovering state from %s",
-            log_path,
+            "executar: %d targets · %d seeds · provedor=%s · pools=%d/%d/%d",
+            len(targets), len(seeds), provedor,
+            portal_concurrencia, sistemas_concurrencia, ocr_concurrencia,
         )
-        state = recover_state_from_log(log_path)
-        state.snapshot()
-    else:
-        state = PipelineState.load(state_path)
 
-    portal_proxies = sistemas_proxies = None
-    if proxy_pool is not None:
-        from judex.scraping.proxy_pool import ProxyPool
+        if not seeds:
+            log.info("nothing to do (state already complete for every target)")
+            result = RunResult(
+                counters={p.name: Counters() for p in pools},
+                wall_seconds=0.0,
+            )
+        else:
+            result = asyncio.run(run_scheduler(seeds, config, state))
 
-        # Same file, two independent pool instances. Different origins
-        # (portal.stf vs sistemas.stf), different WAF counters at the
-        # remote end, so cooldown bookkeeping must not cross-contaminate.
-        portal_proxies = ProxyPool.from_file(Path(proxy_pool))
-        sistemas_proxies = ProxyPool.from_file(Path(proxy_pool))
+        pool_concurrencies = {p.name: p.concurrency for p in pools}
+        report = render_report_md(
+            targets=targets, state=state, result=result, provedor=provedor,
+            pool_concurrencies=pool_concurrencies,
+        )
+        (saida / "report.md").write_text(report, encoding="utf-8")
+
+        # Derive ``executar.errors.jsonl`` from the final state. One row per
+        # non-ok target across all three task kinds — feeds the
+        # ``--retentar-de`` replay path next time.
+        from judex.pipeline.log import derive_errors_file
+        errors_path = derive_errors_file(saida, state, targets)
         log.info(
-            "proxy pool loaded: %d entries from %s (portal + sistemas, independent counters)",
-            portal_proxies.size(),
-            proxy_pool,
+            "executar: done. wall=%.1fs · report=%s · errors=%s",
+            result.wall_seconds, saida / "report.md", errors_path,
         )
 
-    factory = handlers_factory or make_handlers
-    handlers = factory(
-        state,
-        provedor=provedor,
-        fetch_dje=fetch_dje,
-        portal_proxies=portal_proxies,
-        sistemas_proxies=sistemas_proxies,
-        forcar=forcar,
-        impte_contains=impte_contains,
-        doc_types=doc_types,
-        exclude_doc_types=exclude_doc_types,
-        relator_contains=relator_contains,
-    )
-
-    pools = [
-        PoolConfig(name="portal", concurrency=portal_concurrencia),
-        PoolConfig(name="sistemas", concurrency=sistemas_concurrencia),
-        PoolConfig(name="ocr", concurrency=ocr_concurrencia),
-    ]
-    config = SchedulerConfig(
-        pools=pools, handlers=handlers, n_targets=len(targets),
-        log_path=log_path,
-    )
-
-    seeds = seeds_from_targets(targets, state)
-    log.info(
-        "executar: %d targets · %d seeds · provedor=%s · pools=%d/%d/%d",
-        len(targets), len(seeds), provedor,
-        portal_concurrencia, sistemas_concurrencia, ocr_concurrencia,
-    )
-
-    if not seeds:
-        log.info("nothing to do (state already complete for every target)")
-        result = RunResult(
-            counters={p.name: Counters() for p in pools},
-            wall_seconds=0.0,
-        )
-    else:
-        result = asyncio.run(run_scheduler(seeds, config, state))
-
-    pool_concurrencies = {p.name: p.concurrency for p in pools}
-    report = render_report_md(
-        targets=targets, state=state, result=result, provedor=provedor,
-        pool_concurrencies=pool_concurrencies,
-    )
-    (saida / "report.md").write_text(report, encoding="utf-8")
-
-    # Derive ``executar.errors.jsonl`` from the final state. One row per
-    # non-ok target across all three task kinds — feeds the
-    # ``--retentar-de`` replay path next time.
-    from judex.pipeline.log import derive_errors_file
-    errors_path = derive_errors_file(saida, state, targets)
-    log.info(
-        "executar: done. wall=%.1fs · report=%s · errors=%s",
-        result.wall_seconds, saida / "report.md", errors_path,
-    )
-
-    return 1 if result.shutdown_requested else 0
+        return 1 if result.shutdown_requested else 0
+    finally:
+        # Always remove the pid file on the way out — graceful exit,
+        # crash, SIGTERM mid-run, doesn't matter. The only path that
+        # leaves a stale pid file behind is SIGKILL (Python can't run
+        # finally clauses on signal 9); ``parar`` defends against that
+        # by probing ``os.kill(pid, 0)`` before issuing SIGTERM.
+        try:
+            pid_path.unlink()
+        except FileNotFoundError:
+            pass

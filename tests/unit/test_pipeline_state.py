@@ -253,6 +253,58 @@ def test_snapshot_creates_parent_dirs(tmp_path: Path) -> None:
     assert path.exists()
 
 
+def test_original_args_round_trip(tmp_path: Path) -> None:
+    """``original_args`` captures the kwargs ``executar`` was invoked
+    with so ``judex retomar`` can rebuild the argv without the operator
+    re-typing ``-c HC -i 196282 -f 210963``. Survives a snapshot/load.
+    """
+    path = tmp_path / "s.json"
+    state = PipelineState.load(path)
+    state.set_original_args({"classe": "HC", "inicio": 1, "fim": 100, "provedor": "pypdf"})
+    state.snapshot()
+
+    reloaded = PipelineState.load(path)
+    assert reloaded.original_args == {
+        "classe": "HC", "inicio": 1, "fim": 100, "provedor": "pypdf",
+    }
+
+
+def test_original_args_idempotent_on_resume(tmp_path: Path) -> None:
+    """``set_original_args`` is one-way: a resume re-launch must not
+    overwrite the first launch's args (the operator's original intent
+    is the source of truth for ``retomar``)."""
+    path = tmp_path / "s.json"
+    state = PipelineState.load(path)
+    state.set_original_args({"classe": "HC", "inicio": 1, "fim": 100})
+    state.snapshot()
+
+    resumed = PipelineState.load(path)
+    # A second launch passes a *different* args dict (e.g. user supplied
+    # different concurrency this time). The original-intent invariant
+    # holds: the persisted args still reflect the first launch.
+    resumed.set_original_args({"classe": "HC", "inicio": 999, "fim": 999})
+    assert resumed.original_args == {"classe": "HC", "inicio": 1, "fim": 100}
+
+
+def test_original_args_is_none_when_absent_from_state_file(tmp_path: Path) -> None:
+    """State files written before the args field existed (every state
+    file from before this commit) load with ``original_args is None``.
+    ``retomar`` reads that and emits a clear error rather than
+    crashing or dispatching a nonsense argv."""
+    path = tmp_path / "s.json"
+    state = PipelineState.load(path)
+    state.record_meta(("HC", 1), status="ok")
+    state.snapshot()
+    # Hand-strip ``args`` from the snapshot to simulate a pre-feature
+    # state file.
+    raw = json.loads(path.read_text())
+    raw.pop("args", None)
+    path.write_text(json.dumps(raw))
+
+    reloaded = PipelineState.load(path)
+    assert reloaded.original_args is None
+
+
 def test_known_urls_for_case_round_trip(tmp_path: Path) -> None:
     """``known_bytes_urls`` returns the URL set the state has seen for
     a case. Used by the scheduler to skip URLs that already finished.

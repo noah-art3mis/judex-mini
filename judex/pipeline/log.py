@@ -203,6 +203,22 @@ def recover_state_from_log(log_path: Path | str) -> PipelineState:
 # the next ``--retentar-de`` pass.
 _TERMINAL_OK_STATUSES: frozenset[str] = frozenset({"ok", "skipped_cached"})
 
+# Statuses that are terminal-no-retry: they didn't succeed, but re-running
+# them would re-discover the same outcome — wasted WAF budget. Keeping
+# them out of errors.jsonl narrows the file to actually-actionable rows
+# so operators (and ``--retentar-de``) don't drown in known-empty slots.
+# ``unallocated_pid`` (ADR-0002): STF's portal never bound an incidente
+# for this case-id; re-probing returns the same negative result.
+_TERMINAL_NO_RETRY_STATUSES: frozenset[str] = frozenset({"unallocated_pid"})
+
+# Combined set: rows whose status falls in either bucket are skipped at
+# errors.jsonl write-time. The two sets are kept distinct so callers
+# that care about the *reason* (succeeded vs. confirmed-empty) can still
+# differentiate without re-deriving from raw status strings.
+_NON_ERROR_STATUSES: frozenset[str] = (
+    _TERMINAL_OK_STATUSES | _TERMINAL_NO_RETRY_STATUSES
+)
+
 
 def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
     """Yield ``TaskLogRecord``-shaped dicts for every non-ok target.
@@ -215,7 +231,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
     for case_key in targets:
         classe, processo = case_key
         meta_status = state.meta_status(case_key)
-        if meta_status is not None and meta_status not in _TERMINAL_OK_STATUSES:
+        if meta_status is not None and meta_status not in _NON_ERROR_STATUSES:
             yield {
                 "kind": "fetch_meta",
                 "classe": classe,
@@ -229,7 +245,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
         for url in sorted(state.known_bytes_urls(case_key)):
             bytes_status = state.bytes_status(case_key, url=url)
             doc_type = state.bytes_doc_type(case_key, url=url)
-            if bytes_status is not None and bytes_status not in _TERMINAL_OK_STATUSES:
+            if bytes_status is not None and bytes_status not in _NON_ERROR_STATUSES:
                 yield {
                     "kind": "fetch_bytes",
                     "classe": classe,
@@ -242,7 +258,7 @@ def _iter_state_errors(state: PipelineState, targets: list[tuple[str, int]]):
                 }
                 continue
             text_status = state.text_status(case_key, url=url)
-            if text_status is not None and text_status not in _TERMINAL_OK_STATUSES:
+            if text_status is not None and text_status not in _NON_ERROR_STATUSES:
                 yield {
                     "kind": "extract_text",
                     "classe": classe,
@@ -333,7 +349,7 @@ def classify_unified_error(row: dict[str, Any]) -> str:
         #   - extract_text: provider returned 0 chars after running.
         #     Same provider would give same result; not transient by
         #     replay alone. The actionable recovery is a provider
-        #     switch, which limpar.py's ``_bucket_for`` handles via
+        #     switch, which recuperar.py's ``_bucket_for`` handles via
         #     a (kind="extract_text", status="empty") override on top
         #     of the ``terminal`` classification.
         if row.get("kind") == "fetch_bytes":
