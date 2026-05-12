@@ -6,7 +6,12 @@ Branch: `dev`. Prior cycle archived at
 narrative, PR #16/#17 (recuperar v2 + `--loop` convergence), runs/active
 housekeeping (74 → 40), `executar` flag-surface narrowing.
 
-**Status as of 2026-05-11 21:30 BRT.** Three things shipped:
+**Status as of 2026-05-12 ~18:00 BRT.** Today knocked out priority-queue
+item #1 (May 4-5 chain delta re-run) and patched two real recuperar
+bugs surfaced by the closeout. The progress narrative for today is in
+`## Resolved this session — chain delta re-run + recuperar bugfix
+(2026-05-12)` below. Status as of 2026-05-11 21:30 BRT (kept for
+context — three things shipped that day):
 
 1. **HC 2021 chain v2 step 6 closed cleanly.** Resume re-entered the
    paused-since-May-5 sweep against `runs/active/hc2021-fillin-20260504-v2/`,
@@ -29,6 +34,104 @@ housekeeping (74 → 40), `executar` flag-surface narrowing.
    +25 new tests (`tests/unit/test_cli_lifecycle.py` new file + extensions
    to `test_pipeline_state.py` and `test_pipeline_runner.py`). Tests now
    at **1,048 passing**.
+
+---
+
+## Resolved this session — chain delta re-run + recuperar bugfix (2026-05-12)
+
+The May 4-5 chain delta re-run (priority-queue item #1 from the prior
+notebook) is now closed for all four years. Wall + outcomes:
+
+| # | Run                                         | n_targets | Status   | Wall    | Notes                            |
+|---|---------------------------------------------|----------:|----------|---------|----------------------------------|
+| 1 | `hc2024-delta`                              |    14,389 | finished | 1h 02m  | clean                            |
+| 2 | `hc2025-pending-delta`                      |       744 | finished | 47m     | clean                            |
+| 3 | `hc2022-delta`                              |    12,922 | finished | 1h 18m  | clean                            |
+| 4 | `hc2021-delta`                              |    10,522 | stopped → recuperar | 12 h then 0.9 s + 3-pass loop | hit two recuperar bugs (see below) |
+
+All four archived to `runs/archive/`. Warehouse rebuilt. The HC 2021
+delta tail was a 12-hour drift into WAF collapse (`regime=collapse,
+fail_rate=0.38, p95_wall=844 s`) — operator-stopped at processo 202710
+with 9,150 ok meta + 19 SSL-storm `http_error` meta on a contiguous
+range (HC-206779 to HC-206797) + 51 terminal `empty` peças. The
+`empty` bytes are the same persistent-zero-bytes pattern from the
+2026-05-11 chain v2 closeout (290 such peças then); STF's portal
+serves 0 bytes on those URLs and they look transient by
+classification but are terminal by data.
+
+### Recuperar two-bug fix — commit `52b3fa8`
+
+Running `judex recuperar --loop --apply --nao-perguntar` against the
+stopped run **hung indefinitely**. Diagnosis surfaced two latent bugs
+that only fire when recuperar is run against a *killed-mid-flight*
+sweep (clean finishes never triggered them — that's why the bugs
+survived in prior `recuperar v2` work):
+
+**Bug 1 — REPLAY didn't materialise its `--retentar-de` payload.**
+`_plan_replay_spawns` (judex/sweeps/recuperar.py:355–376) pointed the
+child at `source_dir / executar.errors.jsonl` and wrote nothing,
+relying on the file existing from a clean sweep finalize. Killed-mid-
+flight runs have no `executar.errors.jsonl` (the finalize step at
+`judex/pipeline/runner.py:430–438` never ran). The child opened the
+absent file, `targets_from_errors_jsonl` returned zero rows, the
+`resolve_targets` over-scoping guard exited 2 with "nenhum alvo
+resolvido pelos parâmetros dados." The 89 ErrorRows recuperar's
+classifier had identified lived only in the parent's memory.
+
+The other two spawn planners (`_plan_provider_switch_spawns`,
+`_plan_refetch_upstream_spawns`) **already materialised** their
+inputs via `materialized_content`; REPLAY was the only one that
+forgot. Fix: render the 89 rows into the canonical wire schema (same
+shape as `judex.pipeline.log.derive_errors_file`) via a new
+`_build_replay_errors_jsonl(rows)` helper and pass it through as
+`materialized_content`. `execute_recoveries` writes it to disk at line
+549–553 before spawning.
+
+**Bug 2 — `wait_for_pids` couldn't detect zombies.** The original
+implementation used `os.kill(pid, 0)` polling. On Linux that returns
+silently for **zombie PIDs** (`State: Z` in `/proc/<pid>/status`) —
+`ProcessLookupError` only fires once the PID is reaped. With
+`start_new_session=True` on the child + no parent reaper, the
+exit-2'd child became a zombie that nobody reaped, the poll spun
+forever. Fix: new `_pid_is_active(pid)` helper reads
+`/proc/<pid>/status` on Linux and treats `Z`/`X` as inactive; kill-
+based probe as non-Linux fallback. Updated docstrings.
+
+**Tests (+3 new, +1 refactor; suite now 1,073 passing in 26 s):**
+
+| File                          | Test                                                   | What it pins                                                              |
+|-------------------------------|--------------------------------------------------------|---------------------------------------------------------------------------|
+| `tests/unit/test_recuperar.py`| `test_plan_replay_materialises_retentar_de_payload`    | REPLAY emits `materialized_content` with the right wire schema fields     |
+| `tests/unit/test_recuperar.py`| `test_execute_recoveries_writes_replay_errors_file_to_disk` | The materialised content actually lands at `source_errors_file`          |
+| `tests/unit/test_recuperar.py`| `test_wait_for_pids_detects_zombie_child`              | `os.fork`-based real zombie pid is detected within `poll_interval`        |
+| `tests/unit/test_recuperar.py`| `test_wait_for_pids_returns_when_all_dead` (refactor)  | Mocks `_pid_is_active` instead of `os.kill` — behavioural, not syscall-coupled |
+
+### Recuperar pass-by-pass after the fix
+
+Real numbers from `runs/archive/20260512_011434-hc2021-delta/`:
+
+```
+recuperar pass 1: 89 actionable rows  →  child wall=0.9s  →  88 actionable after
+recuperar pass 2: 63 actionable rows  →  child wall ~1s   →  63 actionable after
+recuperar pass 3: 63 actionable rows  →  loop's no-progress guard exits
+recuperar: stopped after 3 pass(es) — residual stopped shrinking
+```
+
+Stage-level shrinkage:
+
+| Bucket                  | Pre-recuperar | Post-recuperar | Notes                                          |
+|-------------------------|---------------:|---------------:|------------------------------------------------|
+| `fetch_meta http_error` |             19 |             11 | 8 SSL-storm cases recovered                    |
+| `fetch_meta unallocated_pid` |        1,353 |          1,358 | 5 of the SSL-failed turned out to be real 404s |
+| `fetch_bytes http_error`|             19 |              0 | all recovered                                  |
+| `fetch_bytes empty`     |             51 |             63 | net +12 — fresh empties discovered on retry    |
+| `cap_burnt`             |              0 |              1 | safety valve dropping a perpetual-fail row     |
+
+The 63 stuck-empty residual is the false-transient class (classifier
+correctly says retry, server says 0 bytes every time). The 3-pass
+no-progress exit is the loop doing its job. This delta is at
+effectively 100% coverage of the resolvable cases (9,165 ok /
+(10,522 − 1,358 unallocated) = 99.99%).
 
 ---
 
@@ -188,20 +291,49 @@ loose end below.
 
 ## Active task — HC year-ladder backfill (multi-cycle)
 
-Unchanged from prior archive § "Active task — HC year-ladder backfill",
-adjusted to reflect today's restore. Priority queue:
+Items #1 (May 4-5 chain delta re-run), #2 (HC 2020 outlier recovery)
+both closed today by direct work. Item #3 (HC 2024 text coverage
+anomaly) **auto-closed as a side effect of the delta re-run** — the
+2026-05-12 warehouse rebuild shows HC 2024 text at 99.9% (was 80%
+in the 2026-04-30 snapshot). The data-coverage anomaly resolved
+itself without a targeted retry; what remains is a *quality*
+spot-check, which is much cheaper than the original "find and
+re-extract ~3k underperforming PDFs" plan. See
+`docs/completion-tracker.md` for the refreshed per-year table.
+Remaining priority queue:
 
-1. **Re-run May 4-5 chain against the same `--saida` dirs** to fill in
-   the ~12k case-JSON deltas the May 3 backup doesn't have (HC 2024
-   fill-in resume + HC 2025 pending recheck + HC 2022 fill-in + HC 2021
-   fill-in). Cache-hit on bytes/text; only case-meta deltas refetched.
-   ~3-5 hr direct-IP. Cheap.
-2. **HC 2020 outlier-recovery** — 8 oversized PDFs via local Tesseract
-   (`docs/progress_archive/2026-05-04_0842_hc-fillin-chain-cli-cleanup.md`
-   has the recipe).
-3. **HC 2024 text coverage anomaly** — 80% vs 97-99% on neighbouring
-   years; needs spot-check + `extrair-pecas --csv` retry with
-   chandra/tesseract on the underperforming subset.
+1. ~~**HC 2020 outlier-recovery byte re-fetch** — done 2026-05-12 ✓~~
+   Closed today: 4/8 outliers OCR'd via local Tesseract (3 already-cached
+   + 1 re-fetched via 2-case `judex executar` run, archived at
+   `runs/archive/hc2020-outlier-bytes-refetch/`). **4/8 permanently
+   lost / unrecoverable**: 3 are orphan-URLs from the corpus deletion
+   event (`id=15346588384` / `15353487630` / `15346093660` — owning
+   cases were among the ~12k case-JSON deltas the May 3 backup
+   doesn't have; not surfaced anywhere in the restored HC corpus);
+   1 is a persistent server-side empty (`id=15347614538` in HC 193726
+   — STF serves 0 bytes for that URL today, same pattern as the 63
+   stuck-empties in HC 2021 delta). Going forward, the same residual
+   class would be drained automatically by `recuperar --loop --apply`
+   via the PROVIDER_SWITCH `outlier_skipped → tesseract` route
+   (`recuperar.py:172`) — today's manual fix was specifically a
+   pre-recuperar-v2 cleanup. Cache state after today:
+   `_extract-hc2020-outliers-direct.py` is idempotent so a future
+   re-run only processes new arrivals.
+2. ~~**HC 2024 text coverage anomaly** — auto-closed 2026-05-12 ✓~~
+   Text coverage is now 21,889/21,904 = 99.9% (vs the 80% baseline
+   from the 2026-04-30 snapshot that originally surfaced the anomaly).
+   The delta re-run's case-meta refetches + bytes/text caches catching
+   up filled the gap without any targeted retry. **Quality spot-check
+   still recommended** — sample 5-10 `.txt.gz` files from HC 2024 to
+   confirm the text content is usable (not pypdf-mojibake / silent-
+   whitespace failures). 10-min task. If quality holds, this item
+   closes entirely.
+3. **HC 2023 bytes coverage hole** — 14,456 / 21,453 = 67% on bytes
+   while text is at 97%. Surfaced 2026-05-12 by the post-delta
+   warehouse snapshot; the 2026-04-30 baseline had 2023 bytes at
+   70%. Likely URL-set churn between the bytes sweep and the latest
+   warehouse rebuild — a targeted `executar --csv` over the affected
+   cases (or `baixar-pecas`) should close the gap cheaply.
 4. **HC 2017–2019 fresh sweeps** — pre-2021 layer of the priority queue
    per [`docs/completion-tracker.md`](completion-tracker.md). HC 2017 is
    the natural next density × budget target.

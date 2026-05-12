@@ -33,24 +33,39 @@ data reorg).
 
 ## Table
 
-| year | width  | cases  | peças (bytes)             | peças (text)              | tier-A bytes              | tier-A URLs |
-|-----:|-------:|-------:|---------------------------|---------------------------|---------------------------|------------:|
-| 2026 |  4,001 |  3,099 | 🟡 3,722 / 5,078 = 73%    | 🟡 1,315 / 5,078 = 26%    | 🟡 3,319 / 4,670 = 71%    |     4,670 |
-| 2025 | 16,200 | 13,365 | ✅ 16,926 / 24,414 = 69%  | ✅ 23,735 / 24,414 = 97%  | ✅ 16,686 / 24,174 = 69%  |    24,174 |
-| 2024 | 14,387 | 12,014 | ✅ 15,598 / 22,267 = 70%  | 🟡 17,843 / 22,267 = 80%  | ✅ 15,011 / 21,680 = 69%  |    21,680 |
-| 2023 | 12,644 | 11,129 | ✅ 15,044 / 21,458 = 70%  | ✅ 20,767 / 21,458 = 97%  | ✅ 14,772 / 21,186 = 70%  |    21,186 |
-| 2022 | 13,057 | 10,824 | ✅ 14,591 / 20,224 = 72%  | ✅ 20,068 / 20,224 = 99%  | ✅ 14,380 / 20,013 = 72%  |    20,013 |
-| 2021 | 14,508 |  7,562 | ❌ 61 / 11,894 = 0.5%     | ❌ 132 / 11,894 = 1%      | ❌ 59 / 10,443 = 0.6%     |    10,443 |
-| 2020 | 15,754 |  4,208 | ❌ 41 / 6,791 = 0.6%      | ❌ 65 / 6,791 = 1%        | ❌ 39 / 5,701 = 0.7%      |     5,701 |
-| 2019 | 14,352 |    914 | ❌ 4 / 2,245 = 0.2%       | ❌ 26 / 2,245 = 1%        | ❌ 4 / 1,527 = 0.3%       |     1,527 |
-| 2018 | 13,969 |    945 | ❌ 6 / 1,756 = 0.3%       | ❌ 16 / 1,756 = 1%        | ❌ 6 / 1,348 = 0.4%       |     1,348 |
-| 2017 | 12,604 |  1,852 | ❌ 15 / 3,273 = 0.5%      | ❌ 26 / 3,273 = 1%        | ❌ 12 / 2,829 = 0.4%      |     2,829 |
-| 2016 |  7,049 |  4,582 | ❌ 57 / 8,700 = 0.7%      | ❌ 364 / 8,700 = 4%       | ❌ 53 / 7,415 = 0.7%      |     7,415 |
-| 2015 |  6,319 |  5,584 | ❌ 89 / 10,712 = 0.8%     | ❌ 371 / 10,712 = 3%      | ❌ 82 / 9,406 = 0.9%      |     9,406 |
-| 2014 |  5,338 |  4,342 | ❌ 35 / 8,463 = 0.4%      | ❌ 131 / 8,463 = 2%       | ❌ 31 / 7,135 = 0.4%      |     7,135 |
+Snapshot date: **2026-05-12** (post chain-delta re-run + HC 2020
+outlier recovery + warehouse rebuild).
+
+| year | width  | cases  | peças (bytes)              | peças (text)               | tier-A bytes               | tier-A URLs |
+|-----:|-------:|-------:|----------------------------|----------------------------|----------------------------|------------:|
+| 2026 |  4,001 |  3,099 | ✅ 4,701 / 4,711 = 99.8%   | ✅ 4,711 / 4,711 = 100%    | ✅ 4,660 / 4,670 = 99.8%   |     4,670 |
+| 2025 | 16,200 | 13,365 | ✅ 24,365 / 24,488 = 99.5% | ✅ 24,210 / 24,488 = 98.9% | ✅ 24,176 / 24,298 = 99.5% |    24,298 |
+| 2024 | 14,387 | 12,014 | ✅ 21,885 / 21,904 = 99.9% | ✅ 21,889 / 21,904 = 99.9% | ✅ 21,661 / 21,680 = 99.9% |    21,680 |
+| 2023 | 12,644 | 11,129 | 🟡 14,456 / 21,453 = 67%   | ✅ 20,781 / 21,453 = 97%   | 🟡 14,231 / 21,186 = 67%   |    21,186 |
+| 2022 | 13,057 | 10,824 | ✅ 20,208 / 20,209 = 99.99%| ✅ 20,208 / 20,209 = 99.99%| ✅ 20,013 / 20,013 = 100%  |    20,013 |
+| 2021 | 14,508 |  9,305 | ✅ 13,886 / 14,455 = 96.1% | ✅ 13,914 / 14,455 = 96.3% | ✅ 13,614 / 14,067 = 96.8% |    14,067 |
+| 2020 | 15,754 |  4,493 | 🟡 2,609 / 7,751 = 33.7%   | ❌ 1,448 / 7,751 = 18.7%   | 🟡 2,072 / 6,663 = 31.1%   |     6,663 |
+| 2019 | 14,352 |    914 | ❌ 4 / 2,245 = 0.2%        | ❌ 26 / 2,245 = 1%         | ❌ 4 / 1,527 = 0.3%        |     1,527 |
+| 2018 | 13,969 |    945 | ❌ 6 / 1,756 = 0.3%        | ❌ 16 / 1,756 = 1%         | ❌ 6 / 1,348 = 0.4%        |     1,348 |
+| 2017 | 12,604 |  1,852 | ❌ 15 / 3,273 = 0.5%       | ❌ 26 / 3,273 = 1%         | ❌ 12 / 2,829 = 0.4%       |     2,829 |
+| 2016 |  7,049 |  4,582 | ❌ 57 / 8,700 = 0.7%       | ❌ 364 / 8,700 = 4%        | ❌ 53 / 7,415 = 0.7%       |     7,415 |
+| 2015 |  6,319 |  5,584 | ❌ 89 / 10,712 = 0.8%      | ❌ 371 / 10,712 = 3%       | ❌ 82 / 9,406 = 0.9%       |     9,406 |
+| 2014 |  5,338 |  4,342 | ❌ 35 / 8,463 = 0.4%       | ❌ 131 / 8,463 = 2%        | ❌ 31 / 7,135 = 0.4%       |     7,135 |
+| 2013 | (legacy fragment) |    511 | ❌ 3 / 1,279 = 0.2%   | ❌ 17 / 1,279 = 1%         | ❌ 3 / 930 = 0.3%          |       930 |
 
 `width` is the STF-side case-id-space width for HC that year (from
 `docs/process-space.md`); `cases` is what's on disk in the warehouse.
+
+**2026-05-12 movements** (vs prior snapshot): HC 2024 text 80% → 99.9%
+(anomaly closed by the delta re-run + warehouse rebuild, no targeted
+retry needed). HC 2021 bytes/text 0.5%/1% → 96.1%/96.3% (chain v2 +
+delta re-run). HC 2020 partial bump from outlier recovery (3 cached +
+1 newly-refetched outlier OCR'd via local Tesseract; 4 lost — 3 orphan
+URLs from the May 5-11 corpus deletion + 1 persistent STF-empty).
+HC 2026 bytes 73% → 99.8% (incremental sweeps + recuperar drains).
+HC 2025 / 2023 / 2022 essentially unchanged. **2013 is a new row** —
+sparse legacy fragment of cases whose `data_protocolo_iso` fell in
+2013 (likely re-distributed or re-classified cases); not a target.
 
 ## Cache integrity caveat
 
@@ -133,32 +148,34 @@ actual workload, not the warehouse's URL count.
 Ordered by **case-JSON-walk fetch tail** (the runner's real-work
 estimate), not by warehouse "% missing" (over-counts; see § drift).
 
-The **2025 → 2022 ladder is now closed for peças** (all four years
-≥97% on text via direct-IP overnight sweeps). Remaining priorities
-are the older case-id-space gaps and HC 2024's 80% text plateau.
+The **2026 → 2021 ladder is now closed for peças** (all six years
+≥96% on text after the 2026-05-12 chain-delta re-run + HC 2024
+delta-driven anomaly closure). Remaining priorities are the older
+case-id-space gaps and the lingering HC 2023 bytes-coverage hole.
 
-1. **2024 extract second pass** — text coverage is 80% (17,843 /
-   22,267) vs the 97–99% achieved on 2023 and 2022. Investigate
-   why ~3k 2024 PDFs didn't extract cleanly (provider failures,
-   RTF mistypes, scanned originals?). Likely a focused
-   `extrair-pecas --csv` retry on 2024 with a different provider
-   tier (chandra / mistral) covers the gap; cost is small. See
-   `runs/active/2026-04-27-*` for the original extract artifacts.
+1. **2023 bytes second pass** — text is 97% but bytes are only 67%
+   (14,456 / 21,453). Likely just URL count drift between the bytes
+   sweep and the most recent warehouse rebuild — a targeted
+   `judex executar --csv` over the affected cases (or a
+   `baixar-pecas` follow-up) should close the gap cheaply. Cost is
+   small; this was *not* on the queue pre-2026-05-12 because the
+   table snapshot from 2026-04-30 showed 70% as steady-state.
 2. **2019, 2018, 2017 cases** — ~37k missing cases combined; three
    sequential year sweeps; closes the 2017–2022 hole. Followed by
    the matching peça sweeps (~13–15k URLs each, same shape as
    2024/2023/2022).
-3. **2021 cases** — 7,562 / 14,508 widths on disk; ~6,950 missing.
-   Single sweep at 16-shard fresh-pool; once cases land, peça
-   sweep follows.
-4. **2020 cases** — 4,208 / 15,754 widths on disk; ~11,500 missing.
-   Same shape as 2021.
-5. **2016, 2015, 2014 case re-scrapes** (mixed-coverage,
+3. **2020 cases** — 4,493 / 15,754 widths on disk; ~11,300 missing.
+   Outlier residual closed 2026-05-12 (4/8 oversized PDFs recovered
+   via local Tesseract; 4 lost — see `current_progress.md` § Resolved
+   2026-05-12). The real 2020 backfill is a fresh year-of-HC sweep,
+   not residual recovery.
+4. **2016, 2015, 2014 case re-scrapes** (mixed-coverage,
    content-stale) — `--full-range` re-scrapes, smaller marginal value
-   than the missing-year sweeps; defer until 2017–2021 closes.
-6. **Pre-2014** (paper-era, ≤47% density per
+   than the missing-year sweeps; defer until 2017–2020 closes.
+5. **Pre-2014** (paper-era, ≤47% density per
    `docs/process-space.md`) — not a near-term priority; lower yield
-   per request.
+   per request. The 511 cases that surfaced in 2013 today are a
+   legacy-fragment artifact, not a target.
 
 **Recently completed:**
 - ✅ **HC 2022 peça sweep direct-IP** (2026-04-30 00:21 → 13:15 BRT,
