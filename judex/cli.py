@@ -592,10 +592,10 @@ def executar(
              "Substitui o ritual ``setsid nohup … & disown``.",
     ),
 ) -> None:
-    """Raspa um intervalo (ou CSV) de processos: metadados + peças + texto.
+    """Inicia uma Coleta: metadados + peças + texto de um intervalo (ou CSV) de processos.
 
-    Cada execução é uma Coleta — produz um diretório de run com log,
-    estado e relatório consolidado. Três modos de entrada (escolha um):
+    Cada Coleta produz um diretório de run com log, estado e relatório
+    consolidado. Três modos de entrada (mutuamente exclusivos):
 
       - intervalo:  ``-c HC -i 250000 -f 250100``
       - CSV:        ``--csv alvos.csv``
@@ -603,7 +603,8 @@ def executar(
 
     Retomada é automática — re-rodar com o mesmo ``--saida`` pula o
     trabalho já concluído e processa só o que falta. SIGTERM/SIGINT
-    encerram de forma limpa, deixando o estado retomável em disco.
+    encerram de forma limpa, deixando o estado retomável em disco
+    (use ``judex parar`` para encerrar, ``judex retomar`` para continuar).
     """
     # ----- Mode resolution -----
     range_flags = [
