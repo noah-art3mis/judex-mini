@@ -161,7 +161,7 @@ One of three concurrency lanes inside a **Coleta** — `portal` (hits `portal.st
 _Avoid_: stage (the `coletar`-era three-stage chain is gone), worker (an asyncio worker is one slot inside a Pool), queue (the queue is one of three implementation primitives the Pool is built from)
 
 **Task**:
-One unit of work routed to one **Pool** in the **Coleta**'s per-case DAG. Three kinds: `fetch_meta` (`portal`, one per **processo**, emits one `fetch_bytes` per peça URL); `fetch_bytes` (`sistemas`, one per peça URL, emits one `extract_text` on success); `extract_text` (`ocr`, one per peça URL, terminal). Each task is idempotent at the storage layer — re-running with the same arguments yields the same on-disk artefact or skips per `--retomar` / `--forcar`. The state file (`executar.state.json`) records every task's terminal outcome (`ok` / `http_error` / `provider_error` / `no_bytes` / `empty` / `unallocated_pid` / `skipped_cached`).
+One unit of work routed to one **Pool** in the **Coleta**'s per-case DAG. Three kinds: `fetch_meta` (`portal`, one per **processo**, emits one `fetch_bytes` per peça URL); `fetch_bytes` (`sistemas`, one per peça URL, emits one `extract_text` on success); `extract_text` (`ocr`, one per peça URL, terminal). Each task is idempotent at the storage layer — re-running with the same arguments yields the same on-disk artefact or skips per `--retomar` / `--forcar`. The state file (`executar.state.json`) records every task's terminal outcome (`ok` / `http_error` / `provider_error` / `no_bytes` / `empty` / `outlier_skipped` / `unallocated_pid` / `skipped_cached`).
 _Avoid_: job, item — these are operational synonyms but **Task** is the project canon
 
 **Direct-IP mode** _(of a Sweep, vs Proxy mode)_:
@@ -212,6 +212,19 @@ A post-hoc classification of a finished **Coleta** by per-**Pool** **transient r
 | `broken`     | any Pool > 5%               | systemic problem; investigate before re-running        |
 
 Distinct from the pre-flight **transient gate** (which trips a Pool's circuit breaker mid-Coleta): **run quality** grades a finished Coleta. A `broken` outcome on a Coleta that *did* finish (gate didn't trip mid-flight) means transients accumulated only in the retry tail — a different failure mode than a forward-pass collapse.
+
+**Cross-run registry**:
+A warehouse table that aggregates per-URL or per-case observations across every **Coleta** the operator has run, answering "what's the latest state of X across all time?" without grepping run dirs. Three registries: `peca_issues` (URL-keyed — `latest_status`, `n_attempts_seen`, `is_suspicious_short`, `dismissed_at`); `case_issues` (case-id-keyed — `latest_meta_status`, `latest_error`, `last_run_dir` — populated only when fetch_meta failed with `http_error` / `provider_error` / `empty`; the terminal-by-STF `unallocated_pid` rows belong to its own dedicated table); `unallocated_pids` (case-id-keyed, terminal subset per [ADR-0002](docs/adr/0002-distinguish-unallocated-processo-id-from-scrape-failure.md)). Populated during `judex warehouse` by walking `runs/active/` + `runs/archive/` state.json files; empty when `runs/` is absent.
+_Avoid_: known-bad table (overloaded — registries also carry currently-recoverable transient observations, not just terminal-bad rows)
+
+**Disk-coverage gap**:
+The set of substantive URLs the warehouse expects (via `pdfs_substantive`) but whose `.pdf.gz` or `.txt.gz` file is not on disk at warehouse-build time. Symptom of (a) bytes/text never fetched (sweep gap), (b) cache files deleted (corpus wipe), or (c) corpus restored from an older backup. Surfaced via the `missing_bytes` and `missing_text` views on top of the `disk_bytes` / `disk_txt` snapshot tables. Distinct from a **Transient residual** — disk-coverage gap measures *post-hoc on-disk reality*, not in-flight task state — and from **Cross-pool residual** — which is a per-Coleta accounting concept, not a corpus-wide one.
+
+**Orphan cache file**:
+A `.pdf.gz` or `.txt.gz` file on disk whose `sha1(url)` is not referenced by any URL in `pdfs_substantive`. Means the file has storage but no provenance — typically a pre-split-era legacy extraction (text-only) or a URL set that has since been narrowed out of the substantive view. Surfaced via the `orphan_cache_files` view (`kind ∈ {bytes_only, text_only}`). Operators usually leave these in place — the storage is cheap and the next coverage gap may re-claim them — but they are visible for housekeeping decisions.
+
+**Outlier peça**:
+A peça PDF whose compressed body exceeds the cloud-OCR (`tesseract_fly`) per-request cap (~1 MB), recorded in state.json as `outlier_skipped`. Strictly part of the **Task** status enum but only surfaces on the `ocr` Pool against the cloud provider; local Tesseract has no body cap and never emits this status. Recovery path: **Recuperar**'s PROVIDER_SWITCH bucket auto-dispatches `judex re-extrair --provedor tesseract` (local), so a clean `executar → recuperar --loop --apply` chain converges without operator intervention provided the `ocr-local` extra is installed (`uv sync --extra ocr-local` + system `tesseract` + `tesseract-ocr-por` + `poppler-utils`). Distinct from a **Transient residual** — the status looks transient by classifier but recovery requires a *different provider*, not a retry.
 
 ## Bridges
 
