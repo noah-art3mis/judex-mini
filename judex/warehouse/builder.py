@@ -219,14 +219,47 @@ CREATE TABLE peca_issues (
 );
 
 -- processo_ids that STF's portal never bound to an incidente.
--- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`.
--- See ADR-0002.
+-- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`
+-- (pre-aggregated) OR by walking ``runs/active/`` + ``runs/archive/``
+-- state.json files inline at warehouse-build time. See ADR-0002.
 CREATE TABLE unallocated_pids (
     classe          VARCHAR NOT NULL,
     processo_id     INTEGER NOT NULL,
     n_observations  INTEGER NOT NULL,
     confirmed       BOOLEAN NOT NULL,
     PRIMARY KEY (classe, processo_id)
+);
+
+-- Cross-run case-id-keyed registry of case-meta failures
+-- (sibling of peca_issues, but for the fetch_meta task type).
+-- Captures cases where the portal-side scrape failed — distinct
+-- from unallocated_pid (which is terminal-by-STF, "case-id was
+-- never bound"). Populated by walking executar.state.json files
+-- under runs/. See CONTEXT.md § "Cross-run registry".
+CREATE TABLE case_issues (
+    classe              VARCHAR NOT NULL,
+    processo_id         INTEGER NOT NULL,
+    latest_meta_status  VARCHAR,
+    latest_error        VARCHAR,
+    n_attempts_seen     INTEGER NOT NULL,
+    first_seen_at       VARCHAR,
+    last_seen_at        VARCHAR,
+    last_run_dir        VARCHAR,
+    PRIMARY KEY (classe, processo_id)
+);
+
+-- Snapshot of sha1s present in data/raw/pecas/ (bytes cache) at
+-- warehouse-build time. Source for the missing_bytes /
+-- orphan_cache_files views. See CONTEXT.md § "Disk-coverage gap".
+CREATE TABLE disk_bytes (
+    sha1 VARCHAR PRIMARY KEY
+);
+
+-- Snapshot of sha1s present in data/derived/pecas-texto/ (text
+-- cache) at warehouse-build time. Source for the missing_text /
+-- orphan_cache_files views.
+CREATE TABLE disk_txt (
+    sha1 VARCHAR PRIMARY KEY
 );
 
 CREATE TABLE manifest (
@@ -310,6 +343,39 @@ SELECT
 FROM documentos d
 WHERE d.url IS NOT NULL
   AND d.doc_type IN ('Voto', 'Relatório', 'Voto Vogal', 'Voto Vista');
+
+-- Substantive URLs whose .pdf.gz isn't on disk (after warehouse rebuild
+-- snapshots the bytes-cache state into disk_bytes). Surfaces the
+-- "byte-coverage gap" — see CONTEXT.md § "Disk-coverage gap".
+CREATE VIEW missing_bytes AS
+SELECT s.classe, s.processo_id, s.url, s.sha1, s.doc_type, s.tier
+  FROM pdfs_substantive s
+  LEFT JOIN disk_bytes db ON db.sha1 = s.sha1
+ WHERE db.sha1 IS NULL;
+
+-- Substantive URLs whose .txt.gz isn't on disk. Distinct from
+-- missing_bytes: a URL may have bytes-only (pre-extraction era) or
+-- be missing both.
+CREATE VIEW missing_text AS
+SELECT s.classe, s.processo_id, s.url, s.sha1, s.doc_type, s.tier
+  FROM pdfs_substantive s
+  LEFT JOIN disk_txt dt ON dt.sha1 = s.sha1
+ WHERE dt.sha1 IS NULL;
+
+-- Cache files on disk whose sha1 isn't referenced by any URL in
+-- pdfs_substantive — pre-split-era legacy extractions or URLs that
+-- have since been narrowed out of the substantive set. See
+-- CONTEXT.md § "Orphan cache file".
+CREATE VIEW orphan_cache_files AS
+SELECT db.sha1, 'bytes_only' AS kind
+  FROM disk_bytes db
+  LEFT JOIN pdfs_substantive s ON s.sha1 = db.sha1
+ WHERE s.sha1 IS NULL
+UNION ALL
+SELECT dt.sha1, 'text_only' AS kind
+  FROM disk_txt dt
+  LEFT JOIN pdfs_substantive s ON s.sha1 = dt.sha1
+ WHERE s.sha1 IS NULL;
 """
 
 
@@ -947,6 +1013,82 @@ def _load_unallocated_pids(
     return rows
 
 
+def _collect_unallocated_from_state_files(
+    runs_root: Path, *, min_observations: int = 2,
+) -> list[dict]:
+    """Walk every ``executar.state.json`` under ``runs_root`` and count
+    per-(classe, processo_id) ``unallocated_pid`` observations.
+
+    Returns rows ready for ``unallocated_pids`` insert. Sibling of the
+    TSV-based path (``_load_unallocated_pids``) — invoked when the TSV
+    is absent or the operator wants live aggregation across the current
+    runs/ tree. ``confirmed`` is derived from ``min_observations``,
+    same threshold as the TSV path.
+    """
+    if not runs_root.exists():
+        return []
+    import json
+    counts: dict[tuple[str, int], int] = {}
+    for state_path in runs_root.glob("**/executar.state.json"):
+        try:
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        cases = data.get("cases") or {}
+        for case_key, rec in cases.items():
+            classe, _, pid_str = case_key.partition("-")
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                continue
+            meta = rec.get("fetch_meta")
+            if not isinstance(meta, dict):
+                continue
+            if meta.get("status") != "unallocated_pid":
+                continue
+            counts[(classe, pid)] = counts.get((classe, pid), 0) + 1
+    return [
+        {
+            "classe": classe,
+            "processo_id": pid,
+            "n_observations": n,
+            "confirmed": n >= min_observations,
+        }
+        for (classe, pid), n in sorted(counts.items())
+    ]
+
+
+def _populate_disk_snapshots(
+    con,
+    *,
+    bytes_root: Path,
+    text_root: Path,
+) -> tuple[int, int]:
+    """Populate ``disk_bytes`` + ``disk_txt`` with sha1s present on disk.
+
+    These tables back the ``missing_bytes`` / ``missing_text`` /
+    ``orphan_cache_files`` views. Snapshotted at warehouse-build time;
+    refreshing requires a warehouse rebuild (acceptable since rebuilds
+    are ~5 min and the bytes-cache state only changes when a sweep
+    runs).
+    """
+    import os
+    bytes_sha1s = (
+        n[:-7] for n in os.listdir(bytes_root) if n.endswith(".pdf.gz")
+    ) if bytes_root.exists() else iter(())
+    text_sha1s = (
+        n[:-7] for n in os.listdir(text_root) if n.endswith(".txt.gz")
+    ) if text_root.exists() else iter(())
+
+    bytes_payload = [(s,) for s in bytes_sha1s]
+    text_payload = [(s,) for s in text_sha1s]
+    if bytes_payload:
+        con.executemany("INSERT INTO disk_bytes VALUES (?)", bytes_payload)
+    if text_payload:
+        con.executemany("INSERT INTO disk_txt VALUES (?)", text_payload)
+    return len(bytes_payload), len(text_payload)
+
+
 def build(
     *,
     cases_root: Path,
@@ -958,6 +1100,7 @@ def build(
     strict: bool = False,
     unallocated_pids_root: Optional[Path] = None,
     runs_root: Optional[Path] = None,
+    bytes_root: Optional[Path] = None,
 ) -> BuildSummary:
     """Build the warehouse. When ``strict=True``, a population-rate
     threshold miss (see ``MIN_POPULATION_RATES``) raises
@@ -1102,13 +1245,39 @@ def build(
 
         # Unallocated processo_ids — sourced from the cross-sweep registry.
         # See ADR-0002. Tests omit the root and get an empty table.
-        unallocated_rows: list[dict] = []
+        # Dual-source: pre-aggregated TSV (legacy) PLUS inline state.json
+        # walk (so the warehouse stays current even when nobody ran the
+        # aggregator script). State walk wins on collisions (same pid,
+        # higher observation count — it sees more runs than any single
+        # TSV checkpoint).
+        unallocated_by_key: dict[tuple[str, int], dict] = {}
         if unallocated_pids_root is not None:
             for classe in sorted(classes_seen):
-                unallocated_rows.extend(
-                    _load_unallocated_pids(unallocated_pids_root, classe)
-                )
+                for row in _load_unallocated_pids(unallocated_pids_root, classe):
+                    unallocated_by_key[(row["classe"], row["processo_id"])] = row
+        if runs_root is not None:
+            for row in _collect_unallocated_from_state_files(runs_root):
+                key = (row["classe"], row["processo_id"])
+                existing = unallocated_by_key.get(key)
+                if existing is None or row["n_observations"] > existing["n_observations"]:
+                    unallocated_by_key[key] = row
+        unallocated_rows = list(unallocated_by_key.values())
         n_unallocated = _bulk_insert_iter(con, "unallocated_pids", iter(unallocated_rows))
+
+        # Disk-snapshot tables — back the missing_bytes / missing_text /
+        # orphan_cache_files views. Snapshotted now; views compute live
+        # against this snapshot. ``bytes_root=None`` skips the bytes
+        # snapshot (tests + cold checkouts); text always comes from the
+        # ``pecas_texto_root`` we were called with.
+        if bytes_root is not None:
+            n_disk_bytes, n_disk_txt = _populate_disk_snapshots(
+                con, bytes_root=bytes_root, text_root=pecas_texto_root,
+            )
+            print(
+                f"  disk snapshots: {n_disk_bytes:,} bytes / "
+                f"{n_disk_txt:,} text",
+                flush=True,
+            )
 
         # peca_issues: cross-run per-URL registry (PRD: peca-registry).
         # Wrapped: a bug here must not break the rest of the build.
@@ -1124,10 +1293,14 @@ def build(
                     pecas_texto_root=pecas_texto_root,
                 )
                 print(f"  peca_issues: {n_peca_issues:,} rows", flush=True)
+                from judex.warehouse.case_issues import build_case_issues
+                n_case_issues = build_case_issues(con, runs_root=runs_root)
+                print(f"  case_issues: {n_case_issues:,} rows", flush=True)
             except Exception as e:  # noqa: BLE001
                 print(
-                    f"  ⚠ peca_issues build failed ({type(e).__name__}: {e}) — "
-                    f"table left empty; warehouse otherwise OK",
+                    f"  ⚠ peca_issues / case_issues build failed "
+                    f"({type(e).__name__}: {e}) — tables left empty; "
+                    f"warehouse otherwise OK",
                     flush=True,
                 )
 

@@ -32,6 +32,7 @@ def run_build_warehouse(
     strict: bool = False,
     unallocated_pids_root: Path = Path("data/derived/nao-alocados"),
     runs_root: Path | None = None,
+    bytes_root: Path | None = None,
 ) -> int:
     id_range = None
     if year is not None:
@@ -59,6 +60,7 @@ def run_build_warehouse(
             strict=strict,
             unallocated_pids_root=unallocated_pids_root,
             runs_root=runs_root if (runs_root is not None and runs_root.exists()) else None,
+            bytes_root=bytes_root if (bytes_root is not None and bytes_root.exists()) else None,
         )
     except builder.BuildValidationError as e:
         # `strict=True` raises *after* writing the warehouse file + printing

@@ -1142,6 +1142,7 @@ def _run_warehouse(
     progresso_cada: int,
     estrito: bool,
     runs_root: Optional[Path] = None,
+    bytes_root: Optional[Path] = None,
 ) -> int:
     """Shared body for the canonical ``warehouse`` command and its
     deprecated ``atualizar-warehouse`` alias. Returns the exit code from
@@ -1165,6 +1166,7 @@ def _run_warehouse(
         progress_every=progresso_cada,
         strict=estrito,
         runs_root=effective_runs_root,
+        bytes_root=bytes_root,
     )
 
 
@@ -1202,16 +1204,20 @@ def warehouse(
              "regressões silenciosas do scraper. O arquivo .duckdb ainda "
              "é gravado para inspeção manual; só o exit code muda.",
     ),
-    com_peca_issues: bool = typer.Option(
-        False, "--com-peca-issues",
-        help="Constrói também a tabela ``peca_issues`` — registro per-URL "
-             "agregado dos run dirs em ``runs/active/`` (status, tentativas, "
-             "dispensa, suspeita-curta). Default off porque adiciona "
-             "alguns segundos ao build e nem todo operador precisa.",
-    ),
     runs_root: Path = typer.Option(
-        Path("runs/active"), "--runs-root",
-        help="Raiz dos run dirs. Usada apenas com --com-peca-issues.",
+        Path("runs"), "--runs-root",
+        help="Raiz dos run dirs. Walked para popular as três registries "
+             "transversais (``peca_issues`` per-URL, ``case_issues`` per-"
+             "case, ``unallocated_pids``). Default ``runs/`` cobre tanto "
+             "``active/`` quanto ``archive/``. Se a pasta não existe, as "
+             "tabelas ficam vazias — não é erro.",
+    ),
+    bytes_root: Path = typer.Option(
+        Path("data/raw/pecas"), "--bytes-root",
+        help="Raiz dos bytes-cache (``.pdf.gz``). Snapshotada em "
+             "``disk_bytes`` e usada pelas views ``missing_bytes`` / "
+             "``orphan_cache_files``. Se a pasta não existe, as views "
+             "ficam vazias — não é erro.",
     ),
 ) -> None:
     """Reconstrói o banco DuckDB a partir dos dados raspados.
@@ -1226,7 +1232,8 @@ def warehouse(
     raise typer.Exit(code=_run_warehouse(
         diretorio_processos, diretorio_pecas_texto, saida,
         classe, ano, progresso_cada, estrito,
-        runs_root=runs_root if com_peca_issues else None,
+        runs_root=runs_root,
+        bytes_root=bytes_root,
     ))
 
 

@@ -61,6 +61,8 @@ def test_warehouse_builds_duckdb_at_saida(tmp_path: Path) -> None:
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
+        "--runs-root", str(tmp_path / "_no_runs"),
+        "--bytes-root", str(tmp_path / "_no_bytes"),
     ])
 
     assert result.exit_code == 0, result.output
@@ -84,6 +86,8 @@ def test_warehouse_classe_filter_restricts_ingest(tmp_path: Path) -> None:
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
+        "--runs-root", str(tmp_path / "_no_runs"),
+        "--bytes-root", str(tmp_path / "_no_bytes"),
         "--classe", "HC",
     ])
 
@@ -106,6 +110,8 @@ def test_warehouse_year_requires_classe_hc(tmp_path: Path) -> None:
         "--diretorio-processos", str(cases),
         "--diretorio-pecas-texto", str(pdfs),
         "--saida", str(out),
+        "--runs-root", str(tmp_path / "_no_runs"),
+        "--bytes-root", str(tmp_path / "_no_bytes"),
         "--ano", "2020",
     ])
     assert result.exit_code != 0

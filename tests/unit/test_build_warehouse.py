@@ -971,3 +971,121 @@ def test_chunked_scan_preserves_counts_and_rates(
         ).fetchone()
         assert n_cases_manifest == 11
         assert n_partes_manifest == 20
+
+
+# ----- new registry / disk-gap tables + views (2026-05-12 additions) -----
+
+
+def test_warehouse_schema_creates_case_issues_disk_bytes_disk_txt(
+    tmp_path: Path,
+) -> None:
+    """Schema must include the three new tables that back the
+    cross-run case-meta registry + the disk-snapshot views."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    pdfs = tmp_path / "pdf"
+    pdfs.mkdir()
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        tables = {r[0] for r in con.execute("SHOW TABLES").fetchall()}
+    assert {"case_issues", "disk_bytes", "disk_txt"}.issubset(tables), (
+        f"missing one of the new tables; got {tables}"
+    )
+
+
+def test_warehouse_schema_creates_three_disk_gap_views(tmp_path: Path) -> None:
+    """The three new views (missing_bytes, missing_text,
+    orphan_cache_files) must be queryable after build, even on an empty
+    corpus — they're definition-time SQL, not run-time."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    pdfs = tmp_path / "pdf"
+    pdfs.mkdir()
+    out = tmp_path / "judex.duckdb"
+
+    builder.build(cases_root=cases, pecas_texto_root=pdfs, output_path=out)
+
+    with _connect(out) as con:
+        for view in ("missing_bytes", "missing_text", "orphan_cache_files"):
+            # Just running the view = it's defined + parses.
+            con.execute(f"SELECT * FROM {view} LIMIT 0").fetchall()
+
+
+def test_unallocated_pids_populated_from_state_walk(tmp_path: Path) -> None:
+    """When runs_root is provided, walking state.json files with
+    ``unallocated_pid`` observations populates the table — *without*
+    needing the pre-aggregated TSV file to exist."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    pdfs = tmp_path / "pdf"
+    pdfs.mkdir()
+    runs = tmp_path / "runs"
+
+    # Two runs each observe HC-12345 as unallocated → confirmed.
+    # HC-23456 only seen once → not confirmed.
+    for run_name in ("run-a", "run-b"):
+        run_dir = runs / run_name
+        run_dir.mkdir(parents=True)
+        (run_dir / "executar.state.json").write_text(json.dumps({
+            "cases": {
+                "HC-12345": {"fetch_meta": {"status": "unallocated_pid",
+                                            "ts": f"2026-05-12T{run_name}",
+                                            "error": None, "retry_count": 0}},
+                **({"HC-23456": {"fetch_meta": {
+                    "status": "unallocated_pid",
+                    "ts": "2026-05-12T11:00:00Z",
+                    "error": None, "retry_count": 0,
+                }}} if run_name == "run-a" else {}),
+            },
+        }))
+
+    out = tmp_path / "judex.duckdb"
+    builder.build(
+        cases_root=cases, pecas_texto_root=pdfs, output_path=out,
+        runs_root=runs,
+    )
+
+    with _connect(out) as con:
+        rows = con.execute(
+            "SELECT classe, processo_id, n_observations, confirmed "
+            "FROM unallocated_pids ORDER BY processo_id"
+        ).fetchall()
+    assert len(rows) == 2
+    assert rows[0] == ("HC", 12345, 2, True)
+    assert rows[1] == ("HC", 23456, 1, False)
+
+
+def test_disk_snapshot_tables_match_filesystem(tmp_path: Path) -> None:
+    """``disk_bytes`` + ``disk_txt`` snapshot the sha1s actually present
+    on disk at warehouse-build time. Tests the contract used by the
+    three new views."""
+    cases = tmp_path / "cases"
+    cases.mkdir()
+    bytes_root = tmp_path / "data" / "raw" / "pecas"
+    bytes_root.mkdir(parents=True)
+    text_root = tmp_path / "data" / "derived" / "pecas-texto"
+    text_root.mkdir(parents=True)
+
+    # Two bytes files, three text files, one overlap. Use real gzip
+    # streams — the warehouse builder's _iter_pdf_rows scans text gzs
+    # so truncated headers raise EOFError; bytes side doesn't read content.
+    for sha in ("aaaa", "bbbb"):
+        (bytes_root / f"{sha}.pdf.gz").write_bytes(gzip.compress(b""))
+    for sha in ("aaaa", "cccc", "dddd"):
+        (text_root / f"{sha}.txt.gz").write_bytes(gzip.compress(b""))
+
+    out = tmp_path / "judex.duckdb"
+    builder.build(
+        cases_root=cases, pecas_texto_root=text_root, output_path=out,
+        bytes_root=bytes_root,
+    )
+
+    with _connect(out) as con:
+        bytes_shas = {r[0] for r in con.execute("SELECT sha1 FROM disk_bytes").fetchall()}
+        text_shas = {r[0] for r in con.execute("SELECT sha1 FROM disk_txt").fetchall()}
+
+    assert bytes_shas == {"aaaa", "bbbb"}
+    assert text_shas == {"aaaa", "cccc", "dddd"}
