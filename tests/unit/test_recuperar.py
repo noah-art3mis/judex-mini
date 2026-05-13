@@ -831,6 +831,64 @@ def test_provider_switch_wrong_extractor_still_dispatches(
 # ----- run_until_stable -----------------------------------------------------
 
 
+def test_run_until_stable_calls_on_pass_complete_after_wait(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``run_until_stable`` must call ``on_pass_complete(pass_n, wall_s)``
+    after each pass's ``wait_for_pids`` returns. Closes the UX gap where
+    the operator saw ``"waiting for completion…"`` and then silence — no
+    signal at all between dispatch and the next pass's "X actionable rows".
+    """
+    from judex.sweeps import recuperar as mod
+
+    # One REPLAY row → one pass → child "fixes" it → next pass sees 0.
+    _write_state(
+        tmp_path / STATE_FILENAME,
+        {"HC-1": {
+            "fetch_meta": _meta("ok"),
+            "fetch_bytes": {"u1": _bytes_entry("ok")},
+            "extract_text": {"u1": _text_entry("provider_error", retry_count=0)},
+        }},
+    )
+
+    def fake_execute(plan, pids_path):
+        pids_path.write_text("12345  shard-a\n", encoding="utf-8")
+        _write_state(
+            tmp_path / STATE_FILENAME,
+            {"HC-1": {
+                "fetch_meta": _meta("ok"),
+                "fetch_bytes": {"u1": _bytes_entry("ok")},
+                "extract_text": {"u1": _text_entry("ok")},
+            }},
+        )
+        return mod.ExecuteResult(pids_path=pids_path, pids=[12345])
+
+    monkeypatch.setattr(mod, "execute_recoveries", fake_execute)
+    monkeypatch.setattr(mod, "wait_for_pids", lambda pids, **kw: None)
+
+    completions = []
+
+    def _on_complete(n: int, wall_s: float) -> None:
+        completions.append((n, wall_s))
+
+    mod.run_until_stable(
+        tmp_path,
+        provedor="auto",
+        on_pass_complete=_on_complete,
+    )
+
+    assert len(completions) == 1, (
+        "on_pass_complete must fire exactly once per pass that actually "
+        f"dispatched + waited (got {len(completions)})"
+    )
+    n, wall_s = completions[0]
+    assert n == 1
+    assert wall_s >= 0.0, "wall_s must be a non-negative duration"
+
+
+
+
+
 def test_wait_for_pids_returns_when_all_dead(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

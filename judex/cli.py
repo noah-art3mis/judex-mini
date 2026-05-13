@@ -1809,6 +1809,11 @@ def recuperar(
                 f"(PIDs: {pids}); waiting for completion…"
             )
 
+        def _on_pass_complete(n: int, wall_s: float) -> None:
+            typer.echo(
+                f"recuperar pass {n}: ✓ child done in {wall_s:.1f}s"
+            )
+
         result = run_until_stable(
             run_dir,
             provedor=provedor,
@@ -1816,6 +1821,7 @@ def recuperar(
             poll_interval=poll_interval,
             on_pass_start=_on_pass_start,
             on_pass_end=_on_pass_end,
+            on_pass_complete=_on_pass_complete,
         )
         final_summary = format_summary(result.final_buckets, dry_run=False)
         typer.echo(final_summary)
