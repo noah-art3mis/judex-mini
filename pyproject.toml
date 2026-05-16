@@ -90,6 +90,14 @@ asyncio_mode = "auto"
 auto_instantiate = true
 on_cell_change = "autorun"
 
+[tool.uv]
+# Supply-chain quarantine: ignore PyPI releases newer than 14 days at
+# resolution time. Catches typosquats / compromised packages that get
+# yanked within hours-to-days of publication. Override per-invocation
+# with `--exclude-newer <date>` when you genuinely need a fresh release.
+# Requires uv >= 0.10 for the friendly-duration form.
+exclude-newer = "14 days"
+
 [dependency-groups]
 dev = [
     "black>=25.9.0",
