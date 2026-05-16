@@ -1707,9 +1707,11 @@ def recuperar(
     ),
     apply: bool = typer.Option(
         False, "--apply",
-        help="Dispara as recuperações planejadas. Sem este flag, o comando "
-             "imprime o plano (``would-recover: …``) e sai sem efeito "
-             "colateral — simulação é o padrão seguro.",
+        help="Dispara as recuperações planejadas e bloqueia até o passe "
+             "terminar, reclassificando o resíduo no fim. Sem este flag, "
+             "o comando imprime o plano (``would-recover: …``) e sai sem "
+             "efeito colateral — simulação é o padrão seguro. Combine com "
+             "``--loop`` para repetir até convergir.",
     ),
     provedor: str = typer.Option(
         "auto", "--provedor",
@@ -1723,11 +1725,11 @@ def recuperar(
              "para invocações não-interativas (cron, nohup).",
     ),
     loop: bool = typer.Option(
-        False, "--loop",
+        True, "--loop/--no-loop",
         help="Repete o ciclo (aplicar → aguardar → reclassificar) até os "
              "resíduos pararem de encolher ou ``--max-passes`` ser "
-             "atingido. Bloqueia até cada passe completar — diferente "
-             "do ``--apply`` simples, que despacha em background e sai.",
+             "atingido. Padrão: ligado. Use ``--no-loop`` para fazer "
+             "exatamente um passe (também bloqueante).",
     ),
     max_passes: int = typer.Option(
         3, "--max-passes",
@@ -1741,6 +1743,14 @@ def recuperar(
              "detached terminaram. 5 s é razoável para Coletas de "
              "minutos; baixe para sub-segundo só em testes.",
     ),
+    seguir: bool = typer.Option(
+        True, "--seguir/--sem-seguir",
+        help="Tail-em-tempo-real do(s) driver.log do filho enquanto o "
+             "passe roda — você vê as linhas ``[N/total]`` e ``[progress] "
+             "ok=… proc/s … eta …`` aparecerem na sua janela. Padrão: "
+             "ligado. Use ``--sem-seguir`` para suprimir (útil em pipes / "
+             "logs estruturados).",
+    ),
 ) -> None:
     """Recupera os erros que sobraram depois de uma Coleta (``executar``).
 
@@ -1751,8 +1761,9 @@ def recuperar(
     faltantes.
 
     Por padrão é dry-run — mostra o plano (``would-recover: …``) e sai.
-    ``--apply`` despacha um pass detached. ``--loop`` repete até
-    convergir (resíduo zera) ou estagnar (não encolhe entre passes).
+    ``--apply`` despacha + aguarda + reclassifica em loop (default) até
+    convergir (resíduo zera) ou estagnar (não encolhe entre passes); use
+    ``--no-loop`` para limitar a um único passe bloqueante.
 
     Exit codes: ``0`` = OK · ``2`` = args inválidos · ``3`` = nada a
     recuperar.
@@ -1760,7 +1771,6 @@ def recuperar(
     from judex.sweeps.recuperar import (
         classify_residual,
         discover_run_dirs,
-        execute_recoveries,
         format_summary,
         plan_recoveries,
         run_until_stable,
@@ -1780,10 +1790,10 @@ def recuperar(
         raise typer.Exit(code=3)
 
     buckets = classify_residual(dirs)
-    summary = format_summary(buckets, dry_run=not (apply or loop))
+    summary = format_summary(buckets, dry_run=not apply)
     typer.echo(summary)
 
-    if not apply and not loop:
+    if not apply:
         plan = plan_recoveries(buckets, provedor=provedor)
         if plan:
             total_replay = sum(s.n_replay_rows for s in plan)
@@ -1798,64 +1808,112 @@ def recuperar(
         typer.echo("recuperar: nenhum bucket transiente — nada a despachar.")
         raise typer.Exit(code=0)
 
+    # ``--apply`` always goes through ``run_until_stable`` — that's the
+    # only path that prints a post-pass residual, so silent no-ops (e.g.
+    # the historical recuperar/scheduler classifier disagreement on
+    # ``(fetch_bytes, empty)``) are visible from a single CLI call
+    # rather than discoverable only via a follow-up ``acompanhar``.
+    # ``--loop`` is the default; ``--no-loop`` caps at one pass.
+    effective_max_passes = max_passes if loop else 1
+
     if not nao_perguntar:
-        prompt_label = "loop" if loop else "dispatch"
+        prompt_label = "loop" if loop else "single-pass apply"
         if not typer.confirm(
-            f"Confirmar {prompt_label} de {len(plan)} child(ren) detached em "
-            f"{run_dir}?",
+            f"Confirmar {prompt_label} de {len(plan)} child(ren) em "
+            f"{run_dir} (bloqueante; até {effective_max_passes} passe(s))?",
             default=True,
         ):
             typer.echo("Abortado pelo usuário.")
             raise typer.Exit(code=2)
 
-    if loop:
-        def _on_pass_start(n: int, actionable: int) -> None:
-            typer.echo(f"recuperar pass {n}: {actionable} actionable rows")
+    # Background tail of the child's driver.log → parent's stdout.
+    # Spawned on the first dispatch and reused across passes (driver.log
+    # is opened in append mode by execute_recoveries, so a single
+    # ``tail -F`` keeps following across passes without missing a beat).
+    # Kept as a single-cell list so the inner closures can mutate it.
+    tail_proc: list[Optional[subprocess.Popen]] = [None]
 
-        def _on_pass_end(n: int, n_dispatched: int, pids: list[int]) -> None:
-            typer.echo(
-                f"recuperar pass {n}: dispatched {n_dispatched} child(ren) "
-                f"(PIDs: {pids}); waiting for completion…"
-            )
+    def _start_tail_if_needed() -> None:
+        if not seguir or tail_proc[0] is not None:
+            return
+        log_paths = sorted(run_dir.glob("shard-*/driver.log"))
+        if not log_paths:
+            mono = run_dir / "driver.log"
+            if mono.exists():
+                log_paths = [mono]
+        if not log_paths:
+            return  # log doesn't exist yet — child hasn't written
+        tail_proc[0] = subprocess.Popen(
+            ["tail", "-F", "-q", "--lines=0", *(str(p) for p in log_paths)],
+            stdout=None,            # inherit parent's stdout
+            stderr=subprocess.DEVNULL,
+        )
 
-        def _on_pass_complete(n: int, wall_s: float) -> None:
-            typer.echo(
-                f"recuperar pass {n}: ✓ child done in {wall_s:.1f}s"
-            )
+    def _stop_tail() -> None:
+        if tail_proc[0] is None:
+            return
+        proc = tail_proc[0]
+        proc.terminate()
+        try:
+            proc.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+        tail_proc[0] = None
 
+    def _on_pass_start(n: int, actionable: int) -> None:
+        typer.echo(f"recuperar pass {n}: {actionable} actionable rows")
+
+    def _on_pass_end(n: int, n_dispatched: int, pids: list[int]) -> None:
+        typer.echo(
+            f"recuperar pass {n}: dispatched {n_dispatched} child(ren) "
+            f"(PIDs: {pids}); waiting for completion…"
+        )
+        # Briefly wait for the child to start writing to driver.log so
+        # ``tail -F`` doesn't open an empty file and miss the first
+        # "executar: N targets" line. Tail uses ``-F`` so it survives
+        # log-file recreation, but it can't re-emit lines written
+        # before the open.
+        import time
+        for _ in range(20):  # up to 2 s
+            if any(run_dir.glob("**/driver.log")):
+                break
+            time.sleep(0.1)
+        _start_tail_if_needed()
+
+    def _on_pass_complete(n: int, wall_s: float) -> None:
+        typer.echo(
+            f"recuperar pass {n}: ✓ child done in {wall_s:.1f}s"
+        )
+
+    try:
         result = run_until_stable(
             run_dir,
             provedor=provedor,
-            max_passes=max_passes,
+            max_passes=effective_max_passes,
             poll_interval=poll_interval,
             on_pass_start=_on_pass_start,
             on_pass_end=_on_pass_end,
             on_pass_complete=_on_pass_complete,
         )
-        final_summary = format_summary(result.final_buckets, dry_run=False)
-        typer.echo(final_summary)
-        if result.converged:
-            typer.echo(
-                f"recuperar: converged in {result.passes_run} pass(es)"
-            )
-        elif result.stopped_for_no_progress:
-            typer.echo(
-                f"recuperar: stopped after {result.passes_run} pass(es) — "
-                f"residual stopped shrinking"
-            )
-        else:
-            typer.echo(
-                f"recuperar: stopped at --max-passes={max_passes} — "
-                f"residual still actionable"
-            )
-        raise typer.Exit(code=0)
-
-    pids_path = run_dir / "recuperar.pids"
-    result = execute_recoveries(plan, pids_path)
-    typer.echo(
-        f"recuperar: spawned {len(result.pids)} child(ren); "
-        f"PIDs em {pids_path}. Acompanhe com `judex acompanhar {run_dir}`."
-    )
+    finally:
+        _stop_tail()
+    final_summary = format_summary(result.final_buckets, dry_run=False)
+    typer.echo(final_summary)
+    if result.converged:
+        typer.echo(
+            f"recuperar: converged in {result.passes_run} pass(es)"
+        )
+    elif result.stopped_for_no_progress:
+        typer.echo(
+            f"recuperar: stopped after {result.passes_run} pass(es) — "
+            f"residual stopped shrinking"
+        )
+    else:
+        typer.echo(
+            f"recuperar: stopped at --max-passes={effective_max_passes} — "
+            f"residual still actionable"
+        )
     raise typer.Exit(code=0)
 
 
