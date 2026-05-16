@@ -1,4 +1,4 @@
-"""Build the cross-run ``case_issues`` warehouse table.
+"""Build the cross-run ``case_issues`` warehouse table (streaming).
 
 Sibling of ``peca_issues`` but case-id-keyed instead of URL-keyed.
 Captures cases where the *portal-side* fetch_meta task failed —
@@ -6,52 +6,31 @@ SSL storms on a contiguous case-id range, persistent HTTP errors
 on case-meta, etc. Distinct from ``unallocated_pids`` (which is
 terminal-by-STF: "case-id was never bound to a processo").
 
-Aggregates ``fetch_meta`` observations across every state.json file
-under a runs root. One row per (classe, processo_id). Rows with
-``latest_meta_status='ok'`` are excluded — the registry exists to
-surface *problems*, not noise.
+Memory-bounded refactor: observations stream into a DuckDB temp
+table, aggregation runs as one SQL pass with the problematic-status
+filter inline. Peak Python memory is one batch (~10k rows) rather
+than a full ``dict[(classe, pid), _CaseRow]``. Same OOM-prevention
+motivation as the peca_issues refactor.
 
-See CONTEXT.md § "Cross-run registry".
+See CONTEXT.md § "Cross-run registry". Behaviour pinned by
+``tests/unit/test_case_issues_builder.py``.
 """
 from __future__ import annotations
 
 import json
-from collections import defaultdict
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Iterator
 
 
+_BATCH = 10_000
 _STATE_FILENAMES: tuple[str, ...] = (
     "executar.state.json",
 )
 
-
-@dataclass(frozen=True)
-class _MetaObservation:
-    """One fetch_meta data point pulled from a single state.json file."""
-
-    classe: str
-    processo_id: int
-    status: str
-    error: Optional[str]
-    ts: str
-    run_dir_name: str
-
-
-@dataclass
-class _CaseRow:
-    """One aggregated row per (classe, processo_id)."""
-
-    classe: str
-    processo_id: int
-    latest_meta_status: Optional[str] = None
-    latest_error: Optional[str] = None
-    n_attempts_seen: int = 0
-    first_seen_at: Optional[str] = None
-    last_seen_at: Optional[str] = None
-    last_run_dir: Optional[str] = None
-    _all_ts: list[str] = field(default_factory=list)
+_PROBLEMATIC_STATUSES: tuple[str, ...] = (
+    "http_error", "provider_error", "empty",
+    # unallocated_pid is its own table — exclude to avoid duplication.
+)
 
 
 def _iter_state_files(runs_root: Path) -> Iterable[Path]:
@@ -59,7 +38,11 @@ def _iter_state_files(runs_root: Path) -> Iterable[Path]:
         yield from runs_root.glob(f"**/{name}")
 
 
-def _iter_observations(state_path: Path) -> Iterable[_MetaObservation]:
+def _iter_obs_rows(state_path: Path) -> Iterator[tuple]:
+    """Yield observation tuples ready for the staging INSERT.
+
+    Shape: ``(classe, processo_id, status, error, ts, run_dir_name)``.
+    """
     try:
         data = json.loads(state_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -78,69 +61,41 @@ def _iter_observations(state_path: Path) -> Iterable[_MetaObservation]:
         status = meta.get("status")
         if not status:
             continue
-        yield _MetaObservation(
-            classe=classe,
-            processo_id=processo_id,
-            status=status,
-            error=meta.get("error"),
-            ts=meta.get("ts") or "",
-            run_dir_name=run_dir_name,
+        yield (
+            classe, processo_id, status,
+            meta.get("error"), meta.get("ts") or "", run_dir_name,
         )
 
 
-def _aggregate(
-    observations: Iterable[_MetaObservation],
-) -> dict[tuple[str, int], _CaseRow]:
-    by_key: dict[tuple[str, int], _CaseRow] = {}
-    for obs in observations:
-        key = (obs.classe, obs.processo_id)
-        row = by_key.get(key)
-        if row is None:
-            row = _CaseRow(classe=obs.classe, processo_id=obs.processo_id)
-            by_key[key] = row
-        row.n_attempts_seen += 1
-        row._all_ts.append(obs.ts)
-        if row.last_seen_at is None or obs.ts > row.last_seen_at:
-            row.last_seen_at = obs.ts
-            row.latest_meta_status = obs.status
-            row.latest_error = obs.error
-            row.last_run_dir = obs.run_dir_name
-
-    for row in by_key.values():
-        ts_values = [t for t in row._all_ts if t]
-        row.first_seen_at = min(ts_values) if ts_values else None
-    return by_key
+def _batched(it: Iterable, size: int) -> Iterator[list]:
+    batch: list = []
+    for item in it:
+        batch.append(item)
+        if len(batch) >= size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
 
 
-_PROBLEMATIC_STATUSES: frozenset[str] = frozenset({
-    "http_error", "provider_error", "empty",
-    # unallocated_pid is its own table — exclude to avoid duplication.
-})
-
-
-def _bulk_insert(rows: dict[tuple[str, int], _CaseRow], con) -> int:
-    """Filter to problematic rows and INSERT. Returns row count inserted."""
-    payload = [
-        (
-            row.classe,
-            row.processo_id,
-            row.latest_meta_status,
-            row.latest_error,
-            row.n_attempts_seen,
-            row.first_seen_at,
-            row.last_seen_at,
-            row.last_run_dir,
+def _stream_observations(con, runs_root: Path) -> None:
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _meta_obs (
+            classe VARCHAR, processo_id INTEGER,
+            status VARCHAR, error VARCHAR,
+            ts VARCHAR, run_dir_name VARCHAR
         )
-        for row in rows.values()
-        if row.latest_meta_status in _PROBLEMATIC_STATUSES
-    ]
-    if not payload:
-        return 0
-    con.executemany(
-        "INSERT INTO case_issues VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        payload,
+    """)
+    obs_stream = (
+        obs
+        for state_file in _iter_state_files(runs_root)
+        for obs in _iter_obs_rows(state_file)
     )
-    return len(payload)
+    for batch in _batched(obs_stream, _BATCH):
+        con.executemany(
+            "INSERT INTO _meta_obs VALUES (?, ?, ?, ?, ?, ?)",
+            batch,
+        )
 
 
 def build_case_issues(con, *, runs_root: Path) -> int:
@@ -153,9 +108,33 @@ def build_case_issues(con, *, runs_root: Path) -> int:
     """
     if not runs_root.exists():
         return 0
-    observations: list[_MetaObservation] = []
-    for state_file in _iter_state_files(runs_root):
-        observations.extend(_iter_observations(state_file))
 
-    rows = _aggregate(observations)
-    return _bulk_insert(rows, con)
+    _stream_observations(con, runs_root)
+
+    # Aggregate per (classe, processo_id), filter to problematic
+    # latest statuses, INSERT. Same arg_max-based last-write-wins
+    # semantics as peca_issues — see that module's comment for the
+    # behaviour-equivalence notes.
+    problematic_in = ", ".join(f"'{s}'" for s in _PROBLEMATIC_STATUSES)
+    con.execute(f"""
+        INSERT INTO case_issues
+        WITH agg AS (
+            SELECT
+                classe, processo_id,
+                arg_max(status, ts) AS latest_meta_status,
+                arg_max(error, ts) AS latest_error,
+                COUNT(*) AS n_attempts_seen,
+                MIN(NULLIF(ts, '')) AS first_seen_at,
+                MAX(ts) AS last_seen_at,
+                arg_max(run_dir_name, ts) AS last_run_dir
+            FROM _meta_obs
+            GROUP BY classe, processo_id
+        )
+        SELECT
+            classe, processo_id, latest_meta_status, latest_error,
+            n_attempts_seen, first_seen_at, last_seen_at, last_run_dir
+        FROM agg
+        WHERE latest_meta_status IN ({problematic_in})
+    """)
+
+    return con.execute("SELECT COUNT(*) FROM case_issues").fetchone()[0]
