@@ -326,21 +326,26 @@ async def test_seeds_retries_http_error_meta(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_seeds_skips_empty_bytes(tmp_path: Path) -> None:
-    """``empty`` on a bytes record means STF returned a body that
-    didn't match the supported magic-bytes (PDF / RTF). The body won't
-    change on retry — terminal, drop. Mirrors
-    ``error_triage._classify_baixar``'s default-to-terminal."""
+async def test_seeds_reseeds_empty_bytes(tmp_path: Path) -> None:
+    """``empty`` on a bytes record means STF returned 200 OK with a
+    zero-length body — a WAF/LB flake, not a "no document" signal. Same
+    URL serves valid bytes on retry. Pinned by HC 271343 in
+    ``runs/active/hc-atualizar-20260503``; previously the seed-builder
+    treated this as terminal, which made ``recuperar --apply`` dispatch
+    rows the runner then filtered out (silent no-op, residual never
+    shrank). Now matches ``classify_unified_error`` via the shared
+    ``recovery_policy.is_retryable_status`` predicate."""
     state = PipelineState.load(tmp_path / "s.json")
     state.record_meta(("HC", 1), status="ok")
     state.record_bytes(("HC", 1), url="u-1", status="empty",
-                       error="unsupported magic bytes")
+                       error="zero-length body from STF")
 
     seeds = seeds_from_targets([("HC", 1)], state)
     kinds = [(t.kind, t.payload.get("url")) for t in seeds]
 
-    assert ("fetch_bytes", "u-1") not in kinds
-    # And no spurious downstream extract seed either.
+    assert ("fetch_bytes", "u-1") in kinds
+    # No downstream extract seed yet — bytes hasn't returned ok, so
+    # the text branch isn't reachable.
     assert ("extract_text", "u-1") not in kinds
 
 

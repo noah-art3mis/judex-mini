@@ -8,7 +8,7 @@ record), partitions every non-ok record by
 ``(kind, classify_unified_error(record))`` plus a small
 ``(kind, status)`` override for actionable terminals, plus a
 **cap-burnt gate** for transient rows whose ``retry_count`` already
-hit :data:`judex.pipeline.scheduler.RETRY_CAP`. Then dispatches one
+hit :data:`judex.pipeline.recovery_policy.RETRY_CAP`. Then dispatches one
 detached ``judex executar --retentar-de`` per source dir with at least
 one *retryable* (REPLAY) row.
 
@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from judex.pipeline.log import classify_unified_error
-from judex.pipeline.scheduler import RETRY_CAP
+from judex.pipeline.recovery_policy import RETRY_CAP
 from judex.pipeline.state import PipelineState
 
 

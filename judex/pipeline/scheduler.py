@@ -34,6 +34,7 @@ from judex.pipeline.handlers import HandlerFn
 from judex.pipeline.log import PipelineLog, make_log_record
 from judex.pipeline.models import Counters, PoolConfig, PoolName, Task, TaskStatus
 from judex.pipeline.pools import Pool, build_pools
+from judex.pipeline.recovery_policy import RETRY_CAP, is_retryable_status
 from judex.pipeline.state import PipelineState
 from judex.sweeps.shared import CliffDetector, regime_kwargs
 
@@ -73,19 +74,6 @@ class RunResult:
     shutdown_requested: bool = False
 
 
-RETRY_CAP = 2
-"""Maximum number of retry cycles per task. Inherited from ADR-0004's
-"cap of 2 retry cycles per stage" contract (now per-Task). After
-``retry_count`` reaches ``RETRY_CAP``, the seed builder stops
-re-seeding the task even if its status is otherwise transient — the
-operator is expected to surface the systemic issue (proxy pool dead,
-WAF rolling block, OCR cluster saturated) rather than burn a fourth
-attempt. The breaker tripping at the per-Pool **Transient gate** (2%)
-is the structural early-warning; the per-Task cap is the absolute
-ceiling. See ``docs/adr/0005-unified-pipeline.md`` § Open issue #1
-(now resolved)."""
-
-
 def _is_retryable_status(
     kind: str,
     status: Optional[TaskStatus],
@@ -93,47 +81,22 @@ def _is_retryable_status(
 ) -> bool:
     """Should the resume builder re-seed a task with this state status?
 
-    Mirrors the policy in :mod:`judex.sweeps.error_triage` translated
-    to the unified pipeline's ``TaskStatus`` vocabulary. The legacy
-    classifier works on errors.jsonl row dicts; the unified pipeline
-    has a typed status enum, so the rules collapse to a small table.
+    Composes the shared retryability predicate
+    (:func:`judex.pipeline.recovery_policy.is_retryable_status` — same
+    decision table that ``classify_unified_error`` uses for
+    ``recuperar``) with the per-Task retry cap gate.
 
-    * ``None`` (never attempted) → retry (first-time work).
-    * ``ok`` → not retryable; caller filters before asking.
-    * ``fetch_meta``: ``http_error`` (WAF / timeout / SSL) is transient;
-      ``unallocated_pid`` is terminal (case genuinely doesn't exist).
-    * ``fetch_bytes``: ``http_error`` is transient; ``empty``
-      (unsupported magic bytes from STF) is terminal.
-    * ``extract_text``: ``provider_error`` is transient (provider
-      hiccups, network flakes); ``empty`` (PDF really has no text)
-      and ``no_bytes`` (cross-stage — bytes side needs a re-fetch,
-      not a re-extract) are terminal at this stage.
-    * Anything unknown → terminal (conservative — error_triage's
-      default-to-terminal rule: better to surface in the residual
-      report than to churn the WAF on an unmapped failure).
+    Two concerns, one function: *policy* (kind/status retryable?) lives
+    in ``recovery_policy``; *budget* (retry_count below the cap?) lives
+    here. Honoring ADR-0004's "cap of 2 retry cycles" contract, now
+    scoped per-Task instead of per-stage.
 
-    On top of the kind/status table, the per-Task **retry cap**
-    (:data:`RETRY_CAP`, =2) gates: a task whose ``retry_count``
-    has reached the cap is no longer retryable even if its status
-    would otherwise be transient. This honors ADR-0004's "cap of 2
-    retry cycles" contract, now scoped per-Task instead of per-stage.
-
-    Without this filter, the seed builder re-enqueues every non-ok
-    task on every resume, including terminal ones like
-    ``unallocated_pid`` and indefinitely-retrying transient failures.
-    At year-corpus scale that burns measurable portal-pool wall on
-    cases that will never become ok.
+    Without the cap, the seed builder would re-enqueue every retryable
+    non-ok task on every resume, including indefinitely-flaking
+    transients. At year-corpus scale that burns measurable portal-pool
+    wall on cases that will never become ok.
     """
-    if status is None:
-        return True
-    if status == "ok":
-        return False
-    is_retryable_status = (
-        (kind == "fetch_meta" and status == "http_error")
-        or (kind == "fetch_bytes" and status == "http_error")
-        or (kind == "extract_text" and status == "provider_error")
-    )
-    if not is_retryable_status:
+    if not is_retryable_status(kind, status):
         return False
     return retry_count < RETRY_CAP
 
