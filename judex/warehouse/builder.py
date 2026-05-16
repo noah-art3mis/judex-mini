@@ -219,14 +219,47 @@ CREATE TABLE peca_issues (
 );
 
 -- processo_ids that STF's portal never bound to an incidente.
--- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`.
--- See ADR-0002.
+-- Sourced from `data/derived/nao-alocados/<classe>.candidates.tsv`
+-- (pre-aggregated) OR by walking ``runs/active/`` + ``runs/archive/``
+-- state.json files inline at warehouse-build time. See ADR-0002.
 CREATE TABLE unallocated_pids (
     classe          VARCHAR NOT NULL,
     processo_id     INTEGER NOT NULL,
     n_observations  INTEGER NOT NULL,
     confirmed       BOOLEAN NOT NULL,
     PRIMARY KEY (classe, processo_id)
+);
+
+-- Cross-run case-id-keyed registry of case-meta failures
+-- (sibling of peca_issues, but for the fetch_meta task type).
+-- Captures cases where the portal-side scrape failed — distinct
+-- from unallocated_pid (which is terminal-by-STF, "case-id was
+-- never bound"). Populated by walking executar.state.json files
+-- under runs/. See CONTEXT.md § "Cross-run registry".
+CREATE TABLE case_issues (
+    classe              VARCHAR NOT NULL,
+    processo_id         INTEGER NOT NULL,
+    latest_meta_status  VARCHAR,
+    latest_error        VARCHAR,
+    n_attempts_seen     INTEGER NOT NULL,
+    first_seen_at       VARCHAR,
+    last_seen_at        VARCHAR,
+    last_run_dir        VARCHAR,
+    PRIMARY KEY (classe, processo_id)
+);
+
+-- Snapshot of sha1s present in data/raw/pecas/ (bytes cache) at
+-- warehouse-build time. Source for the missing_bytes /
+-- orphan_cache_files views. See CONTEXT.md § "Disk-coverage gap".
+CREATE TABLE disk_bytes (
+    sha1 VARCHAR PRIMARY KEY
+);
+
+-- Snapshot of sha1s present in data/derived/pecas-texto/ (text
+-- cache) at warehouse-build time. Source for the missing_text /
+-- orphan_cache_files views.
+CREATE TABLE disk_txt (
+    sha1 VARCHAR PRIMARY KEY
 );
 
 CREATE TABLE manifest (
@@ -310,6 +343,39 @@ SELECT
 FROM documentos d
 WHERE d.url IS NOT NULL
   AND d.doc_type IN ('Voto', 'Relatório', 'Voto Vogal', 'Voto Vista');
+
+-- Substantive URLs whose .pdf.gz isn't on disk (after warehouse rebuild
+-- snapshots the bytes-cache state into disk_bytes). Surfaces the
+-- "byte-coverage gap" — see CONTEXT.md § "Disk-coverage gap".
+CREATE VIEW missing_bytes AS
+SELECT s.classe, s.processo_id, s.url, s.sha1, s.doc_type, s.tier
+  FROM pdfs_substantive s
+  LEFT JOIN disk_bytes db ON db.sha1 = s.sha1
+ WHERE db.sha1 IS NULL;
+
+-- Substantive URLs whose .txt.gz isn't on disk. Distinct from
+-- missing_bytes: a URL may have bytes-only (pre-extraction era) or
+-- be missing both.
+CREATE VIEW missing_text AS
+SELECT s.classe, s.processo_id, s.url, s.sha1, s.doc_type, s.tier
+  FROM pdfs_substantive s
+  LEFT JOIN disk_txt dt ON dt.sha1 = s.sha1
+ WHERE dt.sha1 IS NULL;
+
+-- Cache files on disk whose sha1 isn't referenced by any URL in
+-- pdfs_substantive — pre-split-era legacy extractions or URLs that
+-- have since been narrowed out of the substantive set. See
+-- CONTEXT.md § "Orphan cache file".
+CREATE VIEW orphan_cache_files AS
+SELECT db.sha1, 'bytes_only' AS kind
+  FROM disk_bytes db
+  LEFT JOIN pdfs_substantive s ON s.sha1 = db.sha1
+ WHERE s.sha1 IS NULL
+UNION ALL
+SELECT dt.sha1, 'text_only' AS kind
+  FROM disk_txt dt
+  LEFT JOIN pdfs_substantive s ON s.sha1 = dt.sha1
+ WHERE s.sha1 IS NULL;
 """
 
 
@@ -947,6 +1013,82 @@ def _load_unallocated_pids(
     return rows
 
 
+def _collect_unallocated_from_state_files(
+    runs_root: Path, *, min_observations: int = 2,
+) -> list[dict]:
+    """Walk every ``executar.state.json`` under ``runs_root`` and count
+    per-(classe, processo_id) ``unallocated_pid`` observations.
+
+    Returns rows ready for ``unallocated_pids`` insert. Sibling of the
+    TSV-based path (``_load_unallocated_pids``) — invoked when the TSV
+    is absent or the operator wants live aggregation across the current
+    runs/ tree. ``confirmed`` is derived from ``min_observations``,
+    same threshold as the TSV path.
+    """
+    if not runs_root.exists():
+        return []
+    import json
+    counts: dict[tuple[str, int], int] = {}
+    for state_path in runs_root.glob("**/executar.state.json"):
+        try:
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        cases = data.get("cases") or {}
+        for case_key, rec in cases.items():
+            classe, _, pid_str = case_key.partition("-")
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                continue
+            meta = rec.get("fetch_meta")
+            if not isinstance(meta, dict):
+                continue
+            if meta.get("status") != "unallocated_pid":
+                continue
+            counts[(classe, pid)] = counts.get((classe, pid), 0) + 1
+    return [
+        {
+            "classe": classe,
+            "processo_id": pid,
+            "n_observations": n,
+            "confirmed": n >= min_observations,
+        }
+        for (classe, pid), n in sorted(counts.items())
+    ]
+
+
+def _populate_disk_snapshots(
+    con,
+    *,
+    bytes_root: Path,
+    text_root: Path,
+) -> tuple[int, int]:
+    """Populate ``disk_bytes`` + ``disk_txt`` with sha1s present on disk.
+
+    These tables back the ``missing_bytes`` / ``missing_text`` /
+    ``orphan_cache_files`` views. Snapshotted at warehouse-build time;
+    refreshing requires a warehouse rebuild (acceptable since rebuilds
+    are ~5 min and the bytes-cache state only changes when a sweep
+    runs).
+    """
+    import os
+    bytes_sha1s = (
+        n[:-7] for n in os.listdir(bytes_root) if n.endswith(".pdf.gz")
+    ) if bytes_root.exists() else iter(())
+    text_sha1s = (
+        n[:-7] for n in os.listdir(text_root) if n.endswith(".txt.gz")
+    ) if text_root.exists() else iter(())
+
+    bytes_payload = [(s,) for s in bytes_sha1s]
+    text_payload = [(s,) for s in text_sha1s]
+    if bytes_payload:
+        con.executemany("INSERT INTO disk_bytes VALUES (?)", bytes_payload)
+    if text_payload:
+        con.executemany("INSERT INTO disk_txt VALUES (?)", text_payload)
+    return len(bytes_payload), len(text_payload)
+
+
 def build(
     *,
     cases_root: Path,
@@ -958,6 +1100,7 @@ def build(
     strict: bool = False,
     unallocated_pids_root: Optional[Path] = None,
     runs_root: Optional[Path] = None,
+    bytes_root: Optional[Path] = None,
 ) -> BuildSummary:
     """Build the warehouse. When ``strict=True``, a population-rate
     threshold miss (see ``MIN_POPULATION_RATES``) raises
@@ -982,12 +1125,14 @@ def build(
     counts: dict[str, int] = {
         f.name: 0 for f in fields(BufferSet) if f.name != "cases"
     }
-    # Populated-case sets: (classe, processo_id) keys per field that
-    # participates in population-rate validation. Bounded at O(n_cases).
-    populated: dict[str, set[tuple[str, int]]] = {
-        "partes": set(), "andamentos": set(),
-        "pautas": set(), "publicacoes_dje": set(),
-    }
+    # Per-field populated-case counters for population-rate validation.
+    # Each case is visited exactly once, so we never needed set semantics
+    # — replaced O(n_cases) sets of (classe, processo_id) tuples with O(1)
+    # ints to drop ~40 MB peak heap on the full HC corpus.
+    cases_with_partes = 0
+    cases_with_andamentos = 0
+    cases_with_pautas = 0
+    cases_with_publicacoes_dje = 0
     # sessao_virtual isn't its own table (entries land in `documentos`
     # with kind='sessao'), so count cases whose JSON had a non-empty
     # sessao_virtual list directly during the scan.
@@ -1014,26 +1159,33 @@ def build(
         con.execute("SET threads=2")
         con.execute(_SCHEMA_SQL)
 
+        # Count-then-stream: a fast pre-pass (rglob without parsing) yields
+        # a denominator for the progress line; the main loop iterates the
+        # generator again. Two filesystem walks (~1–2 s each on 100k files)
+        # instead of one ~15 MB materialised Path list — material on a
+        # memory-pressured WSL2 host.
+        total_cases = sum(1 for _ in _iter_case_files(cases_root, classes, id_range))
+        print(f"  found {total_cases:,} case files to scan", flush=True)
+
         for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
             item = _load_case(path)
             if item is None or "classe" not in item or "processo_id" not in item:
                 continue
 
             case_row = _flatten_case(item, path)
-            key = (case_row["classe"], case_row["processo_id"])
             buffers.cases.append(case_row)
             n_cases += 1
             classes_seen.add(case_row["classe"])
 
             partes = _flatten_partes(item)
             if partes:
-                populated["partes"].add(key)
+                cases_with_partes += 1
             counts["partes"] += len(partes)
             buffers.partes.extend(partes)
 
             andamentos = _flatten_andamentos(item, pecas_texto_root)
             if andamentos:
-                populated["andamentos"].add(key)
+                cases_with_andamentos += 1
             counts["andamentos"] += len(andamentos)
             buffers.andamentos.extend(andamentos)
 
@@ -1047,13 +1199,13 @@ def build(
 
             pautas = _flatten_pautas(item)
             if pautas:
-                populated["pautas"].add(key)
+                cases_with_pautas += 1
             counts["pautas"] += len(pautas)
             buffers.pautas.extend(pautas)
 
             publicacoes_dje = _flatten_publicacoes_dje(item)
             if publicacoes_dje:
-                populated["publicacoes_dje"].add(key)
+                cases_with_publicacoes_dje += 1
             counts["publicacoes_dje"] += len(publicacoes_dje)
             buffers.publicacoes_dje.extend(publicacoes_dje)
 
@@ -1065,7 +1217,14 @@ def build(
                 sessao_virtual_populated += 1
 
             if progress_every and (i + 1) % progress_every == 0:
-                print(f"  scanned {i + 1:,} cases", flush=True)
+                elapsed = time.monotonic() - t0
+                rate = (i + 1) / elapsed if elapsed > 0 else 0.0
+                eta_s = (total_cases - (i + 1)) / rate if rate > 0 else 0.0
+                print(
+                    f"  scanned {i + 1:,} / {total_cases:,} cases "
+                    f"· {rate:.0f} cases/s · eta {eta_s / 60:.1f} min",
+                    flush=True,
+                )
             if n_cases % _CHUNK_SIZE == 0:
                 buffers.flush(con)
 
@@ -1077,10 +1236,10 @@ def build(
         # caught it immediately instead of three days later).
         population_rates = _compute_population_rates(
             n_cases=n_cases,
-            cases_with_partes=len(populated["partes"]),
-            cases_with_andamentos=len(populated["andamentos"]),
-            cases_with_pautas=len(populated["pautas"]),
-            cases_with_publicacoes_dje=len(populated["publicacoes_dje"]),
+            cases_with_partes=cases_with_partes,
+            cases_with_andamentos=cases_with_andamentos,
+            cases_with_pautas=cases_with_pautas,
+            cases_with_publicacoes_dje=cases_with_publicacoes_dje,
             sessao_virtual_populated=sessao_virtual_populated,
         )
         validation_warnings, validation_lines = _validate_population_rates(
@@ -1095,20 +1254,57 @@ def build(
                 flush=True,
             )
 
-        # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
+        # PDFs streamed in small batches: each row carries the fully
+        # decompressed text (50–200 KB), so a 5,000-row batch could peak
+        # at ~500 MB (twice that with the transient Arrow buffer). 500
+        # holds the same payload to ~50 MB without measurably hurting
+        # throughput — DuckDB per-batch overhead is small relative to the
+        # gzip-decompress cost per row.
+        print(f"  loading pdfs from {pecas_texto_root}…", flush=True)
         n_pdfs = _bulk_insert_iter(
-            con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter)
+            con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter),
+            batch_size=500,
         )
+        print(f"  loaded {n_pdfs:,} pdfs", flush=True)
 
         # Unallocated processo_ids — sourced from the cross-sweep registry.
         # See ADR-0002. Tests omit the root and get an empty table.
-        unallocated_rows: list[dict] = []
+        # Dual-source: pre-aggregated TSV (legacy) PLUS inline state.json
+        # walk (so the warehouse stays current even when nobody ran the
+        # aggregator script). State walk wins on collisions (same pid,
+        # higher observation count — it sees more runs than any single
+        # TSV checkpoint).
+        print("  loading unallocated_pids registry…", flush=True)
+        unallocated_by_key: dict[tuple[str, int], dict] = {}
         if unallocated_pids_root is not None:
             for classe in sorted(classes_seen):
-                unallocated_rows.extend(
-                    _load_unallocated_pids(unallocated_pids_root, classe)
-                )
+                for row in _load_unallocated_pids(unallocated_pids_root, classe):
+                    unallocated_by_key[(row["classe"], row["processo_id"])] = row
+        if runs_root is not None:
+            for row in _collect_unallocated_from_state_files(runs_root):
+                key = (row["classe"], row["processo_id"])
+                existing = unallocated_by_key.get(key)
+                if existing is None or row["n_observations"] > existing["n_observations"]:
+                    unallocated_by_key[key] = row
+        unallocated_rows = list(unallocated_by_key.values())
         n_unallocated = _bulk_insert_iter(con, "unallocated_pids", iter(unallocated_rows))
+        print(f"  loaded {n_unallocated:,} unallocated_pids", flush=True)
+
+        # Disk-snapshot tables — back the missing_bytes / missing_text /
+        # orphan_cache_files views. Snapshotted now; views compute live
+        # against this snapshot. ``bytes_root=None`` skips the bytes
+        # snapshot (tests + cold checkouts); text always comes from the
+        # ``pecas_texto_root`` we were called with.
+        if bytes_root is not None:
+            print("  computing disk snapshots (bytes + text)…", flush=True)
+            n_disk_bytes, n_disk_txt = _populate_disk_snapshots(
+                con, bytes_root=bytes_root, text_root=pecas_texto_root,
+            )
+            print(
+                f"  disk snapshots: {n_disk_bytes:,} bytes / "
+                f"{n_disk_txt:,} text",
+                flush=True,
+            )
 
         # peca_issues: cross-run per-URL registry (PRD: peca-registry).
         # Wrapped: a bug here must not break the rest of the build.
@@ -1117,6 +1313,7 @@ def build(
         # no runs/ directory to walk.
         if runs_root is not None:
             try:
+                print("  building peca_issues registry…", flush=True)
                 from judex.warehouse.peca_issues import build_peca_issues
                 n_peca_issues = build_peca_issues(
                     con,
@@ -1124,10 +1321,15 @@ def build(
                     pecas_texto_root=pecas_texto_root,
                 )
                 print(f"  peca_issues: {n_peca_issues:,} rows", flush=True)
+                print("  building case_issues registry…", flush=True)
+                from judex.warehouse.case_issues import build_case_issues
+                n_case_issues = build_case_issues(con, runs_root=runs_root)
+                print(f"  case_issues: {n_case_issues:,} rows", flush=True)
             except Exception as e:  # noqa: BLE001
                 print(
-                    f"  ⚠ peca_issues build failed ({type(e).__name__}: {e}) — "
-                    f"table left empty; warehouse otherwise OK",
+                    f"  ⚠ peca_issues / case_issues build failed "
+                    f"({type(e).__name__}: {e}) — tables left empty; "
+                    f"warehouse otherwise OK",
                     flush=True,
                 )
 

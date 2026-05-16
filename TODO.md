@@ -1,4 +1,8 @@
 ## todo
 
-- backfill all 3 levels to all years down to 2020
-- run analyses with new data
+- run new toron skill
+- make warehouse
+- make backup
+- pr to main
+- run recuperar
+- rerun all cached years

@@ -8,7 +8,7 @@ record), partitions every non-ok record by
 ``(kind, classify_unified_error(record))`` plus a small
 ``(kind, status)`` override for actionable terminals, plus a
 **cap-burnt gate** for transient rows whose ``retry_count`` already
-hit :data:`judex.pipeline.scheduler.RETRY_CAP`. Then dispatches one
+hit :data:`judex.pipeline.recovery_policy.RETRY_CAP`. Then dispatches one
 detached ``judex executar --retentar-de`` per source dir with at least
 one *retryable* (REPLAY) row.
 
@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from judex.pipeline.log import classify_unified_error
-from judex.pipeline.scheduler import RETRY_CAP
+from judex.pipeline.recovery_policy import RETRY_CAP
 from judex.pipeline.state import PipelineState
 
 
@@ -704,6 +704,7 @@ def run_until_stable(
     poll_interval: float = 5.0,
     on_pass_start=None,        # optional: callable(pass_n, actionable_count)
     on_pass_end=None,          # optional: callable(pass_n, n_dispatched, pids)
+    on_pass_complete=None,     # optional: callable(pass_n, child_wall_s)
 ) -> LoopResult:
     """Run ``recuperar --apply`` in a loop until residuals stop shrinking
     or ``max_passes`` is hit.
@@ -757,12 +758,20 @@ def run_until_stable(
             )
 
         pids_path = run_dir / f"recuperar-pass-{pass_n}.pids"
+
+        import time
+        t0 = time.monotonic()
         result = execute_recoveries(plan, pids_path)
 
         if on_pass_end is not None:
             on_pass_end(pass_n, len(result.pids), result.pids)
 
         wait_for_pids(result.pids, poll_interval=poll_interval)
+        child_wall_s = time.monotonic() - t0
+
+        if on_pass_complete is not None:
+            on_pass_complete(pass_n, child_wall_s)
+
         last_actionable = actionable
 
     return LoopResult(

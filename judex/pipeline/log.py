@@ -330,34 +330,23 @@ def classify_unified_error(row: dict[str, Any]) -> str:
     strings; collapsing them by translating in one direction would
     break the other side's tests.
 
-    The decision table mirrors :func:`_is_retryable_status` in the
-    scheduler — same policy, surfaced here for ``--retentar-de``.
+    The retryable / cross_stage cells delegate to
+    :mod:`judex.pipeline.recovery_policy` — same policy the live
+    scheduler's seed-builder uses for ``_is_retryable_status``.
+    Equivalence is pinned by ``tests/unit/test_recovery_policy.py``.
     """
+    from judex.pipeline.recovery_policy import (
+        is_cross_stage_status,
+        is_retryable_status,
+    )
+
     status = row.get("status")
     if status in ("ok", "skipped_cached"):
         return "ok"
-    if status == "no_bytes":
+    if is_cross_stage_status(status):
         return "cross_stage"
-    if status in ("http_error", "provider_error"):
+    if is_retryable_status(row.get("kind"), status):
         return "transient"
-    if status == "empty":
-        # ``empty`` means different things in different stages:
-        #   - fetch_bytes: STF returned 200 OK with zero-length body
-        #     (WAF/LB flake). Empirically transient — same URL serves
-        #     valid bytes on a single retry. Pinned by HC 271343 in
-        #     hc-atualizar-20260503.
-        #   - extract_text: provider returned 0 chars after running.
-        #     Same provider would give same result; not transient by
-        #     replay alone. The actionable recovery is a provider
-        #     switch, which recuperar.py's ``_bucket_for`` handles via
-        #     a (kind="extract_text", status="empty") override on top
-        #     of the ``terminal`` classification.
-        if row.get("kind") == "fetch_bytes":
-            return "transient"
-        return "terminal"
-    # ``unallocated_pid`` is genuinely terminal: STF's portal never
-    # bound an incidente for this case-id (ADR-0002). Re-running would
-    # just re-discover the same outcome.
     return "terminal"
 
 

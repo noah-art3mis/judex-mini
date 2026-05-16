@@ -1,4 +1,4 @@
-"""Build the cross-run ``peca_issues`` warehouse table.
+"""Build the cross-run ``peca_issues`` warehouse table (streaming).
 
 Walks every ``executar.state.json`` (and legacy ``pdfs.state.json``)
 under a runs root, aggregates per-URL state across runs (latest
@@ -6,24 +6,31 @@ status, attempt count, first/last seen), enriches with filesystem
 sidecars (extractor, dismissal) and warehouse joins (doc_type from
 andamentos/documentos, n_chars from pdfs).
 
-The result is a single queryable table that answers "what's the
-latest state of URL X across all runs and time?" without grepping
-run dirs.
+Memory-bounded refactor of the previous Python-dict aggregator: every
+intermediate set lives in DuckDB temp tables, never in Python at the
+full-corpus scale. Peak Python memory is one batch (~10k rows)
+instead of 100-300k ``_PecaRow`` dataclasses plus accompanying
+sidecar / doc-type / n_chars dicts. Saves ~150-250 MB on a
+corpus-scale build, removing one of the OOM-killer cliffs on WSL2's
+3.84 GB cap. The ``is_suspicious_short`` heuristic stays in Python
+(``judex.analysis.peca_quality``) and is registered as a DuckDB UDF —
+single source of truth, no SQL re-encoding of the doc-type set or
+threshold.
 
-PRD: ``.scratch/peca-registry/PRD.md`` sub-issue 01.
+PRD: ``.scratch/peca-registry/PRD.md`` sub-issue 01. Behaviour pinned
+by ``tests/unit/test_peca_issues_builder.py``.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-from collections import defaultdict
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Iterable, Iterator, Sequence
 
 from judex.analysis.peca_quality import is_suspicious_short
 
 
+_BATCH = 10_000
 _STATE_FILENAMES: tuple[str, ...] = (
     "executar.state.json",
     "pdfs.state.json",     # legacy three-command chain
@@ -34,30 +41,19 @@ def _sha1(url: str) -> str:
     return hashlib.sha1(url.encode("utf-8")).hexdigest()
 
 
-@dataclass(frozen=True)
-class _UrlObservation:
-    """One per-URL data point pulled from a single state.json file."""
-
-    url: str
-    classe: str
-    processo_id: int
-    status: str
-    ts: str
-    run_dir_name: str
-    retry_count: int
-
-
 def _iter_state_files(runs_root: Path) -> Iterable[Path]:
-    """Yield every state.json file under ``runs_root`` (any depth)."""
     for name in _STATE_FILENAMES:
         yield from runs_root.glob(f"**/{name}")
 
 
-def _iter_observations(state_path: Path) -> Iterable[_UrlObservation]:
-    """Yield observations for every URL with a recorded status in
-    ``state_path``. Malformed files are skipped silently — the rest of
-    the build must converge even if one run dir's state.json is
-    half-written.
+def _iter_obs_rows(
+    state_path: Path,
+) -> Iterator[tuple]:
+    """Yield observation tuples for the staging INSERT.
+
+    Shape: ``(url, sha1, classe, processo_id, status, ts, run_dir_name)``.
+    Malformed state files are skipped silently — the rest of the build
+    must converge even if one run dir's state.json is half-written.
     """
     try:
         data = json.loads(state_path.read_text(encoding="utf-8"))
@@ -81,150 +77,152 @@ def _iter_observations(state_path: Path) -> Iterable[_UrlObservation]:
                 status = entry.get("status")
                 if not status:
                     continue
-                yield _UrlObservation(
-                    url=url,
-                    classe=classe,
-                    processo_id=processo_id,
-                    status=status,
-                    ts=entry.get("ts") or "",
-                    run_dir_name=run_dir_name,
-                    retry_count=int(entry.get("retry_count") or 0),
+                yield (
+                    url, _sha1(url), classe, processo_id,
+                    status, entry.get("ts") or "", run_dir_name,
                 )
 
 
-@dataclass
-class _PecaRow:
-    """One aggregated row per URL — what lands in the peca_issues table."""
-
-    url: str
-    sha1: str
-    classe: Optional[str] = None
-    processo_id: Optional[int] = None
-    doc_type: Optional[str] = None
-    latest_status: Optional[str] = None
-    latest_extractor: Optional[str] = None
-    n_chars: Optional[int] = None
-    is_suspicious_short: bool = False
-    n_attempts_seen: int = 0
-    first_seen_at: Optional[str] = None
-    last_seen_at: Optional[str] = None
-    last_run_dir: Optional[str] = None
-    dismissed_at: Optional[str] = None
-    dismissed_reason: Optional[str] = None
-    _all_ts: list[str] = field(default_factory=list)
+def _batched(it: Iterable, size: int) -> Iterator[list]:
+    batch: list = []
+    for item in it:
+        batch.append(item)
+        if len(batch) >= size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
 
 
-def _aggregate(observations: Iterable[_UrlObservation]) -> dict[str, _PecaRow]:
-    """Collapse observations to one row per URL, last-write-wins on ts."""
-    by_url: dict[str, _PecaRow] = {}
-    for obs in observations:
-        row = by_url.get(obs.url)
-        if row is None:
-            row = _PecaRow(url=obs.url, sha1=_sha1(obs.url))
-            by_url[obs.url] = row
-        row.n_attempts_seen += 1
-        row._all_ts.append(obs.ts)
-        # last-write-wins on the latest ts; classe/processo_id should be
-        # stable per URL so taking the latest's is fine.
-        if row.last_seen_at is None or obs.ts > row.last_seen_at:
-            row.last_seen_at = obs.ts
-            row.latest_status = obs.status
-            row.last_run_dir = obs.run_dir_name
-            row.classe = obs.classe
-            row.processo_id = obs.processo_id
-
-    for row in by_url.values():
-        ts_values = [t for t in row._all_ts if t]
-        row.first_seen_at = min(ts_values) if ts_values else None
-    return by_url
+def _stream_observations(con, runs_root: Path) -> None:
+    """Stream URL observations into a DuckDB temp staging table."""
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _peca_obs (
+            url VARCHAR, sha1 VARCHAR, classe VARCHAR,
+            processo_id INTEGER, status VARCHAR, ts VARCHAR,
+            run_dir_name VARCHAR
+        )
+    """)
+    obs_stream = (
+        obs
+        for state_file in _iter_state_files(runs_root)
+        for obs in _iter_obs_rows(state_file)
+    )
+    for batch in _batched(obs_stream, _BATCH):
+        con.executemany(
+            "INSERT INTO _peca_obs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            batch,
+        )
 
 
-def _enrich_filesystem(
-    rows: dict[str, _PecaRow], pecas_texto_root: Path,
-) -> None:
-    """Populate ``latest_extractor`` and dismissal fields from sidecars
-    on disk. One directory scan instead of N stat calls per URL."""
+def _stream_sidecars(con, pecas_texto_root: Path) -> None:
+    """Stream extractor + dismissal sidecars into temp staging tables.
+    Tables are always created (possibly empty) so the join SQL doesn't
+    need to branch on existence."""
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _peca_extractors "
+        "(sha1 VARCHAR, extractor VARCHAR)"
+    )
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _peca_dismissals "
+        "(sha1 VARCHAR, dismissed_at VARCHAR, reason VARCHAR)"
+    )
     if not pecas_texto_root.exists():
         return
-    extractors_by_sha: dict[str, str] = {}
-    for ext_path in pecas_texto_root.glob("*.extractor"):
-        try:
-            extractors_by_sha[ext_path.stem] = (
-                ext_path.read_bytes().decode("utf-8").strip() or None
-            )
-        except OSError:
-            continue
 
-    dismissals_by_sha: dict[str, dict[str, Any]] = {}
-    for dis_path in pecas_texto_root.glob("*.dismissed.json"):
-        sha = dis_path.name.split(".", 1)[0]
-        try:
-            dismissals_by_sha[sha] = json.loads(
-                dis_path.read_bytes().decode("utf-8")
-            )
-        except (OSError, ValueError):
-            continue
+    def _iter_extractors() -> Iterator[tuple]:
+        for ext_path in pecas_texto_root.glob("*.extractor"):
+            try:
+                value = ext_path.read_bytes().decode("utf-8").strip() or None
+            except OSError:
+                continue
+            yield (ext_path.stem, value)
 
-    for row in rows.values():
-        row.latest_extractor = extractors_by_sha.get(row.sha1)
-        dismissal = dismissals_by_sha.get(row.sha1)
-        if dismissal:
-            row.dismissed_at = dismissal.get("dismissed_at")
-            row.dismissed_reason = dismissal.get("reason")
-
-
-def _enrich_warehouse_joins(rows: dict[str, _PecaRow], con) -> None:
-    """Pull ``doc_type`` (from andamentos / documentos) and ``n_chars``
-    (from pdfs) into each row. One bulk SELECT each, in-memory join."""
-    url_to_doc_type: dict[str, str] = {}
-    try:
-        for url, doc_type in con.execute(
-            "SELECT link_url, link_tipo FROM andamentos "
-            "WHERE link_url IS NOT NULL"
-        ).fetchall():
-            url_to_doc_type[url] = doc_type
-    except Exception:
-        pass
-    try:
-        for url, doc_type in con.execute(
-            "SELECT url, doc_type FROM documentos WHERE url IS NOT NULL"
-        ).fetchall():
-            url_to_doc_type.setdefault(url, doc_type)
-    except Exception:
-        pass
-
-    sha1_to_chars: dict[str, int] = {}
-    try:
-        for sha1, n_chars in con.execute(
-            "SELECT sha1, n_chars FROM pdfs"
-        ).fetchall():
-            sha1_to_chars[sha1] = n_chars
-    except Exception:
-        pass
-
-    for row in rows.values():
-        row.doc_type = url_to_doc_type.get(row.url)
-        row.n_chars = sha1_to_chars.get(row.sha1)
-        row.is_suspicious_short = is_suspicious_short(row.n_chars, row.doc_type)
-
-
-def _bulk_insert(rows: dict[str, _PecaRow], con) -> None:
-    if not rows:
-        return
-    payload = [
-        (
-            r.url, r.sha1, r.classe, r.processo_id, r.doc_type,
-            r.latest_status, r.latest_extractor, r.n_chars,
-            r.is_suspicious_short, r.n_attempts_seen,
-            r.first_seen_at, r.last_seen_at, r.last_run_dir,
-            r.dismissed_at, r.dismissed_reason,
+    for batch in _batched(_iter_extractors(), _BATCH):
+        con.executemany(
+            "INSERT INTO _peca_extractors VALUES (?, ?)", batch,
         )
-        for r in rows.values()
-    ]
-    con.executemany(
-        "INSERT INTO peca_issues VALUES "
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        payload,
+
+    def _iter_dismissals() -> Iterator[tuple]:
+        for dis_path in pecas_texto_root.glob("*.dismissed.json"):
+            sha = dis_path.name.split(".", 1)[0]
+            try:
+                d = json.loads(dis_path.read_bytes().decode("utf-8"))
+            except (OSError, ValueError):
+                continue
+            yield (sha, d.get("dismissed_at"), d.get("reason"))
+
+    for batch in _batched(_iter_dismissals(), _BATCH):
+        con.executemany(
+            "INSERT INTO _peca_dismissals VALUES (?, ?, ?)", batch,
+        )
+
+
+def _stage_warehouse_joins(con) -> None:
+    """Materialise optional upstream tables into temp staging tables.
+
+    Preserves the original code's "skip gracefully when upstream
+    missing" semantics — if ``andamentos`` doesn't exist (cold checkout
+    / partial test fixture), the staging table stays empty rather than
+    raising. The doc-type union uses a priority column so the
+    aggregation SQL can pick andamentos over documentos via
+    ``arg_min(doc_type, priority)`` — matching the original Python
+    code's ``setdefault`` semantics.
+    """
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _doc_type_map "
+        "(url VARCHAR, doc_type VARCHAR, priority INTEGER)"
+    )
+    try:
+        con.execute("""
+            INSERT INTO _doc_type_map
+            SELECT link_url, link_tipo, 1 FROM andamentos
+            WHERE link_url IS NOT NULL
+        """)
+    except Exception:
+        pass
+    try:
+        con.execute("""
+            INSERT INTO _doc_type_map
+            SELECT url, doc_type, 2 FROM documentos
+            WHERE url IS NOT NULL
+        """)
+    except Exception:
+        pass
+
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _sha1_chars_map "
+        "(sha1 VARCHAR, n_chars INTEGER)"
+    )
+    try:
+        con.execute("INSERT INTO _sha1_chars_map SELECT sha1, n_chars FROM pdfs")
+    except Exception:
+        pass
+
+
+def _register_udf(con) -> None:
+    """Register :func:`is_suspicious_short` as a DuckDB scalar UDF.
+
+    The Python heuristic stays the single source of truth — both
+    Python callers (peca_quality.py importers) and SQL callers (this
+    aggregation) hit the same function. Avoids re-encoding the
+    ``_SUSPICIOUS_DOC_TYPES`` set / ``SUSPICIOUS_THRESHOLD_CHARS``
+    threshold in SQL, which would invite drift of the kind the recent
+    ``recovery_policy`` extraction was designed to prevent.
+
+    Type spec uses DuckDB's string-typed form (``"INTEGER"`` /
+    ``"VARCHAR"``) for compatibility across the 1.x line — the
+    ``duckdb.typing`` namespace isn't present in 1.5.x.
+    """
+    try:
+        con.remove_function("is_suspicious_short_udf")
+    except Exception:
+        pass  # function not yet registered on this connection
+    con.create_function(
+        "is_suspicious_short_udf",
+        is_suspicious_short,
+        ["INTEGER", "VARCHAR"],
+        "BOOLEAN",
     )
 
 
@@ -236,22 +234,76 @@ def build_peca_issues(
 ) -> int:
     """Populate the ``peca_issues`` table from disk + warehouse joins.
 
-    Returns the number of rows inserted. The function is idempotent
-    against a freshly-CREATEd empty table (the warehouse builder
-    creates the table from ``_SCHEMA_SQL`` before calling this).
-
-    Bugs in this pass must not break the rest of the warehouse build
-    — the caller wraps the call in try/except so an error here logs
-    + skips the table rather than aborting the rebuild.
+    Returns the number of rows inserted. Idempotent against a fresh
+    empty table (the warehouse builder creates the table from
+    ``_SCHEMA_SQL`` before calling this). Bugs must not break the rest
+    of the warehouse build — caller wraps in try/except.
     """
     if not runs_root.exists():
         return 0
-    observations: list[_UrlObservation] = []
-    for state_file in _iter_state_files(runs_root):
-        observations.extend(_iter_observations(state_file))
 
-    rows = _aggregate(observations)
-    _enrich_filesystem(rows, pecas_texto_root)
-    _enrich_warehouse_joins(rows, con)
-    _bulk_insert(rows, con)
-    return len(rows)
+    _stream_observations(con, runs_root)
+    _stream_sidecars(con, pecas_texto_root)
+    _stage_warehouse_joins(con)
+    _register_udf(con)
+
+    # Single SQL pass: aggregate observations per URL (last-write-wins
+    # on ts via arg_max), LEFT JOIN sidecars + doc_type + n_chars,
+    # compute is_suspicious_short via the Python UDF, INSERT.
+    #
+    # Semantic equivalence with the prior Python aggregator:
+    # * arg_max(col, ts) gives the col value from the row with the
+    #   highest ts — same as the original ``if obs.ts > row.last_seen_at:
+    #   row.col = obs.col`` last-write-wins loop. Ties on ts are broken
+    #   arbitrarily by DuckDB; the original broke ties by Python dict
+    #   iteration order. Production data always has distinct ISO-8601
+    #   timestamps, so ties are theoretical.
+    # * MIN(NULLIF(ts, '')) skips empty timestamps when computing
+    #   first_seen_at — matches the original ``min(t for t in ts if t)``.
+    # * MAX(ts) does NOT NULLIF — keeps empty-string output when every
+    #   observation has ts='' (corner case; matches original).
+    # * arg_min(doc_type, priority) picks andamentos (priority=1) over
+    #   documentos (priority=2) — matches original setdefault order.
+    con.execute("""
+        INSERT INTO peca_issues
+        SELECT
+            o.url,
+            o.sha1,
+            o.classe,
+            o.processo_id,
+            dt.doc_type,
+            o.latest_status,
+            e.extractor AS latest_extractor,
+            p.n_chars,
+            is_suspicious_short_udf(p.n_chars, dt.doc_type)
+                AS is_suspicious_short,
+            o.n_attempts_seen,
+            o.first_seen_at,
+            o.last_seen_at,
+            o.last_run_dir,
+            d.dismissed_at,
+            d.reason AS dismissed_reason
+        FROM (
+            SELECT
+                url, sha1,
+                arg_max(classe, ts) AS classe,
+                arg_max(processo_id, ts) AS processo_id,
+                arg_max(status, ts) AS latest_status,
+                arg_max(run_dir_name, ts) AS last_run_dir,
+                MIN(NULLIF(ts, '')) AS first_seen_at,
+                MAX(ts) AS last_seen_at,
+                COUNT(*) AS n_attempts_seen
+            FROM _peca_obs
+            GROUP BY url, sha1
+        ) o
+        LEFT JOIN _peca_extractors e ON e.sha1 = o.sha1
+        LEFT JOIN _peca_dismissals d ON d.sha1 = o.sha1
+        LEFT JOIN (
+            SELECT url, arg_min(doc_type, priority) AS doc_type
+            FROM _doc_type_map
+            GROUP BY url
+        ) dt ON dt.url = o.url
+        LEFT JOIN _sha1_chars_map p ON p.sha1 = o.sha1
+    """)
+
+    return con.execute("SELECT COUNT(*) FROM peca_issues").fetchone()[0]

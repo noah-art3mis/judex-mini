@@ -328,12 +328,16 @@ Remaining priority queue:
    confirm the text content is usable (not pypdf-mojibake / silent-
    whitespace failures). 10-min task. If quality holds, this item
    closes entirely.
-3. **HC 2023 bytes coverage hole** — 14,456 / 21,453 = 67% on bytes
-   while text is at 97%. Surfaced 2026-05-12 by the post-delta
-   warehouse snapshot; the 2026-04-30 baseline had 2023 bytes at
-   70%. Likely URL-set churn between the bytes sweep and the latest
-   warehouse rebuild — a targeted `executar --csv` over the affected
-   cases (or `baixar-pecas`) should close the gap cheaply.
+3. ~~**HC 2023 bytes coverage hole** — closed 2026-05-12 ✓~~
+   55-minute direct-IP second-pass against 10,371 HC 2023 cases
+   (`runs/archive/hc2023-bytes-followup/`). Bytes 14,456/21,453 = 67%
+   → 21,329/21,430 = **99.5%**; text 20,781/21,453 = 97% →
+   21,329/21,430 = **99.5%**. Residual 94 rows (86 persistent server-
+   empties + 8 known-404 voto PDFs) — all in the false-transient
+   class documented in § "Tactical CLI / observability fixes" below.
+   Significant data point: `--prever` over-estimated wall by 6× (said
+   5-6 hr; actual 55 min). The forecaster uses a per-case-ratio
+   instead of probing the bytes cache.
 4. **HC 2017–2019 fresh sweeps** — pre-2021 layer of the priority queue
    per [`docs/completion-tracker.md`](completion-tracker.md). HC 2017 is
    the natural next density × budget target.
