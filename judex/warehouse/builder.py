@@ -1157,7 +1157,15 @@ def build(
         con.execute("SET threads=2")
         con.execute(_SCHEMA_SQL)
 
-        for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
+        # Materialise the case-file list once so progress prints can show a
+        # denominator + ETA. ~30 MB peak for the 100k-case HC corpus — trivial
+        # against the 800 MB DuckDB cap, and pays for itself in operator
+        # legibility (no more "scanned 10,000 cases out of how many?").
+        case_files = list(_iter_case_files(cases_root, classes, id_range))
+        total_cases = len(case_files)
+        print(f"  found {total_cases:,} case files to scan", flush=True)
+
+        for i, path in enumerate(case_files):
             item = _load_case(path)
             if item is None or "classe" not in item or "processo_id" not in item:
                 continue
@@ -1208,7 +1216,14 @@ def build(
                 sessao_virtual_populated += 1
 
             if progress_every and (i + 1) % progress_every == 0:
-                print(f"  scanned {i + 1:,} cases", flush=True)
+                elapsed = time.monotonic() - t0
+                rate = (i + 1) / elapsed if elapsed > 0 else 0.0
+                eta_s = (total_cases - (i + 1)) / rate if rate > 0 else 0.0
+                print(
+                    f"  scanned {i + 1:,} / {total_cases:,} cases "
+                    f"· {rate:.0f} cases/s · eta {eta_s / 60:.1f} min",
+                    flush=True,
+                )
             if n_cases % _CHUNK_SIZE == 0:
                 buffers.flush(con)
 
@@ -1239,9 +1254,11 @@ def build(
             )
 
         # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
+        print(f"  loading pdfs from {pecas_texto_root}…", flush=True)
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter)
         )
+        print(f"  loaded {n_pdfs:,} pdfs", flush=True)
 
         # Unallocated processo_ids — sourced from the cross-sweep registry.
         # See ADR-0002. Tests omit the root and get an empty table.
@@ -1250,6 +1267,7 @@ def build(
         # aggregator script). State walk wins on collisions (same pid,
         # higher observation count — it sees more runs than any single
         # TSV checkpoint).
+        print("  loading unallocated_pids registry…", flush=True)
         unallocated_by_key: dict[tuple[str, int], dict] = {}
         if unallocated_pids_root is not None:
             for classe in sorted(classes_seen):
@@ -1263,6 +1281,7 @@ def build(
                     unallocated_by_key[key] = row
         unallocated_rows = list(unallocated_by_key.values())
         n_unallocated = _bulk_insert_iter(con, "unallocated_pids", iter(unallocated_rows))
+        print(f"  loaded {n_unallocated:,} unallocated_pids", flush=True)
 
         # Disk-snapshot tables — back the missing_bytes / missing_text /
         # orphan_cache_files views. Snapshotted now; views compute live
@@ -1270,6 +1289,7 @@ def build(
         # snapshot (tests + cold checkouts); text always comes from the
         # ``pecas_texto_root`` we were called with.
         if bytes_root is not None:
+            print("  computing disk snapshots (bytes + text)…", flush=True)
             n_disk_bytes, n_disk_txt = _populate_disk_snapshots(
                 con, bytes_root=bytes_root, text_root=pecas_texto_root,
             )
@@ -1286,6 +1306,7 @@ def build(
         # no runs/ directory to walk.
         if runs_root is not None:
             try:
+                print("  building peca_issues registry…", flush=True)
                 from judex.warehouse.peca_issues import build_peca_issues
                 n_peca_issues = build_peca_issues(
                     con,
@@ -1293,6 +1314,7 @@ def build(
                     pecas_texto_root=pecas_texto_root,
                 )
                 print(f"  peca_issues: {n_peca_issues:,} rows", flush=True)
+                print("  building case_issues registry…", flush=True)
                 from judex.warehouse.case_issues import build_case_issues
                 n_case_issues = build_case_issues(con, runs_root=runs_root)
                 print(f"  case_issues: {n_case_issues:,} rows", flush=True)
