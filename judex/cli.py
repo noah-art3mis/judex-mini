@@ -1264,6 +1264,8 @@ def atualizar_warehouse(
     raise typer.Exit(code=_run_warehouse(
         diretorio_processos, diretorio_pecas_texto, saida,
         classe, ano, progresso_cada, estrito,
+        runs_root=Path("runs"),
+        bytes_root=Path("data/raw/pecas"),
     ))
 
 
