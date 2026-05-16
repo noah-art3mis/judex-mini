@@ -1125,12 +1125,14 @@ def build(
     counts: dict[str, int] = {
         f.name: 0 for f in fields(BufferSet) if f.name != "cases"
     }
-    # Populated-case sets: (classe, processo_id) keys per field that
-    # participates in population-rate validation. Bounded at O(n_cases).
-    populated: dict[str, set[tuple[str, int]]] = {
-        "partes": set(), "andamentos": set(),
-        "pautas": set(), "publicacoes_dje": set(),
-    }
+    # Per-field populated-case counters for population-rate validation.
+    # Each case is visited exactly once, so we never needed set semantics
+    # — replaced O(n_cases) sets of (classe, processo_id) tuples with O(1)
+    # ints to drop ~40 MB peak heap on the full HC corpus.
+    cases_with_partes = 0
+    cases_with_andamentos = 0
+    cases_with_pautas = 0
+    cases_with_publicacoes_dje = 0
     # sessao_virtual isn't its own table (entries land in `documentos`
     # with kind='sessao'), so count cases whose JSON had a non-empty
     # sessao_virtual list directly during the scan.
@@ -1157,34 +1159,33 @@ def build(
         con.execute("SET threads=2")
         con.execute(_SCHEMA_SQL)
 
-        # Materialise the case-file list once so progress prints can show a
-        # denominator + ETA. ~30 MB peak for the 100k-case HC corpus — trivial
-        # against the 800 MB DuckDB cap, and pays for itself in operator
-        # legibility (no more "scanned 10,000 cases out of how many?").
-        case_files = list(_iter_case_files(cases_root, classes, id_range))
-        total_cases = len(case_files)
+        # Count-then-stream: a fast pre-pass (rglob without parsing) yields
+        # a denominator for the progress line; the main loop iterates the
+        # generator again. Two filesystem walks (~1–2 s each on 100k files)
+        # instead of one ~15 MB materialised Path list — material on a
+        # memory-pressured WSL2 host.
+        total_cases = sum(1 for _ in _iter_case_files(cases_root, classes, id_range))
         print(f"  found {total_cases:,} case files to scan", flush=True)
 
-        for i, path in enumerate(case_files):
+        for i, path in enumerate(_iter_case_files(cases_root, classes, id_range)):
             item = _load_case(path)
             if item is None or "classe" not in item or "processo_id" not in item:
                 continue
 
             case_row = _flatten_case(item, path)
-            key = (case_row["classe"], case_row["processo_id"])
             buffers.cases.append(case_row)
             n_cases += 1
             classes_seen.add(case_row["classe"])
 
             partes = _flatten_partes(item)
             if partes:
-                populated["partes"].add(key)
+                cases_with_partes += 1
             counts["partes"] += len(partes)
             buffers.partes.extend(partes)
 
             andamentos = _flatten_andamentos(item, pecas_texto_root)
             if andamentos:
-                populated["andamentos"].add(key)
+                cases_with_andamentos += 1
             counts["andamentos"] += len(andamentos)
             buffers.andamentos.extend(andamentos)
 
@@ -1198,13 +1199,13 @@ def build(
 
             pautas = _flatten_pautas(item)
             if pautas:
-                populated["pautas"].add(key)
+                cases_with_pautas += 1
             counts["pautas"] += len(pautas)
             buffers.pautas.extend(pautas)
 
             publicacoes_dje = _flatten_publicacoes_dje(item)
             if publicacoes_dje:
-                populated["publicacoes_dje"].add(key)
+                cases_with_publicacoes_dje += 1
             counts["publicacoes_dje"] += len(publicacoes_dje)
             buffers.publicacoes_dje.extend(publicacoes_dje)
 
@@ -1235,10 +1236,10 @@ def build(
         # caught it immediately instead of three days later).
         population_rates = _compute_population_rates(
             n_cases=n_cases,
-            cases_with_partes=len(populated["partes"]),
-            cases_with_andamentos=len(populated["andamentos"]),
-            cases_with_pautas=len(populated["pautas"]),
-            cases_with_publicacoes_dje=len(populated["publicacoes_dje"]),
+            cases_with_partes=cases_with_partes,
+            cases_with_andamentos=cases_with_andamentos,
+            cases_with_pautas=cases_with_pautas,
+            cases_with_publicacoes_dje=cases_with_publicacoes_dje,
             sessao_virtual_populated=sessao_virtual_populated,
         )
         validation_warnings, validation_lines = _validate_population_rates(
@@ -1253,10 +1254,16 @@ def build(
                 flush=True,
             )
 
-        # PDFs streamed: ~1 GB decompressed text never sits in memory at once.
+        # PDFs streamed in small batches: each row carries the fully
+        # decompressed text (50–200 KB), so a 5,000-row batch could peak
+        # at ~500 MB (twice that with the transient Arrow buffer). 500
+        # holds the same payload to ~50 MB without measurably hurting
+        # throughput — DuckDB per-batch overhead is small relative to the
+        # gzip-decompress cost per row.
         print(f"  loading pdfs from {pecas_texto_root}…", flush=True)
         n_pdfs = _bulk_insert_iter(
-            con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter)
+            con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter),
+            batch_size=500,
         )
         print(f"  loaded {n_pdfs:,} pdfs", flush=True)
 
