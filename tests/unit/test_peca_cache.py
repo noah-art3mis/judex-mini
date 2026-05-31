@@ -404,3 +404,71 @@ def test_dismissal_independent_of_other_caches(tmp_path, monkeypatch) -> None:
     assert peca_cache.read(url) == "extracted body"
     assert peca_cache.read_extractor(url) == "pypdf"
     assert peca_cache.is_dismissed(url) is True
+
+
+# ---------------------------------------------------------------------------
+# text_is_satisfied — central predicate for "is the cached text equivalent
+# to what the requested provider would produce?". Owns the equivalence
+# rule per content type so handlers don't have to. Symmetric callsite:
+# ``handle_extract_text`` in ``judex/pipeline/handlers.py``.
+# ---------------------------------------------------------------------------
+
+
+def test_text_is_satisfied_false_when_no_text_cached(tmp_path, monkeypatch) -> None:
+    """No cached text → nothing to be equivalent to. Cheapest of the
+    rejection paths: pure stat call, no sidecar read."""
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+
+    assert peca_cache.text_is_satisfied(
+        "https://stf/x.pdf", requested_provider="pypdf"
+    ) is False
+
+
+def test_text_is_satisfied_true_when_sidecar_matches_provider(
+    tmp_path, monkeypatch
+) -> None:
+    """Standard PDF case: the cached text was produced by pypdf and
+    pypdf is what we'd dispatch — re-running is wasted OCR cost."""
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+    peca_cache.write(url, "body", extractor="pypdf")
+
+    assert peca_cache.text_is_satisfied(url, requested_provider="pypdf") is True
+
+
+def test_text_is_satisfied_false_when_sidecar_mismatches_provider(
+    tmp_path, monkeypatch
+) -> None:
+    """PDF sidecar from a different provider — operator wants different
+    output (e.g. better OCR quality). Don't claim cached text is
+    canonical when provider would re-extract."""
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/x.pdf"
+    peca_cache.write(url, "body", extractor="pypdf")
+
+    assert peca_cache.text_is_satisfied(url, requested_provider="mistral") is False
+
+
+def test_text_is_satisfied_true_for_rtf_sidecar_regardless_of_provider(
+    tmp_path, monkeypatch
+) -> None:
+    """RTF is content-format dispatched, not provider-dispatched. The
+    handler sniffs ``{\\rtf`` magic bytes and routes to striprtf — the
+    operator's ``--provedor`` flag never touches an RTF body. So any
+    cached RTF text is canonical, and re-running would produce
+    identical output. This is the predicate's load-bearing case:
+    without it, every RTF re-extracts on every sweep.
+    """
+    monkeypatch.setattr(peca_cache, "PECAS_ROOT", tmp_path)
+    monkeypatch.setattr(peca_cache, "TEXTO_ROOT", tmp_path)
+    url = "https://stf/decisao.rtf"
+    peca_cache.write(url, "decisão monocrática...", extractor="rtf")
+
+    # Every provider should see RTF cache as satisfied.
+    for provider in ("pypdf", "mistral", "chandra", "unstructured", "tesseract"):
+        assert peca_cache.text_is_satisfied(
+            url, requested_provider=provider
+        ) is True, f"RTF sidecar should satisfy any provider, failed for {provider}"

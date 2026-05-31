@@ -197,10 +197,15 @@ def recover_state_from_log(log_path: Path | str) -> PipelineState:
 
 # Statuses that mean "this target is in the desired terminal state" — not
 # errors, even though they're not literally "ok". ``skipped_cached`` is
-# the sidecar-skip outcome on extract_text: cached text already matches
-# the requested provider, so re-OCR was deliberately skipped. Including
-# either in ``executar.errors.jsonl`` would re-seed completed work on
-# the next ``--retentar-de`` pass.
+# the cache-hit outcome across all three stages:
+#   * fetch_meta: case JSON already on disk (handle_fetch_meta's
+#     cached_item branch — used by --retomar after a stale snapshot,
+#     or when re-running over the same range as a prior sweep);
+#   * fetch_bytes: peça PDF/RTF already in peca_cache.has_bytes;
+#   * extract_text: sidecar-skip — cached text already matches the
+#     requested provider, so re-OCR was deliberately skipped.
+# Including either status in ``executar.errors.jsonl`` would re-seed
+# completed work on the next ``--retentar-de`` pass.
 _TERMINAL_OK_STATUSES: frozenset[str] = frozenset({"ok", "skipped_cached"})
 
 # Statuses that are terminal-no-retry: they didn't succeed, but re-running

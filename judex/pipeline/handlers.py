@@ -262,7 +262,8 @@ def make_handlers(
             else:
                 successors = _emit_fetch_bytes(task, cached_item)
                 state.record_meta(
-                    task.case_key, status="ok", n_pecas=len(successors),
+                    task.case_key, status="skipped_cached",
+                    n_pecas=len(successors),
                 )
                 return successors
 
@@ -301,7 +302,10 @@ def make_handlers(
         doc_type = task.payload.get("doc_type")
 
         if peca_cache.has_bytes(url):
-            state.record_bytes(task.case_key, url=url, status="ok", doc_type=doc_type)
+            state.record_bytes(
+                task.case_key, url=url, status="skipped_cached",
+                doc_type=doc_type,
+            )
             return [
                 Task(
                     kind="extract_text",
@@ -345,26 +349,27 @@ def make_handlers(
         url = task.payload["url"]
         doc_type = task.payload.get("doc_type")
 
-        # Sidecar-match skip — symmetric with legacy
-        # ``judex.sweeps.extract_driver``'s "spec truth table". If a
-        # ``.extractor`` sidecar already records the same provider
-        # we'd otherwise dispatch, the cached text is what we'd
-        # produce, so re-running is wasted OCR cost. ``--forcar``
-        # bypasses this check (for re-OCR with the same provider) and
-        # the per-target ``effective_provedor`` (computed below for
-        # ``auto``) is what the sidecar must match — not the run's
-        # bare ``--provedor``.
-        if not forcar and peca_cache.has_text(url):
-            sidecar = peca_cache.read_extractor(url)
+        # Cache-skip — the equivalence rule (sidecar vs. requested
+        # provider, with RTF as a content-format-dispatched exception)
+        # lives in ``peca_cache.text_is_satisfied``. Keeping it there
+        # means a new content type (e.g. .doc → python-docx) only
+        # touches one predicate, not three handler call sites — the
+        # mistake that produced the historical RTF-always-re-extracts
+        # bug. ``--forcar`` bypasses the skip for explicit re-OCR; the
+        # per-target ``effective_provedor`` (resolved below for ``auto``)
+        # is what the predicate compares against.
+        if not forcar:
             if provedor == "auto":
                 from judex.sweeps.extrair_pecas import pick_provider
-                expected = pick_provider(doc_type)
+                effective_provedor = pick_provider(doc_type)
             else:
-                expected = provedor
-            if sidecar == expected:
+                effective_provedor = provedor
+            if peca_cache.text_is_satisfied(
+                url, requested_provider=effective_provedor
+            ):
                 state.record_text(
                     task.case_key, url=url, status="skipped_cached",
-                    extractor=sidecar,
+                    extractor=peca_cache.read_extractor(url),
                 )
                 return []
 

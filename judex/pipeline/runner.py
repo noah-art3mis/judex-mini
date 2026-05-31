@@ -160,11 +160,13 @@ def render_report_md(
         )
 
     # State-side breakdown by status + cost-relevant counts.
-    # ``skipped_cached`` is a *terminal-ok* outcome (sidecar already
-    # records the right provider; re-OCR was deliberately skipped) —
-    # it counts toward the bytes_ok / text_ok numerator alongside "ok",
-    # because the desired output exists on disk either way. Counting
-    # it as a failure would mark every successful resume as F-grade.
+    # ``skipped_cached`` is a *terminal-ok* outcome at any stage —
+    # case JSON on disk (fetch_meta), peça bytes in peca_cache
+    # (fetch_bytes), or sidecar provider match (extract_text). It
+    # counts toward the meta_ok / bytes_ok / text_ok numerator
+    # alongside "ok", because the desired output exists on disk
+    # either way. Counting it as a failure would mark every
+    # successful resume as F-grade.
     _terminal_ok = ("ok", "skipped_cached")
     meta_status: _Counter = _Counter()
     bytes_status: _Counter = _Counter()
