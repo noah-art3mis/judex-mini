@@ -6,6 +6,13 @@ Branch: `dev`. Prior cycle archived at
 narrative, PR #16/#17 (recuperar v2 + `--loop` convergence), runs/active
 housekeeping (74 → 40), `executar` flag-surface narrowing.
 
+**Status as of 2026-05-30 ~20:15 BRT.** Active goal: finish HC 2020 then
+HC 2019 via the bought proxy pool — **blocked on fresh proxies** (old
+ScrapeGW pool wiped + dead creds). Big discovery: 2019/2020 coverage is
+far ahead of `completion-tracker.md` (2020 at 97% bytes / 87% text, not
+33%). Full write-up in `## Open thread — HC 2020/2019 proxy backfill +
+stale-tracker discovery (2026-05-30)` below.
+
 **Status as of 2026-05-12 ~18:00 BRT.** Today knocked out priority-queue
 item #1 (May 4-5 chain delta re-run) and patched two real recuperar
 bugs surfaced by the closeout. The progress narrative for today is in
@@ -34,6 +41,91 @@ context — three things shipped that day):
    +25 new tests (`tests/unit/test_cli_lifecycle.py` new file + extensions
    to `test_pipeline_state.py` and `test_pipeline_runner.py`). Tests now
    at **1,048 passing**.
+
+---
+
+## Open thread — HC 2020/2019 proxy backfill + stale-tracker discovery (2026-05-30)
+
+Goal this session: launch HC 2020, track it, drain its DLQ to "reasonably
+done", then repeat for HC 2019. **In-flight, blocked on fresh proxies** (see
+proxy-pool loss below). What the session surfaced that wasn't in this notebook
+or `completion-tracker.md`:
+
+### 1. Five sweeps finished May 13–18 that were never written up
+
+`judex listar` shows them still in `runs/active/` (not archived):
+
+| run rótulo       | n_targets | wall    | what it was        |
+|------------------|----------:|---------|--------------------|
+| `hc-2018`        |    14,201 | 45h 0m  | case-meta sweep    |
+| `hc-2019`        |     9,999 | 24h 25m | case-meta sweep    |
+| `hc2024_refresh` |    14,389 | 10m     | refresh            |
+| `hc2023_refresh` |    12,644 | 8m      | refresh            |
+| `hc2025_refresh` |     9,999 | 26m     | refresh            |
+
+The two year-sweeps were direct-IP — hence the 45h / 24h walls (one WAF
+reputation budget, mostly throttled). That pain is the whole reason this
+session is about proxies. **TODO: archive these five + refresh the
+completion-tracker.**
+
+### 2. Coverage is FAR ahead of what the tracker claims (stale-tracker bug)
+
+The May 12 `completion-tracker.md` shows 2019/2020 as ❌ deserts (2019 0.2%
+bytes, 2020 33.7%). The **live warehouse** (built 2026-05-15, queried this
+session) says they're nearly done — the May 13–18 case sweeps + bytes/text
+caches catching up closed most of the gap silently:
+
+| year | cases (whse) | substantive peças | bytes on disk | text extracted | net gap                       |
+|-----:|-------------:|------------------:|--------------:|---------------:|-------------------------------|
+| 2020 |        6,616 |            11,758 |   97% (−367)  |   87% (−1,540) | ~370 bytes + ~1,540 text      |
+| 2019 |        4,173 |             8,668 |   74% (−2,273)|   74% (−2,252) | ~2,273 bytes + ~2,252 text    |
+| 2018 |        7,661 |             —     |   —           |   —            | case-meta landed; peças TBD   |
+
+(tracker baseline was cases 2018=945 / 2019=914 / 2020=4,493 — all three are
+now multiples of that.) **Implication for the goal**: "finish HC 2020" is no
+longer a 2.4 GB / 1.5h full-year download — it's ~370 fresh PDFs (~60 MB of
+proxy bandwidth) **plus** a text-extraction gap (~1,540 peças) that is a
+zero-HTTP `extrair-pecas` job needing **no proxies**. HC 2019 is bigger but
+still moderate (~2.3k bytes ≈ ~380 MB). Both years together fit in <0.5 GB —
+roughly a tenth of a 5 GB pack.
+
+### 3. The bought proxy pool was wiped — and the backup copies are dead creds
+
+`config/proxies` did not exist this session. Root cause is the **same May 5
+directory-shuffle that wiped the corpus**: `config/` is `.gitignore`'d, so it
+vanished with no git trail (identical failure mode to the `data/` loss
+postmortem below). The bought pool survived only as the launcher's per-shard
+split copies under `runs/archive/*/proxies/proxies.{a..p}.txt` (160 lines each;
+gateway `rp.scrapegw.com`, ProxyScrape **residential**, `country-br`, format
+`host:port:user:pass`). Reconstructed `config/proxies` from the freshest
+(May 3) archived pool and smoke-tested all 12 sampled lines against STF on
+2026-05-30 → **HTTP 000 across the board** (TCP/TLS tunnel never opened = the
+ScrapeGW account is expired / out of bandwidth, NOT an STF 403). Operator is
+fetching a fresh pool; `config/proxies` currently holds a labeled template.
+
+**New survivability lesson (extends the `data/` postmortem):** `config/`
+deserves the same off-host backup treatment as the corpus. A wiped
+credentials dir is silent and only recoverable by luck (split copies left in
+archived runs). Fold `config/` into any `judex debug fazer-backup` schedule.
+
+**Pool-format note worth pinning:** `judex/scraping/proxy_pool.py:_normalize_proxy_url`
+coerces four input forms to `http://user:pass@host:port` —
+`host:port:user:pass` (ScrapeGW/Webshare dump), full URL, scheme-less
+`user:pass@host:port`, and bare `host:port`. So a fresh pool can be pasted in
+any of those.
+
+### 4. Staged HC 2020 launch (fires the moment live proxies land)
+
+- Range: `HC -i 187634 -f 196770` (9,137 ids, from the prior 2020 sharded
+  run's `input.csv` envelope). `--prever` forecast (full-year worst case):
+  sharded 16× ≈ 1.5h / 2.4 GB / $8.79 — but the §2 coverage means the real
+  job is a fraction of that.
+- Command: `uv run judex executar -c HC -i 187634 -f 196770 --rotulo
+  hc2020-finish --shards 16 --proxy-pool config/proxies --detach` → track with
+  `judex acompanhar` → `judex recuperar --loop --apply --nao-perguntar`.
+- **No-proxy progress available now:** the text-extraction gap (2020 ~1,540 +
+  2019 ~2,252 peças whose bytes are already on disk) can be drained with
+  `extrair-pecas` without waiting for proxies.
 
 ---
 
