@@ -1256,14 +1256,16 @@ def build(
 
         # PDFs streamed in small batches: each row carries the fully
         # decompressed text (50–200 KB), so a 5,000-row batch could peak
-        # at ~500 MB (twice that with the transient Arrow buffer). 500
-        # holds the same payload to ~50 MB without measurably hurting
+        # at ~500 MB (twice that with the transient Arrow buffer). 200
+        # holds the same payload to ~20 MB without measurably hurting
         # throughput — DuckDB per-batch overhead is small relative to the
-        # gzip-decompress cost per row.
+        # gzip-decompress cost per row. Lowered from 500 after a 3.8 GB
+        # WSL2 host OOM-killed the build at this phase with 1.5 GB of
+        # swap already in use.
         print(f"  loading pdfs from {pecas_texto_root}…", flush=True)
         n_pdfs = _bulk_insert_iter(
             con, "pdfs", _iter_pdf_rows(pecas_texto_root, sha1_filter),
-            batch_size=500,
+            batch_size=200,
         )
         print(f"  loaded {n_pdfs:,} pdfs", flush=True)
 
