@@ -6,12 +6,15 @@ Branch: `dev`. Prior cycle archived at
 narrative, PR #16/#17 (recuperar v2 + `--loop` convergence), runs/active
 housekeeping (74 → 40), `executar` flag-surface narrowing.
 
-**Status as of 2026-05-30 ~20:15 BRT.** Active goal: finish HC 2020 then
-HC 2019 via the bought proxy pool — **blocked on fresh proxies** (old
-ScrapeGW pool wiped + dead creds). Big discovery: 2019/2020 coverage is
-far ahead of `completion-tracker.md` (2020 at 97% bytes / 87% text, not
-33%). Full write-up in `## Open thread — HC 2020/2019 proxy backfill +
-stale-tracker discovery (2026-05-30)` below.
+**Status as of 2026-05-30 ~23:30 BRT.** Goal session (finish HC 2020 →
+HC 2019 via the bought proxy pool) ran and **partially landed, then the
+proxy bandwidth ran out mid-2019**. HC 2020 **swept clean** (sharded 16×,
+14 min) + DLQ drained 417→114. HC 2019 ran via the new `scrape` command
+(mono) and **stalled at ~57% of range when the ScrapeGW pool exhausted**
+(850s timeouts → now `code=000`). Stopped cleanly; partial work
+(16,858 ok fetches) preserved. Warehouse rebuilding to capture it.
+**Next: fresh proxies (BR, not VE) to finish the 2019 tail.** Full
+outcome in `### Session outcome` under the open thread below.
 
 **Status as of 2026-05-12 ~18:00 BRT.** Today knocked out priority-queue
 item #1 (May 4-5 chain delta re-run) and patched two real recuperar
@@ -126,6 +129,91 @@ any of those.
 - **No-proxy progress available now:** the text-extraction gap (2020 ~1,540 +
   2019 ~2,252 peças whose bytes are already on disk) can be drained with
   `extrair-pecas` without waiting for proxies.
+
+### Session outcome (2026-05-30 late — proxies ran out mid-2019)
+
+The proxy file turned out to be recoverable after all: reconstructed
+`config/proxies` from the archived May 3 ScrapeGW split files, and the operator
+also pasted a fresh same-account regeneration. **Critical gotcha:** a `curl`
+smoke-test reported `HTTP 000` and looked dead, but that was a **false
+negative** — the VE exit ISP MITMs TLS for STF, and `curl` verifies certs
+while the scraper sets `s.verify = False` (`judex/scraping/http_session.py:65`).
+`curl -k` (scraper-equivalent) returned `200`. So **smoke-test proxies with
+`-k`, not default curl**, or you'll discard a working pool. The pool exited via
+**Venezuela** (`AS269820 FULL DATA`), not Brazil — the `country-br` username tag
+was ignored (plan tier or session-syntax issue).
+
+**HC 2020 — DONE.** `judex executar -c HC -i 187634 -f 196770 --shards 16
+--proxy-pool config/proxies` finished 16/16 shards in **14m21s** (longest
+shard). Rollup: processos 997 fresh + 7,104 cached + 1,036 unallocated;
+peças 2,989 fresh bytes + 20,425 cached + 417 empty; text 5,610 fresh +
+17,804 cached. 403 rate ~0.9% (VE exits held). Run:
+`runs/active/20260530_202245-hc2020-finish/`. DLQ drained **417 → 114**
+(73% of the empties were transient WAF flakes; ~114 are terminal server-
+empties). **Operator mistake pinned below**: wrapped `recuperar` in
+`timeout 540`, which SIGTERM'd the convergent loop early and orphaned 14
+session-detached replay children (they happened to finish the pass). The
+remaining 114 need one clean `recuperar` (no timeout) to confirm the floor.
+
+**HC 2019 — PARTIAL, proxy exhausted.** Ran via the **new `scrape` command**
+(`executar → recuperar → warehouse` in one blocking call) over `-c HC -i 167013
+-f 180000` (12,988 targets / ~17,274 peças), mono + `--proxy-pool`
+`--portal-concurrencia 10`. Got **16,858 ok fetches**, range cursor to
+~HC 174,183 (~57% of 167013–180000), then the ScrapeGW pool **exhausted its
+bandwidth**: fetch walls cliffed to **850–940 s each** (hang, not 403), 0 log
+lines/2 min. Stopped via `judex parar` (clean). Never reached the recuperar/
+warehouse stages. Run: `runs/active/20260530_205300-hc2019-finish/`. Post-stop
+proxy re-test: `code=000` in <1 s on every exit → **bandwidth depleted**.
+
+**Post-rebuild coverage (warehouse rebuilt 23:33):**
+
+| year | cases | substantive | bytes | text | vs baseline |
+|-----:|------:|------------:|------:|-----:|-------------|
+| 2020 | 7,613 | 13,056 | **99%** | **99%** | 97%/87% → DONE |
+| 2019 | 6,313 | 13,365 | **77%** | **73%** | 74%/74% → flat |
+
+**HC 2020 is done** (99%/99%; the 114 DLQ residual *is* the terminal ~1%
+of server-empties — no clean `recuperar` needed). **HC 2019's % stalled
+despite real work**: the partial run *expanded* the corpus faster than it
+filled it — substantive peças 8,668 → 13,365, cases 4,173 → 6,313, while
+bytes rose 6,395 → 10,263 (+60% absolute). The denominator grew with the
+numerator, so the ratio held ~77%. The classic sparse-year backfill trap:
+each sweep both fills and discovers. 2019 needs another sharded pass (tail
+174,183–180,000 + the newly-discovered cases) once proxies are back.
+
+**Findings worth promoting to docs (code SOTs):**
+
+1. **Smoke-test proxies with `curl -k`**, not default curl — the scraper runs
+   `verify=False`, so a cert-MITM'd-but-working residential exit shows `000`
+   under cert verification. Add to `docs/setup-proxies.md`.
+2. **Never wrap `recuperar --loop` (or any session-detached-child spawner) in
+   `timeout`.** It SIGTERMs the convergent loop early and orphans the
+   `--retentar-de` children. The loop self-stops at "no progress." Add to the
+   recuperar gotchas in `CLAUDE.md` / `docs/recovery-patterns.md`.
+3. **`scrape` is mono-only and amplifies proxy degradation.** Sharded
+   `executar` (HC 2020) shrugs off a few slow proxies — other shards keep
+   moving; mono `scrape` (HC 2019) stalls completely when its single pipeline's
+   proxies hang. Use `scrape` for small/incremental runs; for a full year use
+   `executar --shards` + manual `recuperar`/`warehouse`. Document in the
+   `scrape` docstring.
+4. **OCR handler surrogate bug.** `UnicodeEncodeError: surrogates not allowed`
+   on PDFs whose text layer carries unpaired UTF-16 surrogates (`􀍞`).
+   ~6 peças in 2019 alone; silently drops their text corpus-wide. Fix: sanitize
+   with `.encode('utf-8', 'replace')` / `errors='surrogatepass'` before writing
+   `.txt.gz` in the OCR write path.
+5. **Bought-proxy geo-targeting failed** (`country-br` → VE exits). Verify the
+   ScrapeGW plan tier / session-string supports country targeting before the
+   next sweep; BR exits would avoid both the TLS-MITM and the foreign-
+   fingerprint 403 risk.
+
+**Immediate next steps when proxies are refreshed (BR):**
+- One clean `judex recuperar runs/active/20260530_202245-hc2020-finish/ --loop
+  --apply --nao-perguntar` (NO timeout) to floor the 114.
+- Finish HC 2019: `judex executar -c HC -i 167013 -f 180000 --rotulo
+  hc2019-finish --shards 16 --proxy-pool config/proxies` (sharded, not mono —
+  cache-hits the 16,858 done, parallelizes the 174,183–180,000 tail).
+- Then `judex warehouse` + refresh `completion-tracker.md` for 2019/2020.
+- Archive both runs (`judex arquivar`).
 
 ---
 
