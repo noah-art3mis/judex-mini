@@ -76,6 +76,54 @@ def test_handle_extract_text_uses_rtf_path_for_rtf_bytes(
     assert "hello world" in written_text.lower()
 
 
+def test_handle_extract_text_skips_cached_rtf_under_pypdf_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RTF sidecar must satisfy the cache-skip check regardless of the
+    operator's --provedor. RTF is content-format dispatched (magic-byte
+    sniff routes to striprtf — bypasses the OCR provider entirely), so
+    the operator's pypdf/mistral/chandra choice never touches an RTF
+    body. Without this rule, every RTF re-extracts on every sweep
+    because the bespoke ``sidecar == provider`` check failed (e.g.
+    ``"rtf" == "pypdf"`` → False).
+
+    Pins the central equivalence rule in
+    ``peca_cache.text_is_satisfied``. If the predicate is bypassed or
+    the rule is reverted to a bare provider comparison, this test
+    catches it.
+
+    Tripwire: ``peca_cache.read_bytes`` must NOT be called — the skip
+    path returns before any byte/extractor work. If the handler falls
+    through, the read_bytes mock raises with a clear message instead
+    of silently extracting against in-tmp_path state.
+    """
+    from judex.utils import peca_cache
+
+    state = PipelineState.load(tmp_path / "s.json")
+    url = "https://stf/decisao.rtf"
+
+    monkeypatch.setattr(peca_cache, "has_text", lambda u: u == url)
+    monkeypatch.setattr(peca_cache, "read_extractor", lambda u: "rtf")
+
+    def _read_bytes_must_not_be_called(*args: object, **kwargs: object) -> object:
+        raise AssertionError(
+            "read_bytes called despite cached RTF sidecar — cache-skip path missed"
+        )
+
+    monkeypatch.setattr(peca_cache, "read_bytes", _read_bytes_must_not_be_called)
+
+    handlers = make_handlers(state, provedor="pypdf")
+    task = Task(
+        kind="extract_text", pool="ocr", case_key=("HC", 1),
+        payload={"url": url, "doc_type": None},
+    )
+
+    successors = handlers["extract_text"](task)
+
+    assert successors == []
+    assert state.text_status(("HC", 1), url=url) == "skipped_cached"
+
+
 def test_handle_extract_text_records_no_bytes_for_empty_body(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -226,7 +274,13 @@ def test_handle_fetch_meta_skips_scrape_when_case_json_exists(
     is already on disk (e.g. from a --retomar against state stale at
     the 5 s snapshot interval, or from a prior legacy varrer-processos
     sweep over the same range), ``handle_fetch_meta`` MUST read the
-    cached JSON and record meta=ok without calling STF.
+    cached JSON and record meta=skipped_cached without calling STF.
+
+    The ``skipped_cached`` label (vs. plain ``ok``) lets the live tail
+    distinguish cache hits from fresh scrapes; the recovery state
+    machine treats both as terminal-ok (see
+    ``judex.pipeline.log._TERMINAL_OK_STATUSES``), so the only
+    behavioural change is operator-facing.
 
     Without this guard, hard-kill resume re-hits ``portal.stf.jus.br``
     for every case whose JSON was written but whose state outcome
@@ -275,10 +329,52 @@ def test_handle_fetch_meta_skips_scrape_when_case_json_exists(
     successors = handlers["fetch_meta"](task)
 
     # Empty successors because the cached item carries zero peça URLs;
-    # the load-bearing assertion is the next one (state recorded ok
-    # without the scraper running).
+    # the load-bearing assertion is the next one (state recorded
+    # skipped_cached without the scraper running).
     assert successors == []
-    assert state.meta_status((classe, processo)) == "ok"
+    assert state.meta_status((classe, processo)) == "skipped_cached"
+
+
+def test_handle_fetch_bytes_records_skipped_cached_when_bytes_already_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Storage-level idempotence on the sistemas Pool: when the peça
+    bytes are already in the local cache (``peca_cache.has_bytes``),
+    ``handle_fetch_bytes`` MUST emit the extract_text successor and
+    record byte status=skipped_cached without hitting STF.
+
+    Pre-skipped_cached-label sweeps recorded plain ``ok`` for cache
+    hits, which collapsed the cache-hit vs. fresh-fetch distinction
+    in the live tail and in the report.md footer. The recovery state
+    machine already treats both as terminal-ok (see
+    ``judex.pipeline.log._TERMINAL_OK_STATUSES``), so this is a
+    label-only change.
+
+    Symmetric with the cache-hit guards in ``handle_fetch_meta``
+    (case JSON on disk) and ``handle_extract_text``
+    (``peca_cache.has_text`` + matching sidecar).
+    """
+    from judex.utils import peca_cache
+
+    state = PipelineState.load(tmp_path / "s.json")
+    url = "https://sistemas.stf.jus.br/path/to/peca.pdf"
+
+    # Force the cache-hit branch. If the handler falls through to HTTP,
+    # it would record status="ok" (line 334 of handlers.py), breaking
+    # the assertion below — that's the implicit tripwire.
+    monkeypatch.setattr(peca_cache, "has_bytes", lambda u: u == url)
+
+    handlers = make_handlers(state, provedor="pypdf")
+    task = Task(
+        kind="fetch_bytes", pool="sistemas", case_key=("HC", 1),
+        payload={"url": url, "doc_type": "ACÓRDÃO"},
+    )
+
+    successors = handlers["fetch_bytes"](task)
+
+    assert len(successors) == 1
+    assert successors[0].kind == "extract_text"
+    assert state.bytes_status(("HC", 1), url=url) == "skipped_cached"
 
 
 def test_handle_fetch_meta_falls_through_to_scrape_on_malformed_cache(

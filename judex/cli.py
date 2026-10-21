@@ -487,6 +487,163 @@ def fazer_backup(
 
 
 # ---------------------------------------------------------------------------
+# Shared input-resolution helpers for the Coleta commands (`executar` +
+# `scrape`). Both accept the same three mutually-exclusive input modes
+# (range / --csv / --retentar-de), the same rotulo/--saida auto-defaulting,
+# and the same `--detach` re-exec contract — so the logic lives here once
+# rather than copy-pasted across two Typer bodies.
+
+
+def _resolve_input_mode(
+    *,
+    classe: Optional[str],
+    inicio: Optional[int],
+    fim: Optional[int],
+    csv: Optional[Path],
+    retentar_de: Optional[Path],
+) -> bool:
+    """Validate the three mutually-exclusive input modes; return ``range_mode``.
+
+    Raises ``typer.BadParameter`` on an incomplete range (missing one of
+    -c/-i/-f), on zero modes, or on more than one mode.
+    """
+    range_flags = [
+        f for f, v in
+        [("-c", classe), ("-i", inicio), ("-f", fim)]
+        if v is not None
+    ]
+    range_mode = len(range_flags) > 0
+    if range_mode and len(range_flags) != 3:
+        raise typer.BadParameter(
+            "Modo range exige os três: -c (classe), -i (inicial), -f (final). "
+            f"Faltou: {[f for f in ('-c', '-i', '-f') if f not in range_flags]}."
+        )
+
+    n_modes = int(range_mode) + int(csv is not None) + int(retentar_de is not None)
+    if n_modes == 0:
+        raise typer.BadParameter(
+            "Escolha um modo de entrada: range (-c/-i/-f), --csv, ou --retentar-de."
+        )
+    if n_modes > 1:
+        raise typer.BadParameter(
+            "Modos de entrada mutuamente exclusivos: escolha apenas um "
+            "entre range (-c/-i/-f), --csv, ou --retentar-de."
+        )
+    return range_mode
+
+
+def _default_rotulo_saida(
+    *,
+    range_mode: bool,
+    classe: Optional[str],
+    inicio: Optional[int],
+    fim: Optional[int],
+    rotulo: Optional[str],
+    saida: Optional[Path],
+) -> tuple[Optional[str], Path]:
+    """Auto-default ``rotulo`` (range mode) and ``--saida`` (timestamped under
+    runs/active/). Hoisted before the optional ``--detach`` re-exec so the
+    detached child re-derives the same paths.
+    """
+    if range_mode and rotulo is None:
+        assert classe is not None and inicio is not None and fim is not None
+        rotulo = f"{classe.upper()}_{inicio}-{fim}"
+
+    if saida is None:
+        if rotulo is None:
+            raise typer.BadParameter(
+                "--saida é obrigatório quando nem --rotulo nem modo range "
+                "estão setados (sem rótulo não há nome para o auto-saida)."
+            )
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saida = Path("runs/active") / f"{ts}-{rotulo}"
+        typer.echo(f"--saida não fornecido; usando padrão automático {saida}")
+    return rotulo, saida
+
+
+def _detach_reexec(saida: Path) -> None:
+    """Re-exec the current argv in a new session, redirect stdout/stderr to
+    ``<saida>/launcher.log``, print the inner PID + log path, and ``Exit(0)``.
+
+    Command-agnostic — re-execs ``sys.argv`` minus ``--detach`` (with
+    ``--nao-perguntar`` forced, since a detached parent can't answer a
+    confirmation prompt). Used by both ``executar`` and ``scrape``; the child
+    re-enters the same Typer command with ``detach=False`` and runs in-process.
+    """
+    saida.mkdir(parents=True, exist_ok=True)
+    log_path = saida / "launcher.log"
+    child_argv = [a for a in sys.argv if a not in ("--detach", "-d")]
+    if "--nao-perguntar" not in child_argv:
+        child_argv.append("--nao-perguntar")
+    with log_path.open("w", encoding="utf-8") as log_f:
+        child = subprocess.Popen(
+            child_argv,
+            stdin=subprocess.DEVNULL,
+            stdout=log_f,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    # Poll briefly for the child to write its pid file — that's the
+    # PID the operator wants (the inner judex process), not the
+    # outer ``uv run`` shim which may be a different pid.
+    import time as _time
+    pid_path = saida / "executar.pid"
+    deadline = _time.monotonic() + 5.0
+    while _time.monotonic() < deadline:
+        if pid_path.exists():
+            break
+        if child.poll() is not None:
+            # Child died before writing the pid file.
+            typer.echo(
+                f"erro: filho saiu cedo (rc={child.returncode}). "
+                f"Veja {log_path}.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        _time.sleep(0.1)
+    if pid_path.exists():
+        inner_pid = pid_path.read_text(encoding="utf-8").strip()
+    else:
+        inner_pid = f"~{child.pid} (filho não escreveu executar.pid em 5s)"
+    typer.echo(f"pid: {inner_pid}")
+    typer.echo(f"log: {log_path}")
+    typer.echo(f"saida: {saida}")
+    typer.echo(f"parar: judex parar {saida}")
+    raise typer.Exit(code=0)
+
+
+def _build_input_targets(
+    *,
+    range_mode: bool,
+    classe: Optional[str],
+    inicio: Optional[int],
+    fim: Optional[int],
+    csv: Optional[Path],
+    retentar_de: Optional[Path],
+) -> list[tuple[str, int]]:
+    """Resolve the (classe, processo) target list for the chosen input mode.
+
+    Validates the range (case-type + bounds) when in range mode. Shared by
+    ``executar`` and ``scrape`` so both walk the same resolver surface.
+    """
+    from judex.pipeline.runner import (
+        read_targets_csv,
+        targets_from_errors_jsonl,
+        targets_from_range,
+    )
+
+    if range_mode:
+        assert classe is not None and inicio is not None and fim is not None
+        validate_stf_case_type(classe)
+        validate_process_range(inicio, fim)
+        return targets_from_range(classe, inicio, fim)
+    if csv is not None:
+        return read_targets_csv(csv)
+    assert retentar_de is not None
+    return targets_from_errors_jsonl(retentar_de)
+
+
+# ---------------------------------------------------------------------------
 # `executar` — pipeline unificado fire-and-forget (varrer + baixar + extrair
 #              num único processo asyncio com três pools concorrentes)
 
@@ -606,112 +763,26 @@ def executar(
     encerram de forma limpa, deixando o estado retomável em disco
     (use ``judex parar`` para encerrar, ``judex retomar`` para continuar).
     """
-    # ----- Mode resolution -----
-    range_flags = [
-        f for f, v in
-        [("-c", classe), ("-i", inicio), ("-f", fim)]
-        if v is not None
-    ]
-    range_mode = len(range_flags) > 0
-    if range_mode and len(range_flags) != 3:
-        raise typer.BadParameter(
-            "Modo range exige os três: -c (classe), -i (inicial), -f (final). "
-            f"Faltou: {[f for f in ('-c', '-i', '-f') if f not in range_flags]}."
-        )
-
-    n_modes = int(range_mode) + int(csv is not None) + int(retentar_de is not None)
-    if n_modes == 0:
-        raise typer.BadParameter(
-            "Escolha um modo de entrada: range (-c/-i/-f), --csv, ou --retentar-de."
-        )
-    if n_modes > 1:
-        raise typer.BadParameter(
-            "Modos de entrada mutuamente exclusivos: escolha apenas um "
-            "entre range (-c/-i/-f), --csv, ou --retentar-de."
-        )
-
-    # ----- Auto-default rotulo + --saida (hoisted so --detach can fire
-    # before target resolution — the detached child re-enters and
-    # re-derives targets itself) -----
-    if range_mode and rotulo is None:
-        assert classe is not None and inicio is not None and fim is not None
-        rotulo = f"{classe.upper()}_{inicio}-{fim}"
-
-    if saida is None:
-        if rotulo is None:
-            raise typer.BadParameter(
-                "--saida é obrigatório quando nem --rotulo nem modo range "
-                "estão setados (sem rótulo não há nome para o auto-saida)."
-            )
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saida = Path("runs/active") / f"{ts}-{rotulo}"
-        typer.echo(f"--saida não fornecido; usando padrão automático {saida}")
+    # ----- Mode resolution + rotulo/saida defaulting (shared helpers) -----
+    range_mode = _resolve_input_mode(
+        classe=classe, inicio=inicio, fim=fim, csv=csv, retentar_de=retentar_de,
+    )
+    rotulo, saida = _default_rotulo_saida(
+        range_mode=range_mode, classe=classe, inicio=inicio, fim=fim,
+        rotulo=rotulo, saida=saida,
+    )
 
     # ----- --detach: re-exec self in a new session, exit parent -----
     if detach:
-        # Strip --detach + force --nao-perguntar in the child: a detached
-        # parent can't answer a confirmation prompt. The child re-enters
-        # this same function with detach=False and falls through to the
-        # normal in-process run.
-        saida.mkdir(parents=True, exist_ok=True)
-        log_path = saida / "launcher.log"
-        child_argv = [a for a in sys.argv if a not in ("--detach", "-d")]
-        if "--nao-perguntar" not in child_argv:
-            child_argv.append("--nao-perguntar")
-        with log_path.open("w", encoding="utf-8") as log_f:
-            child = subprocess.Popen(
-                child_argv,
-                stdin=subprocess.DEVNULL,
-                stdout=log_f,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-        # Poll briefly for the child to write its pid file — that's the
-        # PID the operator wants (the inner judex process), not the
-        # outer ``uv run`` shim which may be a different pid.
-        import time as _time
-        pid_path = saida / "executar.pid"
-        deadline = _time.monotonic() + 5.0
-        while _time.monotonic() < deadline:
-            if pid_path.exists():
-                break
-            if child.poll() is not None:
-                # Child died before writing the pid file.
-                typer.echo(
-                    f"erro: filho saiu cedo (rc={child.returncode}). "
-                    f"Veja {log_path}.",
-                    err=True,
-                )
-                raise typer.Exit(code=1)
-            _time.sleep(0.1)
-        if pid_path.exists():
-            inner_pid = pid_path.read_text(encoding="utf-8").strip()
-        else:
-            inner_pid = f"~{child.pid} (filho não escreveu executar.pid em 5s)"
-        typer.echo(f"pid: {inner_pid}")
-        typer.echo(f"log: {log_path}")
-        typer.echo(f"saida: {saida}")
-        typer.echo(f"parar: judex parar {saida}")
-        raise typer.Exit(code=0)
+        _detach_reexec(saida)
 
     # ----- Build the (classe, processo) target list -----
-    from judex.pipeline.runner import (
-        read_targets_csv,
-        run_pipeline,
-        targets_from_errors_jsonl,
-        targets_from_range,
-    )
+    from judex.pipeline.runner import run_pipeline
 
-    if range_mode:
-        assert classe is not None and inicio is not None and fim is not None
-        validate_stf_case_type(classe)
-        validate_process_range(inicio, fim)
-        targets = targets_from_range(classe, inicio, fim)
-    elif csv is not None:
-        targets = read_targets_csv(csv)
-    else:
-        assert retentar_de is not None
-        targets = targets_from_errors_jsonl(retentar_de)
+    targets = _build_input_targets(
+        range_mode=range_mode, classe=classe, inicio=inicio, fim=fim,
+        csv=csv, retentar_de=retentar_de,
+    )
 
     if not targets:
         typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
@@ -865,6 +936,252 @@ def _print_executar_forecast(
             "(linha '16 shards + proxy' acima); custo de proxy é "
             "varrer+baixar; OCR não é afetado por sharding (não passa pelo WAF).\n"
         )
+
+
+# ---------------------------------------------------------------------------
+# `scrape` — one-command close-out: executar → recuperar → warehouse.
+#            Mono-only (the chained drain/warehouse can't hang off a detached
+#            shard fleet). For sharded sweeps, run the three commands by hand.
+
+
+@app.command(name="scrape", rich_help_panel="Coleta")
+def scrape(
+    classe: Optional[str] = typer.Option(
+        None, "-c", "--classe",
+        help="[modo intervalo] Classe processual (HC, RE, AI, ADI etc.).",
+    ),
+    inicio: Optional[int] = typer.Option(
+        None, "-i", "--inicio",
+        help="[modo intervalo] Primeiro processo do intervalo (inclusivo).",
+    ),
+    fim: Optional[int] = typer.Option(
+        None, "-f", "--fim",
+        help="[modo intervalo] Último processo do intervalo (inclusivo).",
+    ),
+    csv: Optional[Path] = typer.Option(
+        None, "--csv",
+        help="[modo CSV] Arquivo com colunas 'classe,processo' (ou 'processo_id').",
+    ),
+    retentar_de: Optional[Path] = typer.Option(
+        None, "--retentar-de",
+        help="[modo nova tentativa] Caminho para um executar.errors.jsonl "
+             "existente; reprocessa apenas os pares com falha transitória.",
+    ),
+    rotulo: Optional[str] = typer.Option(
+        None, "--rotulo",
+        help="Rótulo curto. Em modo intervalo, assume `{CLASSE}_{i}-{f}`.",
+    ),
+    saida: Optional[Path] = typer.Option(
+        None, "--saida",
+        help="Diretório da execução. Padrão automático em modo intervalo "
+             "(ou com --rotulo): runs/active/{ts}-{rotulo}/.",
+    ),
+    provedor: str = typer.Option(
+        "pypdf", "--provedor",
+        help="Extrator de texto da Coleta E provedor dos replays do dreno: "
+             "pypdf | tesseract | tesseract_modal | tesseract_fly | mistral | "
+             "chandra | unstructured | auto. Padrão: pypdf.",
+    ),
+    forcar: bool = typer.Option(
+        False, "--forcar",
+        help="Re-extrai o texto mesmo quando o sidecar já indica o mesmo provedor.",
+    ),
+    portal_concurrencia: int = typer.Option(
+        1, "--portal-concurrencia",
+        help="Concorrência do pool portal (JSON do processo). IP direto: 1.",
+    ),
+    sistemas_concurrencia: int = typer.Option(
+        1, "--sistemas-concurrencia",
+        help="Concorrência do pool sistemas (bytes do PDF). IP direto: 1.",
+    ),
+    ocr_concurrencia: int = typer.Option(
+        4, "--ocr-concurrencia",
+        help="Concorrência do pool OCR. CPU-bound: 4. API-bound: 8+.",
+    ),
+    proxy_pool: Optional[Path] = typer.Option(
+        None, "--proxy-pool",
+        help="Arquivo simples com URLs de proxy (uma por linha). Sem esta "
+             "opção: IP direto.",
+    ),
+    recuperar_apos: bool = typer.Option(
+        True, "--recuperar/--sem-recuperar",
+        help="Após a Coleta, drena o resíduo em loop convergente "
+             "(judex recuperar --apply --loop). Padrão: ligado.",
+    ),
+    warehouse_apos: bool = typer.Option(
+        True, "--warehouse/--sem-warehouse",
+        help="Após o dreno, reconstrói o warehouse DuckDB (rebuild completo "
+             "do corpus — torna a Coleta visível aos relatórios/notebooks). "
+             "Padrão: ligado.",
+    ),
+    max_passes: int = typer.Option(
+        3, "--max-passes",
+        help="Teto de passes do dreno convergente (judex recuperar). Padrão 3.",
+    ),
+    poll_interval: float = typer.Option(
+        5.0, "--poll-interval",
+        help="Frequência (s) com que o dreno verifica se os filhos terminaram.",
+    ),
+    prever: bool = typer.Option(
+        False, "--prever",
+        help="Mostra previsão de custo/tempo da Coleta e encerra.",
+    ),
+    nao_perguntar: bool = typer.Option(
+        False, "--nao-perguntar",
+        help="Pula o prompt de confirmação. Necessário para uso não-interativo.",
+    ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d",
+        help="Roda toda a cadeia (Coleta + dreno + warehouse) em background, "
+             "redirecionando para <saida>/launcher.log. Imprime PID e sai 0.",
+    ),
+) -> None:
+    """Fecha uma Coleta inteira num comando: ``executar`` → ``recuperar`` → ``warehouse``.
+
+    Equivale a rodar, em sequência e bloqueante:
+
+      1. ``judex executar …``            — a Coleta (portal + peças + texto)
+      2. ``judex recuperar --apply``     — dreno convergente do resíduo
+      3. ``judex warehouse``             — rebuild do DuckDB (torna visível)
+
+    Cada etapa só roda se a anterior terminou com sucesso — uma Coleta que
+    falha (rc≠0) curto-circuita o dreno e o warehouse. Desligue etapas com
+    ``--sem-recuperar`` / ``--sem-warehouse``.
+
+    Mono-only: ``--shards`` não é suportado aqui (o dreno + warehouse não têm
+    como pendurar numa frota de shards destacados). Para sweeps fragmentados,
+    rode ``executar --shards``, depois ``recuperar`` e ``warehouse`` à mão.
+    """
+    # ----- Mode resolution + rotulo/saida defaulting (shared helpers) -----
+    range_mode = _resolve_input_mode(
+        classe=classe, inicio=inicio, fim=fim, csv=csv, retentar_de=retentar_de,
+    )
+    rotulo, saida = _default_rotulo_saida(
+        range_mode=range_mode, classe=classe, inicio=inicio, fim=fim,
+        rotulo=rotulo, saida=saida,
+    )
+
+    # ----- --detach: re-exec the whole chain in a new session -----
+    if detach:
+        _detach_reexec(saida)
+
+    # ----- Build targets (also fails fast on a bad range/CSV) -----
+    from judex.pipeline.runner import run_pipeline
+
+    targets = _build_input_targets(
+        range_mode=range_mode, classe=classe, inicio=inicio, fim=fim,
+        csv=csv, retentar_de=retentar_de,
+    )
+    if not targets:
+        typer.echo("ERROR: nenhum alvo resolvido pelos parâmetros dados.", err=True)
+        raise typer.Exit(code=2)
+
+    # ----- --prever: forecast + early-exit (shards=0 → mono table only) -----
+    if prever:
+        _print_executar_forecast(n_targets=len(targets), provedor=provedor, shards=0)
+        raise typer.Exit(code=0)
+
+    # ----- Cost banner + single confirmation for the whole chain -----
+    if not nao_perguntar:
+        _print_executar_forecast(n_targets=len(targets), provedor=provedor, shards=0)
+        chain = ["executar"]
+        if recuperar_apos:
+            chain.append("recuperar")
+        if warehouse_apos:
+            chain.append("warehouse")
+        if not typer.confirm(
+            f"Confirmar cadeia [{' → '.join(chain)}] de {len(targets)} "
+            f"alvo(s) em {saida}?",
+            default=True,
+        ):
+            typer.echo("Abortado pelo usuário.")
+            raise typer.Exit(code=2)
+
+    # ----- Stage 1: the Coleta (mono, in-process) -----
+    typer.echo(f"\n=== scrape 1/3: executar — {len(targets):,} alvo(s) → {saida} ===")
+    rc = run_pipeline(
+        targets=targets,
+        saida=saida,
+        provedor=provedor,
+        portal_concurrencia=portal_concurrencia,
+        sistemas_concurrencia=sistemas_concurrencia,
+        ocr_concurrencia=ocr_concurrencia,
+        proxy_pool=proxy_pool,
+        forcar=forcar,
+        original_args=_executar_kwargs_for_state(
+            classe=classe, inicio=inicio, fim=fim,
+            csv=csv, retentar_de=retentar_de,
+            rotulo=rotulo, provedor=provedor, forcar=forcar,
+            portal_concurrencia=portal_concurrencia,
+            sistemas_concurrencia=sistemas_concurrencia,
+            ocr_concurrencia=ocr_concurrencia,
+            proxy_pool=proxy_pool,
+        ),
+    )
+    if rc != 0:
+        typer.echo(
+            f"scrape: Coleta saiu com rc={rc} — pulando dreno e warehouse. "
+            f"Investigue {saida} e rode `judex recuperar {saida}` quando pronto.",
+            err=True,
+        )
+        raise typer.Exit(code=rc)
+
+    # ----- Stage 2: converging residual drain (judex recuperar --apply) -----
+    if recuperar_apos:
+        typer.echo(f"\n=== scrape 2/3: recuperar — drenando resíduo de {saida} ===")
+        from judex.sweeps.recuperar import (
+            format_summary,
+            run_until_stable,
+        )
+
+        def _on_pass_start(n: int, actionable: int) -> None:
+            typer.echo(f"recuperar pass {n}: {actionable} actionable rows")
+
+        def _on_pass_complete(n: int, wall_s: float) -> None:
+            typer.echo(f"recuperar pass {n}: ✓ child done in {wall_s:.1f}s")
+
+        result = run_until_stable(
+            saida,
+            provedor=provedor,
+            max_passes=max_passes,
+            poll_interval=poll_interval,
+            on_pass_start=_on_pass_start,
+            on_pass_complete=_on_pass_complete,
+        )
+        typer.echo(format_summary(result.final_buckets, dry_run=False))
+        if result.converged:
+            typer.echo(f"recuperar: converged in {result.passes_run} pass(es)")
+        elif result.stopped_for_no_progress:
+            typer.echo(
+                f"recuperar: stopped after {result.passes_run} pass(es) — "
+                "residual stopped shrinking"
+            )
+        else:
+            typer.echo(
+                f"recuperar: stopped at --max-passes={max_passes} — "
+                "residual still actionable"
+            )
+
+    # ----- Stage 3: warehouse rebuild (full corpus, makes the run visible) -----
+    if warehouse_apos:
+        typer.echo("\n=== scrape 3/3: warehouse — rebuild do DuckDB (corpus completo) ===")
+        wrc = _run_warehouse(
+            Path("data/source/processos"),
+            Path("data/derived/pecas-texto"),
+            Path("data/derived/warehouse/judex.duckdb"),
+            None,   # classe: corpus-wide
+            None,   # ano
+            10_000, # progresso_cada
+            False,  # estrito
+            runs_root=Path("runs"),
+            bytes_root=Path("data/raw/pecas"),
+        )
+        if wrc != 0:
+            typer.echo(f"scrape: warehouse rebuild saiu com rc={wrc}.", err=True)
+            raise typer.Exit(code=wrc)
+
+    typer.echo(f"\n=== scrape: cadeia concluída — {saida} ===")
+    raise typer.Exit(code=0)
 
 
 # ---------------------------------------------------------------------------

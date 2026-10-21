@@ -161,6 +161,34 @@ def read_extractor(url: str) -> Optional[str]:
     return p.read_bytes().decode("utf-8").strip() or None
 
 
+def text_is_satisfied(url: str, *, requested_provider: str) -> bool:
+    """True if the cached text for ``url`` is equivalent to what fresh
+    extraction by ``requested_provider`` would produce.
+
+    Central equivalence rule for the extract_text cache-skip path —
+    keeps the per-format quirks here, so handlers don't grow ad-hoc
+    sidecar comparisons that miss RTF (the historical bug).
+
+    Rules:
+    * No cached text → False (nothing to compare).
+    * Sidecar == "rtf" → True regardless of provider. RTF bodies are
+      magic-byte-routed to striprtf in ``handle_extract_text``; the
+      operator's ``--provedor`` flag never touches them, so any
+      cached RTF text is canonical.
+    * Otherwise → sidecar == requested_provider. Different providers
+      produce different PDF text (pypdf vs mistral vs chandra), so
+      provider match is the equivalence rule.
+
+    Symmetric callsite: ``judex.pipeline.handlers.handle_extract_text``.
+    """
+    if not has_text(url):
+        return False
+    sidecar = read_extractor(url)
+    if sidecar == "rtf":
+        return True
+    return sidecar == requested_provider
+
+
 def read_elements(url: str) -> Optional[list[dict[str, Any]]]:
     """Return the Unstructured element list for `url`, or None on miss.
 
